@@ -1,0 +1,89 @@
+{
+  "flow_id": "robotics-operations",
+  "description": "SemOps robotics data flow with MAVLink ingestion",
+  "version": "1.0.0",
+
+  "components": [
+    {
+      "id": "mavlink-input",
+      "type": "input",
+      "component_type": "mavlink-adapter",
+      "config": {
+        "listen_address": "0.0.0.0:14550",
+        "protocol": "udp",
+        "system_id": 1,
+        "component_id": 1,
+        "heartbeat_interval": "1s"
+      },
+      "outputs": [
+        {
+          "subject": "robotics.mavlink.raw",
+          "description": "Raw MAVLink messages"
+        }
+      ]
+    },
+
+    {
+      "id": "entity-processor",
+      "type": "processor",
+      "component_type": "mavlink-entity-processor",
+      "config": {
+        "entity_store": "nats://localhost:4222",
+        "graph_processor": "nats://localhost:4222"
+      },
+      "inputs": [
+        {
+          "subject": "robotics.mavlink.raw"
+        }
+      ],
+      "outputs": [
+        {
+          "subject": "robotics.entities.created",
+          "description": "New entities created from MAVLink"
+        },
+        {
+          "subject": "robotics.triples.asserted",
+          "description": "New triples asserted from MAVLink"
+        }
+      ]
+    },
+
+    {
+      "id": "observation-indexer",
+      "type": "processor",
+      "component_type": "observation-indexer",
+      "config": {
+        "index_engine": "nats://localhost:4222",
+        "observation_types": ["gps_position", "temperature", "battery_status"]
+      },
+      "inputs": [
+        {
+          "subject": "robotics.entities.created",
+          "filter": "type == 'observation'"
+        }
+      ]
+    },
+
+    {
+      "id": "sosa-api",
+      "type": "service",
+      "component_type": "sosa-rest-api",
+      "config": {
+        "listen_address": ":8080",
+        "query_engine": "nats://localhost:4222",
+        "cors_enabled": true,
+        "endpoints": [
+          "/api/v1/sensors",
+          "/api/v1/observations",
+          "/api/v1/platforms"
+        ]
+      }
+    }
+  ],
+
+  "metadata": {
+    "created": "2025-11-09T00:00:00Z",
+    "author": "SemOps Team",
+    "tags": ["robotics", "mavlink", "sosa"]
+  }
+}
