@@ -114,8 +114,9 @@ Mock or harness:
 - Use generated or replay MAVLink frames against a live SemStreams graph stack to clear SemOps issue #1 before
   making PX4/SITL a blocking dependency. The generated-frame graph smoke passed on 2026-06-17.
 - The clean-stack owner-registration smoke passed on 2026-06-17 with registry-derived `<owner>#<incarnation>` tokens.
-- Before broad expansion, add before/after assertions for unclassified indexing-profile, owner-token mismatch, and
-  dropped-foreign-edge counters.
+- The clean-stack metrics smoke now asserts before/after deltas for unclassified indexing-profile, owner-token
+  mismatch, and dropped-foreign-edge counters when a SemStreams metrics URL is provided.
+- Before broad expansion, carry the same metrics URL and delta assertions into the one-command hosted stack smoke.
 - Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 
 Indexing profile pressure:

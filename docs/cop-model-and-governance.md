@@ -49,12 +49,17 @@ SemOps adapters must follow SemStreams ADR-055 and ADR-056 directly:
   graph smoke passed on 2026-06-17.
 - A follow-up clean-stack smoke registered SemOps COP owners, enrolled static owners for heartbeat, and used
   registry-derived `<owner>#<incarnation>` tokens for MAVLink writes.
-- The next hardening gates are hosted composition-root wiring, restart/replay reconciliation, and clean-stack
+- The hosted `cmd/semops` composition root now registers COP owners before composing the MAVLink adapter.
+- The next hardening gates are one-command stack smoke plumbing, restart/replay reconciliation, and hosted
   graph-ingest counter-delta assertions.
 
 Runtime code must treat the incarnation as ownership substrate state, not human-authored adapter config. The
 composition root should register projection contracts, get the registry incarnation, and pass that value into feed
 projectors for owner-token composition.
+
+SemStreams accepted the SemOps feedback to add typed, opaque owner-token minting through the registry/bind-result path
+and to split append-evidence declarations from enforceable ownership/write-fence claims. SemOps should migrate from
+local token-string composition to that helper as soon as it lands.
 
 ## Predicate Conventions
 

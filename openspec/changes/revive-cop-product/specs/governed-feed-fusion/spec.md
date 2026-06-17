@@ -61,6 +61,13 @@ requests before triples or foreign edges are added.
 - **THEN** its projection contract declares a foreign edge that derives a SemStreams `ForeignEdgeClaim` with producer,
   edge mode, predicate, and target pattern
 
+#### Scenario: Hosted adapters use registry-derived owner tokens
+
+- **WHEN** a SemOps process hosts a governed feed adapter
+- **THEN** the process registers the feed's projection contracts through SemStreams ownership before composing the
+  adapter
+- **AND** owner-token state is derived from the registry or bind result rather than static operator configuration
+
 #### Scenario: Strict source edge requires born target
 
 - **WHEN** MAVLink or TAK projects a `cop.track.source` edge to an asset

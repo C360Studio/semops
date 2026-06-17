@@ -68,7 +68,7 @@
 - [x] 6.12 Add live graph smoke harness that skips unless a SemStreams NATS URL is provided
 - [x] 6.13 Add explicit SemOps COP owner registration and heartbeat smoke coverage
 - [x] 6.14 Assert clean-stack graph-ingest foreign-edge, owner-token, and indexing-profile counter deltas
-- [ ] 6.15 Wire COP ownership registration into the hosted adapter or SemOps composition root
+- [x] 6.15 Wire COP ownership registration into the hosted adapter or SemOps composition root
 - [ ] 6.16 Carry live graph metrics URL into the one-command hosted stack smoke
 
 ## 7. COP UI
@@ -100,4 +100,4 @@
 - [ ] 9.5 File raw-lane/current-state projection guidance after MAVLink and one non-MAVLink feed prove it
 - [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need
 - [ ] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask
-- [ ] 9.8 Feed back owner-token ergonomics if `<owner>#<incarnation>` stays stringly configured past smoke wiring
+- [x] 9.8 Feed back owner-token ergonomics and capture typed-token/evidence-declaration response

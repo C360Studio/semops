@@ -54,3 +54,12 @@ go test ./...
 
 The test suite validates the SemStreams contract gate, COP ownership model, and active MAVLink codec. SITL/PX4
 simulator gates are still future evidence, not current product claims.
+
+Run the hosted runtime against a live SemStreams/NATS stack:
+
+```bash
+SEMOPS_NATS_URL=nats://127.0.0.1:4222 go run ./cmd/semops
+```
+
+`cmd/semops` now connects to SemStreams, registers first-phase COP ownership, enrolls owners for heartbeat, and
+composes the hosted MAVLink adapter with the registry-derived owner-token incarnation.

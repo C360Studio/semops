@@ -10,8 +10,8 @@ MAVLink should be the first feed because SemOps already contained parser, genera
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
 coverage, current-state projection planner, tested graph request/reply writer boundary, retry-aware SemStreams NATS
 requester boundary, in-process adapter harness, and testable structural wiring factory. Live feed work still needs
-scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, runtime composition-root wiring,
-restart/replay reconciliation, and stack health checks.
+scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, transport hosting, restart/replay
+reconciliation, and stack health checks.
 
 SemOps GitHub issue #1 added a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
 graph path against live SemStreams before PX4/SITL becomes the blocking milestone. The generated-frame smoke passed
@@ -56,6 +56,8 @@ locally on 2026-06-17. A clean-stack owner-registry smoke also passed on 2026-06
   create/update graph subjects, born-first source edge behavior, raw-lane capture, and writer injection for tests.
 - `internal/copownership` registers first-phase SemOps COP contracts through SemStreams `projection.BindAndHeartbeat`
   and returns the registry incarnation used by runtime writers.
+- `internal/app` and `cmd/semops` connect to SemStreams, register first-phase COP ownership, enroll heartbeat, and
+  compose the hosted MAVLink adapter with the registry-derived owner-token incarnation.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
   stack, registers COP ownership, polls SemStreams graph state, and asserts source asset, track, `cop.track.source`,
   `cop.track.position`, owner lookup, and foreign-edge claim readback.
@@ -129,9 +131,13 @@ Latest evidence:
   registering SemOps COP ownership contracts and composing owner tokens from the registry incarnation.
 - 2026-06-17: passed with `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`, asserting zero
   SemOps-specific deltas for owner-token mismatch, foreign-edge, and indexing-profile-default counters.
+- 2026-06-17: `cmd/semops` gained hosted composition-root wiring for COP ownership registration and MAVLink adapter
+  construction; covered by `go test ./internal/app` and `go build ./cmd/semops`.
 - SemStreams health remained green after the run via `/health` and the dedicated `/healthz` endpoint.
 - SemStreams logged that `semops.feed.cap` has no enforceable owning or foreign-edge claim because CAP is currently
   append-evidence only; this is governance evidence, not write-fence protection.
+- SemStreams accepted SemOps feedback to add typed, opaque owner-token minting on the registry/bind-result path and
+  to split append-evidence declarations from enforceable ownership/write-fence claims.
 
 Acceptance:
 
@@ -175,12 +181,12 @@ Acceptance:
 
 - The active module path, Go toolchain, and MAVLink parser/generator are modernized.
 - The current-state projection planner, graph writer, COP ownership binding, and structural wiring now pass a
-  generated-frame live graph smoke against SemStreams; the wiring is not yet hosted in a live containerized stack.
+  generated-frame live graph smoke against SemStreams.
 - The in-process adapter harness is not a UDP/TCP listener and is not yet hosted as `semops-adapter-mavlink`.
 - Raw-lane capture and replay fixture storage are library boundaries; scenario-runner playback and stack retention
   policy are not implemented yet.
-- Explicit SemOps COP owner registration and heartbeat coverage exist as library/smoke wiring but are not yet wired
-  into a hosted SemOps process.
+- Explicit SemOps COP owner registration and heartbeat coverage are wired into `cmd/semops`, but there is not yet a
+  one-command containerized stack that launches it with SemStreams and scenario playback.
 - The SemStreams graph-ingest indexing-profile default counter showed a baseline `message_type="unknown"` value in a
   clean stack. SemOps needs before/after counter deltas rather than a naive zero-total assertion.
 - The optional metrics smoke now performs those before/after deltas for SemOps message types; the hosted stack still

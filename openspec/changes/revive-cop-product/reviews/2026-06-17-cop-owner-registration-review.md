@@ -28,6 +28,9 @@ Evidence:
 - Consider whether append-evidence-only registrations should have a clearer first-class status. SemStreams warns that
   `semops.feed.cap` has no enforceable owning or foreign-edge claim; that is accurate, but product docs need to call
   out that this is governance evidence, not write-fence protection.
+- SemStreams response relayed on 2026-06-17: accepted both asks. SemStreams plans to mint typed, opaque owner tokens
+  only from the registry/bind path (`Registry.OwnerToken(owner)` and bind-result object) and to split
+  append-evidence declarations from enforceable ownership/write-fence claims.
 
 ## Adversarial Findings
 
@@ -42,5 +45,5 @@ Evidence:
 
 ## Decision
 
-Accept `<owner>#<incarnation>` for SemOps revival. Feed back to SemStreams if the stringly token surface remains the
-only downstream API after the next hosted-adapter composition slice.
+Accept `<owner>#<incarnation>` as an implementation detail for SemOps revival while SemStreams adds typed owner-token
+minting. SemOps should migrate to the framework-owned token helper as soon as the breaking tag exposes it.

@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	_ "github.com/c360studio/semops" // Import for documentation
+	semopsapp "github.com/c360studio/semops/internal/app"
 )
 
 // Version information (set by build)
@@ -37,9 +39,26 @@ func main() {
 	fmt.Println("Robotics & Operational Semantics on SemStreams")
 	fmt.Println()
 
-	// TODO: Load configuration
-	// TODO: Initialize semstreams clients (EntityStore, GraphProcessor, etc.)
-	// TODO: Start protocol adapters (MAVLink, TAK, NMEA)
+	cfg, err := semopsapp.ConfigFromEnv(os.Getenv)
+	if err != nil {
+		log.Fatalf("Invalid SemOps configuration: %v", err)
+	}
+
+	startCtx, startCancel := context.WithTimeout(ctx, cfg.NATSConnectTimeout)
+	defer startCancel()
+	runtime, err := semopsapp.Start(startCtx, cfg)
+	if err != nil {
+		log.Fatalf("Start SemOps runtime: %v", err)
+	}
+	defer closeRuntime(runtime, cfg.ShutdownTimeout)
+
+	log.Printf(
+		"SemOps runtime started: nats=%s mavlink_enabled=%t cop_owners=%d",
+		cfg.NATSURL,
+		cfg.MAVLink.Enabled,
+		len(runtime.OwnershipBinding().Owners),
+	)
+
 	// TODO: Start SOSA API server
 	// TODO: Start monitoring services
 
@@ -48,4 +67,12 @@ func main() {
 	// Wait for context cancellation
 	<-ctx.Done()
 	log.Println("SemOps shutdown complete")
+}
+
+func closeRuntime(runtime *semopsapp.App, timeout time.Duration) {
+	closeCtx, closeCancel := context.WithTimeout(context.Background(), timeout)
+	defer closeCancel()
+	if err := runtime.Close(closeCtx); err != nil {
+		log.Printf("Close SemOps runtime: %v", err)
+	}
 }

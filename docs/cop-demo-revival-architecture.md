@@ -46,8 +46,9 @@ Breaking-tag gate: SemStreams issue #1 tracks the ADR-055/056 must-exist flip fo
 generated or replay MAVLink frames against the live SemStreams graph path before PX4/SITL, UI, or second-feed
 expansion. PX4/SITL remains feed-fidelity evidence; it is not the prerequisite for born-first graph compliance.
 The first generated-frame smoke passed on 2026-06-17. A follow-up clean-stack run also registered SemOps COP owners
-and used registry-derived owner tokens. Remaining structural evidence is hosted composition-root wiring, clean-stack
-graph-ingest counter deltas, and restart/replay reconciliation.
+and used registry-derived owner tokens. The hosted `cmd/semops` composition root now registers COP owners before
+composing the MAVLink adapter. Remaining structural evidence is one-command stack wiring, hosted metric-delta smoke
+plumbing, and restart/replay reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -60,8 +61,8 @@ SemOps started materially stale; the first revival slices are correcting that:
 
 - SemOps now declares Go `1.26.3` and imports current `github.com/c360studio/semstreams`.
 - `go test ./...` passes for the active product compile path.
-- `cmd/semops/main.go` is a lifecycle stub with TODOs for configuration, SemStreams clients, adapters, API, and
-  monitoring.
+- `cmd/semops/main.go` now loads env config, starts the hosted SemStreams/COP ownership runtime, and still has TODOs
+  for the API server, monitoring services, and real feed transport listeners.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
@@ -157,8 +158,12 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
   `cop.track.source`, and `cop.track.position` readback.
 - A follow-up clean-stack proof registered COP owners, enrolled them for heartbeat, and used registry-derived
   `<owner>#<incarnation>` owner tokens.
-- Remaining compliance hardening requires hosted composition-root wiring, clean-stack graph-ingest counter deltas,
-  and restart/replay reconciliation.
+- The hosted `cmd/semops` composition root now connects to SemStreams, registers COP owners, enrolls heartbeat, and
+  passes the registry-derived incarnation into the MAVLink adapter wiring.
+- SemStreams accepted the SemOps feedback to add typed, opaque owner-token minting on the registry/bind-result path
+  and to split append-evidence declarations from enforceable ownership/write-fence claims.
+- Remaining compliance hardening requires one-command stack wiring, hosted metric-delta smoke plumbing, and
+  restart/replay reconciliation.
 
 ## Adversarial Review Gates
 

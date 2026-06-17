@@ -45,10 +45,14 @@ progress:
   - SemOps issue #1 triage changed the next MAVLink milestone to generated/replay live graph smoke before PX4/SITL.
   - Generated MAVLink heartbeat and position frames passed the live SemStreams graph smoke on 2026-06-17, proving
     born-first source asset and track writes before PX4/SITL fidelity work.
+  - `cmd/semops` now hosts the SemStreams/COP ownership registration path and composes the in-process MAVLink adapter
+    with the registry-derived owner-token incarnation.
 
 current_evidence:
   - `go test ./pkg/adapters/mavlink`
   - `go test ./internal/projectors/mavlink`
+  - `go test ./internal/app`
+  - `go build ./cmd/semops`
   - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
 
 remaining:

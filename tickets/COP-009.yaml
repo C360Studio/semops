@@ -46,9 +46,12 @@ progress:
     `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=nats://127.0.0.1:4222 go test ./internal/smoke/mavlink -v`.
   - Added optional metrics-delta assertions to the live smoke and passed them against clean SemStreams metrics:
     `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`.
+  - Wired hosted ownership registration into `cmd/semops` through `internal/app`; startup now registers owners before
+    composing the MAVLink adapter.
+  - SemStreams accepted the SemOps feedback to add typed owner-token minting and distinguish append-evidence
+    declarations from enforceable write-fence ownership claims.
 
 remaining:
   - Push or PR the local revival commits so GitHub issue #1 can see current evidence.
-  - Wire COP ownership registration into the eventual `cmd/semops` or adapter-service composition root.
   - Carry the metrics URL and counter-delta assertions into the eventual one-command hosted stack.
   - Add restart/replay reconciliation before calling the adapter operationally safe across process restarts.

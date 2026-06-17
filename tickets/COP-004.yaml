@@ -51,19 +51,22 @@ progress:
     registry-derived owner tokens.
   - Added optional live-smoke metrics-delta checks for SemOps owner-token mismatch, foreign-edge, and
     indexing-profile-default counters.
+  - Wired `cmd/semops` through `internal/app` so hosted startup connects to SemStreams, registers COP ownership,
+    starts heartbeat, and composes the MAVLink adapter with the registry-derived owner-token incarnation.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
   - `go test ./internal/graphrequest`
+  - `go test ./internal/app`
   - `go test ./internal/smoke/mavlink`
   - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
   - `go test ./internal/stack`
   - `go test ./pkg/adapters/mavlink`
+  - `go build ./cmd/semops`
 
 remaining:
-  - Wire COP ownership registration into the hosted adapter or SemOps composition root.
   - Carry the metrics URL and before/after assertions into one-command Compose.
-  - Host the structural MAVLink wiring in `cmd/semops` or a dedicated adapter service entrypoint.
+  - Add an actual MAVLink transport reader before calling the hosted adapter a full feed service.
   - Wire the replay store into scenario-runner playback and retention policy.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.
   - Add graph-state polling smoke tests that exercise at least two feed types.

@@ -48,6 +48,8 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **THEN** the structural wiring composes SemStreams requester, graph writer, raw lane, projector, adapter harness,
   and health state from config
 - **AND** the same wiring is covered by tests without requiring the full container stack
+- **AND** the hosted composition root registers COP ownership and passes registry-derived owner-token state into
+  adapter wiring before any governed graph writes occur
 
 #### Scenario: MAVLink live graph smoke precedes broad stack expansion
 
