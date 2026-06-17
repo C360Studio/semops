@@ -32,6 +32,10 @@ const (
 	TrackObservedAt = "cop.track.observed_at"
 	TrackNativeID   = "cop.track.native_id"
 	TrackSource     = "cop.track.source"
+	TrackRoll       = "cop.track.roll"
+	TrackPitch      = "cop.track.pitch"
+	TrackYaw        = "cop.track.yaw"
+	TrackBattery    = "cop.track.battery_remaining"
 
 	AssetName     = "cop.asset.name"
 	AssetKind     = "cop.asset.kind"
@@ -124,6 +128,10 @@ func MAVLinkTrackContract() projection.Contract {
 				TrackStatus,
 				TrackObservedAt,
 				TrackNativeID,
+				TrackRoll,
+				TrackPitch,
+				TrackYaw,
+				TrackBattery,
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,

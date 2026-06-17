@@ -232,6 +232,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 | --- | --- | --- |
 | `pkg/adapters/mavlink` | MAVLink codec and future SITL controller | Active parser/generator extracted |
 | `pkg/cop` | COP model, predicates, projection contracts | Track, alert, asset, hazard, footprint, task, advisory |
+| `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
 | `internal/deployment` | Deployment metadata and health state | Build only after operator-value review |

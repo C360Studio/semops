@@ -29,9 +29,10 @@
 - [ ] 4.2 Move the SITL controller behind a modern package boundary or deliberately reject it
 - [ ] 4.3 Preserve heartbeat, global position, attitude, battery, and command coverage where tests prove it
 - [ ] 4.4 Replace old message/processor wiring with SemStreams projection writes
-- [ ] 4.5 Keep raw frames on a bounded lane and project current vehicle state into signal-profiled entities
+- [x] 4.5 Project decoded MAVLink current vehicle state into signal-profiled SemStreams mutation plans
 - [x] 4.6 Add real-frame codec tests that do not mock away MAVLink decoding
 - [ ] 4.7 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
+- [ ] 4.8 Keep raw frames on a bounded lane and wire projection plans to live SemStreams graph writes
 
 ## 5. Feed Validation And Indexing Ladder
 

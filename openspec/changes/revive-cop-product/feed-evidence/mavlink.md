@@ -1,12 +1,13 @@
 # MAVLink Feed Evidence
 
-Status: candidate Phase 1 feed, codec extraction started. Projection remains blocked by `COP-004`.
+Status: candidate Phase 1 feed, codec and projection-planner extraction started. Live graph writing remains blocked
+by `COP-004`.
 
 ## Decision
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
-The active path now has a modern parser/generator package. Projection work still needs current-state SemStreams writes,
-raw-lane boundaries, born-first source/track creation, and SITL/PX4 evidence.
+The active path now has a modern parser/generator package and a current-state projection planner. Live feed work still
+needs raw-lane boundaries, graph API wiring, SITL/PX4 evidence, and stack health checks.
 
 ## Local Evidence
 
@@ -16,6 +17,10 @@ raw-lane boundaries, born-first source/track creation, and SITL/PX4 evidence.
   deterministic quadcopter scenario frames with CRC.
 - `pkg/adapters/mavlink/parser_test.go` validates generator/parser compatibility, split buffers, noisy resync,
   checksum rejection, concurrent sequence generation, scenario frame generation, and canonical battery wire order.
+- `internal/projectors/mavlink` maps decoded heartbeat, global position, attitude, and battery packets into ordered
+  SemStreams graph mutation requests.
+- `internal/projectors/mavlink/projector_test.go` proves source asset birth before strict `cop.track.source` edges,
+  signal-profiled track current state, and update-only behavior after first birth.
 - `pkg/processors/mavlink/sitl` still contains ignored ArduPilot SITL controller/scenario reference files. These are
   retained only until command/control behavior is extracted or rejected.
 
@@ -44,7 +49,7 @@ Acceptance:
 
 ### Projection Gate
 
-Target test before replacing old processor wiring:
+Current command:
 
 ```bash
 go test ./internal/projectors/mavlink
@@ -52,7 +57,9 @@ go test ./internal/projectors/mavlink
 
 Acceptance:
 
-- A heartbeat plus position plus battery sequence creates or updates one current vehicle entity.
+- Heartbeat, global position, attitude, and battery packets create or update one current vehicle entity per MAVLink
+  system.
+- The source asset is born before the track writes a strict `cop.track.source` foreign edge.
 - Raw frames remain on a bounded lane or source reference.
 - Vehicle current state uses `indexing_profile=signal`.
 - Commands, mission state, and battery alerts use `indexing_profile=control`.
@@ -86,6 +93,9 @@ Acceptance:
 ## Known Gaps
 
 - The active module path, Go toolchain, and MAVLink parser/generator are modernized.
+- The current-state projection planner emits graph mutation request shapes but is not yet wired to the live SemStreams
+  graph API.
+- Raw-lane capture and replay fixture storage still need the containerized stack boundary.
 - SITL command/control reference files still need extraction behind modern SemOps package boundaries.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
