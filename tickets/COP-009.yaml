@@ -50,8 +50,9 @@ progress:
     composing the MAVLink adapter.
   - SemStreams accepted the SemOps feedback to add typed owner-token minting and distinguish append-evidence
     declarations from enforceable write-fence ownership claims.
+  - Added and ran `bash scripts/cop-stack-smoke.sh`, proving the one-command graph scaffold passes the metrics-enabled
+    MAVLink live graph smoke against Docker-hosted NATS, SemStreams graph backend, and SemOps runtime.
 
 remaining:
   - Push or PR the local revival commits so GitHub issue #1 can see current evidence.
-  - Carry the metrics URL and counter-delta assertions into the eventual one-command hosted stack.
   - Add restart/replay reconciliation before calling the adapter operationally safe across process restarts.

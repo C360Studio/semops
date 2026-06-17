@@ -23,6 +23,8 @@ Evidence:
   SemOps COP owners and using registry-derived `<owner>#<incarnation>` owner tokens.
 - Metrics follow-up: pass with `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`, asserting no
   SemOps-specific owner-token mismatch, foreign-edge, or indexing-profile-default counter deltas.
+- Compose follow-up: pass through `bash scripts/cop-stack-smoke.sh`, which starts NATS, SemStreams graph backend,
+  and SemOps runtime, polls health and metrics, and runs the same smoke with the metrics URL wired in.
 
 Adversarial Findings:
 
@@ -45,5 +47,4 @@ Adversarial Findings:
 Decision:
 
 Accept the smoke as the generated/replay ADR-055/056 must-exist gate for MAVLink. Keep COP-009 open for GitHub issue
-evidence publication, hosted owner-registration wiring, hosted-stack metrics URL plumbing, and restart/replay
-reconciliation.
+evidence publication and restart/replay reconciliation.

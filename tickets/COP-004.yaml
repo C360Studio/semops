@@ -53,6 +53,10 @@ progress:
     indexing-profile-default counters.
   - Wired `cmd/semops` through `internal/app` so hosted startup connects to SemStreams, registers COP ownership,
     starts heartbeat, and composes the MAVLink adapter with the registry-derived owner-token incarnation.
+  - Added `Dockerfile`, `compose.cop.yml`, and `scripts/cop-stack-smoke.sh` for a one-command graph scaffold with
+    NATS, SemStreams graph backend, SemOps runtime, active health/metrics polling, and the MAVLink live graph smoke.
+  - Ran `bash scripts/cop-stack-smoke.sh` successfully on 2026-06-17; the script built images, started the stack,
+    passed metrics-enabled MAVLink graph smoke, and tore the stack down.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
@@ -63,9 +67,10 @@ current_evidence:
   - `go test ./internal/stack`
   - `go test ./pkg/adapters/mavlink`
   - `go build ./cmd/semops`
+  - `docker compose -f compose.cop.yml config`
+  - `bash scripts/cop-stack-smoke.sh`
 
 remaining:
-  - Carry the metrics URL and before/after assertions into one-command Compose.
   - Add an actual MAVLink transport reader before calling the hosted adapter a full feed service.
   - Wire the replay store into scenario-runner playback and retention policy.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.

@@ -47,8 +47,9 @@ generated or replay MAVLink frames against the live SemStreams graph path before
 expansion. PX4/SITL remains feed-fidelity evidence; it is not the prerequisite for born-first graph compliance.
 The first generated-frame smoke passed on 2026-06-17. A follow-up clean-stack run also registered SemOps COP owners
 and used registry-derived owner tokens. The hosted `cmd/semops` composition root now registers COP owners before
-composing the MAVLink adapter. Remaining structural evidence is one-command stack wiring, hosted metric-delta smoke
-plumbing, and restart/replay reconciliation.
+composing the MAVLink adapter. The first Docker Compose graph smoke now starts NATS, SemStreams graph backend, and
+SemOps runtime, polls health and metrics, and runs the MAVLink live graph smoke with the metrics URL wired in.
+Remaining structural evidence is full API/UI/scenario-runner stack expansion and restart/replay reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -63,6 +64,7 @@ SemOps started materially stale; the first revival slices are correcting that:
 - `go test ./...` passes for the active product compile path.
 - `cmd/semops/main.go` now loads env config, starts the hosted SemStreams/COP ownership runtime, and still has TODOs
   for the API server, monitoring services, and real feed transport listeners.
+- `compose.cop.yml` starts NATS, SemStreams graph backend, and SemOps runtime for the current graph smoke scaffold.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
@@ -162,8 +164,9 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
   passes the registry-derived incarnation into the MAVLink adapter wiring.
 - SemStreams accepted the SemOps feedback to add typed, opaque owner-token minting on the registry/bind-result path
   and to split append-evidence declarations from enforceable ownership/write-fence claims.
-- Remaining compliance hardening requires one-command stack wiring, hosted metric-delta smoke plumbing, and
-  restart/replay reconciliation.
+- The first one-command graph smoke passes through `scripts/cop-stack-smoke.sh`; it starts the graph scaffold, polls
+  health and metrics, runs the MAVLink live graph smoke, and tears the stack down.
+- Remaining compliance hardening requires full stack expansion and restart/replay reconciliation.
 
 ## Adversarial Review Gates
 

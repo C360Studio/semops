@@ -116,7 +116,8 @@ Mock or harness:
 - The clean-stack owner-registration smoke passed on 2026-06-17 with registry-derived `<owner>#<incarnation>` tokens.
 - The clean-stack metrics smoke now asserts before/after deltas for unclassified indexing-profile, owner-token
   mismatch, and dropped-foreign-edge counters when a SemStreams metrics URL is provided.
-- Before broad expansion, carry the same metrics URL and delta assertions into the one-command hosted stack smoke.
+- The one-command hosted graph smoke now carries the same metrics URL and delta assertions through
+  `scripts/cop-stack-smoke.sh`.
 - Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 
 Indexing profile pressure:

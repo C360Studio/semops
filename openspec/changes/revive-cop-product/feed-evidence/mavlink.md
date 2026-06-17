@@ -133,6 +133,9 @@ Latest evidence:
   SemOps-specific deltas for owner-token mismatch, foreign-edge, and indexing-profile-default counters.
 - 2026-06-17: `cmd/semops` gained hosted composition-root wiring for COP ownership registration and MAVLink adapter
   construction; covered by `go test ./internal/app` and `go build ./cmd/semops`.
+- 2026-06-17: `bash scripts/cop-stack-smoke.sh` built and launched the Docker Compose graph scaffold, polled
+  SemStreams health and metrics, ran the MAVLink live graph smoke with `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL`, and
+  tore the stack down cleanly.
 - SemStreams health remained green after the run via `/health` and the dedicated `/healthz` endpoint.
 - SemStreams logged that `semops.feed.cap` has no enforceable owning or foreign-edge claim because CAP is currently
   append-evidence only; this is governance evidence, not write-fence protection.
@@ -190,7 +193,7 @@ Acceptance:
 - The SemStreams graph-ingest indexing-profile default counter showed a baseline `message_type="unknown"` value in a
   clean stack. SemOps needs before/after counter deltas rather than a naive zero-total assertion.
 - The optional metrics smoke now performs those before/after deltas for SemOps message types; the hosted stack still
-  needs to pass the metrics URL through.
+  needs to expand beyond the graph scaffold.
 - Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
   born without a read-back or checkpoint path.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before

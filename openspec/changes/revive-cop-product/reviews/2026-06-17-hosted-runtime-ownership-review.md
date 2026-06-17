@@ -34,5 +34,5 @@ Evidence:
 
 Accept the hosted composition-root ownership wiring as the close for task `6.15`.
 
-Keep `6.16` open for one-command stack smoke work. The next infrastructure slice should add container/Compose
-structure and pass the SemStreams metrics URL into an active smoke command rather than relying on logs.
+Follow-up: task `6.16` now passes through `scripts/cop-stack-smoke.sh`. Keep full-stack Compose expansion open for
+API, UI, scenario runner, feed transports, and restart/replay reconciliation.

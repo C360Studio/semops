@@ -45,8 +45,9 @@ progress:
     `<owner>#<incarnation>` tokens for MAVLink writes.
   - The live smoke now accepts a SemStreams metrics URL and asserts zero SemOps-specific deltas for owner-token
     mismatch, foreign-edge, and indexing-profile-default counters.
+  - `bash scripts/cop-stack-smoke.sh` carries those counter-delta assertions through the Docker Compose graph
+    scaffold with NATS, SemStreams graph backend, and SemOps runtime.
 
 remaining:
-  - Carry the counter-delta assertions into the hosted structural stack and keep the baseline `message_type="unknown"`
-    signal from becoming a global zero assertion.
+  - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.

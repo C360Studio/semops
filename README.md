@@ -63,3 +63,13 @@ SEMOPS_NATS_URL=nats://127.0.0.1:4222 go run ./cmd/semops
 
 `cmd/semops` now connects to SemStreams, registers first-phase COP ownership, enrolls owners for heartbeat, and
 composes the hosted MAVLink adapter with the registry-derived owner-token incarnation.
+
+Run the current one-command graph smoke stack:
+
+```bash
+bash scripts/cop-stack-smoke.sh
+```
+
+This starts NATS, the SemStreams graph backend, and the SemOps runtime with Docker Compose, polls health and metrics,
+then runs the MAVLink live graph smoke with both NATS and metrics URLs wired in. It is a substrate/runtime smoke, not
+yet the full COP API, UI, scenario runner, or feed transport stack.

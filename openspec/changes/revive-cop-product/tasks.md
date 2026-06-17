@@ -69,7 +69,8 @@
 - [x] 6.13 Add explicit SemOps COP owner registration and heartbeat smoke coverage
 - [x] 6.14 Assert clean-stack graph-ingest foreign-edge, owner-token, and indexing-profile counter deltas
 - [x] 6.15 Wire COP ownership registration into the hosted adapter or SemOps composition root
-- [ ] 6.16 Carry live graph metrics URL into the one-command hosted stack smoke
+- [x] 6.16 Carry live graph metrics URL into the one-command hosted stack smoke
+- [ ] 6.17 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
 
 ## 7. COP UI
 
