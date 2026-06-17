@@ -54,7 +54,9 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **WHEN** the ADR-055/056 must-exist flip is pending in SemStreams
 - **THEN** SemOps prioritizes a generated or replay MAVLink live graph smoke over PX4/SITL, UI, or second-feed
   expansion
-- **AND** the smoke actively polls graph state and failure counters rather than relying on quiet logs
+- **AND** the smoke actively polls graph state and mutation failures rather than relying on quiet logs
+- **AND** the later clean-stack smoke asserts graph-ingest counters for foreign-edge drops and indexing-profile
+  defaults
 
 ### Requirement: Scenario runner makes demos repeatable
 

@@ -35,3 +35,14 @@ acceptance:
 tdd:
   - Treat missing mock, replay, compliance, or profile evidence as the red state for adapter implementation.
   - Add contract tests before broad feed expansion so high-cardinality native data cannot flood semantic indexes.
+
+progress:
+  - MAVLink has parser/generator, command codec, projection, graph writer, raw-lane, replay-store, adapter harness,
+    structural wiring, and live generated-frame graph smoke evidence.
+  - The 2026-06-17 live smoke used SemStreams `configs/graph-backend.json` and passed born-first graph readback for
+    source asset, track, `cop.track.source`, and `cop.track.position`.
+
+remaining:
+  - Re-run the MAVLink graph smoke in a clean one-command stack and assert indexing-profile default counters stay
+    zero for SemOps COP message types.
+  - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.

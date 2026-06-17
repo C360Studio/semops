@@ -3,7 +3,7 @@ title: Clear ADR-055/056 must-exist breaking-tag gate
 assigned: go-developer
 depends_on: [COP-002, COP-003, COP-004]
 blocks: [COP-005, COP-006]
-status: ready
+status: implementation
 reviewer: go-reviewer
 openspec_change: revive-cop-product
 github_issue: https://github.com/C360Studio/semops/issues/1
@@ -37,9 +37,12 @@ progress:
   - MAVLink graph writer and structural wiring tests use create/update-with-triples mutation subjects.
   - Added `go test ./internal/smoke/mavlink` as a skipped-by-default live graph smoke harness. It runs only when
     `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL` points at a live SemStreams graph stack.
+  - 2026-06-17 live run passed against SemStreams `configs/graph-backend.json` and JetStream NATS:
+    `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=nats://127.0.0.1:55438 go test ./internal/smoke/mavlink -v`.
+  - SemStreams health remained healthy after the run via `/health` and the dedicated `/healthz` endpoint.
 
 remaining:
   - Push or PR the local revival commits so GitHub issue #1 can see current evidence.
-  - Run the generated/replay MAVLink live graph smoke against the SemStreams stack.
-  - Add owner registration or registry smoke coverage for SemOps COP contracts in the structural stack.
+  - Add owner registration, heartbeat, and registry smoke coverage for SemOps COP contracts in the structural stack.
+  - Re-run the smoke in a clean one-command stack and assert graph-ingest foreign-edge and indexing-profile counters.
   - Add restart/replay reconciliation before calling the adapter operationally safe across process restarts.

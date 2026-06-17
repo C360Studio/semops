@@ -43,16 +43,16 @@ progress:
   - Bounded raw frame lane now stores copied MAVLink frames, annotates decoded packets with
     `cop.provenance.source_ref`, and keeps raw packet bytes out of graph entity birth.
   - SemOps issue #1 triage changed the next MAVLink milestone to generated/replay live graph smoke before PX4/SITL.
+  - Generated MAVLink heartbeat and position frames passed the live SemStreams graph smoke on 2026-06-17, proving
+    born-first source asset and track writes before PX4/SITL fidelity work.
 
 current_evidence:
   - `go test ./pkg/adapters/mavlink`
   - `go test ./internal/projectors/mavlink`
+  - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
 
 remaining:
-  - Wire the graph writer into a live SemStreams stack after container boundaries exist.
-  - Add durable replay fixture storage behind the bounded raw lane.
   - Add restart/replay reconciliation so adapter birth caches do not become production state.
-  - Add generated/replay MAVLink live graph smoke to clear the ADR-055/056 must-exist issue.
   - Add a modern ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
   - Add PX4 SITL or MAVSDK smoke evidence before calling MAVLink Phase 1 complete.
 

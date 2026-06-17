@@ -45,6 +45,8 @@ next implementation tranche begins.
 Breaking-tag gate: SemStreams issue #1 tracks the ADR-055/056 must-exist flip for SemOps. SemOps should prove
 generated or replay MAVLink frames against the live SemStreams graph path before PX4/SITL, UI, or second-feed
 expansion. PX4/SITL remains feed-fidelity evidence; it is not the prerequisite for born-first graph compliance.
+The first generated-frame smoke passed on 2026-06-17; remaining structural evidence is owner registration,
+clean-stack graph-ingest counters, and restart/replay reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -150,8 +152,10 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
   the track edge is written.
 - `EdgeNoBirthStub` is a reviewed exception for targets that have no independent producer, not a general fallback.
 - SemOps issue #1 is the external tracker for proving this path against the upcoming SemStreams must-exist tag.
-- The next compliance proof is a live generated/replay MAVLink graph smoke with no `entity_not_found` failures or
-  dropped foreign-edge evidence.
+- The first compliance proof passed as a live generated-frame MAVLink graph smoke with source asset, track,
+  `cop.track.source`, and `cop.track.position` readback.
+- Remaining compliance hardening requires explicit COP owner registration/heartbeat coverage, clean-stack
+  graph-ingest counters, and restart/replay reconciliation.
 
 ## Adversarial Review Gates
 

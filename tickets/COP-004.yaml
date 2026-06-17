@@ -44,16 +44,21 @@ progress:
   - SemOps issue #1 triage prioritizes a generated/replay MAVLink live graph smoke before PX4/SITL, UI, or
     second-feed expansion.
   - Added `internal/smoke/mavlink` as the skipped-by-default live graph smoke target for the compliance gate.
+  - Ran the MAVLink live graph smoke against SemStreams `configs/graph-backend.json` and JetStream NATS on
+    2026-06-17; generated heartbeat and position frames wrote and read back source asset, track, source edge, and
+    position state.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
   - `go test ./internal/graphrequest`
   - `go test ./internal/smoke/mavlink`
+  - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
   - `go test ./internal/stack`
   - `go test ./pkg/adapters/mavlink`
 
 remaining:
-  - Run the generated/replay MAVLink live graph smoke for the ADR-055/056 must-exist breaking-tag gate.
+  - Add explicit owner registration/heartbeat coverage for SemOps COP contracts in the structural stack.
+  - Add clean-stack assertions for graph-ingest indexing-profile defaults and foreign-edge failure counters.
   - Host the structural MAVLink wiring in `cmd/semops` or a dedicated adapter service entrypoint.
   - Wire the replay store into scenario-runner playback and retention policy.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.

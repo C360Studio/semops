@@ -21,13 +21,15 @@ Evidence Checked:
 - MAVLink projector tests prove source asset birth before track birth and no repeated strict source edge on updates.
 - MAVLink graph writer and structural wiring tests use `create_with_triples` and `update_with_triples`, not
   `triple.add`.
+- 2026-06-17 generated-frame live graph smoke passed against SemStreams `configs/graph-backend.json`:
+  `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=nats://127.0.0.1:55438 go test ./internal/smoke/mavlink -v`.
 
 Adversarial Findings:
 
 - Architect: The design is compliant, but GitHub cannot see the evidence until the local revival commits are pushed
   or opened as a PR.
-- Go reviewer: Local tests still fake graph responses. The next proof must exercise a live SemStreams graph path and
-  poll graph state plus failure counters.
+- Go reviewer: The generated-frame smoke now exercises a live SemStreams graph path and polls graph state. The next
+  clean-stack proof must add owner-registry and counter assertions.
 - Go reviewer: Restart/replay remains a genuine operational risk because projector birth knowledge is in memory.
   Read-back, checkpointing, or idempotent create handling is required before process-restart safety claims.
 - Technical writer: The plan must separate graph-contract compliance from simulator fidelity so PX4/SITL does not
@@ -43,6 +45,7 @@ Accepted Risks:
 Follow-Up:
 
 - Add COP-009 as the issue #1 tracker.
-- Add generated/replay MAVLink live graph smoke against the SemStreams graph stack.
+- Keep the generated/replay MAVLink live graph smoke as the first SemStreams graph gate.
 - Update GitHub issue #1 with design evidence after the local branch is pushed or opened as a PR.
+- Add explicit owner registration, heartbeat, and clean-stack graph-ingest counter coverage.
 - Keep PX4/SITL evidence open for live command/control and interoperability claims.

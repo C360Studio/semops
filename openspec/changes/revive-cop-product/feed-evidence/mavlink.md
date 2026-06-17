@@ -1,8 +1,8 @@
 # MAVLink Feed Evidence
 
-Status: candidate Phase 1 feed, codec, bounded raw lane, projection planner, SemStreams graph writer boundary, and
-structural wiring extracted. Live feed integration remains blocked by stack hosting, durable replay playback, and
-restart/replay work in `COP-004`.
+Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner, SemStreams graph writer boundary,
+structural wiring, and generated-frame live graph smoke evidence. Live feed integration remains blocked by stack
+hosting, durable replay playback, owner-registration coverage, and restart/replay work in `COP-004`.
 
 ## Decision
 
@@ -10,11 +10,12 @@ MAVLink should be the first feed because SemOps already contained parser, genera
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
 coverage, current-state projection planner, tested graph request/reply writer boundary, retry-aware SemStreams NATS
 requester boundary, in-process adapter harness, and testable structural wiring factory. Live feed work still needs
-scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, restart/replay reconciliation, and stack
-health checks.
+scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, explicit owner registration/heartbeat
+coverage, restart/replay reconciliation, and stack health checks.
 
-SemOps GitHub issue #1 adds a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
-graph path against live SemStreams before PX4/SITL becomes the blocking milestone.
+SemOps GitHub issue #1 added a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
+graph path against live SemStreams before PX4/SITL becomes the blocking milestone. The generated-frame smoke passed
+locally on 2026-06-17; next clean-stack evidence should add owner-registry and counter assertions.
 
 ## Local Evidence
 
@@ -52,6 +53,9 @@ graph path against live SemStreams before PX4/SITL becomes the blocking mileston
   adapter harness, and health state from config.
 - `internal/stack/mavlink_test.go` proves custom and default retry config propagation, write timeout propagation,
   create/update graph subjects, born-first source edge behavior, raw-lane capture, and writer injection for tests.
+- `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
+  stack, polls SemStreams graph state, and asserts source asset, track, `cop.track.source`, and
+  `cop.track.position` readback.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -105,13 +109,19 @@ Acceptance:
 
 ### Breaking-Tag Graph Gate
 
-Target command:
+Current command:
 
 ```bash
-go test ./internal/smoke/mavlink
+SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v
 ```
 
 This test skips unless `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL` points at a live SemStreams graph stack.
+
+Latest evidence:
+
+- 2026-06-17: passed against SemStreams `configs/graph-backend.json` and a JetStream NATS broker at
+  `nats://127.0.0.1:55438`.
+- SemStreams health remained green after the run via `/health` and the dedicated `/healthz` endpoint.
 
 Acceptance:
 
@@ -119,7 +129,8 @@ Acceptance:
 - The source asset is born before the track writes the strict `cop.track.source` edge.
 - Known-track position updates do not rebirth the source asset and do not repeat the strict foreign edge.
 - The run reports no `entity_not_found` mutation failures.
-- The run reports no dropped foreign-edge evidence when the SemStreams tag exposes that signal.
+- A clean-stack run asserts dropped foreign-edge and indexing-profile default counters once the SemStreams metric
+  surface is stable enough for this repository to depend on.
 - This gate is complete before PX4/SITL is treated as the next blocking MAVLink milestone.
 
 ### SITL Gate
@@ -151,11 +162,12 @@ Acceptance:
 ## Known Gaps
 
 - The active module path, Go toolchain, and MAVLink parser/generator are modernized.
-- The current-state projection planner and graph writer emit and send current SemStreams graph mutation shapes, and
-  structural wiring composes them; the wiring is not yet hosted in a live containerized stack.
+- The current-state projection planner, graph writer, and structural wiring now pass a generated-frame live graph
+  smoke against SemStreams; the wiring is not yet hosted in a live containerized stack.
 - The in-process adapter harness is not a UDP/TCP listener and is not yet hosted as `semops-adapter-mavlink`.
 - Raw-lane capture and replay fixture storage are library boundaries; scenario-runner playback and stack retention
   policy are not implemented yet.
+- Explicit SemOps COP owner registration and heartbeat coverage are not implemented yet.
 - Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
   born without a read-back or checkpoint path.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before

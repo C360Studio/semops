@@ -29,14 +29,14 @@
 - [x] 4.1 Move MAVLink parser and generator behind a modern package boundary
 - [x] 4.2 Move the SITL controller behind a modern package boundary or deliberately reject it
 - [x] 4.3 Preserve heartbeat, global position, attitude, battery, and command coverage where tests prove it
-- [ ] 4.4 Replace old message/processor wiring with SemStreams projection writes
+- [x] 4.4 Replace old message/processor wiring with SemStreams projection writes
 - [x] 4.5 Project decoded MAVLink current vehicle state into signal-profiled SemStreams mutation plans
 - [x] 4.6 Add real-frame codec tests that do not mock away MAVLink decoding
 - [ ] 4.7 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
-- [ ] 4.8 Keep raw frames on a bounded lane and wire projection plans to live SemStreams graph writes
+- [x] 4.8 Keep raw frames on a bounded lane and wire projection plans to live SemStreams graph writes
 - [x] 4.9 Add a tested SemStreams graph request/reply writer boundary for MAVLink projection plans
 - [x] 4.10 Add a bounded MAVLink raw frame lane with current-state source references
-- [ ] 4.11 Add generated/replay MAVLink live graph smoke before PX4/SITL fidelity work
+- [x] 4.11 Add generated/replay MAVLink live graph smoke before PX4/SITL fidelity work
 - [x] 4.12 Add skipped-by-default MAVLink live graph smoke harness target
 
 ## 5. Feed Validation And Indexing Ladder
@@ -50,7 +50,7 @@
 - [ ] 5.7 Verify or reject public SAPIENT compliance/fixture availability before phase commitment
 - [ ] 5.8 Run a KLV/SemSource binary proof spike before claiming streaming-binary support
 - [ ] 5.9 Run adversarial review for each feed before it enters the structural stack
-- [ ] 5.10 Treat ADR-055/056 live graph smoke as a MAVLink gate before simulator fidelity claims
+- [x] 5.10 Treat ADR-055/056 live graph smoke as a MAVLink gate before simulator fidelity claims
 
 ## 6. Structural COP Stack
 
@@ -64,8 +64,10 @@
 - [x] 6.8 Add durable MAVLink replay fixture storage behind the bounded raw lane
 - [x] 6.9 Add SemStreams NATS request/retry adapter for graph mutation writers
 - [x] 6.10 Add testable MAVLink structural wiring for NATS-backed graph writes
-- [ ] 6.11 Run breaking-tag compliance smoke for MAVLink graph writes and ownership registration
+- [x] 6.11 Run breaking-tag compliance smoke for MAVLink graph writes
 - [x] 6.12 Add live graph smoke harness that skips unless a SemStreams NATS URL is provided
+- [ ] 6.13 Add explicit SemOps COP owner registration and heartbeat smoke coverage
+- [ ] 6.14 Assert clean-stack graph-ingest foreign-edge and indexing-profile counters for MAVLink
 
 ## 7. COP UI
 
