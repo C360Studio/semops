@@ -8,7 +8,7 @@ extracted. Live feed integration remains blocked by stack, durable replay, and r
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
 coverage, current-state projection planner, tested graph request/reply writer boundary, and in-process adapter
-harness. Live feed work still needs durable replay storage, container stack wiring, SITL/PX4 evidence,
+harness. Live feed work still needs scenario-runner replay wiring, container stack wiring, SITL/PX4 evidence,
 restart/replay reconciliation, and stack health checks.
 
 ## Local Evidence
@@ -27,6 +27,8 @@ restart/replay reconciliation, and stack health checks.
   replay-addressable source references.
 - `pkg/adapters/mavlink/raw_lane_test.go` proves metadata capture, record and byte eviction, oversize rejection,
   replay lookup, and defensive copies.
+- `pkg/adapters/mavlink/replay.go` appends durable raw-lane records as JSON Lines fixtures and loads them back.
+- `pkg/adapters/mavlink/replay_test.go` proves appended fixtures load back into parseable MAVLink frame bytes.
 - `internal/projectors/mavlink` maps decoded heartbeat, global position, attitude, and battery packets into ordered
   SemStreams graph mutation requests.
 - `internal/projectors/mavlink/projector_test.go` proves source asset birth before strict `cop.track.source` edges,
@@ -107,6 +109,8 @@ Acceptance:
 Target artifact:
 
 - A small captured MAVLink fixture with heartbeat, position, attitude, battery, low-battery, and stale-track cases.
+- Current fixture format: JSON Lines `pkg/adapters/mavlink.RawFrameRecord` values, with frame bytes JSON-encoded as
+  base64 by Go's standard encoder.
 
 Acceptance:
 
@@ -118,8 +122,8 @@ Acceptance:
 - The current-state projection planner and graph writer emit and send current SemStreams graph mutation shapes, but the
   writer is not yet wired into a live containerized stack.
 - The in-process adapter harness is not a UDP/TCP listener and is not yet hosted as `semops-adapter-mavlink`.
-- Raw-lane capture is an in-memory library boundary; durable replay fixture storage still needs the containerized
-  stack boundary.
+- Raw-lane capture and replay fixture storage are library boundaries; scenario-runner playback and stack retention
+  policy are not implemented yet.
 - Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
   born without a read-back or checkpoint path.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before

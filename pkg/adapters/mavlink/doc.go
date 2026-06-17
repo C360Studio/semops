@@ -1,10 +1,11 @@
 // Package mavlink hosts the modern SemOps MAVLink adapter boundary.
 //
 // The active slice contains a MAVLink v1/v2 parser, a MAVLink v2 scenario
-// generator, bounded raw-frame lane, command frame helpers, and real-frame
-// tests for heartbeat, global position, attitude, battery status, COMMAND_LONG,
-// and COMMAND_ACK. The old ignored SITL controller/scenario files were deleted
-// after useful command encoding and ACK parsing moved here.
+// generator, bounded raw-frame lane, replay fixture store, command frame
+// helpers, and real-frame tests for heartbeat, global position, attitude,
+// battery status, COMMAND_LONG, and COMMAND_ACK. The old ignored SITL
+// controller/scenario files were deleted after useful command encoding and ACK
+// parsing moved here.
 //
 // # Adapter Contract
 //

@@ -57,6 +57,7 @@
 - [ ] 6.5 Add smoke test that verifies graph state from at least two feed types
 - [ ] 6.6 Run adversarial review on demo credibility, monitoring, and graph/index cardinality before Phase 1 signoff
 - [x] 6.7 Add an in-process MAVLink adapter harness with pollable health before Compose wiring
+- [x] 6.8 Add durable MAVLink replay fixture storage behind the bounded raw lane
 
 ## 7. COP UI
 

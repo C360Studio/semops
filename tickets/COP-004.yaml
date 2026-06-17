@@ -34,12 +34,15 @@ progress:
     pollable health counters without sleeps.
   - Harness tests also prove unsupported command ACK frames are captured without graph writes and corrupt frames never
     reach the graph writer.
+  - Added a file-backed MAVLink replay store that appends raw-lane records as JSON Lines and loads them back into
+    parseable frame records.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
+  - `go test ./pkg/adapters/mavlink`
 
 remaining:
   - Add a real NATS/SemStreams requester behind the graph writer in the structural stack.
-  - Add durable replay storage behind the raw lane.
+  - Wire the replay store into scenario-runner playback and retention policy.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.
   - Add graph-state polling smoke tests that exercise at least two feed types.

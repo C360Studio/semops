@@ -45,6 +45,12 @@ SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.
 - **WHEN** the operator starts the Phase 1 scenario
 - **THEN** the runner emits feed events for flood/evacuation, responder assets, drones, alerts, and COP updates
 
+#### Scenario: Native feed replay has durable fixtures
+
+- **WHEN** the scenario runner replays MAVLink input
+- **THEN** it can load durable raw-frame fixture records rather than depending only on in-memory raw-lane state
+- **AND** replay fixtures remain native-frame artifacts until projection writes current COP state
+
 #### Scenario: Playback has a controllable clock
 
 - **WHEN** the scenario is paused, resumed, accelerated, or reset

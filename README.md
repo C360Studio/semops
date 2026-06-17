@@ -40,8 +40,9 @@ The initial ownership-contract matrix lives in `pkg/cop` and covers:
 
 The active codec now lives in `pkg/adapters/mavlink` with parser/generator tests for heartbeat, global position,
 attitude, battery status, COMMAND_LONG, COMMAND_ACK, split buffers, resync, checksum rejection, raw-lane bounds, and
-scenario frames. Ignored SITL controller/scenario references were deleted after useful command encoding and ACK
-decoding moved into the active adapter package.
+scenario frames. It also has JSON Lines replay fixture storage for raw-lane records. Ignored SITL
+controller/scenario references were deleted after useful command encoding and ACK decoding moved into the active
+adapter package.
 
 ## Development
 

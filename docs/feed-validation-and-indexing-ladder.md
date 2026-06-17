@@ -100,6 +100,7 @@ Local assets:
   buffers, noisy resync, checksum rejection, and deterministic scenario frames.
 - The active raw lane stores copied MAVLink frames under record and byte caps and annotates decoded packets with a
   `cop.provenance.source_ref` for current-state projections.
+- The active replay store persists raw-lane records as JSON Lines fixtures and loads them back into parseable frames.
 - The in-process adapter harness composes parser, raw lane, projector, graph plan writer, and health counters before
   the container service boundary exists.
 - The old ignored parser/generator and SITL controller/scenario references were deleted after extraction or rejection.
@@ -127,8 +128,10 @@ Current codec gate:
 - `go test ./pkg/adapters/mavlink` proves real binary decode before graph projection.
 - Battery status now guards canonical MAVLink wire order because the ignored reference layout was self-consistent but
   not sufficient interoperability evidence.
-- `pkg/adapters/mavlink/raw_lane_test.go` proves the bounded in-memory raw lane before durable replay storage exists.
+- `pkg/adapters/mavlink/raw_lane_test.go` proves the bounded in-memory raw lane separately from durable fixture
+  storage.
 - `pkg/adapters/mavlink/commands_test.go` proves command frame encoding and ACK parsing before any live SITL harness.
+- `pkg/adapters/mavlink/replay_test.go` proves durable fixture append/load and parser replay.
 - `go test ./internal/adapters/mavlink` proves parse, raw capture, projection, graph-plan write, and health ordering.
 
 ### TAK/CoT
