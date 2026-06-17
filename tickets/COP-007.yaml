@@ -7,6 +7,10 @@ status: ready
 reviewer: technical-writer
 openspec_change: revive-cop-product
 
+evidence_records:
+  - openspec/changes/revive-cop-product/feed-evidence/mavlink.md
+  - openspec/changes/revive-cop-product/feed-evidence/tak-cot.md
+
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT,
     and KLV/STANAG 4609.
