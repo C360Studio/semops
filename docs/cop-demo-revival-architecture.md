@@ -70,6 +70,8 @@ SemOps has salvageable MAVLink depth:
   command encoding and ACK parsing moved into the active adapter.
 - A bounded MAVLink raw frame lane now stores copied frames under record and byte caps and annotates decoded packets
   with source references for governed current-state projections.
+- An in-process MAVLink adapter harness now composes parse, raw capture, projection, graph plan writing, and pollable
+  health counters before the future container service boundary.
 
 SemLink has the more current product pattern:
 
@@ -233,6 +235,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 | --- | --- | --- |
 | `pkg/adapters/mavlink` | MAVLink codec, raw lane, and command helpers | Active parser/generator extracted |
 | `pkg/cop` | COP model, predicates, projection contracts | Track, alert, asset, hazard, footprint, task, advisory |
+| `internal/adapters/mavlink` | MAVLink adapter harness | Parse, raw capture, project, write, health |
 | `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |

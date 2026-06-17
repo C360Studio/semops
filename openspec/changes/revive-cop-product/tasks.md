@@ -56,6 +56,7 @@
 - [ ] 6.4 Add scenario playback for a flood/evacuation and shared-airspace vignette
 - [ ] 6.5 Add smoke test that verifies graph state from at least two feed types
 - [ ] 6.6 Run adversarial review on demo credibility, monitoring, and graph/index cardinality before Phase 1 signoff
+- [x] 6.7 Add an in-process MAVLink adapter harness with pollable health before Compose wiring
 
 ## 7. COP UI
 

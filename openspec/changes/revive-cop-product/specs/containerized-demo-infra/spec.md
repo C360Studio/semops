@@ -29,6 +29,13 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **WHEN** a long-running demo or paid operation is supervised
 - **THEN** SemOps polls authoritative health, graph, and scenario state instead of relying only on passive logs
 
+#### Scenario: Feed adapter exposes active health state
+
+- **WHEN** a feed adapter ingests native frames before the container stack exists
+- **THEN** its library harness exposes pollable counters for received frames, captured frames, decoded packets, graph
+  mutations, parse errors, projection drops, write errors, last raw reference, and last error
+- **AND** invalid native frames and unsupported packets do not reach the graph writer silently
+
 ### Requirement: Scenario runner makes demos repeatable
 
 SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.

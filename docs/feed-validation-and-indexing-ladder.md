@@ -100,6 +100,8 @@ Local assets:
   buffers, noisy resync, checksum rejection, and deterministic scenario frames.
 - The active raw lane stores copied MAVLink frames under record and byte caps and annotates decoded packets with a
   `cop.provenance.source_ref` for current-state projections.
+- The in-process adapter harness composes parser, raw lane, projector, graph plan writer, and health counters before
+  the container service boundary exists.
 - The old ignored parser/generator and SITL controller/scenario references were deleted after extraction or rejection.
 
 Mock or harness:
@@ -127,6 +129,7 @@ Current codec gate:
   not sufficient interoperability evidence.
 - `pkg/adapters/mavlink/raw_lane_test.go` proves the bounded in-memory raw lane before durable replay storage exists.
 - `pkg/adapters/mavlink/commands_test.go` proves command frame encoding and ACK parsing before any live SITL harness.
+- `go test ./internal/adapters/mavlink` proves parse, raw capture, projection, graph-plan write, and health ordering.
 
 ### TAK/CoT
 

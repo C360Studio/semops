@@ -26,3 +26,20 @@ acceptance:
 tdd:
   - Add a smoke test that polls health and graph state instead of relying only on logs.
   - Avoid arbitrary sleeps; use explicit readiness and state polling.
+
+progress:
+  - Added `internal/adapters/mavlink` as an in-process adapter harness that composes parser, bounded raw lane,
+    projector, and graph plan writer.
+  - Harness tests prove valid telemetry captures raw bytes, projects current state, writes graph plans, and exposes
+    pollable health counters without sleeps.
+  - Harness tests also prove unsupported command ACK frames are captured without graph writes and corrupt frames never
+    reach the graph writer.
+
+current_evidence:
+  - `go test ./internal/adapters/mavlink`
+
+remaining:
+  - Add a real NATS/SemStreams requester behind the graph writer in the structural stack.
+  - Add durable replay storage behind the raw lane.
+  - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.
+  - Add graph-state polling smoke tests that exercise at least two feed types.
