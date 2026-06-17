@@ -10,18 +10,18 @@
 
 - [x] 2.1 Update SemOps to the current SemStreams module path
 - [x] 2.2 Align the Go toolchain with current SemStreams
-- [x] 2.3 Quarantine old StreamKit/BaseProcessor assumptions behind migration notes or delete them
+- [x] 2.3 Delete no-reference StreamKit/BaseProcessor assumptions and hold only MAVLink extraction references
 - [x] 2.4 Add a compile-time contract test importing current projection and graph mutation packages
 - [x] 2.5 Run adversarial review on framework ownership and migration blast radius before broad rewiring
 
 ## 3. COP Model And Governance
 
-- [ ] 3.1 Define canonical COP entities: track, asset, hazard area, sensor footprint, alert, task, advisory
-- [ ] 3.2 Define SemOps predicate names and candidate upstream SemStreams vocabulary terms
-- [ ] 3.3 Define projection ownership contracts for strict feed owners, tolerant feed owners, and fusion owners
-- [ ] 3.4 Define provenance and confidence conventions for source facts and derived facts
-- [ ] 3.5 Add tests that reject overlapping replace-owned predicate claims
-- [ ] 3.6 Run adversarial review on entity boundaries, predicate ownership, provenance, and confidence claims
+- [x] 3.1 Define canonical COP entities: track, asset, hazard area, sensor footprint, alert, task, advisory
+- [x] 3.2 Define SemOps predicate names and candidate upstream SemStreams vocabulary terms
+- [x] 3.3 Define projection ownership contracts for strict feed owners, tolerant feed owners, and fusion owners
+- [x] 3.4 Define provenance and confidence conventions for source facts and derived facts
+- [x] 3.5 Add tests that reject overlapping replace-owned predicate claims
+- [x] 3.6 Run adversarial review on entity boundaries, predicate ownership, provenance, and confidence claims
 
 ## 4. MAVLink Salvage
 

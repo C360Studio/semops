@@ -3,9 +3,17 @@ title: Define canonical COP entity model and ownership contracts
 assigned: architect
 depends_on: [COP-001]
 blocks: [COP-003, COP-004, COP-005]
-status: ready
+status: review
 reviewer: go-reviewer
 openspec_change: revive-cop-product
+
+review_records:
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-cop-model-governance-review.md
+
+evidence_records:
+  - docs/cop-model-and-governance.md
+  - pkg/cop/contracts.go
+  - pkg/cop/contracts_test.go
 
 scope:
   - Define the first canonical entity set: track, asset, hazard_area, sensor_footprint, alert, task, advisory.
@@ -15,6 +23,8 @@ scope:
 
 acceptance:
   - Projection contracts validate with current SemStreams ownership rules.
+  - Foreign-edge relationships derive explicit ADR-056 ForeignEdgeClaim values with producer and target pattern.
+  - Entity birth policy follows ADR-055 born-first semantics and does not rely on auto-vivify.
   - Each first-phase feed has a clear predicate ownership boundary.
   - Loose feeds append evidence or derived claims rather than replacing authoritative source predicates.
 

@@ -6,7 +6,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/c360/semops/pkg/processors/mavlink/testing/mavlink"
+	"github.com/c360studio/semops/pkg/processors/mavlink/testing/mavlink"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

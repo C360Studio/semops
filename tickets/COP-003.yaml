@@ -13,6 +13,7 @@ scope:
   - Add PX4 SITL or MAVSDK smoke evidence once the current SemStreams module/toolchain migration is stable.
   - Replace old BaseMessage/processor wiring with current SemStreams projection writes.
   - Keep raw high-rate frames on a bounded lane and project current vehicle state into signal-profiled entities.
+  - Birth source asset and track entities explicitly before adding triples or foreign edges.
 
 acceptance:
   - Parser and generator tests run without external containers.
@@ -20,8 +21,10 @@ acceptance:
   - PX4 SITL or MAVSDK smoke evidence is documented before calling MAVLink Phase 1 complete.
   - Adversarial review has challenged MAVLink evidence, indexing profile, and raw-lane/current-state boundaries.
   - MAVLink projections use SemOps ownership contracts and current SemStreams graph mutation types.
+  - MAVLink `cop.track.source` writes derive ADR-056 ForeignEdgeClaim coverage and do not rely on auto-vivify.
   - The adapter can be hosted in-process for tests or as semops-adapter-mavlink in Compose.
 
 tdd:
   - Add contract tests for MAVLink current-state projection before replacing the old processor wiring.
+  - Add born-first tests for source asset and track creation before update or foreign-edge writes.
   - Use real MAVLink frames in tests; do not mock away the codec.

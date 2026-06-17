@@ -17,7 +17,8 @@ evidence_records:
 scope:
   - Update SemOps to the current SemStreams module path github.com/c360studio/semstreams.
   - Align the Go toolchain with the current SemStreams requirement.
-  - Identify old StreamKit/BaseProcessor assumptions that no longer match SemStreams.
+  - Remove old StreamKit/BaseProcessor assumptions that no longer match SemStreams.
+  - Retain only MAVLink references with clear extraction value.
   - Add a minimal compile gate before deeper feature work starts.
 
 acceptance:

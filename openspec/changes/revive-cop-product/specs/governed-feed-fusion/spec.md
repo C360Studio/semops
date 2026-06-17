@@ -29,6 +29,40 @@ authoritative predicates.
 - **WHEN** deterministic fusion correlates two source facts or raises an alert
 - **THEN** the fusion owner writes derived predicates or evidence without hiding the original source facts
 
+### Requirement: Graph writes are born-first
+
+SemOps adapters SHALL follow SemStreams ADR-055 and ADR-056. Entity creation must happen through typed graph birth
+requests before triples or foreign edges are added.
+
+#### Scenario: Adapter births entity before current-state update
+
+- **WHEN** a feed adapter sees a new track, asset, hazard area, alert, task, advisory, or sensor footprint
+- **THEN** it first creates the entity with `graph.CreateEntityWithTriplesRequest`, `MessageType`, and
+  `IndexingProfile`
+- **AND** later updates use `graph.UpdateEntityWithTriplesRequest` against an existing entity
+
+#### Scenario: Adapter does not rely on auto-vivify
+
+- **WHEN** a SemOps adapter wants to add triples for an entity that has not been born
+- **THEN** the adapter must fail or birth the entity explicitly instead of relying on `triple.add` or
+  `triple.add_batch` auto-vivify
+
+#### Scenario: Foreign edges are declared through ADR-056
+
+- **WHEN** a projection writes a relationship onto a different entity than the one it owns
+- **THEN** its projection contract declares a foreign edge that derives a SemStreams `ForeignEdgeClaim` with producer,
+  edge mode, predicate, and target pattern
+
+#### Scenario: Strict source edge requires born target
+
+- **WHEN** MAVLink or TAK projects a `cop.track.source` edge to an asset
+- **THEN** the source asset is born first, and the edge contract uses `EdgeStrict` rather than implicit target creation
+
+#### Scenario: No-birth stub requires explicit review
+
+- **WHEN** a SemOps projection has no independent producer for a relationship target
+- **THEN** it may use `EdgeNoBirthStub` only after an adversarial review records why born-first is impossible
+
 ### Requirement: Raw feed data stays on bounded lanes
 
 SemOps SHALL keep high-rate raw messages out of canonical graph entities unless a specific raw artifact must be

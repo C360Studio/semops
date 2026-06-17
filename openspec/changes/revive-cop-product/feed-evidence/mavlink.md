@@ -86,11 +86,11 @@ Acceptance:
 
 ## Known Gaps
 
-- `go.mod` still uses `github.com/c360/semstreams` and Go `1.25.3`; current SemStreams uses
-  `github.com/c360studio/semstreams` and a newer toolchain.
-- Old `RoboticsProcessor` wiring still publishes old BaseMessage-shaped semantics rather than modern SemStreams
-  projection writes.
-- Processor comments still contain simplified parsing paths that should not survive the salvage.
+- The active module path and Go toolchain are modernized, but the retained MAVLink parser/generator/SITL references
+  still need extraction behind modern SemOps package boundaries.
+- Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
+  active product path rather than preserved as migration targets.
+- Parser comments and message-spec coverage still need review during extraction.
 - PX4 SITL/MAVSDK evidence is not yet in SemOps.
 
 ## Adversarial Feed-Entry Questions

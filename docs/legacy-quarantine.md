@@ -1,42 +1,44 @@
-# Legacy Quarantine
+# MAVLink Reference Hold
 
-The SemOps revival is greenfield. Legacy code is preserved for salvage, but it is no longer part of the default
-product compile path.
+The SemOps revival is greenfield. Legacy product paths should not stay in the repository unless they have concrete
+reference value for the next extraction slice.
 
-## Quarantined Trees
+## Retained Reference Files
 
-These trees now use the `ignore` build constraint:
+Only these MAVLink references remain under `pkg/processors/mavlink`, guarded by the `ignore` build constraint:
+
+- `constants/mavlink.go`
+- `parser/*`
+- `testing/mavlink/*`
+- `sitl/*`
+
+They are not part of the active product compile path. They are retained because SemOps appears to have useful MAVLink
+depth in binary frame parsing, realistic test frame generation, and ArduPilot SITL control scenarios.
+
+## Removed Legacy Paths
+
+These old paths were removed because they carried stale architecture rather than useful reference value:
 
 - `pkg/entities`
-- `pkg/processors/mavlink`
+- `pkg/processors/mavlink/payloads`
+- `pkg/processors/mavlink/rules`
+- `pkg/processors/mavlink/vocabulary`
+- old MAVLink BaseProcessor, metrics, error, compliance, and routing tests
 - `test/migrated_tests`
 
-The quarantine is deliberate. These packages still depend on old SemStreams and StreamKit surfaces such as
-`github.com/c360/semstreams/pkg/interfaces/store`, `github.com/c360/streamkit`, old BaseProcessor wiring, and migrated
-ObjectStore assumptions. Current SemStreams exposes projection contracts, ownership registration, graph mutation
-requests, component lifecycle interfaces, and message triples instead.
-
-The `ignore` constraint is intentional. `go mod tidy` evaluates ordinary build tags broadly, so a plain `legacy` tag
-would still force stale private modules into dependency resolution. Re-entry should move salvageable code behind a
-modern package boundary instead of compiling these files in place.
-
-## Salvage Policy
-
-Do salvage:
-
-- MAVLink frame parsing, message specs, test generators, and SITL scenario/controller ideas.
-- Real-frame tests that prove protocol decoding.
-- Domain vocabulary that still fits the COP entity model.
-
-Do not salvage by default:
-
-- StreamKit flow-runtime wiring.
-- BaseProcessor lifecycle assumptions.
-- ObjectStore migration tests as product contracts.
-- EntityStore conversion helpers tied to removed SemStreams interfaces.
+The removed code depended on old SemStreams or StreamKit surfaces such as EntityStore conversion helpers,
+ObjectStore migration tests, BaseProcessor lifecycle assumptions, and old payload graphing.
 
 ## Re-entry Rule
 
-Legacy code can re-enter the product path only after it is moved behind a modern SemOps package boundary and tested
-against current SemStreams contracts. The first accepted pattern is the contract test in
-`internal/contracts/semstreams_contract_test.go`.
+Reference code can re-enter the product path only after it is extracted behind a modern SemOps package boundary and
+tested against current SemStreams contracts. The current accepted patterns are:
+
+- SemStreams contract gate: `internal/contracts/semstreams_contract_test.go`
+- COP ownership contracts: `pkg/cop/contracts.go`
+- COP contract tests: `pkg/cop/contracts_test.go`
+
+## Deletion Rule
+
+Delete retained reference files as soon as their useful parser, generator, or SITL behavior has either been extracted
+or deliberately rejected.

@@ -5,10 +5,10 @@ The COP revival has two simultaneous jobs:
 - Build a compelling SemOps product that can stand on its own as an operator-facing HA/DR COP.
 - Put real pressure on SemStreams so framework gaps are discovered by use, not by abstraction.
 
-Current SemOps has useful robotics and MAVLink code, but the repo predates the current SemStreams module path and
-contract model. Current SemLink has a good modern demo shape: bounded raw telemetry, current-state projections,
-ownership contracts, indexing profiles, TAK support, CS API projection, and Svelte UI. SemLink should stay a basic
-demo. SemOps should absorb the useful patterns and own the larger COP.
+Current SemOps has useful robotics and MAVLink reference code, but the repo predates the current SemStreams module
+path and contract model. Current SemLink has a good modern demo shape: bounded raw telemetry, current-state
+projections, ownership contracts, indexing profiles, TAK support, CS API projection, and Svelte UI. SemLink should
+stay a basic demo. SemOps should absorb the useful patterns and own the larger COP.
 
 Claude's initial plan framed orchestration and a "thin COP shell" as if they were product features. That is not
 accepted here. SemOps is the COP product. Orchestration may become useful, but only if a concrete operator workflow
@@ -67,6 +67,14 @@ predicates owned by stricter sources.
 
 Fusion is a derived owner, not an invisible side effect of adapter code.
 
+SemOps also follows SemStreams ADR-055/056 explicitly:
+
+- Entity birth is born-first through typed create-with-triples requests.
+- Updates assume the entity already exists; no adapter may rely on `triple.add` auto-vivify.
+- Cross-entity relationships are declared by projection-contract foreign edges that derive
+  `ownership.ForeignEdgeClaim` values.
+- `EdgeNoBirthStub` requires a recorded review that proves the target has no independent producer.
+
 ### 4. Phase 1 stays structural and complete
 
 The first demo should not wait for seven feeds and three tiers. Phase 1 is complete when MAVLink, TAK/CoT, and
@@ -113,7 +121,7 @@ boundaries are insufficient.
 SemOps should deliberately attack its own assumptions before stage transitions. Required review gates are:
 
 - Framework contract modernization.
-- COP entity and predicate model stabilization.
+- COP entity and predicate model stabilization, including born-first and foreign-edge discipline.
 - Each Phase 1 feed entering the structural stack.
 - Orchestration, topology, or tier UI promotion.
 - SAPIENT or KLV product commitment.
@@ -142,7 +150,7 @@ accepted risks, and follow-up tasks.
 1. Modernize SemOps module path and Go toolchain against current SemStreams.
 2. Add canonical COP entity and predicate contracts.
 3. Move useful MAVLink parser, generator, and SITL code behind a clean adapter package.
-4. Add structural projection writers and contract tests.
+4. Add structural projection writers and born-first contract tests.
 5. Add the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT, and KLV.
 6. Run adversarial reviews for framework modernization, COP model, and feed evidence before Phase 1 implementation.
 7. Add first Compose stack with NATS, SemStreams, SemOps API, UI, scenario runner, and three feed adapters.

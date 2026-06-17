@@ -20,6 +20,7 @@ acceptance:
   - The scenario runner produces visible graph writes from at least two feed types.
   - Logs and metrics distinguish raw ingest, projection writes, rules, and COP API state.
   - Feed graph writes declare expected indexing profiles and do not create graph entities per raw packet.
+  - Smoke tests prove feed adapters create entities before updates or ADR-056 foreign-edge writes.
   - Adversarial Phase 1 review has challenged demo credibility, monitoring, and graph/index cardinality.
 
 tdd:

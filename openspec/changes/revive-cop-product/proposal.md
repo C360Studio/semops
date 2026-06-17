@@ -4,12 +4,13 @@ SemOps is old relative to current SemStreams, but it was one of the original dri
 should be revived as the complete COP product: a large, bold data-fusion demo that makes governed multi-producer
 state, structural-first operation, inference evidence, and civ-mil translation visible in one experience.
 
-The current checkout is not ready to carry that product:
+The checkout started unready to carry that product:
 
-- It still targets the old `github.com/c360/semstreams` module path.
-- It declares Go `1.25.3` while current SemStreams requires Go `1.26.3`.
-- Its entrypoint and flow config are mostly stubs or old StreamKit-era assumptions.
-- Its MAVLink parser, generator, and SITL work are valuable but need modern projection and ownership contracts.
+- It targeted the old `github.com/c360/semstreams` module path.
+- It declared Go `1.25.3` while current SemStreams requires Go `1.26.3`.
+- Its entrypoint and flow config were mostly stubs or old StreamKit-era assumptions.
+- Its MAVLink parser, generator, and SITL work are valuable references but still need extraction behind modern
+  projection and ownership contracts.
 
 SemLink proves useful current patterns, but it will likely remain a basic GCS/demo. SemOps owns the complete COP
 product going forward.
@@ -20,6 +21,8 @@ product going forward.
 - Establish SemOps as the product owner for the complete COP while treating SemLink as a reusable pattern source.
 - Define the first canonical COP entity set and ownership model.
 - Require governed feed adapters for MAVLink, TAK/CoT, CAP/EDXL, SAPIENT, ADS-B, KLV, and CS API egress.
+- Pin SemOps to SemStreams ADR-055/056: born-first entity creation, no auto-vivify, and explicit
+  `ForeignEdgeClaim`-derived relationship writes.
 - Add a feed validation and indexing ladder so every feed has explicit mock, simulator, replay, compliance, and
   `indexing_profile` evidence before it becomes a product claim.
 - Treat orchestration, tier controls, and topology panels as hypotheses until they prove COP operator value.
@@ -47,7 +50,8 @@ product going forward.
 
 ### Modified Capabilities
 
-- Existing robotics/MAVLink processing becomes salvageable implementation material, not the product architecture.
+- Existing robotics/MAVLink processing becomes reference material only while it has extraction value, not product
+  architecture.
 
 ## Impact
 

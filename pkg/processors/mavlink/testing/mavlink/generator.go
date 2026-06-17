@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/c360/semops/pkg/processors/mavlink/constants"
+	"github.com/c360studio/semops/pkg/processors/mavlink/constants"
 )
 
 // CRCTable stores MAVLink CRC extra values for message validation

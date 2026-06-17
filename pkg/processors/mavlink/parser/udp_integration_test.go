@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/c360/semops/pkg/processors/mavlink/testing/mavlink"
+	"github.com/c360studio/semops/pkg/processors/mavlink/testing/mavlink"
 	"github.com/stretchr/testify/require"
 )
 

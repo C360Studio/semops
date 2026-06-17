@@ -8,7 +8,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/c360/semops/pkg/processors/mavlink/constants"
+	"github.com/c360studio/semops/pkg/processors/mavlink/constants"
 )
 
 // Flight command implementations

@@ -5,17 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/component"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
-	"github.com/c360studio/semstreams/pkg/ownership"
 	"github.com/c360studio/semstreams/pkg/projection"
-)
-
-const (
-	trackEntityPattern = "c360.*.cop.*.track.*"
-	trackSourcePattern = "c360.*.cop.*.source.*"
-	trackOwner         = "semops.cop.track.mavlink"
 )
 
 func TestCurrentStateTrackProjectionUsesModernSemStreamsContracts(t *testing.T) {
@@ -25,37 +19,19 @@ func TestCurrentStateTrackProjectionUsesModernSemStreamsContracts(t *testing.T) 
 		Version:  "v1",
 	}
 
-	contract := projection.Contract{
-		Name:            "semops.cop.track.current-state",
-		MessageType:     messageType.Key(),
-		EntityPattern:   trackEntityPattern,
-		IndexingProfile: "signal",
-		Groups: []projection.PredicateGroup{{
-			Mode: ownership.ModeReplaceOwned,
-			Predicates: []string{
-				"cop.track.position",
-				"cop.track.velocity",
-				"cop.track.status",
-				"cop.track.updated_at",
-			},
-		}},
-		ForeignEdges: []projection.ForeignEdge{{
-			Predicate:     "cop.track.source",
-			Mode:          ownership.EdgeStrict,
-			TargetPattern: trackSourcePattern,
-		}},
-	}
+	contract := cop.MAVLinkTrackContract()
+	contract.MessageType = messageType.Key()
 
 	if err := contract.Validate(); err != nil {
 		t.Fatalf("projection contract should validate: %v", err)
 	}
 
-	registration, err := projection.Derive(trackOwner, contract)
+	registration, err := projection.Derive(cop.OwnerMAVLink, contract)
 	if err != nil {
 		t.Fatalf("projection contract should derive ownership: %v", err)
 	}
-	if registration.Owner != trackOwner {
-		t.Fatalf("registration owner = %q, want %q", registration.Owner, trackOwner)
+	if registration.Owner != cop.OwnerMAVLink {
+		t.Fatalf("registration owner = %q, want %q", registration.Owner, cop.OwnerMAVLink)
 	}
 	if len(registration.Claims) != 1 {
 		t.Fatalf("derived claims = %d, want 1", len(registration.Claims))
@@ -75,7 +51,7 @@ func TestCurrentStateTrackProjectionUsesModernSemStreamsContracts(t *testing.T) 
 	observedAt := time.Now().UTC()
 	triples := []message.Triple{{
 		Subject:    trackID,
-		Predicate:  "cop.track.position",
+		Predicate:  cop.TrackPosition,
 		Object:     "POINT(-97.7431 30.2672)",
 		Source:     "mavlink",
 		Timestamp:  observedAt,
@@ -104,8 +80,8 @@ func TestCurrentStateTrackProjectionUsesModernSemStreamsContracts(t *testing.T) 
 		TraceID:         "scenario-001",
 		RequestID:       "update-track-vehicle-1",
 	}
-	if update.AddTriples[0].Predicate != "cop.track.position" {
-		t.Fatalf("update predicate = %q, want cop.track.position", update.AddTriples[0].Predicate)
+	if update.AddTriples[0].Predicate != cop.TrackPosition {
+		t.Fatalf("update predicate = %q, want %s", update.AddTriples[0].Predicate, cop.TrackPosition)
 	}
 }
 

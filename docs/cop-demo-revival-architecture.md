@@ -44,15 +44,15 @@ next implementation tranche begins.
 
 ## Live Repo Findings
 
-SemOps is materially stale:
+SemOps started materially stale; the first revival slices are correcting that:
 
-- `go test ./...` currently stops before compile because SemStreams requires Go `1.26.3` while SemOps declares
-  Go `1.25.3`.
-- SemOps still imports `github.com/c360/semstreams`; current SemStreams is `github.com/c360studio/semstreams`.
+- SemOps now declares Go `1.26.3` and imports current `github.com/c360studio/semstreams`.
+- `go test ./...` passes for the active product compile path.
 - `cmd/semops/main.go` is a lifecycle stub with TODOs for configuration, SemStreams clients, adapters, API, and
   monitoring.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
+- Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
 - The current checkout and reachable Git history contain no frontend tree. The old flow-runtime UI idea should be
   treated as historical context, not a surface to restore.
 
@@ -60,10 +60,10 @@ SemOps has salvageable MAVLink depth:
 
 - It contains a MAVLink v1/v2 parser with registered message specs for heartbeat, global position, attitude, and
   battery status.
-- It contains a test message generator, parser tests, UDP parser tests, battery rule tests, and ArduPilot SITL
-  command/control scaffolding.
-- This is deeper than SemLink's current scoped MAVLink subset, but it is wired to old SemStreams and StreamKit
-  assumptions.
+- It contains a test message generator, parser tests, UDP parser tests, and ArduPilot SITL command/control
+  scaffolding.
+- Non-reference StreamKit and BaseProcessor-era MAVLink code has been removed. The retained ignored files are a
+  temporary reference hold for extraction.
 
 SemLink has the more current product pattern:
 
@@ -78,8 +78,8 @@ SemLink has the more current product pattern:
 
 1. Raw feeds stay raw at the boundary. The graph gets current state, durable events, provenance, confidence, and
    relationship evidence, not one entity per packet.
-2. Every adapter writes through SemStreams projection and ownership contracts. No feed silently clobbers another
-   feed's predicates.
+2. Every adapter writes through SemStreams ADR-055/056 projection and ownership contracts. Entity birth is explicit,
+   foreign edges derive `ForeignEdgeClaim` records, and no feed silently clobbers another feed's predicates.
 3. Loose feeds use tolerant readers at the boundary and strict governed writes into the graph.
 4. Structural is the default operating mode. Statistical and semantic inference are recorded as evidence with
    visible justification before they become any kind of control surface.
@@ -91,12 +91,26 @@ SemLink has the more current product pattern:
 8. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
    architect, reviewer, and technical-writer roles have tried to break the assumptions and recorded the result.
 
+## Born-First Graph Discipline
+
+SemOps accepts the SemStreams breaking-change direction before rebuilding feed adapters:
+
+- New entities are born with `graph.CreateEntityWithTriplesRequest`, `MessageType`, and `IndexingProfile`.
+- Current-state changes use `graph.UpdateEntityWithTriplesRequest` against entities that already exist.
+- Adapters must not rely on `triple.add` or `triple.add_batch` auto-vivify.
+- Cross-entity relationships must be declared in projection contracts so SemStreams derives
+  `ownership.ForeignEdgeClaim` values.
+- MAVLink and TAK `cop.track.source` edges are strict born-first edges. The source `asset` entity must exist before
+  the track edge is written.
+- `EdgeNoBirthStub` is a reviewed exception for targets that have no independent producer, not a general fallback.
+
 ## Adversarial Review Gates
 
 Run adversarial reviews before:
 
 - Modernizing the SemStreams contract, to catch old StreamKit assumptions and accidental framework drift.
-- Declaring the COP entity/predicate model stable, to catch ownership conflicts and product-only vocabulary.
+- Declaring the COP entity/predicate model stable, to catch ownership conflicts, born-first gaps, and product-only
+  vocabulary.
 - Adding each Phase 1 feed to the stack, to catch missing parser, replay, compliance, and indexing-profile evidence.
 - Promoting orchestration, topology, or tier UI, to prove operator value and avoid building a footgun.
 - Starting SAPIENT or KLV product work, to verify authoritative fixtures and honest compliance/binary claims.
@@ -184,8 +198,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 | Component | Role | Notes |
 | --- | --- | --- |
 | `pkg/mavlink` | MAVLink codec, parser, generator, SITL controller | Modernize the existing MAVLink processor |
-| `pkg/cop` | Canonical COP entity model and view types | Track, alert, asset, hazard, footprint, task, advisory |
-| `pkg/vocabulary` | SemOps predicates and projection contracts | Prefer SemStreams vocabulary when generic enough |
+| `pkg/cop` | COP model, predicates, projection contracts | Track, alert, asset, hazard, footprint, task, advisory |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
 | `internal/deployment` | Deployment metadata and health state | Build only after operator-value review |
