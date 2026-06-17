@@ -7,6 +7,9 @@ status: ready
 reviewer: go-reviewer
 openspec_change: revive-cop-product
 
+review_records:
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-framework-modernization-impact.md
+
 scope:
   - Update SemOps to the current SemStreams module path github.com/c360studio/semstreams.
   - Align the Go toolchain with the current SemStreams requirement.
