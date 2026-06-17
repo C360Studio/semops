@@ -14,6 +14,7 @@
 - [x] 2.3 Delete no-reference StreamKit/BaseProcessor assumptions and hold only MAVLink extraction references
 - [x] 2.4 Add a compile-time contract test importing current projection and graph mutation packages
 - [x] 2.5 Run adversarial review on framework ownership and migration blast radius before broad rewiring
+- [x] 2.6 Migrate SemOps runtime/projector wiring to SemStreams typed `ownership.OwnerToken` bind results
 
 ## 3. COP Model And Governance
 
@@ -38,6 +39,7 @@
 - [x] 4.10 Add a bounded MAVLink raw frame lane with current-state source references
 - [x] 4.11 Add generated/replay MAVLink live graph smoke before PX4/SITL fidelity work
 - [x] 4.12 Add skipped-by-default MAVLink live graph smoke harness target
+- [x] 4.13 Add MAVLink restart create-conflict reconciliation for existing asset/track births
 
 ## 5. Feed Validation And Indexing Ladder
 
@@ -70,7 +72,8 @@
 - [x] 6.14 Assert clean-stack graph-ingest foreign-edge, owner-token, and indexing-profile counter deltas
 - [x] 6.15 Wire COP ownership registration into the hosted adapter or SemOps composition root
 - [x] 6.16 Carry live graph metrics URL into the one-command hosted stack smoke
-- [ ] 6.17 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
+- [x] 6.17 Rerun one-command hosted stack smoke after typed-token migration and restart reconciliation
+- [ ] 6.18 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
 
 ## 7. COP UI
 

@@ -1,22 +1,22 @@
 # MAVLink Feed Evidence
 
 Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner, SemStreams graph writer boundary,
-structural wiring, COP owner-registration smoke evidence, and generated-frame live graph smoke evidence. Live feed
-integration remains blocked by stack hosting, durable replay playback, and restart/replay work in `COP-004`.
+structural wiring, typed owner-token wiring, restart create-conflict reconciliation, COP owner-registration smoke
+evidence, and generated-frame live graph smoke evidence. Live feed integration remains blocked by durable replay
+playback, transport hosting, and simulator fidelity work in `COP-004`.
 
 ## Decision
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
 coverage, current-state projection planner, tested graph request/reply writer boundary, retry-aware SemStreams NATS
-requester boundary, in-process adapter harness, and testable structural wiring factory. Live feed work still needs
-scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, transport hosting, restart/replay
-reconciliation, and stack health checks.
+requester boundary, in-process adapter harness, hosted runtime wiring, and a one-command graph scaffold. Live feed work
+still needs scenario-runner replay wiring, SITL/PX4 evidence, transport hosting, and full product-stack expansion.
 
 SemOps GitHub issue #1 added a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
 graph path against live SemStreams before PX4/SITL becomes the blocking milestone. The generated-frame smoke passed
-locally on 2026-06-17. A clean-stack owner-registry smoke also passed on 2026-06-17 with registry-derived
-`<owner>#<incarnation>` owner tokens; next evidence should add counter-delta assertions.
+locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-17 with typed SemStreams
+`OwnerToken` values minted by the registry/bind path and serialized only at graph mutation requests.
 
 ## Local Evidence
 
@@ -39,7 +39,8 @@ locally on 2026-06-17. A clean-stack owner-registry smoke also passed on 2026-06
 - `internal/projectors/mavlink` maps decoded heartbeat, global position, attitude, and battery packets into ordered
   SemStreams graph mutation requests.
 - `internal/projectors/mavlink/projector_test.go` proves source asset birth before strict `cop.track.source` edges,
-  signal-profiled track current state, source-reference projection, and update-only behavior after first birth.
+  signal-profiled track current state, source-reference projection, pure projection before committed birth marking, and
+  update-only behavior after first birth.
 - `internal/projectors/mavlink/writer.go` sends plans to SemStreams `graph.mutation.entity.create_with_triples` and
   `graph.mutation.entity.update_with_triples` request/reply subjects.
 - `internal/projectors/mavlink/writer_test.go` proves write ordering, owner-token transit,
@@ -49,15 +50,16 @@ locally on 2026-06-17. A clean-stack owner-registry smoke also passed on 2026-06
 - `internal/adapters/mavlink` composes parser, raw lane, projector, graph plan writer, and pollable health counters
   for the future adapter service boundary.
 - `internal/adapters/mavlink/adapter_test.go` proves valid telemetry writes graph plans, command ACK frames are
-  captured without graph writes, corrupt frames stop before graph writes, and writer failures are reflected in health.
+  captured without graph writes, corrupt frames stop before graph writes, writer failures are reflected in health, and
+  strict `entity_already_exists` birth conflicts after restart are reconciled into update-only writes.
 - `internal/stack` wires the MAVLink parser, bounded raw lane, projector, retry-aware NATS requester, graph writer,
   adapter harness, and health state from config.
 - `internal/stack/mavlink_test.go` proves custom and default retry config propagation, write timeout propagation,
   create/update graph subjects, born-first source edge behavior, raw-lane capture, and writer injection for tests.
 - `internal/copownership` registers first-phase SemOps COP contracts through SemStreams `projection.BindAndHeartbeat`
-  and returns the registry incarnation used by runtime writers.
+  and returns typed `ownership.OwnerToken` values minted by the registry/bind path.
 - `internal/app` and `cmd/semops` connect to SemStreams, register first-phase COP ownership, enroll heartbeat, and
-  compose the hosted MAVLink adapter with the registry-derived owner-token incarnation.
+  compose the hosted MAVLink adapter with registry-derived owner tokens.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
   stack, registers COP ownership, polls SemStreams graph state, and asserts source asset, track, `cop.track.source`,
   `cop.track.position`, owner lookup, and foreign-edge claim readback.
@@ -128,7 +130,7 @@ Latest evidence:
 - 2026-06-17: passed against SemStreams `configs/graph-backend.json` and a JetStream NATS broker at
   `nats://127.0.0.1:55438`.
 - 2026-06-17: passed again against a clean temporary NATS/SemStreams stack at `nats://127.0.0.1:4222` after
-  registering SemOps COP ownership contracts and composing owner tokens from the registry incarnation.
+  registering SemOps COP ownership contracts and using registry/bind-result `OwnerToken` values.
 - 2026-06-17: passed with `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`, asserting zero
   SemOps-specific deltas for owner-token mismatch, foreign-edge, and indexing-profile-default counters.
 - 2026-06-17: `cmd/semops` gained hosted composition-root wiring for COP ownership registration and MAVLink adapter
@@ -136,6 +138,9 @@ Latest evidence:
 - 2026-06-17: `bash scripts/cop-stack-smoke.sh` built and launched the Docker Compose graph scaffold, polled
   SemStreams health and metrics, ran the MAVLink live graph smoke with `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL`, and
   tore the stack down cleanly.
+- 2026-06-17: after SemStreams exposed typed `ownership.OwnerToken`, SemOps migrated runtime/projector wiring away
+  from local token suffix composition and reran `go test ./...`, `go build ./cmd/semops`, and
+  `bash scripts/cop-stack-smoke.sh`.
 - SemStreams health remained green after the run via `/health` and the dedicated `/healthz` endpoint.
 - SemStreams logged that `semops.feed.cap` has no enforceable owning or foreign-edge claim because CAP is currently
   append-evidence only; this is governance evidence, not write-fence protection.
@@ -148,8 +153,8 @@ Acceptance:
 - The source asset is born before the track writes the strict `cop.track.source` edge.
 - Known-track position updates do not rebirth the source asset and do not repeat the strict foreign edge.
 - The run reports no `entity_not_found` mutation failures.
-- The clean-stack run registers SemOps COP owners, enrolls them for heartbeat, and uses registry-derived
-  `<owner>#<incarnation>` owner tokens.
+- The clean-stack run registers SemOps COP owners, enrolls them for heartbeat, and uses typed owner tokens minted by
+  SemStreams registry/bind results.
 - When metrics are enabled, the run asserts dropped foreign-edge, owner-token mismatch, and indexing-profile default
   counter deltas for SemOps message types.
 - This gate is complete before PX4/SITL is treated as the next blocking MAVLink milestone.
@@ -188,14 +193,13 @@ Acceptance:
 - The in-process adapter harness is not a UDP/TCP listener and is not yet hosted as `semops-adapter-mavlink`.
 - Raw-lane capture and replay fixture storage are library boundaries; scenario-runner playback and stack retention
   policy are not implemented yet.
-- Explicit SemOps COP owner registration and heartbeat coverage are wired into `cmd/semops`, but there is not yet a
-  one-command containerized stack that launches it with SemStreams and scenario playback.
-- The SemStreams graph-ingest indexing-profile default counter showed a baseline `message_type="unknown"` value in a
-  clean stack. SemOps needs before/after counter deltas rather than a naive zero-total assertion.
-- The optional metrics smoke now performs those before/after deltas for SemOps message types; the hosted stack still
+- Explicit SemOps COP owner registration and heartbeat coverage are wired into `cmd/semops`, and the graph scaffold can
+  launch it with SemStreams. Scenario playback is not wired into the stack yet.
+- The optional metrics smoke performs before/after counter deltas for SemOps message types; the hosted stack still
   needs to expand beyond the graph scaffold.
-- Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
-  born without a read-back or checkpoint path.
+- Restart reconciliation now handles strict `entity_already_exists` create conflicts for known MAVLink asset/track
+  births by marking the conflicted entity born and reprojecting the current packet. Durable checkpoint/read-back
+  recovery and scenario-runner replay integration remain open.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before
   command/control demo claims.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the

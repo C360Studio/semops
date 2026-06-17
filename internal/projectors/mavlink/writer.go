@@ -28,6 +28,30 @@ type GraphWriter struct {
 
 type GraphWriterOption func(*GraphWriter)
 
+type MutationFailureError struct {
+	Operation string
+	Kind      MutationKind
+	EntityID  string
+	ErrorCode string
+	Message   string
+}
+
+func (e *MutationFailureError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.ErrorCode != "" && e.Message != "" {
+		return fmt.Sprintf("%s failed (%s): %s", e.Operation, e.ErrorCode, e.Message)
+	}
+	if e.ErrorCode != "" {
+		return fmt.Sprintf("%s failed (%s)", e.Operation, e.ErrorCode)
+	}
+	if e.Message != "" {
+		return fmt.Sprintf("%s failed: %s", e.Operation, e.Message)
+	}
+	return fmt.Sprintf("%s failed", e.Operation)
+}
+
 func NewGraphWriter(requester GraphRequester, opts ...GraphWriterOption) *GraphWriter {
 	writer := &GraphWriter{
 		requester:     requester,
@@ -99,7 +123,12 @@ func (w *GraphWriter) createWithTriples(ctx context.Context, req graph.CreateEnt
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return fmt.Errorf("decode create_with_triples response: %w", err)
 	}
-	return mutationResponseError("create_with_triples", resp.MutationResponse)
+	return mutationResponseError(
+		"create_with_triples",
+		MutationCreate,
+		requestEntityID(req.Entity),
+		resp.MutationResponse,
+	)
 }
 
 func (w *GraphWriter) updateWithTriples(ctx context.Context, req graph.UpdateEntityWithTriplesRequest) error {
@@ -115,21 +144,35 @@ func (w *GraphWriter) updateWithTriples(ctx context.Context, req graph.UpdateEnt
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return fmt.Errorf("decode update_with_triples response: %w", err)
 	}
-	return mutationResponseError("update_with_triples", resp.MutationResponse)
+	return mutationResponseError(
+		"update_with_triples",
+		MutationUpdate,
+		requestEntityID(req.Entity),
+		resp.MutationResponse,
+	)
 }
 
-func mutationResponseError(operation string, resp graph.MutationResponse) error {
+func mutationResponseError(
+	operation string,
+	kind MutationKind,
+	entityID string,
+	resp graph.MutationResponse,
+) error {
 	if resp.Success {
 		return nil
 	}
-	if resp.ErrorCode != "" && resp.Error != "" {
-		return fmt.Errorf("%s failed (%s): %s", operation, resp.ErrorCode, resp.Error)
+	return &MutationFailureError{
+		Operation: operation,
+		Kind:      kind,
+		EntityID:  entityID,
+		ErrorCode: resp.ErrorCode,
+		Message:   resp.Error,
 	}
-	if resp.ErrorCode != "" {
-		return fmt.Errorf("%s failed (%s)", operation, resp.ErrorCode)
+}
+
+func requestEntityID(entity *graph.EntityState) string {
+	if entity == nil {
+		return ""
 	}
-	if resp.Error != "" {
-		return fmt.Errorf("%s failed: %s", operation, resp.Error)
-	}
-	return fmt.Errorf("%s failed", operation)
+	return entity.ID
 }

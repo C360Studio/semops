@@ -11,6 +11,7 @@ import (
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
+	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 type graphTriple = message.Triple
@@ -25,12 +26,12 @@ const (
 type Config struct {
 	Org      string
 	Platform string
-	// OwnerTokenSuffix is the SemStreams ownership registry incarnation.
-	// Production wiring should obtain it from copownership.BindingResult rather
-	// than static config.
-	OwnerTokenSuffix string
-	TraceID          string
-	Confidence       float64
+	// OwnerTokens are typed write-lease credentials minted by the SemStreams
+	// ownership registry/bind path. The projector serializes them only at the
+	// graph mutation request boundary.
+	OwnerTokens map[string]ownership.OwnerToken
+	TraceID     string
+	Confidence  float64
 }
 
 type Projector struct {
@@ -56,12 +57,10 @@ func NewProjector(cfg Config) *Projector {
 	if cfg.Platform == "" {
 		cfg.Platform = "edge"
 	}
-	if cfg.OwnerTokenSuffix == "" {
-		cfg.OwnerTokenSuffix = "local"
-	}
 	if cfg.Confidence == 0 {
 		cfg.Confidence = 1.0
 	}
+	cfg.OwnerTokens = cloneOwnerTokens(cfg.OwnerTokens)
 	return &Projector{
 		cfg:        cfg,
 		bornAssets: make(map[string]struct{}),
@@ -70,9 +69,11 @@ func NewProjector(cfg Config) *Projector {
 }
 
 func (p *Projector) ProjectPackets(packets []*mavcodec.Packet) (Plan, error) {
+	bornAssets := cloneStringSet(p.bornAssets)
+	bornTracks := cloneStringSet(p.bornTracks)
 	var plan Plan
 	for _, packet := range packets {
-		next, err := p.ProjectPacket(packet)
+		next, err := p.projectPacket(packet, bornAssets, bornTracks)
 		if err != nil {
 			return Plan{}, err
 		}
@@ -82,6 +83,14 @@ func (p *Projector) ProjectPackets(packets []*mavcodec.Packet) (Plan, error) {
 }
 
 func (p *Projector) ProjectPacket(packet *mavcodec.Packet) (Plan, error) {
+	return p.projectPacket(packet, cloneStringSet(p.bornAssets), cloneStringSet(p.bornTracks))
+}
+
+func (p *Projector) projectPacket(
+	packet *mavcodec.Packet,
+	bornAssets map[string]struct{},
+	bornTracks map[string]struct{},
+) (Plan, error) {
 	if packet == nil {
 		return Plan{}, nil
 	}
@@ -96,7 +105,7 @@ func (p *Projector) ProjectPacket(packet *mavcodec.Packet) (Plan, error) {
 	trackID := p.trackID(packet.SystemID)
 	now := observedAt(packet)
 
-	if _, ok := p.bornAssets[assetID]; !ok {
+	if _, ok := bornAssets[assetID]; !ok {
 		plan.Mutations = append(plan.Mutations, Mutation{
 			Kind: MutationCreate,
 			Create: graph.CreateEntityWithTriplesRequest{
@@ -112,10 +121,10 @@ func (p *Projector) ProjectPacket(packet *mavcodec.Packet) (Plan, error) {
 				RequestID:       requestID("create-source-asset", packet.SystemID),
 			},
 		})
-		p.bornAssets[assetID] = struct{}{}
+		bornAssets[assetID] = struct{}{}
 	}
 
-	if _, ok := p.bornTracks[trackID]; !ok {
+	if _, ok := bornTracks[trackID]; !ok {
 		trackTriples = append(trackTriples, triple(trackID, cop.TrackSource, assetID, packet, p.cfg.Confidence))
 		plan.Mutations = append(plan.Mutations, Mutation{
 			Kind: MutationCreate,
@@ -132,7 +141,7 @@ func (p *Projector) ProjectPacket(packet *mavcodec.Packet) (Plan, error) {
 				RequestID:       requestID("create-track", packet.SystemID),
 			},
 		})
-		p.bornTracks[trackID] = struct{}{}
+		bornTracks[trackID] = struct{}{}
 		return plan, nil
 	}
 
@@ -150,6 +159,76 @@ func (p *Projector) ProjectPacket(packet *mavcodec.Packet) (Plan, error) {
 		},
 	})
 	return plan, nil
+}
+
+func (p *Projector) MarkBornForPlan(plan Plan) int {
+	if p == nil {
+		return 0
+	}
+	var marked int
+	for _, mutation := range plan.Mutations {
+		if mutation.Kind != MutationCreate {
+			continue
+		}
+		if p.markBornEntity(mutation.Create.Entity) {
+			marked++
+		}
+	}
+	return marked
+}
+
+func (p *Projector) MarkBornForPacket(packet *mavcodec.Packet, entityID string) bool {
+	if p == nil || packet == nil || entityID == "" {
+		return false
+	}
+	switch entityID {
+	case p.sourceAssetID(packet.SystemID):
+		p.bornAssets[entityID] = struct{}{}
+		return true
+	case p.trackID(packet.SystemID):
+		p.bornTracks[entityID] = struct{}{}
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *Projector) markBornEntity(entity *graph.EntityState) bool {
+	if entity == nil || entity.ID == "" {
+		return false
+	}
+	switch entity.MessageType.Key() {
+	case cop.SourceAssetContract().MessageType:
+		if _, ok := p.bornAssets[entity.ID]; ok {
+			return false
+		}
+		p.bornAssets[entity.ID] = struct{}{}
+		return true
+	case cop.MAVLinkTrackContract().MessageType:
+		if _, ok := p.bornTracks[entity.ID]; ok {
+			return false
+		}
+		p.bornTracks[entity.ID] = struct{}{}
+		return true
+	default:
+		return false
+	}
+}
+
+func cloneStringSet(set map[string]struct{}) map[string]struct{} {
+	clone := make(map[string]struct{}, len(set))
+	for key := range set {
+		clone[key] = struct{}{}
+	}
+	return clone
+}
+
+func cloneOwnerTokens(tokens map[string]ownership.OwnerToken) map[string]ownership.OwnerToken {
+	clone := make(map[string]ownership.OwnerToken, len(tokens))
+	for owner, token := range tokens {
+		clone[owner] = token
+	}
+	return clone
 }
 
 func (p *Projector) trackTriples(packet *mavcodec.Packet) []message.Triple {
@@ -255,7 +334,7 @@ func (p *Projector) trackID(systemID uint8) string {
 }
 
 func (p *Projector) ownerToken(owner string) string {
-	return owner + "#" + p.cfg.OwnerTokenSuffix
+	return p.cfg.OwnerTokens[owner].Wire()
 }
 
 func heartbeatStatus(packet *mavcodec.Packet) (string, bool) {

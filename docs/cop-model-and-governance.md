@@ -47,19 +47,20 @@ SemOps adapters must follow SemStreams ADR-055 and ADR-056 directly:
   contract names the producer message type plus target pattern.
 - SemOps issue #1 tracks the live SemStreams breaking-tag proof for this policy; the first generated-frame MAVLink
   graph smoke passed on 2026-06-17.
-- A follow-up clean-stack smoke registered SemOps COP owners, enrolled static owners for heartbeat, and used
-  registry-derived `<owner>#<incarnation>` tokens for MAVLink writes.
-- The hosted `cmd/semops` composition root now registers COP owners before composing the MAVLink adapter.
-- The next hardening gates are one-command stack smoke plumbing, restart/replay reconciliation, and hosted
-  graph-ingest counter-delta assertions.
+- Follow-up clean-stack smokes registered SemOps COP owners, enrolled static owners for heartbeat, and used typed
+  SemStreams `OwnerToken` values minted by the registry/bind path for MAVLink writes.
+- The hosted `cmd/semops` composition root now registers COP owners before composing the MAVLink adapter, and passes
+  typed owner tokens through to projectors.
+- The next hardening gates are scenario-runner replay plumbing, transport hosting, and multi-feed graph smoke
+  expansion.
 
-Runtime code must treat the incarnation as ownership substrate state, not human-authored adapter config. The
-composition root should register projection contracts, get the registry incarnation, and pass that value into feed
-projectors for owner-token composition.
+Runtime code must treat owner tokens as ownership substrate credentials, not human-authored adapter config. The
+composition root registers projection contracts, gets typed `ownership.OwnerToken` values from SemStreams
+registry/bind results, and lets projectors serialize `OwnerToken.Wire()` only at the graph mutation request boundary.
 
 SemStreams accepted the SemOps feedback to add typed, opaque owner-token minting through the registry/bind-result path
-and to split append-evidence declarations from enforceable ownership/write-fence claims. SemOps should migrate from
-local token-string composition to that helper as soon as it lands.
+and to split append-evidence declarations from enforceable ownership/write-fence claims. SemOps now consumes the typed
+token path for MAVLink.
 
 ## Predicate Conventions
 

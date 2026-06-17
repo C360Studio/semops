@@ -13,6 +13,7 @@ import (
 	"github.com/c360studio/semops/internal/stack"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/natsclient"
+	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 func TestStartRegistersOwnershipBeforeComposingMAVLink(t *testing.T) {
@@ -52,6 +53,10 @@ func TestStartRegistersOwnershipBeforeComposingMAVLink(t *testing.T) {
 			return copownership.BindingResult{
 					Incarnation: "lease-123",
 					Owners:      []string{cop.OwnerMAVLink},
+					Tokens: map[string]ownership.OwnerToken{
+						cop.OwnerAsset:   ownership.ExpectedOwnerToken(cop.OwnerAsset, "lease-123"),
+						cop.OwnerMAVLink: ownership.ExpectedOwnerToken(cop.OwnerMAVLink, "lease-123"),
+					},
 				}, func() {
 					stoppedOwners = true
 				}, nil
@@ -74,8 +79,8 @@ func TestStartRegistersOwnershipBeforeComposingMAVLink(t *testing.T) {
 	if app.MAVLinkAdapter() == nil {
 		t.Fatal("expected hosted MAVLink adapter")
 	}
-	if gotAdapterCfg.OwnerTokenSuffix != "lease-123" {
-		t.Fatalf("adapter owner token suffix = %q, want registry incarnation", gotAdapterCfg.OwnerTokenSuffix)
+	if got, want := gotAdapterCfg.OwnerTokens[cop.OwnerMAVLink].Wire(), "semops.feed.mavlink#lease-123"; got != want {
+		t.Fatalf("adapter MAVLink owner token = %q, want %q", got, want)
 	}
 	if gotAdapterCfg.Platform != "edge-alpha" || gotAdapterCfg.Source != "udp:14550" {
 		t.Fatalf("adapter config = %+v", gotAdapterCfg)

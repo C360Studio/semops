@@ -113,7 +113,8 @@ Mock or harness:
 - Use active COMMAND_LONG/COMMAND_ACK tests as the command codec gate.
 - Use generated or replay MAVLink frames against a live SemStreams graph stack to clear SemOps issue #1 before
   making PX4/SITL a blocking dependency. The generated-frame graph smoke passed on 2026-06-17.
-- The clean-stack owner-registration smoke passed on 2026-06-17 with registry-derived `<owner>#<incarnation>` tokens.
+- The clean-stack owner-registration smoke passed on 2026-06-17 with typed owner tokens minted by SemStreams
+  registry/bind results.
 - The clean-stack metrics smoke now asserts before/after deltas for unclassified indexing-profile, owner-token
   mismatch, and dropped-foreign-edge counters when a SemStreams metrics URL is provided.
 - The one-command hosted graph smoke now carries the same metrics URL and delta assertions through

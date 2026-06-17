@@ -41,8 +41,8 @@ progress:
     structural wiring, and live generated-frame graph smoke evidence.
   - The 2026-06-17 live smoke used SemStreams `configs/graph-backend.json` and passed born-first graph readback for
     source asset, track, `cop.track.source`, and `cop.track.position`.
-  - A clean-stack 2026-06-17 run registered SemOps COP ownership claims and used registry-derived
-    `<owner>#<incarnation>` tokens for MAVLink writes.
+  - A clean-stack 2026-06-17 run registered SemOps COP ownership claims and used typed owner tokens minted by
+    SemStreams registry/bind results for MAVLink writes.
   - The live smoke now accepts a SemStreams metrics URL and asserts zero SemOps-specific deltas for owner-token
     mismatch, foreign-edge, and indexing-profile-default counters.
   - `bash scripts/cop-stack-smoke.sh` carries those counter-delta assertions through the Docker Compose graph

@@ -37,10 +37,12 @@ Accepted Risks:
 - The wiring package intentionally has no UDP/TCP listener. Protocol binding remains a service-hosting task.
 - The tests fake SemStreams graph responses and do not prove a live graph responder or ownership lease behavior.
 - Raw-lane replay records are still not connected to scenario-runner playback or retention policy.
+- Later update: MAVLink now has narrow restart create-conflict reconciliation for existing asset/track births, but no
+  durable checkpoint/read-back seeding.
 
 Follow-Up:
 
 - Host the wiring in `cmd/semops` or a dedicated adapter service entrypoint.
-- Add restart/replay reconciliation before calling MAVLink graph writes operationally safe.
+- Add durable checkpoint/read-back reconciliation before calling MAVLink graph writes production-grade.
 - Revisit classified retry handling when the live SemStreams graph responder is wired.
 - Add graph-state polling smoke tests after the first two-feed stack exists.

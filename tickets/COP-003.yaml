@@ -46,7 +46,9 @@ progress:
   - Generated MAVLink heartbeat and position frames passed the live SemStreams graph smoke on 2026-06-17, proving
     born-first source asset and track writes before PX4/SITL fidelity work.
   - `cmd/semops` now hosts the SemStreams/COP ownership registration path and composes the in-process MAVLink adapter
-    with the registry-derived owner-token incarnation.
+    with typed owner tokens minted by SemStreams registry/bind results.
+  - MAVLink projection is pure until graph write success; accepted create plans or strict `entity_already_exists`
+    restart conflicts explicitly mark asset/track births before subsequent update-only projection.
 
 current_evidence:
   - `go test ./pkg/adapters/mavlink`
@@ -56,7 +58,7 @@ current_evidence:
   - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
 
 remaining:
-  - Add restart/replay reconciliation so adapter birth caches do not become production state.
+  - Add durable checkpoint/read-back reconciliation so adapter birth caches are not the only restart evidence.
   - Add a modern ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
   - Add PX4 SITL or MAVSDK smoke evidence before calling MAVLink Phase 1 complete.
 

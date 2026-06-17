@@ -12,6 +12,7 @@ import (
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
+	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 func TestAdapterIngestFrameCapturesProjectsAndWrites(t *testing.T) {
@@ -171,6 +172,64 @@ func TestAdapterRecordsWriterFailure(t *testing.T) {
 	}
 }
 
+func TestAdapterReconcilesExistingBirthsAfterRestart(t *testing.T) {
+	writer := &birthConflictPlanWriter{
+		conflicts: map[string]struct{}{
+			"c360.edge.cop.mavlink.asset.system-42": {},
+			"c360.edge.cop.mavlink.track.system-42": {},
+		},
+	}
+	now := time.Date(2026, 6, 17, 15, 0, 0, 0, time.UTC)
+	adapter := newTestAdapter(t, writer, func() time.Time { return now })
+
+	generator := mavcodec.NewGenerator(42, 7)
+	frame, err := generator.GenerateGlobalPosition(mavcodec.PositionMessage{
+		Lat: 389000001,
+		Lon: -770000002,
+		Vx:  321,
+		Vy:  -12,
+		Vz:  7,
+	})
+	if err != nil {
+		t.Fatalf("generate position: %v", err)
+	}
+
+	result, err := adapter.IngestFrame(context.Background(), frame)
+	if err != nil {
+		t.Fatalf("ingest after restart: %v", err)
+	}
+	if result.Mutations != 1 {
+		t.Fatalf("mutations = %d, want reconciled update", result.Mutations)
+	}
+	if len(writer.plans) != 3 {
+		t.Fatalf("plans = %d, want asset conflict, track conflict, update", len(writer.plans))
+	}
+	firstCreate := requireCreate(t, writer.plans[0].Mutations[0])
+	if firstCreate.Entity.ID != "c360.edge.cop.mavlink.asset.system-42" {
+		t.Fatalf("first create = %q", firstCreate.Entity.ID)
+	}
+	secondCreate := requireCreate(t, writer.plans[1].Mutations[0])
+	if secondCreate.Entity.ID != "c360.edge.cop.mavlink.track.system-42" {
+		t.Fatalf("second create = %q", secondCreate.Entity.ID)
+	}
+	update := requireUpdate(t, writer.plans[2].Mutations[0])
+	requireTriple(t, update.AddTriples, cop.TrackPosition, "POINT(-77.0000002 38.9000001)")
+	if hasPredicate(update.AddTriples, cop.TrackSource) {
+		t.Fatal("reconciled update must not repeat strict source edge")
+	}
+
+	health := adapter.Health()
+	if !health.Ready {
+		t.Fatalf("health ready = false, last error %q", health.LastError)
+	}
+	if health.WriteErrors != 0 {
+		t.Fatalf("write errors = %d, want 0", health.WriteErrors)
+	}
+	if health.GraphMutations != 1 {
+		t.Fatalf("graph mutations = %d, want final update only", health.GraphMutations)
+	}
+}
+
 func newTestAdapter(t *testing.T, writer PlanWriter, clock func() time.Time) *Adapter {
 	t.Helper()
 	adapter, err := NewAdapter(Config{
@@ -182,8 +241,8 @@ func newTestAdapter(t *testing.T, writer PlanWriter, clock func() time.Time) *Ad
 			Clock:      clock,
 		}),
 		Projector: mavprojector.NewProjector(mavprojector.Config{
-			OwnerTokenSuffix: "adapter-test",
-			TraceID:          "adapter-test",
+			OwnerTokens: testOwnerTokens("adapter-test"),
+			TraceID:     "adapter-test",
 		}),
 		Writer: writer,
 		Clock:  clock,
@@ -204,6 +263,33 @@ func (w *recordingPlanWriter) Apply(_ context.Context, plan mavprojector.Plan) e
 	return w.err
 }
 
+type birthConflictPlanWriter struct {
+	plans     []mavprojector.Plan
+	conflicts map[string]struct{}
+}
+
+func (w *birthConflictPlanWriter) Apply(_ context.Context, plan mavprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	for _, mutation := range plan.Mutations {
+		if mutation.Kind != mavprojector.MutationCreate || mutation.Create.Entity == nil {
+			continue
+		}
+		entityID := mutation.Create.Entity.ID
+		if _, ok := w.conflicts[entityID]; !ok {
+			continue
+		}
+		delete(w.conflicts, entityID)
+		return &mavprojector.MutationFailureError{
+			Operation: "create_with_triples",
+			Kind:      mavprojector.MutationCreate,
+			EntityID:  entityID,
+			ErrorCode: graph.ErrorCodeEntityExists,
+			Message:   "entity already exists",
+		}
+	}
+	return nil
+}
+
 func requireCreate(t *testing.T, mutation mavprojector.Mutation) graph.CreateEntityWithTriplesRequest {
 	t.Helper()
 	if mutation.Kind != mavprojector.MutationCreate {
@@ -213,6 +299,17 @@ func requireCreate(t *testing.T, mutation mavprojector.Mutation) graph.CreateEnt
 		t.Fatal("create entity is nil")
 	}
 	return mutation.Create
+}
+
+func requireUpdate(t *testing.T, mutation mavprojector.Mutation) graph.UpdateEntityWithTriplesRequest {
+	t.Helper()
+	if mutation.Kind != mavprojector.MutationUpdate {
+		t.Fatalf("mutation kind = %q, want update", mutation.Kind)
+	}
+	if mutation.Update.Entity == nil {
+		t.Fatal("update entity is nil")
+	}
+	return mutation.Update
 }
 
 func requireTriple(t *testing.T, triples []message.Triple, predicate string, want any) {
@@ -226,4 +323,20 @@ func requireTriple(t *testing.T, triples []message.Triple, predicate string, wan
 		}
 	}
 	t.Fatalf("missing predicate %q in %+v", predicate, triples)
+}
+
+func hasPredicate(triples []message.Triple, predicate string) bool {
+	for _, triple := range triples {
+		if triple.Predicate == predicate {
+			return true
+		}
+	}
+	return false
+}
+
+func testOwnerTokens(incarnation string) map[string]ownership.OwnerToken {
+	return map[string]ownership.OwnerToken{
+		cop.OwnerAsset:   ownership.ExpectedOwnerToken(cop.OwnerAsset, incarnation),
+		cop.OwnerMAVLink: ownership.ExpectedOwnerToken(cop.OwnerMAVLink, incarnation),
+	}
 }

@@ -94,15 +94,15 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 
 	if cfg.MAVLink.Enabled {
 		adapter, err := deps.newMAVLinkAdapter(stack.MAVLinkAdapterConfig{
-			Source:           cfg.MAVLink.Source,
-			Org:              cfg.MAVLink.Org,
-			Platform:         cfg.MAVLink.Platform,
-			OwnerTokenSuffix: bindings.OwnerTokenSuffix(),
-			TraceID:          cfg.MAVLink.TraceID,
-			RawMaxRecords:    cfg.MAVLink.RawMaxRecords,
-			RawMaxBytes:      cfg.MAVLink.RawMaxBytes,
-			WriteTimeout:     cfg.MAVLink.WriteTimeout,
-			Retry:            cfg.MAVLink.Retry,
+			Source:        cfg.MAVLink.Source,
+			Org:           cfg.MAVLink.Org,
+			Platform:      cfg.MAVLink.Platform,
+			OwnerTokens:   bindings.OwnerTokenMap(),
+			TraceID:       cfg.MAVLink.TraceID,
+			RawMaxRecords: cfg.MAVLink.RawMaxRecords,
+			RawMaxBytes:   cfg.MAVLink.RawMaxBytes,
+			WriteTimeout:  cfg.MAVLink.WriteTimeout,
+			Retry:         cfg.MAVLink.Retry,
 		}, stack.MAVLinkAdapterDeps{NATS: client})
 		if err != nil {
 			return nil, fmt.Errorf("compose MAVLink adapter: %w", err)

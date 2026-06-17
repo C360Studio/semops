@@ -48,15 +48,19 @@ progress:
     2026-06-17; generated heartbeat and position frames wrote and read back source asset, track, source edge, and
     position state.
   - Added a COP ownership registration boundary and reran the smoke on a clean temporary NATS/SemStreams stack with
-    registry-derived owner tokens.
+    typed owner tokens minted by SemStreams registry/bind results.
   - Added optional live-smoke metrics-delta checks for SemOps owner-token mismatch, foreign-edge, and
     indexing-profile-default counters.
   - Wired `cmd/semops` through `internal/app` so hosted startup connects to SemStreams, registers COP ownership,
-    starts heartbeat, and composes the MAVLink adapter with the registry-derived owner-token incarnation.
+    starts heartbeat, and composes the MAVLink adapter with typed owner tokens.
   - Added `Dockerfile`, `compose.cop.yml`, and `scripts/cop-stack-smoke.sh` for a one-command graph scaffold with
     NATS, SemStreams graph backend, SemOps runtime, active health/metrics polling, and the MAVLink live graph smoke.
   - Ran `bash scripts/cop-stack-smoke.sh` successfully on 2026-06-17; the script built images, started the stack,
     passed metrics-enabled MAVLink graph smoke, and tore the stack down.
+  - Added MAVLink restart create-conflict reconciliation so an existing asset/track strict create response can be
+    converted into a reprojected update path after process restart.
+  - Migrated the hosted stack to SemStreams typed `ownership.OwnerToken` bind results and reran
+    `bash scripts/cop-stack-smoke.sh` successfully on 2026-06-17.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
@@ -72,6 +76,6 @@ current_evidence:
 
 remaining:
   - Add an actual MAVLink transport reader before calling the hosted adapter a full feed service.
-  - Wire the replay store into scenario-runner playback and retention policy.
+  - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.
   - Add graph-state polling smoke tests that exercise at least two feed types.

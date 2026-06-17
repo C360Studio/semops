@@ -2,12 +2,14 @@ package mavlink
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
+	"github.com/c360studio/semstreams/graph"
 )
 
 type PlanWriter interface {
@@ -143,14 +145,51 @@ func (a *Adapter) IngestFrame(ctx context.Context, frame []byte) (IngestResult, 
 		a.recordProjectionDrop(nil)
 		return result, nil
 	}
-	result.Mutations = len(plan.Mutations)
 
-	if err := a.writer.Apply(ctx, plan); err != nil {
+	mutations, err := a.writePlan(ctx, packet, plan)
+	result.Mutations = mutations
+	if err != nil {
 		a.recordWriteError(err)
 		return result, fmt.Errorf("write mavlink graph plan: %w", err)
 	}
-	a.recordWrite(now, len(plan.Mutations))
+	a.recordWrite(now, mutations)
 	return result, nil
+}
+
+func (a *Adapter) writePlan(ctx context.Context, packet *mavcodec.Packet, plan mavprojector.Plan) (int, error) {
+	for attempt := 0; attempt < 4; attempt++ {
+		if err := a.writer.Apply(ctx, plan); err != nil {
+			entityID, ok := entityAlreadyExists(err)
+			if !ok || !a.projector.MarkBornForPacket(packet, entityID) {
+				return len(plan.Mutations), err
+			}
+			next, projectErr := a.projector.ProjectPacket(packet)
+			if projectErr != nil {
+				return len(plan.Mutations), fmt.Errorf("reproject mavlink packet after birth reconciliation: %w", projectErr)
+			}
+			plan = next
+			if len(plan.Mutations) == 0 {
+				return 0, nil
+			}
+			continue
+		}
+		a.projector.MarkBornForPlan(plan)
+		return len(plan.Mutations), nil
+	}
+	return len(plan.Mutations), fmt.Errorf("mavlink graph birth reconciliation exceeded retry limit")
+}
+
+func entityAlreadyExists(err error) (string, bool) {
+	var mutationErr *mavprojector.MutationFailureError
+	if !errors.As(err, &mutationErr) {
+		return "", false
+	}
+	if mutationErr.Kind != mavprojector.MutationCreate ||
+		mutationErr.ErrorCode != graph.ErrorCodeEntityExists ||
+		mutationErr.EntityID == "" {
+		return "", false
+	}
+	return mutationErr.EntityID, true
 }
 
 func (a *Adapter) Health() Health {

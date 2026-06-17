@@ -20,7 +20,7 @@ Evidence:
 - The broker was an already-running local testcontainer, not a SemOps-owned stack. It became noisy after the smoke,
   with heartbeat and consumer warnings, so counter assertions must be repeated in a clean one-command stack.
 - Follow-up result: pass against a clean temporary NATS/SemStreams stack at `nats://127.0.0.1:4222` after registering
-  SemOps COP owners and using registry-derived `<owner>#<incarnation>` owner tokens.
+  SemOps COP owners and using typed owner tokens minted by SemStreams registry/bind results.
 - Metrics follow-up: pass with `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`, asserting no
   SemOps-specific owner-token mismatch, foreign-edge, or indexing-profile-default counter deltas.
 - Compose follow-up: pass through `bash scripts/cop-stack-smoke.sh`, which starts NATS, SemStreams graph backend,
@@ -47,4 +47,4 @@ Adversarial Findings:
 Decision:
 
 Accept the smoke as the generated/replay ADR-055/056 must-exist gate for MAVLink. Keep COP-009 open for GitHub issue
-evidence publication and restart/replay reconciliation.
+evidence publication and durable checkpoint/read-back reconciliation.

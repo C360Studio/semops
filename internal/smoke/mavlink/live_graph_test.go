@@ -72,12 +72,12 @@ func TestLiveGraphMAVLinkBornFirstSmoke(t *testing.T) {
 
 	platform := "smoke-" + time.Now().UTC().Format("20060102150405")
 	adapter, err := stack.NewMAVLinkAdapter(stack.MAVLinkAdapterConfig{
-		Source:           "live-graph-smoke",
-		Org:              "c360",
-		Platform:         platform,
-		OwnerTokenSuffix: bindings.OwnerTokenSuffix(),
-		TraceID:          "semops-mavlink-live-graph-smoke",
-		WriteTimeout:     2 * time.Second,
+		Source:       "live-graph-smoke",
+		Org:          "c360",
+		Platform:     platform,
+		OwnerTokens:  bindings.OwnerTokenMap(),
+		TraceID:      "semops-mavlink-live-graph-smoke",
+		WriteTimeout: 2 * time.Second,
 		Retry: natsclient.RetryConfig{
 			MaxRetries:        5,
 			InitialBackoff:    50 * time.Millisecond,

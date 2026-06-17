@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ func TestRegisterFirstPhaseBindsAndEnrollsOwners(t *testing.T) {
 			gotHeartbeater *ownership.Heartbeater,
 			owner string,
 			contracts ...projection.Contract,
-		) error {
+		) (ownership.OwnerToken, error) {
 			if gotCtx != ctx {
 				t.Fatal("bind received unexpected context")
 			}
@@ -51,7 +52,7 @@ func TestRegisterFirstPhaseBindsAndEnrollsOwners(t *testing.T) {
 			}
 			heartbeater.Add(owner)
 			calls = append(calls, owner)
-			return nil
+			return gotRegistry.OwnerToken(owner), nil
 		},
 	)
 	if err != nil {
@@ -74,11 +75,13 @@ func TestRegisterFirstPhaseBindsAndEnrollsOwners(t *testing.T) {
 	if result.Incarnation == "" {
 		t.Fatal("registration result must expose registry incarnation")
 	}
-	if got, want := result.OwnerToken(cop.OwnerMAVLink), cop.OwnerMAVLink+"#"+result.Incarnation; got != want {
+	if got, want := result.OwnerToken(cop.OwnerMAVLink).Wire(), registry.OwnerToken(cop.OwnerMAVLink).Wire(); got != want {
 		t.Fatalf("MAVLink owner token = %q, want %q", got, want)
 	}
-	if result.OwnerTokenSuffix() != result.Incarnation {
-		t.Fatalf("owner token suffix = %q, want incarnation", result.OwnerTokenSuffix())
+	tokenMap := result.OwnerTokenMap()
+	tokenMap[cop.OwnerMAVLink] = ownership.OwnerToken{}
+	if result.OwnerToken(cop.OwnerMAVLink).IsZero() {
+		t.Fatal("owner token map must be a defensive copy")
 	}
 	for _, owner := range wantOwners {
 		if !heartbeater.IsEnrolled(owner) {
@@ -107,7 +110,7 @@ func TestRegisterOwnedContractsGroupsMultipleContractsForSameOwner(t *testing.T)
 			hb *ownership.Heartbeater,
 			owner string,
 			contracts ...projection.Contract,
-		) error {
+		) (ownership.OwnerToken, error) {
 			if owner != cop.OwnerMAVLink {
 				t.Fatalf("owner = %q, want %q", owner, cop.OwnerMAVLink)
 			}
@@ -116,7 +119,7 @@ func TestRegisterOwnedContractsGroupsMultipleContractsForSameOwner(t *testing.T)
 				t.Fatalf("derive grouped contracts: %v", err)
 			}
 			hb.Add(owner)
-			return nil
+			return registry.OwnerToken(owner), nil
 		},
 	)
 	if err != nil {
@@ -179,12 +182,36 @@ func TestRegisterOwnedContractsWrapsBindFailure(t *testing.T) {
 			*ownership.Heartbeater,
 			string,
 			...projection.Contract,
-		) error {
-			return bindErr
+		) (ownership.OwnerToken, error) {
+			return ownership.OwnerToken{}, bindErr
 		},
 	)
 	if !errors.Is(err, bindErr) {
 		t.Fatalf("error = %v, want wrapped bind error", err)
+	}
+}
+
+func TestRegisterOwnedContractsRejectsZeroOwnerToken(t *testing.T) {
+	registry := ownership.NewRegistry(nil, nil, nil)
+	heartbeater := registry.NewHeartbeater(time.Hour)
+
+	_, err := registerOwnedContracts(
+		context.Background(),
+		registry,
+		heartbeater,
+		[]cop.OwnedContract{{Owner: cop.OwnerMAVLink, Contract: cop.MAVLinkTrackContract()}},
+		func(
+			context.Context,
+			*ownership.Registry,
+			*ownership.Heartbeater,
+			string,
+			...projection.Contract,
+		) (ownership.OwnerToken, error) {
+			return ownership.OwnerToken{}, nil
+		},
+	)
+	if err == nil || !strings.Contains(err.Error(), "zero owner token") {
+		t.Fatalf("error = %v, want zero owner token rejection", err)
 	}
 }
 
@@ -194,6 +221,6 @@ func noopBind(
 	*ownership.Heartbeater,
 	string,
 	...projection.Contract,
-) error {
-	return nil
+) (ownership.OwnerToken, error) {
+	return ownership.ExpectedOwnerToken("noop", "test"), nil
 }

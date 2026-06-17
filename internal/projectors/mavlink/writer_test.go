@@ -15,10 +15,10 @@ import (
 
 func TestGraphWriterAppliesProjectionPlanInOrder(t *testing.T) {
 	projector := NewProjector(Config{
-		Org:              "c360",
-		Platform:         "edge",
-		OwnerTokenSuffix: "writer-test",
-		TraceID:          "scenario-writer",
+		Org:         "c360",
+		Platform:    "edge",
+		OwnerTokens: testOwnerTokens("writer-test"),
+		TraceID:     "scenario-writer",
 	})
 	heartbeat := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
 		return g.GenerateHeartbeat(mavcodec.HeartbeatMessage{
@@ -171,6 +171,47 @@ func TestGraphWriterSurfacesMutationFailureResponse(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), graph.ErrorCodeOwnerLeaseStale) {
 		t.Fatalf("error = %v, want owner lease stale code", err)
+	}
+	var mutationErr *MutationFailureError
+	if !errors.As(err, &mutationErr) {
+		t.Fatalf("error = %T, want MutationFailureError", err)
+	}
+	if mutationErr.Kind != MutationUpdate ||
+		mutationErr.EntityID != "c360.edge.cop.mavlink.track.system-42" ||
+		mutationErr.ErrorCode != graph.ErrorCodeOwnerLeaseStale {
+		t.Fatalf("mutation error = %+v", mutationErr)
+	}
+}
+
+func TestGraphWriterReportsCreateConflictAsTypedMutationFailure(t *testing.T) {
+	requester := &recordingRequester{
+		createResponse: mustJSON(t, graph.CreateEntityWithTriplesResponse{
+			MutationResponse: graph.MutationResponse{
+				Success:   false,
+				ErrorCode: graph.ErrorCodeEntityExists,
+				Error:     "entity already exists",
+			},
+		}),
+	}
+	writer := NewGraphWriter(requester)
+
+	err := writer.Apply(context.Background(), Plan{Mutations: []Mutation{{
+		Kind: MutationCreate,
+		Create: graph.CreateEntityWithTriplesRequest{
+			Entity: &graph.EntityState{ID: "c360.edge.cop.mavlink.asset.system-42"},
+		},
+	}}})
+	if err == nil {
+		t.Fatal("expected create conflict")
+	}
+	var mutationErr *MutationFailureError
+	if !errors.As(err, &mutationErr) {
+		t.Fatalf("error = %T, want MutationFailureError", err)
+	}
+	if mutationErr.Kind != MutationCreate ||
+		mutationErr.EntityID != "c360.edge.cop.mavlink.asset.system-42" ||
+		mutationErr.ErrorCode != graph.ErrorCodeEntityExists {
+		t.Fatalf("mutation error = %+v", mutationErr)
 	}
 }
 

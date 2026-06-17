@@ -14,6 +14,7 @@ import (
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/natsclient"
+	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 func TestNewMAVLinkAdapterWiresNATSGraphWriter(t *testing.T) {
@@ -26,16 +27,16 @@ func TestNewMAVLinkAdapterWiresNATSGraphWriter(t *testing.T) {
 	}
 	client := &recordingRetryRequester{}
 	adapter, err := NewMAVLinkAdapter(MAVLinkAdapterConfig{
-		Source:           "udp:14550",
-		Org:              "c360",
-		Platform:         "edge",
-		OwnerTokenSuffix: "stack-test",
-		TraceID:          "mavlink-stack-test",
-		RawMaxRecords:    2,
-		RawMaxBytes:      4096,
-		WriteTimeout:     25 * time.Millisecond,
-		Retry:            retry,
-		Clock:            func() time.Time { return now },
+		Source:        "udp:14550",
+		Org:           "c360",
+		Platform:      "edge",
+		OwnerTokens:   testOwnerTokens("stack-test"),
+		TraceID:       "mavlink-stack-test",
+		RawMaxRecords: 2,
+		RawMaxBytes:   4096,
+		WriteTimeout:  25 * time.Millisecond,
+		Retry:         retry,
+		Clock:         func() time.Time { return now },
 	}, MAVLinkAdapterDeps{NATS: client})
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
@@ -282,4 +283,11 @@ func hasPredicate(triples []message.Triple, predicate string) bool {
 		}
 	}
 	return false
+}
+
+func testOwnerTokens(incarnation string) map[string]ownership.OwnerToken {
+	return map[string]ownership.OwnerToken{
+		cop.OwnerAsset:   ownership.ExpectedOwnerToken(cop.OwnerAsset, incarnation),
+		cop.OwnerMAVLink: ownership.ExpectedOwnerToken(cop.OwnerMAVLink, incarnation),
+	}
 }

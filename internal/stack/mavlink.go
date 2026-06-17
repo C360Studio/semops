@@ -9,23 +9,23 @@ import (
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 	"github.com/c360studio/semstreams/natsclient"
+	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 type MAVLinkAdapterConfig struct {
 	Source   string
 	Org      string
 	Platform string
-	// OwnerTokenSuffix is the SemStreams ownership registry incarnation used to
-	// form <owner>#<incarnation> OwnerTokens. Use
-	// copownership.BindingResult.OwnerTokenSuffix() in runtime composition.
-	OwnerTokenSuffix string
-	TraceID          string
-	Confidence       float64
-	RawMaxRecords    int
-	RawMaxBytes      int
-	WriteTimeout     time.Duration
-	Retry            natsclient.RetryConfig
-	Clock            func() time.Time
+	// OwnerTokens are minted by SemStreams ownership registration and passed
+	// through to the projector without exposing the wire format.
+	OwnerTokens   map[string]ownership.OwnerToken
+	TraceID       string
+	Confidence    float64
+	RawMaxRecords int
+	RawMaxBytes   int
+	WriteTimeout  time.Duration
+	Retry         natsclient.RetryConfig
+	Clock         func() time.Time
 }
 
 type MAVLinkAdapterDeps struct {
@@ -52,11 +52,11 @@ func NewMAVLinkAdapter(
 			Clock:      cfg.Clock,
 		}),
 		Projector: mavprojector.NewProjector(mavprojector.Config{
-			Org:              cfg.Org,
-			Platform:         cfg.Platform,
-			OwnerTokenSuffix: cfg.OwnerTokenSuffix,
-			TraceID:          cfg.TraceID,
-			Confidence:       cfg.Confidence,
+			Org:         cfg.Org,
+			Platform:    cfg.Platform,
+			OwnerTokens: cfg.OwnerTokens,
+			TraceID:     cfg.TraceID,
+			Confidence:  cfg.Confidence,
 		}),
 		Writer: writer,
 		Clock:  cfg.Clock,

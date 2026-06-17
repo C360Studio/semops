@@ -7,6 +7,7 @@ import (
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
+	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 func TestProjectorBirthsSourceAssetBeforeTrackWithStrictForeignEdge(t *testing.T) {
@@ -21,10 +22,10 @@ func TestProjectorBirthsSourceAssetBeforeTrackWithStrictForeignEdge(t *testing.T
 	})
 
 	projector := NewProjector(Config{
-		Org:              "c360",
-		Platform:         "edge",
-		OwnerTokenSuffix: "test",
-		TraceID:          "scenario-001",
+		Org:         "c360",
+		Platform:    "edge",
+		OwnerTokens: testOwnerTokens("test"),
+		TraceID:     "scenario-001",
 	})
 	plan, err := projector.ProjectPacket(packet)
 	if err != nil {
@@ -74,17 +75,21 @@ func TestProjectorBirthsSourceAssetBeforeTrackWithStrictForeignEdge(t *testing.T
 
 func TestProjectorUpdatesKnownTrackWithoutRebirth(t *testing.T) {
 	projector := NewProjector(Config{
-		Org:              "c360",
-		Platform:         "edge",
-		OwnerTokenSuffix: "test",
-		TraceID:          "scenario-001",
+		Org:         "c360",
+		Platform:    "edge",
+		OwnerTokens: testOwnerTokens("test"),
+		TraceID:     "scenario-001",
 	})
 
 	heartbeat := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
 		return g.GenerateHeartbeat(mavcodec.HeartbeatMessage{MavlinkVersion: mavcodec.Version2})
 	})
-	if _, err := projector.ProjectPacket(heartbeat); err != nil {
+	birthPlan, err := projector.ProjectPacket(heartbeat)
+	if err != nil {
 		t.Fatalf("project heartbeat: %v", err)
+	}
+	if marked := projector.MarkBornForPlan(birthPlan); marked != 2 {
+		t.Fatalf("marked births = %d, want asset + track", marked)
 	}
 
 	position := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
@@ -125,8 +130,84 @@ func TestProjectorUpdatesKnownTrackWithoutRebirth(t *testing.T) {
 	requireTriple(t, update.AddTriples, cop.TrackVelocity, "NED_CMPS(321 -12 7)")
 }
 
+func TestProjectorCanSeedBornStateForRestartReconciliation(t *testing.T) {
+	projector := NewProjector(Config{
+		Org:         "c360",
+		Platform:    "edge",
+		OwnerTokens: testOwnerTokens("test"),
+	})
+	position := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
+		return g.GenerateGlobalPosition(mavcodec.PositionMessage{
+			Lat: 389000001,
+			Lon: -770000002,
+		})
+	})
+
+	if !projector.MarkBornForPacket(position, "c360.edge.cop.mavlink.asset.system-42") {
+		t.Fatal("expected asset born-state seed")
+	}
+	plan, err := projector.ProjectPacket(position)
+	if err != nil {
+		t.Fatalf("project with seeded asset: %v", err)
+	}
+	if len(plan.Mutations) != 1 {
+		t.Fatalf("mutations = %d, want track birth only", len(plan.Mutations))
+	}
+	trackCreate := requireCreate(t, plan.Mutations[0])
+	requireTriple(t, trackCreate.Triples, cop.TrackSource, "c360.edge.cop.mavlink.asset.system-42")
+
+	if !projector.MarkBornForPacket(position, "c360.edge.cop.mavlink.track.system-42") {
+		t.Fatal("expected track born-state seed")
+	}
+	plan, err = projector.ProjectPacket(position)
+	if err != nil {
+		t.Fatalf("project with seeded track: %v", err)
+	}
+	if len(plan.Mutations) != 1 {
+		t.Fatalf("mutations = %d, want track update only", len(plan.Mutations))
+	}
+	update := requireUpdate(t, plan.Mutations[0])
+	if hasPredicate(update.AddTriples, cop.TrackSource) {
+		t.Fatal("update after seeded birth must not repeat strict source edge")
+	}
+	requireTriple(t, update.AddTriples, cop.TrackPosition, "POINT(-77.0000002 38.9000001)")
+}
+
+func TestProjectorDoesNotCommitBirthStateUntilMarked(t *testing.T) {
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
+	heartbeat := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
+		return g.GenerateHeartbeat(mavcodec.HeartbeatMessage{MavlinkVersion: mavcodec.Version2})
+	})
+
+	first, err := projector.ProjectPacket(heartbeat)
+	if err != nil {
+		t.Fatalf("project first heartbeat: %v", err)
+	}
+	second, err := projector.ProjectPacket(heartbeat)
+	if err != nil {
+		t.Fatalf("project second heartbeat: %v", err)
+	}
+	if len(first.Mutations) != 2 || len(second.Mutations) != 2 {
+		t.Fatalf("unmarked projections = %d/%d mutations, want repeated birth proposals", len(first.Mutations), len(second.Mutations))
+	}
+
+	if marked := projector.MarkBornForPlan(first); marked != 2 {
+		t.Fatalf("marked births = %d, want asset + track", marked)
+	}
+	third, err := projector.ProjectPacket(heartbeat)
+	if err != nil {
+		t.Fatalf("project third heartbeat: %v", err)
+	}
+	if len(third.Mutations) != 1 {
+		t.Fatalf("marked projection mutations = %d, want track update", len(third.Mutations))
+	}
+	if third.Mutations[0].Kind != MutationUpdate {
+		t.Fatalf("marked projection kind = %q, want update", third.Mutations[0].Kind)
+	}
+}
+
 func TestProjectorMapsAttitudeAndBatterySignals(t *testing.T) {
-	projector := NewProjector(Config{OwnerTokenSuffix: "test"})
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
 
 	attitude := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
 		return g.GenerateAttitude(mavcodec.AttitudeMessage{
@@ -144,6 +225,9 @@ func TestProjectorMapsAttitudeAndBatterySignals(t *testing.T) {
 	requireTriple(t, trackCreate.Triples, cop.TrackRoll, float64(0.11))
 	requireTriple(t, trackCreate.Triples, cop.TrackPitch, float64(-0.05))
 	requireTriple(t, trackCreate.Triples, cop.TrackYaw, float64(1.57))
+	if marked := projector.MarkBornForPlan(plan); marked != 2 {
+		t.Fatalf("marked births = %d, want asset + track", marked)
+	}
 
 	battery := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
 		return g.GenerateBatteryStatus(mavcodec.BatteryMessage{BatteryRemaining: 85})
@@ -184,7 +268,7 @@ func TestProjectorIncludesRawSourceReferenceWithoutRawEntityBirth(t *testing.T) 
 		t.Fatalf("capture raw frame: %v", err)
 	}
 
-	projector := NewProjector(Config{OwnerTokenSuffix: "test"})
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
 	plan, err := projector.ProjectPacket(packets[0])
 	if err != nil {
 		t.Fatalf("project heartbeat: %v", err)
@@ -281,4 +365,11 @@ func hasPredicate(triples []graphTriple, predicate string) bool {
 		}
 	}
 	return false
+}
+
+func testOwnerTokens(incarnation string) map[string]ownership.OwnerToken {
+	return map[string]ownership.OwnerToken{
+		cop.OwnerAsset:   ownership.ExpectedOwnerToken(cop.OwnerAsset, incarnation),
+		cop.OwnerMAVLink: ownership.ExpectedOwnerToken(cop.OwnerMAVLink, incarnation),
+	}
 }

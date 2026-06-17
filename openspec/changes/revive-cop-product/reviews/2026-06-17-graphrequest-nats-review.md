@@ -9,9 +9,9 @@ Scope: `COP-004` retry-aware NATS requester in `internal/graphrequest`
   requester. Live NATS/SemStreams responder wiring remains open.
 - Severity: Medium. Retry is appropriate for convergent graph mutations, not for query paths. Do not reuse this
   requester for read-side polling or UI snapshots.
-- Severity: Medium. Retrying create-with-triples can surface `entity_already_exists` after a lost response. The
-  current MAVLink writer treats that as a failure; restart/replay reconciliation remains required before production
-  adapter claims.
+- Severity: Medium. Retrying create-with-triples can surface `entity_already_exists` after a lost response. Later
+  MAVLink work added narrow create-conflict reconciliation for known asset/track births; durable checkpoint/read-back
+  remains required before production adapter claims.
 - Severity: Low. The requester passes SemStreams' default retry config by default and allows an override for tests or
   deployment tuning.
 
@@ -30,9 +30,9 @@ go-reviewer:
 technical-writer:
 
 - Requires docs to state this is mutation request/reply wiring, not query/polling infrastructure.
-- Requires restart/replay reconciliation to stay open because retry can expose duplicate birth attempts.
+- Requires durable checkpoint/read-back reconciliation to stay open because retry can expose duplicate birth attempts.
 
 ## Decision
 
-Accept the NATS requester boundary. Keep live NATS/SemStreams stack wiring, restart reconciliation, and read-side
-polling implementation open.
+Accept the NATS requester boundary. Keep live NATS/SemStreams stack wiring, durable restart reconciliation, and
+read-side polling implementation open.

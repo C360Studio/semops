@@ -12,17 +12,22 @@ import (
 type BindingResult struct {
 	Incarnation string
 	Owners      []string
+	Tokens      map[string]ownership.OwnerToken
 }
 
-func (r BindingResult) OwnerTokenSuffix() string {
-	return r.Incarnation
-}
-
-func (r BindingResult) OwnerToken(owner string) string {
-	if owner == "" || r.Incarnation == "" {
-		return ""
+func (r BindingResult) OwnerToken(owner string) ownership.OwnerToken {
+	if r.Tokens == nil {
+		return ownership.OwnerToken{}
 	}
-	return owner + "#" + r.Incarnation
+	return r.Tokens[owner]
+}
+
+func (r BindingResult) OwnerTokenMap() map[string]ownership.OwnerToken {
+	tokens := make(map[string]ownership.OwnerToken, len(r.Tokens))
+	for owner, token := range r.Tokens {
+		tokens[owner] = token
+	}
+	return tokens
 }
 
 func RegisterFirstPhase(
@@ -48,7 +53,7 @@ type bindAndHeartbeatFunc func(
 	*ownership.Heartbeater,
 	string,
 	...projection.Contract,
-) error
+) (ownership.OwnerToken, error)
 
 func registerOwnedContracts(
 	ctx context.Context,
@@ -82,14 +87,21 @@ func registerOwnedContracts(
 		groups[item.Owner] = append(groups[item.Owner], item.Contract)
 	}
 
+	tokens := make(map[string]ownership.OwnerToken, len(order))
 	for _, owner := range order {
-		if err := bind(ctx, registry, heartbeater, owner, groups[owner]...); err != nil {
+		token, err := bind(ctx, registry, heartbeater, owner, groups[owner]...)
+		if err != nil {
 			return BindingResult{}, fmt.Errorf("register COP owner %q: %w", owner, err)
 		}
+		if token.IsZero() {
+			return BindingResult{}, fmt.Errorf("register COP owner %q: bind returned zero owner token", owner)
+		}
+		tokens[owner] = token
 	}
 
 	return BindingResult{
 		Incarnation: registry.Incarnation(),
 		Owners:      append([]string(nil), order...),
+		Tokens:      tokens,
 	}, nil
 }
