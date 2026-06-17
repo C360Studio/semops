@@ -1,0 +1,82 @@
+## 1. OpenSpec And Planning Baseline
+
+- [x] 1.1 Add SemOps OpenSpec project context and COP revival change set
+- [x] 1.2 Record SemOps as the complete COP product owner and SemLink as basic-demo prior art
+- [x] 1.3 Link the architecture note and tickets back to the OpenSpec change
+- [ ] 1.4 Run the first adversarial review with architect, reviewers, and technical-writer roles before implementation
+  begins
+
+## 2. Modernize Framework Contract
+
+- [ ] 2.1 Update SemOps to the current SemStreams module path
+- [ ] 2.2 Align the Go toolchain with current SemStreams
+- [ ] 2.3 Quarantine old StreamKit/BaseProcessor assumptions behind migration notes or delete them
+- [ ] 2.4 Add a compile-time contract test importing current projection and graph mutation packages
+- [ ] 2.5 Run adversarial review on framework ownership and migration blast radius before broad rewiring
+
+## 3. COP Model And Governance
+
+- [ ] 3.1 Define canonical COP entities: track, asset, hazard area, sensor footprint, alert, task, advisory
+- [ ] 3.2 Define SemOps predicate names and candidate upstream SemStreams vocabulary terms
+- [ ] 3.3 Define projection ownership contracts for strict feed owners, tolerant feed owners, and fusion owners
+- [ ] 3.4 Define provenance and confidence conventions for source facts and derived facts
+- [ ] 3.5 Add tests that reject overlapping replace-owned predicate claims
+- [ ] 3.6 Run adversarial review on entity boundaries, predicate ownership, provenance, and confidence claims
+
+## 4. MAVLink Salvage
+
+- [ ] 4.1 Move MAVLink parser, generator, and SITL controller behind a modern package boundary
+- [ ] 4.2 Preserve heartbeat, global position, attitude, battery, and command coverage where tests prove it
+- [ ] 4.3 Replace old message/processor wiring with SemStreams projection writes
+- [ ] 4.4 Keep raw frames on a bounded lane and project current vehicle state into signal-profiled entities
+- [ ] 4.5 Add real-frame tests that do not mock away MAVLink decoding
+- [ ] 4.6 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
+
+## 5. Feed Validation And Indexing Ladder
+
+- [x] 5.1 Add initial feed validation and indexing ladder documentation
+- [ ] 5.2 Record mock, simulator, replay, compliance, and sample-data evidence for each feed
+- [ ] 5.3 Define expected `indexing_profile` and cardinality risk for each projected entity type
+- [ ] 5.4 Prove MAVLink parser, generator, ArduPilot SITL, and PX4 SITL evidence gates
+- [ ] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
+- [ ] 5.6 Prove CAP XML schema and NWS sample gates before adding loose-reader behavior
+- [ ] 5.7 Verify or reject public SAPIENT compliance/fixture availability before phase commitment
+- [ ] 5.8 Run a KLV/SemSource binary proof spike before claiming streaming-binary support
+- [ ] 5.9 Run adversarial review for each feed before it enters the structural stack
+
+## 6. Structural COP Stack
+
+- [ ] 6.1 Add Compose stack for NATS, SemStreams, SemOps API, SemOps UI, and scenario runner
+- [ ] 6.2 Add MAVLink, TAK/CoT, and CAP/EDXL structural adapters
+- [ ] 6.3 Add service health and active state polling for long-running demo runs
+- [ ] 6.4 Add scenario playback for a flood/evacuation and shared-airspace vignette
+- [ ] 6.5 Add smoke test that verifies graph state from at least two feed types
+- [ ] 6.6 Run adversarial review on demo credibility, monitoring, and graph/index cardinality before Phase 1 signoff
+
+## 7. COP UI
+
+- [ ] 7.1 Build Svelte 5 first screen as the usable COP, not a landing page
+- [ ] 7.2 Add map layer for tracks, assets, hazard areas, footprints, alerts, and tasks
+- [ ] 7.3 Add source and provenance lenses for selected entities
+- [ ] 7.4 Validate whether topology/tier UI answers a real operator question before building it
+- [ ] 7.5 Add component tests and accessibility checks for core operator flows
+- [ ] 7.6 Run adversarial UX review before promoting topology, tier, or orchestration UI
+
+## 8. Tier Escalation And Egress
+
+- [ ] 8.1 Add ADS-B and SAPIENT feed boundaries
+- [ ] 8.2 Add statistical track association for ambiguous air tracks
+- [ ] 8.3 Add KLV footprint extraction
+- [ ] 8.4 Add SemConnect CS API egress as a standards-facing projection
+- [ ] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory
+- [ ] 8.6 Run adversarial review before SAPIENT, KLV, semantic, or standards-conformance claims are demoed
+
+## 9. Upstream SemStreams Asks
+
+- [ ] 9.1 File manifest/tier placement ask only if the scope gate proves it is useful
+- [ ] 9.2 File escalation event/status vocabulary ask only after inference evidence proves the need
+- [ ] 9.3 File provenance/confidence convention ask after feed contracts stabilize
+- [ ] 9.4 File spatial-temporal query helper asks from COP workflows
+- [ ] 9.5 File raw-lane/current-state projection guidance after MAVLink and one non-MAVLink feed prove it
+- [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need
+- [ ] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask

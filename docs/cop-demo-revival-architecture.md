@@ -1,0 +1,276 @@
+# SemOps COP Demo Revival Architecture
+
+## Status
+
+Draft baseline for the SemOps revival, created on 2026-06-17.
+
+Inputs:
+
+- Claude's SemOps COP demo plan in `SemOps-COP-Demo-Plan.md`.
+- Current SemOps checkout at `/Users/coby/Code/c360/semops`.
+- Current SemStreams checkout at `/Users/coby/Code/c360/semstreams`.
+- Current SemLink checkout at `/Users/coby/Code/c360/semlink`.
+- Feed validation and indexing ladder in `docs/feed-validation-and-indexing-ladder.md`.
+
+## Executive Direction
+
+SemOps should come back as a greenfield data-fusion common operating picture and integration lab. It should be
+large, bold, and allowed to break old assumptions. The old SemOps code is not the architecture; it is salvage.
+
+Product boundary:
+
+- SemOps owns the COP product, HA/DR scenario, feed adapters, domain vocabulary, fusion behavior, operator UI,
+  scenario playback, and product-scoped governance.
+- SemStreams owns the substrate: NATS/JetStream, graph mutation/query contracts, projection contracts,
+  ownership claims, indexing profiles, rule processing, and tiered structural/statistical/semantic services.
+- SemConnect owns the standards-facing OGC Connected Systems API egress path.
+- SemLink remains useful prior art for the modern GCS UI pattern, source-aware graph lens, TAK bridge, CS API bridge,
+  and bounded raw telemetry lane. SemLink should stay a basic demo unless explicitly rechartered; SemOps owns the
+  complete COP product going forward.
+
+SemOps should act as both consumer and producer for SemStreams improvement. Build product-specific pieces here,
+then upstream generic manifest, governance, tiering, indexing, and provenance needs only once the demo proves them.
+
+OpenSpec source: `openspec/changes/revive-cop-product`.
+
+Scope gate: orchestration, topology panels, and tier controls are hypotheses, not accepted Phase 1 features.
+
+Feed gate: feeds are added one at a time. MAVLink and TAK/CoT are first, CAP follows, and KLV stays a proof spike
+until video/KLV fixtures prove binary-by-reference and memory-bounded handling.
+
+Review gate: adversarial reviews are required at key stage boundaries. Reviews should challenge product value,
+framework ownership, evidence quality, compliance language, index-profile decisions, and demo credibility before the
+next implementation tranche begins.
+
+## Live Repo Findings
+
+SemOps is materially stale:
+
+- `go test ./...` currently stops before compile because SemStreams requires Go `1.26.3` while SemOps declares
+  Go `1.25.3`.
+- SemOps still imports `github.com/c360/semstreams`; current SemStreams is `github.com/c360studio/semstreams`.
+- `cmd/semops/main.go` is a lifecycle stub with TODOs for configuration, SemStreams clients, adapters, API, and
+  monitoring.
+- `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
+  and projection contract surface.
+
+SemOps has salvageable MAVLink depth:
+
+- It contains a MAVLink v1/v2 parser with registered message specs for heartbeat, global position, attitude, and
+  battery status.
+- It contains a test message generator, parser tests, UDP parser tests, battery rule tests, and ArduPilot SITL
+  command/control scaffolding.
+- This is deeper than SemLink's current scoped MAVLink subset, but it is wired to old SemStreams and StreamKit
+  assumptions.
+
+SemLink has the more current product pattern:
+
+- Raw high-rate MAVLink frames stay on a bounded stream lane.
+- Current vehicle state is collapsed into one signal-profiled graph entity per vehicle.
+- Alerts and commands are control-profiled graph entities.
+- Projection contracts declare ownership and indexing profiles before writing through SemStreams graph mutation
+  subjects.
+- A Svelte 5 dashboard and CS API bridge already prove the operator and standards-projection shape.
+
+## Design Principles
+
+1. Raw feeds stay raw at the boundary. The graph gets current state, durable events, provenance, confidence, and
+   relationship evidence, not one entity per packet.
+2. Every adapter writes through SemStreams projection and ownership contracts. No feed silently clobbers another
+   feed's predicates.
+3. Loose feeds use tolerant readers at the boundary and strict governed writes into the graph.
+4. Structural is the default operating mode. Statistical and semantic inference are recorded as evidence with
+   visible justification before they become any kind of control surface.
+5. Container boundaries follow deployment concerns: independent placement, scaling, external network protocols,
+   secrets, expensive inference, or different failure domains.
+6. Library/component boundaries follow code reuse concerns: codecs, canonical mappers, entity models, vocabulary,
+   projection contracts, and deterministic fusion rules.
+7. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
+8. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
+   architect, reviewer, and technical-writer roles have tried to break the assumptions and recorded the result.
+
+## Adversarial Review Gates
+
+Run adversarial reviews before:
+
+- Modernizing the SemStreams contract, to catch old StreamKit assumptions and accidental framework drift.
+- Declaring the COP entity/predicate model stable, to catch ownership conflicts and product-only vocabulary.
+- Adding each Phase 1 feed to the stack, to catch missing parser, replay, compliance, and indexing-profile evidence.
+- Promoting orchestration, topology, or tier UI, to prove operator value and avoid building a footgun.
+- Starting SAPIENT or KLV product work, to verify authoritative fixtures and honest compliance/binary claims.
+- Filing upstream SemStreams issues, to separate product-specific pressure from reusable framework requirements.
+
+Each review should leave a short record: decision, objections, evidence checked, accepted risks, and follow-up tasks.
+
+## System View
+
+```mermaid
+flowchart LR
+    subgraph Edge["Edge node"]
+        MAV["MAVLink adapter"]
+        COT["TAK/CoT adapter"]
+        CAP["CAP/EDXL adapter"]
+        RAW["Bounded raw lanes"]
+        PROJ["Structural projectors"]
+    end
+
+    subgraph Core["Core node"]
+        SS["SemStreams structural graph"]
+        RULES["Rules and governance"]
+        ASSOC["Track association evidence"]
+        SEM["Semantic translation evidence"]
+        API["SemOps COP API"]
+        UI["SemOps Svelte COP"]
+        CS["SemConnect CS API egress"]
+    end
+
+    subgraph Ops["Operations"]
+        MAN["Deployment metadata"]
+        POL["Escalation evidence"]
+        OBS["Prometheus/Otel/logs"]
+    end
+
+    MAV --> RAW
+    COT --> RAW
+    CAP --> RAW
+    RAW --> PROJ
+    PROJ --> SS
+    RULES --> SS
+    SS --> API
+    API --> UI
+    SS --> CS
+    MAN --> API
+    POL --> API
+    API --> ASSOC
+    API --> SEM
+    ASSOC --> SS
+    SEM --> SS
+    SS --> OBS
+    API --> OBS
+```
+
+## Containerized Services
+
+Use services where deployment isolation matters. The first structural demo should start with a single Compose
+stack, then split edge/core only after the deployment metadata has real value.
+
+| Service | Owner | Why it is a service | First phase |
+| --- | --- | --- | --- |
+| `nats` | Infra | Durable streams, KV buckets, request/reply, observability port | Phase 0 |
+| `semstreams-structural` | SemStreams | Graph ingest, graph query, rule processor, structural indexes | Phase 0 |
+| `semops-api` | SemOps | COP snapshot API, SSE, commands, source/provenance views | Phase 1 |
+| `semops-ui` | SemOps | Svelte COP product surface; may be served by `semops-api` | Phase 1 |
+| `semops-scenario-runner` | SemOps | Scripted HA/DR feed playback, deterministic demo clock | Phase 1 |
+| `semops-adapter-mavlink` | SemOps | External UDP/TCP/SITL boundary and high-rate raw lane producer | Phase 1 |
+| `semops-adapter-cot` | SemOps | TAK UDP/TCP/XML boundary and operator/marker/message projection | Phase 1 |
+| `semops-adapter-cap` | SemOps | Tolerant CAP/EDXL reader and hazard/advisory projection | Phase 1 |
+| `semops-adapter-sapient` | SemOps | Protobuf boundary and strict detection/track projection | Phase 2 |
+| `semops-adapter-adsb` | SemOps | Air-track source, raw JSON first, ASTERIX later | Phase 2 |
+| `semops-adapter-klv` | SemOps | Video metadata/footprint extraction from STANAG 4609 KLV subset | Phase 3 |
+| `semops-track-association` | SemOps | Statistical tier for ambiguous cross-source track association | Phase 2 |
+| `semops-translation-agent` | SemOps | Semantic tier for civilian advisory translation and explanations | Phase 3 |
+| `semconnect-csapi` | SemConnect | Standards egress and conformance surface | Phase 3 |
+| `observability` | Infra | Prometheus/Otel/log aggregation for active demo monitoring | Phase 0 |
+
+Do not make each deterministic mapper its own service by default. A mapper becomes a service only when it owns an
+external protocol boundary, needs separate placement, or has a different failure/scaling profile.
+
+## SemOps Components
+
+These belong inside the SemOps codebase even when a container hosts them.
+
+| Component | Role | Notes |
+| --- | --- | --- |
+| `pkg/mavlink` | MAVLink codec, parser, generator, SITL controller | Modernize the existing MAVLink processor |
+| `pkg/cop` | Canonical COP entity model and view types | Track, alert, asset, hazard, footprint, task, advisory |
+| `pkg/vocabulary` | SemOps predicates and projection contracts | Prefer SemStreams vocabulary when generic enough |
+| `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
+| `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
+| `internal/deployment` | Deployment metadata and health state | Build only after operator-value review |
+| `internal/inference` | Inference evidence and transition records | Evidence first, UI later |
+| `internal/scenario` | HA/DR scripted playback and demo clock | Keeps the stage demo repeatable |
+| `ui` | Svelte 5 COP product surface | Map, source lens, provenance lens, alerts |
+
+## First Canonical Entity Set
+
+Keep the first model small and strong:
+
+- `track`: moving thing with source evidence, position, velocity, identity, and confidence.
+- `asset`: responder, platform, vehicle, sensor, infrastructure, or resource.
+- `hazard_area`: flood, fire, plume, debris, exclusion zone, or evacuation polygon.
+- `sensor_footprint`: observed area from drone/video/sensor metadata.
+- `alert`: rule or source alert with severity, active state, and affected entities.
+- `task`: requested action or operator intent.
+- `advisory`: semantic-tier translation meant for civilian or cross-agency consumption.
+
+Each feed should own only its source-specific predicate group. Cross-source fusion should append evidence or write
+separate derived predicates under a fusion owner.
+
+## SemStreams Framework Pressure
+
+The SemOps revival should produce concrete upstream asks, not vague "platform needs":
+
+- A reusable deployment metadata schema only if service placement becomes operator-relevant.
+- A reusable escalation event/status vocabulary only if inference transitions generalize.
+- Better first-class provenance and confidence conventions for projection contracts and graph triples.
+- Indexing profile and cardinality guard improvements only after mixed COP feeds prove current `signal`, `control`,
+  `content`, and `trace` profiles are insufficient with clean entity boundaries.
+- Spatial and temporal query helpers tuned for COP workflows: polygon intersection, nearest track, stale track,
+  and moving object windows.
+- A documented raw-lane plus current-state projection pattern for high-rate telemetry.
+- Edge/core sync guidance for structural edge nodes and inference-heavy core nodes.
+- Governance helpers for tolerant-reader adapters that append evidence without replacing owned predicates.
+
+SemOps should stress current indexing behavior deliberately:
+
+- MAVLink, ADS-B, TAK position events, SAPIENT detections, and KLV sensor positions are high-rate `signal`.
+- Alerts, tasks, commands, feed health, scenario state, and egress state are durable `control`.
+- CAP advisory text, operator notes, chat text, and semantic explanations are `content`.
+- Replay steps, native packet references, and decode logs are `trace`.
+
+If those boundaries fail, file a SemStreams ask with a failing SemOps fixture rather than inventing SemOps-only
+profile semantics.
+
+## Phased Execution
+
+### Phase 0: Stabilize The Contract
+
+- Move SemOps to current Go and current `github.com/c360studio/semstreams` module path.
+- Quarantine or remove old StreamKit processor assumptions that do not match the current framework surface.
+- Add a small compile-time test for projection contracts and ownership claims.
+- Define the first canonical COP entity set and feed ownership matrix.
+
+### Phase 1: Structural COP
+
+- Build the structural stack with NATS, SemStreams, SemOps API, SemOps UI, and scripted feeds.
+- Use MAVLink, TAK/CoT, and CAP first because they prove high-rate telemetry, operator COP, and loose civilian
+  alerts.
+- Show deterministic fusion: hazard polygon intersects an asset, stale track detection, low-battery alert, and
+  source-aware provenance.
+
+### Phase 2: Air Picture And Statistical Escalation
+
+- Add ADS-B and SAPIENT feed boundaries.
+- Add a statistical track association service for ambiguous air tracks.
+- Write association evidence back to the graph; add UI only if it helps operator decisions.
+
+### Phase 3: Semantic Translation And Standards Egress
+
+- Add KLV footprint extraction and CS API egress through SemConnect.
+- Add the semantic translation service for civilian advisories and anomaly explanation.
+- Expose provenance and trajectory for every semantic answer.
+
+### Phase 4: Edge/Core Split
+
+- Run structural feeds and deterministic fusion at the edge.
+- Run statistical and semantic tiers at the core.
+- Use deployment metadata only where it helps edge/core operation.
+- Add scripted failover/offline behavior only after the single-stack demo is stable.
+
+## Open Decisions
+
+- Exact entity ID scheme for SemOps COP entities.
+- Predicate ownership matrix for each feed and derived fusion owner.
+- Whether to reuse SemLink UI components directly or port the patterns into a new SemOps product surface.
+- Whether deployment metadata or tier UI is a value add or a footgun.
+- How much SAPIENT and KLV to implement for demo-grade fidelity before claiming conformance.

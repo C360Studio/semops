@@ -1,0 +1,27 @@
+ticket: COP-003
+title: Salvage MAVLink and SITL into a modern SemOps adapter library
+assigned: go-developer
+depends_on: [COP-001, COP-002, COP-007, COP-008]
+blocks: [COP-004]
+status: ready
+reviewer: go-reviewer
+openspec_change: revive-cop-product
+
+scope:
+  - Move the useful MAVLink parser, generator, and SITL controller behind a clean package boundary.
+  - Preserve heartbeat, global position, attitude, battery, and ArduPilot command coverage where it is correct.
+  - Add PX4 SITL or MAVSDK smoke evidence once the current SemStreams module/toolchain migration is stable.
+  - Replace old BaseMessage/processor wiring with current SemStreams projection writes.
+  - Keep raw high-rate frames on a bounded lane and project current vehicle state into signal-profiled entities.
+
+acceptance:
+  - Parser and generator tests run without external containers.
+  - SITL tests skip cleanly when SITL is unavailable and run against an explicit SITL target.
+  - PX4 SITL or MAVSDK smoke evidence is documented before calling MAVLink Phase 1 complete.
+  - Adversarial review has challenged MAVLink evidence, indexing profile, and raw-lane/current-state boundaries.
+  - MAVLink projections use SemOps ownership contracts and current SemStreams graph mutation types.
+  - The adapter can be hosted in-process for tests or as semops-adapter-mavlink in Compose.
+
+tdd:
+  - Add contract tests for MAVLink current-state projection before replacing the old processor wiring.
+  - Use real MAVLink frames in tests; do not mock away the codec.

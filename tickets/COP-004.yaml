@@ -1,0 +1,27 @@
+ticket: COP-004
+title: Stand up the containerized structural COP stack
+assigned: go-developer
+depends_on: [COP-001, COP-002, COP-003, COP-007, COP-008]
+blocks: [COP-005, COP-006]
+status: ready
+reviewer: go-reviewer
+openspec_change: revive-cop-product
+
+scope:
+  - Add a first Compose stack with NATS, SemStreams structural services, SemOps API, UI, scenario runner,
+    MAVLink adapter, TAK/CoT adapter, and CAP adapter.
+  - Gate each adapter on parser, mock/simulator, projection, replay, and indexing-profile evidence.
+  - Keep SemConnect out of the critical path for Phase 1, but leave a documented extension point.
+  - Add health endpoints for services and active polling checks for long-running demo runs.
+
+acceptance:
+  - One command starts the structural demo stack locally.
+  - Health checks prove NATS, SemStreams, SemOps API, and the scenario runner are alive.
+  - The scenario runner produces visible graph writes from at least two feed types.
+  - Logs and metrics distinguish raw ingest, projection writes, rules, and COP API state.
+  - Feed graph writes declare expected indexing profiles and do not create graph entities per raw packet.
+  - Adversarial Phase 1 review has challenged demo credibility, monitoring, and graph/index cardinality.
+
+tdd:
+  - Add a smoke test that polls health and graph state instead of relying only on logs.
+  - Avoid arbitrary sleeps; use explicit readiness and state polling.

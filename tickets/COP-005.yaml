@@ -1,0 +1,24 @@
+ticket: COP-005
+title: Build the first Svelte COP surface with source and provenance lenses
+assigned: svelte-developer
+depends_on: [COP-002, COP-004, COP-008]
+blocks: [COP-006]
+status: ready
+reviewer: svelte-reviewer
+openspec_change: revive-cop-product
+
+scope:
+  - Build the first SemOps Svelte 5 COP surface with map, source lens, provenance lens, and alert state.
+  - Use current SemOps API contracts and Svelte 5 runes.
+  - Keep the first screen as the usable COP, not a landing page.
+
+acceptance:
+  - The COP shows tracks, assets, hazard areas, and alerts from live structural graph state.
+  - Selecting an entity shows source evidence, owner, confidence, and graph revision.
+  - Any topology or tier UI is deferred until it proves a concrete operator-value case.
+  - Adversarial UX review is complete before topology, tier, or orchestration UI is promoted.
+  - UI checks and component tests cover the source/provenance lens behavior.
+
+tdd:
+  - Start with component tests against fixture snapshots from the SemOps API.
+  - Add accessibility checks for interactive map/list/source controls.

@@ -1,0 +1,26 @@
+ticket: COP-007
+title: Establish feed validation and indexing evidence gates
+assigned: architect
+depends_on: [COP-002]
+blocks: [COP-003, COP-004, COP-006]
+status: ready
+reviewer: technical-writer
+openspec_change: revive-cop-product
+
+scope:
+  - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT,
+    and KLV/STANAG 4609.
+  - Record parser, mock, simulator, replay, compliance, and sample-data evidence before each feed enters the demo.
+  - Define the expected SemStreams `indexing_profile` and cardinality risk for each projected entity type.
+  - Keep SAPIENT and KLV as evidence-gated work until authoritative fixtures and binary proof spikes exist.
+
+acceptance:
+  - MAVLink has generator, real-frame, ArduPilot SITL, and PX4 SITL or MAVSDK smoke gates documented.
+  - TAK/CoT has UDP/TCP fixture replay gates documented without claiming public conformance.
+  - CAP has OASIS schema or consumer-rule validation plus NWS sample gates documented.
+  - KLV has a small fixture plan proving metadata extraction, storage references, and memory-bounded handling.
+  - Every feed has an explicit `indexing_profile` policy before graph writes are implemented.
+
+tdd:
+  - Treat missing mock, replay, compliance, or profile evidence as the red state for adapter implementation.
+  - Add contract tests before broad feed expansion so high-cardinality native data cannot flood semantic indexes.

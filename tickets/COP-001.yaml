@@ -1,0 +1,23 @@
+ticket: COP-001
+title: Modernize SemOps against current SemStreams contracts
+assigned: architect
+depends_on: []
+blocks: [COP-002, COP-003, COP-004]
+status: ready
+reviewer: go-reviewer
+openspec_change: revive-cop-product
+
+scope:
+  - Update SemOps to the current SemStreams module path github.com/c360studio/semstreams.
+  - Align the Go toolchain with the current SemStreams requirement.
+  - Identify old StreamKit/BaseProcessor assumptions that no longer match SemStreams.
+  - Add a minimal compile gate before deeper feature work starts.
+
+acceptance:
+  - go test ./... reaches SemOps code compilation instead of failing on Go version or module path.
+  - Remaining package failures are documented as concrete migration tickets.
+  - No product architecture is built on deprecated SemStreams interfaces.
+
+tdd:
+  - Start with the failing compile as the red state.
+  - Add the smallest contract test that imports current SemStreams projection and graph mutation packages.
