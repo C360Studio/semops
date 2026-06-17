@@ -12,7 +12,6 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
 - Architecture baseline: `docs/cop-demo-revival-architecture.md`
 - Feed evidence ladder: `docs/feed-validation-and-indexing-ladder.md`
 - COP model baseline: `docs/cop-model-and-governance.md`
-- MAVLink reference hold: `docs/legacy-quarantine.md`
 - Active MAVLink codec boundary: `pkg/adapters/mavlink`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
@@ -37,16 +36,12 @@ The initial ownership-contract matrix lives in `pkg/cop` and covers:
 - CAP hazard/advisory evidence as append-only `content`
 - deterministic fusion alerts as derived `control`
 
-## Reference Material
-
-Only MAVLink material with near-term SITL extraction value remains under `pkg/processors/mavlink`, guarded by the
-`ignore` build constraint:
-
-- ArduPilot SITL controller/scenario scaffolding
+## MAVLink Salvage
 
 The active codec now lives in `pkg/adapters/mavlink` with parser/generator tests for heartbeat, global position,
-attitude, battery status, split buffers, resync, checksum rejection, and scenario frames. The remaining ignored SITL
-files should be deleted once useful command/control behavior is extracted or deliberately rejected.
+attitude, battery status, COMMAND_LONG, COMMAND_ACK, split buffers, resync, checksum rejection, raw-lane bounds, and
+scenario frames. Ignored SITL controller/scenario references were deleted after useful command encoding and ACK
+decoding moved into the active adapter package.
 
 ## Development
 
@@ -56,5 +51,5 @@ Run the current active test gate:
 go test ./...
 ```
 
-The test suite validates the SemStreams contract gate, COP ownership model, and active MAVLink codec. Ignored SITL
-reference files are not part of the active product build.
+The test suite validates the SemStreams contract gate, COP ownership model, and active MAVLink codec. SITL/PX4
+simulator gates are still future evidence, not current product claims.

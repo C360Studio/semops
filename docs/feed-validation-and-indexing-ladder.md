@@ -6,7 +6,7 @@ Draft baseline for the SemOps COP revival, created on 2026-06-17.
 
 Inputs:
 
-- Current SemOps MAVLink parser, generator, and SITL code.
+- Current SemOps MAVLink parser, generator, raw-lane, and command codec code.
 - Current SemLink TAK bridge and demo seeding script.
 - Current SemSource media design and video handler.
 - Current SemStreams indexing-profile contract in ADR-054.
@@ -96,19 +96,17 @@ Compliance and simulator evidence:
 Local assets:
 
 - SemOps has an active MAVLink v1/v2 parser and MAVLink v2 generator in `pkg/adapters/mavlink`.
-- The active tests prove heartbeat, global position, attitude, battery status, split buffers, noisy resync, checksum
-  rejection, and deterministic scenario frames.
+- The active tests prove heartbeat, global position, attitude, battery status, COMMAND_LONG, COMMAND_ACK, split
+  buffers, noisy resync, checksum rejection, and deterministic scenario frames.
 - The active raw lane stores copied MAVLink frames under record and byte caps and annotates decoded packets with a
   `cop.provenance.source_ref` for current-state projections.
-- The old ignored parser/generator references were deleted after extraction. Only ArduPilot SITL controller/scenario
-  references remain under `pkg/processors/mavlink`.
-- SemSpec memory indicates prior PX4 SITL evidence-ladder work and public-facing harness tags.
+- The old ignored parser/generator and SITL controller/scenario references were deleted after extraction or rejection.
 
 Mock or harness:
 
 - Use `go test ./pkg/adapters/mavlink` as the no-container parser/generator gate.
-- Use the retained ArduPilot SITL reference for the next command/control extraction.
-- Add a PX4 SITL or MAVSDK smoke harness when the module/toolchain migration is stable.
+- Use active COMMAND_LONG/COMMAND_ACK tests as the command codec gate.
+- Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 
 Indexing profile pressure:
 
@@ -128,6 +126,7 @@ Current codec gate:
 - Battery status now guards canonical MAVLink wire order because the ignored reference layout was self-consistent but
   not sufficient interoperability evidence.
 - `pkg/adapters/mavlink/raw_lane_test.go` proves the bounded in-memory raw lane before durable replay storage exists.
+- `pkg/adapters/mavlink/commands_test.go` proves command frame encoding and ACK parsing before any live SITL harness.
 
 ### TAK/CoT
 

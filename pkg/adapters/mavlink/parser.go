@@ -397,6 +397,43 @@ func (p *Parser) registerStandardMessages() {
 		},
 	})
 
+	commandLongCRC, _ := standardCRCExtra(MessageIDCommandLong)
+	p.RegisterMessageSpec(&MessageSpec{
+		ID:          MessageIDCommandLong,
+		Name:        "COMMAND_LONG",
+		PayloadSize: 33,
+		CRCExtra:    commandLongCRC,
+		Fields: []FieldSpec{
+			{Name: "param1", Type: "float", Size: 4, Offset: 0},
+			{Name: "param2", Type: "float", Size: 4, Offset: 4},
+			{Name: "param3", Type: "float", Size: 4, Offset: 8},
+			{Name: "param4", Type: "float", Size: 4, Offset: 12},
+			{Name: "param5", Type: "float", Size: 4, Offset: 16},
+			{Name: "param6", Type: "float", Size: 4, Offset: 20},
+			{Name: "param7", Type: "float", Size: 4, Offset: 24},
+			{Name: "command", Type: "uint16", Size: 2, Offset: 28},
+			{Name: "target_system", Type: "uint8", Size: 1, Offset: 30},
+			{Name: "target_component", Type: "uint8", Size: 1, Offset: 31},
+			{Name: "confirmation", Type: "uint8", Size: 1, Offset: 32},
+		},
+	})
+
+	commandAckCRC, _ := standardCRCExtra(MessageIDCommandAck)
+	p.RegisterMessageSpec(&MessageSpec{
+		ID:          MessageIDCommandAck,
+		Name:        "COMMAND_ACK",
+		PayloadSize: 10,
+		CRCExtra:    commandAckCRC,
+		Fields: []FieldSpec{
+			{Name: "command", Type: "uint16", Size: 2, Offset: 0},
+			{Name: "result", Type: "uint8", Size: 1, Offset: 2},
+			{Name: "progress", Type: "uint8", Size: 1, Offset: 3},
+			{Name: "result_param2", Type: "int32", Size: 4, Offset: 4},
+			{Name: "target_system", Type: "uint8", Size: 1, Offset: 8},
+			{Name: "target_component", Type: "uint8", Size: 1, Offset: 9},
+		},
+	})
+
 	batteryStatusCRC, _ := standardCRCExtra(MessageIDBatteryStatus)
 	p.RegisterMessageSpec(&MessageSpec{
 		ID:          MessageIDBatteryStatus,

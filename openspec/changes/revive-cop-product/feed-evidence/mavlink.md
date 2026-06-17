@@ -6,9 +6,10 @@ extracted. Live feed integration remains blocked by stack, durable replay, and r
 ## Decision
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
-The active path now has a modern parser/generator package, bounded in-memory raw lane, current-state projection
-planner, and tested graph request/reply writer boundary. Live feed work still needs durable replay storage, container
-stack wiring, SITL/PX4 evidence, restart/replay reconciliation, and stack health checks.
+The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
+coverage, current-state projection planner, and tested graph request/reply writer boundary. Live feed work still needs
+durable replay storage, container stack wiring, SITL/PX4 evidence, restart/replay reconciliation, and stack health
+checks.
 
 ## Local Evidence
 
@@ -18,6 +19,10 @@ stack wiring, SITL/PX4 evidence, restart/replay reconciliation, and stack health
   deterministic quadcopter scenario frames with CRC.
 - `pkg/adapters/mavlink/parser_test.go` validates generator/parser compatibility, split buffers, noisy resync,
   checksum rejection, concurrent sequence generation, scenario frame generation, and canonical battery wire order.
+- `pkg/adapters/mavlink/commands.go` provides COMMAND_LONG/COMMAND_ACK support, MAV_RESULT naming, and ArduCopter
+  mode mapping.
+- `pkg/adapters/mavlink/commands_test.go` proves COMMAND_LONG and COMMAND_ACK frame generation/parsing from real
+  MAVLink bytes.
 - `pkg/adapters/mavlink/raw_lane.go` keeps copied native frames in a bounded lane and annotates decoded packets with
   replay-addressable source references.
 - `pkg/adapters/mavlink/raw_lane_test.go` proves metadata capture, record and byte eviction, oversize rejection,
@@ -30,8 +35,8 @@ stack wiring, SITL/PX4 evidence, restart/replay reconciliation, and stack health
   `graph.mutation.entity.update_with_triples` request/reply subjects.
 - `internal/projectors/mavlink/writer_test.go` proves write ordering, owner-token transit,
   committed-but-degraded response handling, cancellation, failure stops, and unsupported mutation rejection.
-- `pkg/processors/mavlink/sitl` still contains ignored ArduPilot SITL controller/scenario reference files. These are
-  retained only until command/control behavior is extracted or rejected.
+- Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
+  into the active adapter and the live controller was rejected as legacy scaffolding.
 
 ## External Evidence
 
@@ -55,6 +60,7 @@ Acceptance:
 - Corrupted frames do not panic and do not publish governed graph state.
 - Multiple messages in one buffer produce stable ordered packets.
 - Battery status uses canonical MAVLink wire order, not the older self-consistent SemOps reference layout.
+- COMMAND_LONG and COMMAND_ACK use canonical payload order and parse expected command/result fields.
 
 ### Projection Gate
 
@@ -82,7 +88,7 @@ Acceptance:
 Target command after SITL harness exists:
 
 ```bash
-go test ./pkg/processors/mavlink/sitl
+go test ./internal/adapters/mavlink/sitl
 ```
 
 Acceptance:
@@ -110,11 +116,11 @@ Acceptance:
   stack boundary.
 - Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
   born without a read-back or checkpoint path.
-- SITL command/control reference files still need extraction behind modern SemOps package boundaries.
+- No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before
+  command/control demo claims.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
-- Command coverage is not active until the SITL controller and COMMAND_LONG/COMMAND_ACK tests move into the adapter
-  package.
+- Command codec coverage is active for COMMAND_LONG and COMMAND_ACK, but live command/control is not.
 - PX4 SITL/MAVSDK evidence is not yet in SemOps.
 
 ## Adversarial Feed-Entry Questions

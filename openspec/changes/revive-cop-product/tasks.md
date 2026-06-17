@@ -26,8 +26,8 @@
 ## 4. MAVLink Salvage
 
 - [x] 4.1 Move MAVLink parser and generator behind a modern package boundary
-- [ ] 4.2 Move the SITL controller behind a modern package boundary or deliberately reject it
-- [ ] 4.3 Preserve heartbeat, global position, attitude, battery, and command coverage where tests prove it
+- [x] 4.2 Move the SITL controller behind a modern package boundary or deliberately reject it
+- [x] 4.3 Preserve heartbeat, global position, attitude, battery, and command coverage where tests prove it
 - [ ] 4.4 Replace old message/processor wiring with SemStreams projection writes
 - [x] 4.5 Project decoded MAVLink current vehicle state into signal-profiled SemStreams mutation plans
 - [x] 4.6 Add real-frame codec tests that do not mock away MAVLink decoding

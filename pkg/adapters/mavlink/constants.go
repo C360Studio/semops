@@ -61,3 +61,13 @@ const (
 	CommandVideoStopStreaming     uint16 = 2503
 	CommandRequestVideoStreamInfo uint16 = 2504
 )
+
+const (
+	MAVResultAccepted            uint8 = 0
+	MAVResultTemporarilyRejected uint8 = 1
+	MAVResultDenied              uint8 = 2
+	MAVResultUnsupported         uint8 = 3
+	MAVResultFailed              uint8 = 4
+	MAVResultInProgress          uint8 = 5
+	MAVResultCancelled           uint8 = 6
+)

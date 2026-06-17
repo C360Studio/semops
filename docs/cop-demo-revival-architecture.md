@@ -63,12 +63,11 @@ SemOps started materially stale; the first revival slices are correcting that:
 
 SemOps has salvageable MAVLink depth:
 
-- It contains a MAVLink v1/v2 parser with registered message specs for heartbeat, global position, attitude, and
-  battery status.
-- It contains a test message generator, parser tests, UDP parser tests, and ArduPilot SITL command/control
-  scaffolding.
-- Non-reference StreamKit and BaseProcessor-era MAVLink code has been removed. The retained ignored files are a
-  temporary reference hold for extraction.
+- It contains a MAVLink v1/v2 parser with registered message specs for heartbeat, global position, attitude, battery,
+  COMMAND_LONG, and COMMAND_ACK.
+- It contains a test message generator, parser tests, command codec tests, and raw-lane tests.
+- Non-reference StreamKit, BaseProcessor-era MAVLink code, and ignored SITL references have been removed after useful
+  command encoding and ACK parsing moved into the active adapter.
 - A bounded MAVLink raw frame lane now stores copied frames under record and byte caps and annotates decoded packets
   with source references for governed current-state projections.
 
@@ -232,7 +231,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 
 | Component | Role | Notes |
 | --- | --- | --- |
-| `pkg/adapters/mavlink` | MAVLink codec, raw lane, and future SITL controller | Active parser/generator extracted |
+| `pkg/adapters/mavlink` | MAVLink codec, raw lane, and command helpers | Active parser/generator extracted |
 | `pkg/cop` | COP model, predicates, projection contracts | Track, alert, asset, hazard, footprint, task, advisory |
 | `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |

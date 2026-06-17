@@ -135,6 +135,48 @@ func (g *Generator) GenerateAttitude(msg AttitudeMessage) ([]byte, error) {
 	return g.buildV2Frame(MessageIDAttitude, payload)
 }
 
+type CommandLongMessage struct {
+	Command           uint16
+	TargetSystemID    uint8
+	TargetComponentID uint8
+	Confirmation      uint8
+	Params            [7]float32
+}
+
+func (g *Generator) GenerateCommandLong(msg CommandLongMessage) ([]byte, error) {
+	payload := make([]byte, 33)
+	for i, param := range msg.Params {
+		binary.LittleEndian.PutUint32(payload[i*4:i*4+4], math.Float32bits(param))
+	}
+	binary.LittleEndian.PutUint16(payload[28:30], msg.Command)
+	payload[30] = msg.TargetSystemID
+	payload[31] = msg.TargetComponentID
+	payload[32] = msg.Confirmation
+
+	return g.buildV2Frame(MessageIDCommandLong, payload)
+}
+
+type CommandAckMessage struct {
+	Command           uint16
+	Result            uint8
+	Progress          uint8
+	ResultParam2      int32
+	TargetSystemID    uint8
+	TargetComponentID uint8
+}
+
+func (g *Generator) GenerateCommandAck(msg CommandAckMessage) ([]byte, error) {
+	payload := make([]byte, 10)
+	binary.LittleEndian.PutUint16(payload[0:2], msg.Command)
+	payload[2] = msg.Result
+	payload[3] = msg.Progress
+	binary.LittleEndian.PutUint32(payload[4:8], uint32(msg.ResultParam2))
+	payload[8] = msg.TargetSystemID
+	payload[9] = msg.TargetComponentID
+
+	return g.buildV2Frame(MessageIDCommandAck, payload)
+}
+
 func (g *Generator) buildV2Frame(messageID uint32, payload []byte) ([]byte, error) {
 	payloadLength := len(payload)
 	if payloadLength > MaxPayloadLength {

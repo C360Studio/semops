@@ -5,12 +5,11 @@ reference value for the next extraction slice.
 
 ## Retained Reference Files
 
-Only these MAVLink references remain under `pkg/processors/mavlink`, guarded by the `ignore` build constraint:
+None.
 
-- `sitl/*`
-
-They are not part of the active product compile path. They are retained because SemOps appears to have useful ArduPilot
-SITL control scenarios that still need extraction behind the active adapter boundary.
+All retained MAVLink reference files have either been extracted into the active adapter package or deliberately
+rejected. The ignored SITL controller/scenario tree was deleted after COMMAND_LONG, COMMAND_ACK, ArduCopter mode
+mapping, and MAV_RESULT naming moved into `pkg/adapters/mavlink`.
 
 ## Extracted Reference Behavior
 
@@ -20,6 +19,11 @@ These MAVLink references have moved into the active product path:
   resync, and decodes the first COP telemetry messages.
 - `pkg/adapters/mavlink/generator.go` generates MAVLink v2 heartbeat, global position, attitude, battery, and
   deterministic quadcopter scenario frames.
+- `pkg/adapters/mavlink/commands.go` provides command result naming and ArduCopter mode mapping.
+- `pkg/adapters/mavlink/commands_test.go` proves COMMAND_LONG and COMMAND_ACK frame generation/parsing from real
+  MAVLink bytes.
+- `pkg/adapters/mavlink/raw_lane.go` keeps copied MAVLink frames under record and byte caps without creating graph
+  entities per packet.
 - `pkg/adapters/mavlink/parser_test.go` proves those frames with real binary decode tests, including split buffers,
   noisy resync, checksum rejection, and canonical battery wire order.
 
@@ -29,6 +33,7 @@ These old paths were removed because they carried stale architecture rather than
 
 - `pkg/entities`
 - old ignored MAVLink constants, parser, generator, and parser/generator tests
+- ignored MAVLink SITL controller, command wrapper, status, handler, scenario, example, and integration-test files
 - `pkg/processors/mavlink/payloads`
 - `pkg/processors/mavlink/rules`
 - `pkg/processors/mavlink/vocabulary`
@@ -49,5 +54,4 @@ tested against current SemStreams contracts. The current accepted patterns are:
 
 ## Deletion Rule
 
-Delete retained reference files as soon as their useful SITL behavior has either been extracted or deliberately
-rejected.
+Delete retained reference files as soon as their useful behavior has either been extracted or deliberately rejected.
