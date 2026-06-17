@@ -67,8 +67,9 @@
 - [x] 6.11 Run breaking-tag compliance smoke for MAVLink graph writes
 - [x] 6.12 Add live graph smoke harness that skips unless a SemStreams NATS URL is provided
 - [x] 6.13 Add explicit SemOps COP owner registration and heartbeat smoke coverage
-- [ ] 6.14 Assert clean-stack graph-ingest foreign-edge, owner-token, and indexing-profile counter deltas
+- [x] 6.14 Assert clean-stack graph-ingest foreign-edge, owner-token, and indexing-profile counter deltas
 - [ ] 6.15 Wire COP ownership registration into the hosted adapter or SemOps composition root
+- [ ] 6.16 Carry live graph metrics URL into the one-command hosted stack smoke
 
 ## 7. COP UI
 

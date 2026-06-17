@@ -49,6 +49,8 @@ progress:
     position state.
   - Added a COP ownership registration boundary and reran the smoke on a clean temporary NATS/SemStreams stack with
     registry-derived owner tokens.
+  - Added optional live-smoke metrics-delta checks for SemOps owner-token mismatch, foreign-edge, and
+    indexing-profile-default counters.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
@@ -60,8 +62,7 @@ current_evidence:
 
 remaining:
   - Wire COP ownership registration into the hosted adapter or SemOps composition root.
-  - Add clean-stack before/after assertions for graph-ingest indexing-profile defaults, owner-token mismatches, and
-    foreign-edge failure counters.
+  - Carry the metrics URL and before/after assertions into one-command Compose.
   - Host the structural MAVLink wiring in `cmd/semops` or a dedicated adapter service entrypoint.
   - Wire the replay store into scenario-runner playback and retention policy.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.

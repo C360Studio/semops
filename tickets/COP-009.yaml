@@ -44,9 +44,11 @@ progress:
     static owners for heartbeat.
   - 2026-06-17 clean-stack live run passed with registry-derived `<owner>#<incarnation>` tokens:
     `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=nats://127.0.0.1:4222 go test ./internal/smoke/mavlink -v`.
+  - Added optional metrics-delta assertions to the live smoke and passed them against clean SemStreams metrics:
+    `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`.
 
 remaining:
   - Push or PR the local revival commits so GitHub issue #1 can see current evidence.
   - Wire COP ownership registration into the eventual `cmd/semops` or adapter-service composition root.
-  - Add before/after metric assertions for graph-ingest foreign-edge, owner-token, and indexing-profile counters.
+  - Carry the metrics URL and counter-delta assertions into the eventual one-command hosted stack.
   - Add restart/replay reconciliation before calling the adapter operationally safe across process restarts.

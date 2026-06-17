@@ -21,6 +21,8 @@ Evidence:
   with heartbeat and consumer warnings, so counter assertions must be repeated in a clean one-command stack.
 - Follow-up result: pass against a clean temporary NATS/SemStreams stack at `nats://127.0.0.1:4222` after registering
   SemOps COP owners and using registry-derived `<owner>#<incarnation>` owner tokens.
+- Metrics follow-up: pass with `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`, asserting no
+  SemOps-specific owner-token mismatch, foreign-edge, or indexing-profile-default counter deltas.
 
 Adversarial Findings:
 
@@ -38,9 +40,10 @@ Adversarial Findings:
   command/control evidence.
 - Architect: Metrics need before/after delta assertions. The clean stack still exposed a baseline
   `message_type="unknown"` indexing-profile default counter, so a total-zero assertion would be misleading.
+- Update: the live smoke now performs SemOps-specific before/after delta checks when a metrics URL is provided.
 
 Decision:
 
 Accept the smoke as the generated/replay ADR-055/056 must-exist gate for MAVLink. Keep COP-009 open for GitHub issue
-evidence publication, hosted owner-registration wiring, clean-stack counter-delta assertions, and restart/replay
+evidence publication, hosted owner-registration wiring, hosted-stack metrics URL plumbing, and restart/replay
 reconciliation.

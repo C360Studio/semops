@@ -73,8 +73,8 @@ requests before triples or foreign edges are added.
   a live SemStreams graph path before PX4/SITL fidelity work is treated as blocking
 - **AND** the smoke reports no `entity_not_found` failures for the MAVLink path
 - **AND** clean-stack evidence registers COP owners and uses registry-derived owner tokens
-- **AND** hosted-stack evidence asserts dropped foreign-edge, owner-token mismatch, and indexing-profile default
-  counter deltas when those signals are exposed by the SemStreams tag in use
+- **AND** metrics-enabled evidence asserts dropped foreign-edge, owner-token mismatch, and indexing-profile default
+  counter deltas for SemOps message types when those signals are exposed by the SemStreams tag in use
 
 #### Scenario: No-birth stub requires explicit review
 

@@ -56,8 +56,8 @@ The first COP stack SHALL run locally with a single documented command after dep
   expansion
 - **AND** the smoke actively polls graph state and mutation failures rather than relying on quiet logs
 - **AND** the clean-stack smoke registers COP ownership and uses registry-derived owner tokens
-- **AND** the later hosted-stack smoke asserts graph-ingest counter deltas for foreign-edge drops, owner-token
-  mismatches, and indexing-profile defaults
+- **AND** the smoke asserts graph-ingest counter deltas for foreign-edge drops, owner-token mismatches, and
+  indexing-profile defaults when a SemStreams metrics URL is provided
 
 ### Requirement: Scenario runner makes demos repeatable
 

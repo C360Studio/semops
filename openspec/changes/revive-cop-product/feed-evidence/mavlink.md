@@ -119,6 +119,7 @@ SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -
 ```
 
 This test skips unless `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL` points at a live SemStreams graph stack.
+When `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL` is set, it also checks SemOps-specific graph-ingest counter deltas.
 
 Latest evidence:
 
@@ -126,6 +127,8 @@ Latest evidence:
   `nats://127.0.0.1:55438`.
 - 2026-06-17: passed again against a clean temporary NATS/SemStreams stack at `nats://127.0.0.1:4222` after
   registering SemOps COP ownership contracts and composing owner tokens from the registry incarnation.
+- 2026-06-17: passed with `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`, asserting zero
+  SemOps-specific deltas for owner-token mismatch, foreign-edge, and indexing-profile-default counters.
 - SemStreams health remained green after the run via `/health` and the dedicated `/healthz` endpoint.
 - SemStreams logged that `semops.feed.cap` has no enforceable owning or foreign-edge claim because CAP is currently
   append-evidence only; this is governance evidence, not write-fence protection.
@@ -138,8 +141,8 @@ Acceptance:
 - The run reports no `entity_not_found` mutation failures.
 - The clean-stack run registers SemOps COP owners, enrolls them for heartbeat, and uses registry-derived
   `<owner>#<incarnation>` owner tokens.
-- A later clean-stack run asserts dropped foreign-edge, owner-token mismatch, and indexing-profile default counter
-  deltas once the SemStreams metric surface is stable enough for this repository to depend on.
+- When metrics are enabled, the run asserts dropped foreign-edge, owner-token mismatch, and indexing-profile default
+  counter deltas for SemOps message types.
 - This gate is complete before PX4/SITL is treated as the next blocking MAVLink milestone.
 
 ### SITL Gate
@@ -180,6 +183,8 @@ Acceptance:
   into a hosted SemOps process.
 - The SemStreams graph-ingest indexing-profile default counter showed a baseline `message_type="unknown"` value in a
   clean stack. SemOps needs before/after counter deltas rather than a naive zero-total assertion.
+- The optional metrics smoke now performs those before/after deltas for SemOps message types; the hosted stack still
+  needs to pass the metrics URL through.
 - Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
   born without a read-back or checkpoint path.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before
