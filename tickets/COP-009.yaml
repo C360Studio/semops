@@ -1,0 +1,45 @@
+ticket: COP-009
+title: Clear ADR-055/056 must-exist breaking-tag gate
+assigned: go-developer
+depends_on: [COP-002, COP-003, COP-004]
+blocks: [COP-005, COP-006]
+status: ready
+reviewer: go-reviewer
+openspec_change: revive-cop-product
+github_issue: https://github.com/C360Studio/semops/issues/1
+
+scope:
+  - Track SemStreams issue #1 for the ADR-055/056 must-exist flip.
+  - Keep SemOps revival adapters on born-first create/update mutation paths.
+  - Prove MAVLink generated or replay frames can write through a live SemStreams graph stack before PX4/SITL.
+  - Prove registered projection contracts derive expected ForeignEdgeClaim records before structural feed expansion.
+  - Poll graph state and failure counters instead of accepting log-only evidence.
+
+acceptance:
+  - SemOps has no active legacy MAVLink auto-vivify writer paths.
+  - MAVLink source asset and track are created before update or strict `cop.track.source` edge writes.
+  - A generated or replay MAVLink smoke run against the current SemStreams graph stack reports no
+    `entity_not_found` failures.
+  - The smoke checks for dropped foreign-edge evidence once SemStreams exposes the relevant counter or state.
+  - The GitHub issue is updated with design evidence, local test evidence, and remaining post-tag verification.
+
+tdd:
+  - Start with generated or replay MAVLink frames, not PX4/SITL, so graph compliance is isolated from simulator
+    fidelity.
+  - Use active polling of graph state and counters; do not infer compliance from quiet logs.
+  - Treat restart/replay birth-cache behavior as a failing operational edge until read-back, checkpointing, or
+    idempotent create handling exists.
+
+progress:
+  - Local legacy auto-vivify MAVLink rule/payload paths have been deleted.
+  - COP contracts and docs cite ADR-055/056 and derive ForeignEdgeClaim records.
+  - MAVLink projector tests prove asset birth before track birth and no repeated strict source edge on updates.
+  - MAVLink graph writer and structural wiring tests use create/update-with-triples mutation subjects.
+  - Added `go test ./internal/smoke/mavlink` as a skipped-by-default live graph smoke harness. It runs only when
+    `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL` points at a live SemStreams graph stack.
+
+remaining:
+  - Push or PR the local revival commits so GitHub issue #1 can see current evidence.
+  - Run the generated/replay MAVLink live graph smoke against the SemStreams stack.
+  - Add owner registration or registry smoke coverage for SemOps COP contracts in the structural stack.
+  - Add restart/replay reconciliation before calling the adapter operationally safe across process restarts.

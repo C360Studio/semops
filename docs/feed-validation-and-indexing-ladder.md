@@ -41,9 +41,11 @@ Each feed must progress through these gates:
 3. **Projection gate:** Write governed SemStreams graph mutations with ownership, provenance, confidence, and an
    explicit `indexing_profile`.
 4. **Replay gate:** Re-run the same scenario from captured native data and get stable COP state.
-5. **Compliance gate:** Run a public conformance suite, official schema validation, or documented interoperability
+5. **Breaking-tag graph gate:** Prove generated or replay feed input against the live SemStreams graph path when a
+   framework-breaking contract change, such as ADR-055/056 must-exist, is pending.
+6. **Compliance gate:** Run a public conformance suite, official schema validation, or documented interoperability
    test where one exists.
-6. **Demo gate:** Show the feed in the COP with health, source, provenance, and stale-data behavior.
+7. **Demo gate:** Show the feed in the COP with health, source, provenance, and stale-data behavior.
 
 No feed should skip the parser, projection, and demo gates. Compliance may be unavailable for some feeds, but the
 absence must be explicit.
@@ -109,6 +111,8 @@ Mock or harness:
 
 - Use `go test ./pkg/adapters/mavlink` as the no-container parser/generator gate.
 - Use active COMMAND_LONG/COMMAND_ACK tests as the command codec gate.
+- Use generated or replay MAVLink frames against a live SemStreams graph stack to clear SemOps issue #1 before
+  making PX4/SITL a blocking dependency.
 - Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 
 Indexing profile pressure:
@@ -122,6 +126,13 @@ First acceptance gate:
 
 - Given real MAVLink frames for heartbeat, global position, attitude, and battery, the adapter writes one current
   vehicle entity with source provenance and a raw source reference, and does not create one graph entity per packet.
+
+Breaking-tag gate:
+
+- Given generated or replay MAVLink heartbeat and position frames, the live SemStreams graph path creates the source
+  asset, creates the track with the strict `cop.track.source` edge, and updates the known track without
+  `entity_not_found` failures or dropped foreign-edge evidence.
+- This gate precedes PX4/SITL because it isolates SemStreams graph compliance from simulator fidelity.
 
 Current codec gate:
 

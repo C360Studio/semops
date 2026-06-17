@@ -75,11 +75,17 @@ SemOps also follows SemStreams ADR-055/056 explicitly:
 - Cross-entity relationships are declared by projection-contract foreign edges that derive
   `ownership.ForeignEdgeClaim` values.
 - `EdgeNoBirthStub` requires a recorded review that proves the target has no independent producer.
+- SemOps GitHub issue #1 tracks the upcoming SemStreams must-exist breaking tag. The compliance proof should use
+  generated or replay MAVLink frames against a live SemStreams graph path before PX4/SITL, UI, or second-feed work.
 
 ### 4. Phase 1 stays structural and complete
 
 The first demo should not wait for seven feeds and three tiers. Phase 1 is complete when MAVLink, TAK/CoT, and
 CAP/EDXL produce live governed graph state and the COP shows map, source, provenance, feed health, and alerts.
+
+The first Phase 1 graph milestone is narrower: generated or replay MAVLink must prove born-first create/update
+behavior against the live SemStreams graph path with no `entity_not_found` failures or dropped foreign-edge evidence.
+PX4/SITL remains a feed-fidelity and command/control gate after that compliance smoke exists.
 
 ### 5. Orchestration is a scope-gated hypothesis
 
@@ -170,11 +176,12 @@ accepted risks, and follow-up tasks.
 4. Add structural projection writers and born-first contract tests.
 5. Add the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT, and KLV.
 6. Run adversarial reviews for framework modernization, COP model, and feed evidence before Phase 1 implementation.
-7. Add first Compose stack with NATS, SemStreams, SemOps API, UI, scenario runner, and three feed adapters.
-8. Build the MapLibre/deck.gl source/provenance COP product surface.
-9. Add ADS-B/SAPIENT and statistical track association.
-10. Add KLV, SemConnect egress, and semantic translation.
-11. Split edge/core placement after the single-stack demo is stable.
+7. Add generated/replay MAVLink live graph smoke for the ADR-055/056 must-exist breaking-tag gate.
+8. Add first Compose stack with NATS, SemStreams, SemOps API, UI, scenario runner, and three feed adapters.
+9. Build the MapLibre/deck.gl source/provenance COP product surface.
+10. Add ADS-B/SAPIENT and statistical track association.
+11. Add KLV, SemConnect egress, and semantic translation.
+12. Split edge/core placement after the single-stack demo is stable.
 
 ## Open Questions
 

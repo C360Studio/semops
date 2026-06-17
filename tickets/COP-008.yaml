@@ -11,6 +11,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-17-initial-adversarial-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-17-framework-modernization-impact.md
   - openspec/changes/revive-cop-product/reviews/2026-06-17-cop-model-governance-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-must-exist-issue-triage.md
 
 scope:
   - Run adversarial reviews at framework modernization, COP model, feed-entry, Phase 1 signoff, high-risk claim,

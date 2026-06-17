@@ -49,6 +49,13 @@ The first COP stack SHALL run locally with a single documented command after dep
   and health state from config
 - **AND** the same wiring is covered by tests without requiring the full container stack
 
+#### Scenario: MAVLink live graph smoke precedes broad stack expansion
+
+- **WHEN** the ADR-055/056 must-exist flip is pending in SemStreams
+- **THEN** SemOps prioritizes a generated or replay MAVLink live graph smoke over PX4/SITL, UI, or second-feed
+  expansion
+- **AND** the smoke actively polls graph state and failure counters rather than relying on quiet logs
+
 ### Requirement: Scenario runner makes demos repeatable
 
 SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.

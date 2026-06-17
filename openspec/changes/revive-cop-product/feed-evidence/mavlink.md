@@ -13,6 +13,9 @@ requester boundary, in-process adapter harness, and testable structural wiring f
 scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, restart/replay reconciliation, and stack
 health checks.
 
+SemOps GitHub issue #1 adds a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
+graph path against live SemStreams before PX4/SITL becomes the blocking milestone.
+
 ## Local Evidence
 
 - `pkg/adapters/mavlink/parser.go` parses MAVLink v1/v2 frames, validates checksums, handles stream buffering and
@@ -99,6 +102,25 @@ Acceptance:
 - Commands, mission state, and battery alerts use `indexing_profile=control`.
 - Replay/decode records use `indexing_profile=trace`.
 - No graph entity is created per raw packet.
+
+### Breaking-Tag Graph Gate
+
+Target command:
+
+```bash
+go test ./internal/smoke/mavlink
+```
+
+This test skips unless `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL` points at a live SemStreams graph stack.
+
+Acceptance:
+
+- Generated or replay heartbeat and position frames write through a live SemStreams graph path.
+- The source asset is born before the track writes the strict `cop.track.source` edge.
+- Known-track position updates do not rebirth the source asset and do not repeat the strict foreign edge.
+- The run reports no `entity_not_found` mutation failures.
+- The run reports no dropped foreign-edge evidence when the SemStreams tag exposes that signal.
+- This gate is complete before PX4/SITL is treated as the next blocking MAVLink milestone.
 
 ### SITL Gate
 

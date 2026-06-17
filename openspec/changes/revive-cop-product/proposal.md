@@ -29,6 +29,7 @@ product going forward.
 - Require adversarial reviews at key stage boundaries so product value, compliance language, framework ownership,
   indexing choices, and demo credibility are challenged before broad implementation.
 - Define a containerized demo stack and the criteria for what becomes a service.
+- Add an explicit SemStreams ADR-055/056 breaking-tag compliance gate tracked by SemOps issue #1.
 - Track SemStreams upstream pressure from real SemOps product needs.
 
 ## Capabilities
@@ -58,6 +59,7 @@ product going forward.
 - SemOps architecture docs and tickets.
 - Go module path, toolchain, package boundaries, and test strategy.
 - MAVLink parser/generator/SITL code migration.
+- Generated/replay MAVLink live graph smoke before PX4/SITL, UI, or second-feed expansion.
 - New SemOps API and Svelte COP product surface.
 - Docker Compose and scenario runner infrastructure.
 - SemStreams upstream issues for proven manifest, escalation, provenance, confidence, spatial-temporal query,

@@ -14,6 +14,7 @@ scope:
   - Replace old BaseMessage/processor wiring with current SemStreams projection writes.
   - Keep raw high-rate frames on a bounded lane and project current vehicle state into signal-profiled entities.
   - Birth source asset and track entities explicitly before adding triples or foreign edges.
+  - Clear generated/replay MAVLink graph compliance before making PX4/SITL the blocking MAVLink milestone.
 
 acceptance:
   - Parser and generator tests run without external containers.
@@ -22,6 +23,7 @@ acceptance:
   - Adversarial review has challenged MAVLink evidence, indexing profile, and raw-lane/current-state boundaries.
   - MAVLink projections use SemOps ownership contracts and current SemStreams graph mutation types.
   - MAVLink `cop.track.source` writes derive ADR-056 ForeignEdgeClaim coverage and do not rely on auto-vivify.
+  - Generated or replay MAVLink frames prove born-first graph writes against SemStreams before PX4/SITL fidelity.
   - The adapter can be hosted in-process for tests or as semops-adapter-mavlink in Compose.
 
 progress:
@@ -40,16 +42,18 @@ progress:
     request/reply subjects with tests for ordering, committed-but-degraded responses, cancellation, and failure stops.
   - Bounded raw frame lane now stores copied MAVLink frames, annotates decoded packets with
     `cop.provenance.source_ref`, and keeps raw packet bytes out of graph entity birth.
+  - SemOps issue #1 triage changed the next MAVLink milestone to generated/replay live graph smoke before PX4/SITL.
 
 current_evidence:
   - `go test ./pkg/adapters/mavlink`
   - `go test ./internal/projectors/mavlink`
 
 remaining:
-  - Add a modern ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
   - Wire the graph writer into a live SemStreams stack after container boundaries exist.
   - Add durable replay fixture storage behind the bounded raw lane.
   - Add restart/replay reconciliation so adapter birth caches do not become production state.
+  - Add generated/replay MAVLink live graph smoke to clear the ADR-055/056 must-exist issue.
+  - Add a modern ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
   - Add PX4 SITL or MAVSDK smoke evidence before calling MAVLink Phase 1 complete.
 
 tdd:

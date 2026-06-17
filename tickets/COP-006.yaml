@@ -1,7 +1,7 @@
 ticket: COP-006
 title: Convert SemOps revival gaps into SemStreams upstream asks
 assigned: technical-writer
-depends_on: [COP-004, COP-005, COP-007, COP-008]
+depends_on: [COP-004, COP-005, COP-007, COP-008, COP-009]
 blocks: []
 status: ready
 reviewer: architect

@@ -42,6 +42,10 @@ Review gate: adversarial reviews are required at key stage boundaries. Reviews s
 framework ownership, evidence quality, compliance language, index-profile decisions, and demo credibility before the
 next implementation tranche begins.
 
+Breaking-tag gate: SemStreams issue #1 tracks the ADR-055/056 must-exist flip for SemOps. SemOps should prove
+generated or replay MAVLink frames against the live SemStreams graph path before PX4/SITL, UI, or second-feed
+expansion. PX4/SITL remains feed-fidelity evidence; it is not the prerequisite for born-first graph compliance.
+
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
 metadata should hydrate inspectors, provenance, filters, legends, and confidence/freshness badges; SemOps owns the
@@ -145,6 +149,9 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - MAVLink and TAK `cop.track.source` edges are strict born-first edges. The source `asset` entity must exist before
   the track edge is written.
 - `EdgeNoBirthStub` is a reviewed exception for targets that have no independent producer, not a general fallback.
+- SemOps issue #1 is the external tracker for proving this path against the upcoming SemStreams must-exist tag.
+- The next compliance proof is a live generated/replay MAVLink graph smoke with no `entity_not_found` failures or
+  dropped foreign-edge evidence.
 
 ## Adversarial Review Gates
 
@@ -303,6 +310,8 @@ profile semantics.
 
 ### Phase 1: Structural COP
 
+- Prove the ADR-055/056 must-exist gate with generated or replay MAVLink against a live SemStreams graph path before
+  expanding simulator fidelity, UI, or second-feed work.
 - Build the structural stack with NATS, SemStreams, SemOps API, SemOps UI, and scripted feeds.
 - Use MAVLink, TAK/CoT, and CAP first because they prove high-rate telemetry, operator COP, and loose civilian
   alerts.

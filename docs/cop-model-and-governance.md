@@ -45,6 +45,8 @@ SemOps adapters must follow SemStreams ADR-055 and ADR-056 directly:
   be born before the track edge is written.
 - `EdgeNoBirthStub` is allowed only after an adversarial review proves the target has no independent producer and the
   contract names the producer message type plus target pattern.
+- SemOps issue #1 tracks the live SemStreams breaking-tag proof for this policy; generated/replay MAVLink graph smoke
+  is the next required compliance gate.
 
 ## Predicate Conventions
 

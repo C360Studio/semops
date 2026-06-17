@@ -66,6 +66,13 @@ requests before triples or foreign edges are added.
 - **WHEN** MAVLink or TAK projects a `cop.track.source` edge to an asset
 - **THEN** the source asset is born first, and the edge contract uses `EdgeStrict` rather than implicit target creation
 
+#### Scenario: Must-exist compliance is proven before feed-fidelity expansion
+
+- **WHEN** SemOps prepares for a SemStreams ADR-055/056 must-exist breaking tag
+- **THEN** generated or replay MAVLink frames must prove source asset birth, track birth, and update behavior against
+  a live SemStreams graph path before PX4/SITL fidelity work is treated as blocking
+- **AND** the smoke reports no `entity_not_found` failures or dropped foreign-edge evidence for the MAVLink path
+
 #### Scenario: No-birth stub requires explicit review
 
 - **WHEN** a SemOps projection has no independent producer for a relationship target

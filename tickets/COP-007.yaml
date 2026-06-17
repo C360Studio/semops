@@ -22,9 +22,11 @@ scope:
   - Record parser, mock, simulator, replay, compliance, and sample-data evidence before each feed enters the demo.
   - Define the expected SemStreams `indexing_profile` and cardinality risk for each projected entity type.
   - Keep SAPIENT and KLV as evidence-gated work until authoritative fixtures and binary proof spikes exist.
+  - Track framework-breaking graph gates separately from simulator fidelity when SemStreams changes write semantics.
 
 acceptance:
   - MAVLink has generator, real-frame, ArduPilot SITL, and PX4 SITL or MAVSDK smoke gates documented.
+  - MAVLink has a generated/replay live graph smoke gate for SemStreams ADR-055/056 must-exist compliance.
   - TAK/CoT has UDP/TCP fixture replay gates documented without claiming public conformance.
   - CAP has OASIS schema or consumer-rule validation plus NWS sample gates documented.
   - KLV has a small fixture plan proving metadata extraction, storage references, and memory-bounded handling.

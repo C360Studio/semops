@@ -1,7 +1,7 @@
 ticket: COP-005
 title: Build the first Svelte COP surface with source and provenance lenses
 assigned: svelte-developer
-depends_on: [COP-002, COP-004, COP-008]
+depends_on: [COP-002, COP-004, COP-008, COP-009]
 blocks: [COP-006]
 status: ready
 reviewer: svelte-reviewer
