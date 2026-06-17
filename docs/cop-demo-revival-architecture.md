@@ -53,6 +53,8 @@ SemOps is materially stale:
   monitoring.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
+- The current checkout and reachable Git history contain no frontend tree. The old flow-runtime UI idea should be
+  treated as historical context, not a surface to restore.
 
 SemOps has salvageable MAVLink depth:
 
@@ -189,7 +191,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 | `internal/deployment` | Deployment metadata and health state | Build only after operator-value review |
 | `internal/inference` | Inference evidence and transition records | Evidence first, UI later |
 | `internal/scenario` | HA/DR scripted playback and demo clock | Keeps the stage demo repeatable |
-| `ui` | Svelte 5 COP product surface | Map, source lens, provenance lens, alerts |
+| `ui` | Clean-sheet Svelte 5 COP product surface | Map, source lens, provenance lens, alerts |
 
 ## First Canonical Entity Set
 

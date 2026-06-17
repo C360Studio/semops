@@ -61,6 +61,7 @@
 - [ ] 7.4 Validate whether topology/tier UI answers a real operator question before building it
 - [ ] 7.5 Add component tests and accessibility checks for core operator flows
 - [ ] 7.6 Run adversarial UX review before promoting topology, tier, or orchestration UI
+- [x] 7.7 Inventory current UI state and decide clean-sheet COP UI over flow-runtime restoration
 
 ## 8. Tier Escalation And Egress
 

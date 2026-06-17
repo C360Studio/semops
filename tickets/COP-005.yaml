@@ -7,14 +7,20 @@ status: ready
 reviewer: svelte-reviewer
 openspec_change: revive-cop-product
 
+review_records:
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-ui-inventory.md
+
 scope:
   - Build the first SemOps Svelte 5 COP surface with map, source lens, provenance lens, and alert state.
   - Use current SemOps API contracts and Svelte 5 runes.
   - Keep the first screen as the usable COP, not a landing page.
+  - Treat any old flow-runtime UI artifacts as historical reference only; start the product UI from scratch.
 
 acceptance:
   - The COP shows tracks, assets, hazard areas, and alerts from live structural graph state.
   - Selecting an entity shows source evidence, owner, confidence, and graph revision.
+  - Flow topology or runtime-control panels are absent from the first viewport unless adversarial UX review later
+    proves operator value.
   - Any topology or tier UI is deferred until it proves a concrete operator-value case.
   - Adversarial UX review is complete before topology, tier, or orchestration UI is promoted.
   - UI checks and component tests cover the source/provenance lens behavior.
