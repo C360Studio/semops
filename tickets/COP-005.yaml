@@ -10,17 +10,30 @@ openspec_change: revive-cop-product
 review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-17-ui-inventory.md
 
+evidence_records:
+  - docs/cop-ui-stack.md
+  - openspec/changes/revive-cop-product/specs/cop-ui-experience/spec.md
+
 scope:
   - Build the first SemOps Svelte 5 COP surface with map, source lens, provenance lens, and alert state.
+  - Use MapLibre GL JS for basemap/camera/terrain/labels and deck.gl for high-rate tactical overlays.
+  - Keep loaders.gl optional for format parsing and Threlte gated to selected-entity 3D detail views.
+  - Consume SemOps API snapshots and bounded deltas rather than connecting the browser directly to NATS.
   - Use current SemOps API contracts and Svelte 5 runes.
   - Keep the first screen as the usable COP, not a landing page.
   - Treat any old flow-runtime UI artifacts as historical reference only; start the product UI from scratch.
+  - Use ontology/projection metadata to hydrate inspectors, provenance, filters, legends, and confidence/freshness
+    badges, not to generate the whole UI.
 
 acceptance:
   - The COP shows tracks, assets, hazard areas, and alerts from live structural graph state.
   - Selecting an entity shows source evidence, owner, confidence, and graph revision.
+  - Map layers are product-owned and use dynamic population/styling/filtering without automatic layer generation from
+    ontology structure.
   - Flow topology or runtime-control panels are absent from the first viewport unless adversarial UX review later
     proves operator value.
+  - Threlte or custom Three.js detail views are absent unless a selected-entity inspection workflow proves they add
+    operator value beyond MapLibre/deck.gl.
   - Any topology or tier UI is deferred until it proves a concrete operator-value case.
   - Adversarial UX review is complete before topology, tier, or orchestration UI is promoted.
   - UI checks and component tests cover the source/provenance lens behavior.

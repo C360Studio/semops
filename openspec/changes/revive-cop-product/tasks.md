@@ -63,6 +63,7 @@
 - [ ] 7.5 Add component tests and accessibility checks for core operator flows
 - [ ] 7.6 Run adversarial UX review before promoting topology, tier, or orchestration UI
 - [x] 7.7 Inventory current UI state and decide clean-sheet COP UI over flow-runtime restoration
+- [x] 7.8 Record MapLibre/deck.gl starting stack and dynamic ontology UI scope gate
 
 ## 8. Tier Escalation And Egress
 

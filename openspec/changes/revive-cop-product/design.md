@@ -24,6 +24,7 @@ proves it is more than visual complexity.
 - Salvage SemOps MAVLink/SITL depth into a modern adapter package.
 - Define feed ownership and projection contracts before implementation spreads.
 - Build a Phase 1 structural COP that is showable before all feeds and inference tiers exist.
+- Use a modern map-first Svelte COP stack without turning dynamic ontology-generated UI into a Phase 1 feature.
 - Gate orchestration/topology/escalation UI behind explicit operator-value evidence.
 - Create upstream SemStreams asks only from concrete SemOps workflows or blockers.
 
@@ -88,7 +89,21 @@ operator question better than simpler COP state.
 
 Before hardening any reusable placement or escalation primitive, review it for SemStreams ownership.
 
-### 6. SemOps creates upstream asks with evidence
+### 6. COP UI is product-owned and map-first
+
+SemOps starts with a clean-sheet Svelte 5/SvelteKit operator UI. The primary geospatial stack is MapLibre GL JS for
+the basemap and deck.gl for high-rate tactical overlays. loaders.gl is available for format parsing where it reduces
+implementation risk. Threlte is reserved for selected-entity 3D inspection, not the default tactical map.
+
+The browser consumes a SemOps API snapshot and bounded delta stream. It should not connect directly to NATS in Phase 1.
+
+Dynamic ontology-generated UI is a research direction, not a committed demo feature. Product-owned views and layer
+types stay static. Ontology, projection metadata, and source schemas may hydrate inspector fields, provenance
+explanations, legends, filters, and confidence/freshness badges.
+
+The working rule is: ontology hydrates the inspector; SemOps owns the view.
+
+### 7. SemOps creates upstream asks with evidence
 
 Candidates for SemStreams upstream work include:
 
@@ -103,7 +118,7 @@ Candidates for SemStreams upstream work include:
 
 Each ask must cite a SemOps workflow, failing test, missing primitive, or demo constraint.
 
-### 7. Feeds enter one at a time through evidence gates
+### 8. Feeds enter one at a time through evidence gates
 
 Feed order is MAVLink, TAK/CoT, CAP/EDXL, SemConnect CS API egress, ADS-B, SAPIENT, then KLV/STANAG 4609.
 
@@ -116,7 +131,7 @@ The first SemStreams indexing-pressure question is whether entity boundaries are
 detail should be `trace`. Do not request new framework profile semantics until SemOps proves that correct entity
 boundaries are insufficient.
 
-### 8. Key stages require adversarial review
+### 9. Key stages require adversarial review
 
 SemOps should deliberately attack its own assumptions before stage transitions. Required review gates are:
 
@@ -136,6 +151,8 @@ accepted risks, and follow-up tasks.
 - Scope is large. Phase 1 must remain showable without ADS-B, SAPIENT, KLV, SemConnect, or semantic translation.
 - SemOps could accidentally reimplement framework primitives. Keep framework-alignment review as a standing gate.
 - SemLink code may be tempting to fork wholesale. Prefer pattern reuse and deliberate porting.
+- The frontend stack could drift into visual spectacle. Keep 3D, topology, tier, and dynamic UI behind operator-value
+  reviews.
 - Loose civilian feeds can corrupt trust if they replace authoritative facts. Enforce ownership and provenance early.
 - Container sprawl can slow the demo. Start with a compact stack and split services when placement requires it.
 - Mixed-shape feeds can blur indexing policy. Split entities by storage/cardinality shape before asking SemStreams
@@ -154,7 +171,7 @@ accepted risks, and follow-up tasks.
 5. Add the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT, and KLV.
 6. Run adversarial reviews for framework modernization, COP model, and feed evidence before Phase 1 implementation.
 7. Add first Compose stack with NATS, SemStreams, SemOps API, UI, scenario runner, and three feed adapters.
-8. Build the source/provenance COP product surface.
+8. Build the MapLibre/deck.gl source/provenance COP product surface.
 9. Add ADS-B/SAPIENT and statistical track association.
 10. Add KLV, SemConnect egress, and semantic translation.
 11. Split edge/core placement after the single-stack demo is stable.
@@ -165,6 +182,8 @@ accepted risks, and follow-up tasks.
 - Which COP predicates should immediately move to SemStreams vocabulary?
 - How should confidence be represented in triples where source confidence and fusion confidence differ?
 - Is a topology panel useful at all, or do source health and provenance answer the operator need?
+- Which SemOps API delta style should the browser use first: WebSocket, SSE, or GraphQL subscription?
+- Which selected-entity workflows justify Threlte/Three.js, if any, before Phase 2?
 - What is the minimum manifest metadata that avoids becoming a fake orchestrator?
 - Which SAPIENT and KLV subsets are demo-grade but honest?
 - Which feeds prove that current SemStreams indexing profiles need changes, versus better SemOps entity boundaries?

@@ -42,6 +42,11 @@ Review gate: adversarial reviews are required at key stage boundaries. Reviews s
 framework ownership, evidence quality, compliance language, index-profile decisions, and demo credibility before the
 next implementation tranche begins.
 
+UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
+for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
+metadata should hydrate inspectors, provenance, filters, legends, and confidence/freshness badges; SemOps owns the
+operator views.
+
 ## Live Repo Findings
 
 SemOps started materially stale; the first revival slices are correcting that:
@@ -73,6 +78,34 @@ SemLink has the more current product pattern:
 - Projection contracts declare ownership and indexing profiles before writing through SemStreams graph mutation
   subjects.
 - A Svelte 5 dashboard and CS API bridge already prove the operator and standards-projection shape.
+
+## COP UI Baseline
+
+The starting UI stack is recorded in `docs/cop-ui-stack.md` and
+`openspec/changes/revive-cop-product/specs/cop-ui-experience/spec.md`.
+
+The product direction is:
+
+- Svelte 5/SvelteKit for the product shell, panels, stores, subscriptions, and component tests.
+- MapLibre GL JS for the open WebGL basemap, camera, terrain, labels, and map controls.
+- deck.gl for tactical overlays: high-rate tracks, trails, hazards, footprints, picking, filtering, and temporal
+  layers.
+- loaders.gl as an optional parser helper for formats such as GeoJSON, WKT/WKB, glTF, 3D Tiles, and imagery.
+- Threlte only for selected-entity 3D detail views where a 2D/2.5D map layer is insufficient.
+
+The browser should consume SemOps API snapshots and bounded deltas, not connect directly to NATS in Phase 1. Native
+packets, raw frames, graph mutation detail, and replay trace events stay behind SemOps API unless a deliberate
+operator or diagnostic lens exposes them.
+
+Dynamic UI is scoped narrowly:
+
+- Accepted: dynamic population, styling, filtering, and timeline behavior inside product-owned layer types.
+- Accepted: ontology and projection metadata in inspector fields, provenance explanations, legends, filters, and
+  confidence/freshness badges.
+- Deferred: automatic operator layouts, workflows, alerting, command controls, or new map layers generated from
+  ontology structure.
+
+The short rule is: ontology hydrates the inspector; SemOps owns the view.
 
 ## Design Principles
 
@@ -197,14 +230,14 @@ These belong inside the SemOps codebase even when a container hosts them.
 
 | Component | Role | Notes |
 | --- | --- | --- |
-| `pkg/mavlink` | MAVLink codec, parser, generator, SITL controller | Modernize the existing MAVLink processor |
+| `pkg/adapters/mavlink` | MAVLink codec and future SITL controller | Active parser/generator extracted |
 | `pkg/cop` | COP model, predicates, projection contracts | Track, alert, asset, hazard, footprint, task, advisory |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
 | `internal/deployment` | Deployment metadata and health state | Build only after operator-value review |
 | `internal/inference` | Inference evidence and transition records | Evidence first, UI later |
 | `internal/scenario` | HA/DR scripted playback and demo clock | Keeps the stage demo repeatable |
-| `ui` | Clean-sheet Svelte 5 COP product surface | Map, source lens, provenance lens, alerts |
+| `ui` | Clean-sheet Svelte 5/SvelteKit COP product surface | MapLibre, deck.gl, source lens, provenance lens, alerts |
 
 ## First Canonical Entity Set
 
@@ -286,6 +319,6 @@ profile semantics.
 
 - Exact entity ID scheme for SemOps COP entities.
 - Predicate ownership matrix for each feed and derived fusion owner.
-- Whether to reuse SemLink UI components directly or port the patterns into a new SemOps product surface.
+- Whether to reuse SemLink UI components directly or port only the patterns into a new SemOps product surface.
 - Whether deployment metadata or tier UI is a value add or a footgun.
 - How much SAPIENT and KLV to implement for demo-grade fidelity before claiming conformance.
