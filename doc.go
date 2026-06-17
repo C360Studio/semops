@@ -10,10 +10,9 @@
 // # Current Revival Direction
 //
 // The repository is being revived as a greenfield COP product. Old robotics and
-// MAVLink code is salvage, not the default architecture. Only MAVLink reference
-// material with near-term extraction value remains, guarded by the ignore build
-// constraint until it is moved behind modern SemOps package boundaries or
-// deleted.
+// MAVLink code is salvage, not the default architecture. Legacy MAVLink/SITL
+// references have been deleted after useful parser, generator, command, and raw
+// lane material moved behind modern SemOps package boundaries.
 //
 // The first product model focuses on:
 //
@@ -47,7 +46,7 @@
 //
 //	docs/cop-demo-revival-architecture.md
 //
-// MAVLink reference-hold details are:
+// Legacy cleanup details are:
 //
 //	docs/legacy-quarantine.md
 package semops

@@ -76,6 +76,8 @@ SemOps has salvageable MAVLink depth:
   health counters before the future container service boundary.
 - A SemStreams NATS requester adapter now routes graph mutation writers through `RequestWithRetry`, preserving the
   framework's mutation retry rule for transient responder startup races.
+- A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
+  writer, and adapter harness from config so service hosting can stay thin.
 
 SemLink has the more current product pattern:
 
@@ -242,6 +244,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 | `internal/adapters/mavlink` | MAVLink adapter harness | Parse, raw capture, project, write, health |
 | `internal/graphrequest` | SemStreams request/reply adapters | Retry-aware mutation request boundary |
 | `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
+| `internal/stack` | Testable service composition factories | Wires SemStreams clients, writers, adapters |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
 | `internal/deployment` | Deployment metadata and health state | Build only after operator-value review |

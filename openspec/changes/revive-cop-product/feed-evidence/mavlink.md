@@ -1,15 +1,17 @@
 # MAVLink Feed Evidence
 
-Status: candidate Phase 1 feed, codec, bounded raw lane, projection planner, and SemStreams graph writer boundary
-extracted. Live feed integration remains blocked by stack, durable replay, and restart/replay work in `COP-004`.
+Status: candidate Phase 1 feed, codec, bounded raw lane, projection planner, SemStreams graph writer boundary, and
+structural wiring extracted. Live feed integration remains blocked by stack hosting, durable replay playback, and
+restart/replay work in `COP-004`.
 
 ## Decision
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
 coverage, current-state projection planner, tested graph request/reply writer boundary, retry-aware SemStreams NATS
-requester boundary, and in-process adapter harness. Live feed work still needs scenario-runner replay wiring,
-container stack wiring, SITL/PX4 evidence, restart/replay reconciliation, and stack health checks.
+requester boundary, in-process adapter harness, and testable structural wiring factory. Live feed work still needs
+scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, restart/replay reconciliation, and stack
+health checks.
 
 ## Local Evidence
 
@@ -43,6 +45,10 @@ container stack wiring, SITL/PX4 evidence, restart/replay reconciliation, and st
   for the future adapter service boundary.
 - `internal/adapters/mavlink/adapter_test.go` proves valid telemetry writes graph plans, command ACK frames are
   captured without graph writes, corrupt frames stop before graph writes, and writer failures are reflected in health.
+- `internal/stack` wires the MAVLink parser, bounded raw lane, projector, retry-aware NATS requester, graph writer,
+  adapter harness, and health state from config.
+- `internal/stack/mavlink_test.go` proves custom and default retry config propagation, write timeout propagation,
+  create/update graph subjects, born-first source edge behavior, raw-lane capture, and writer injection for tests.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -89,6 +95,7 @@ Acceptance:
 - A committed-but-degraded mutation response is treated as committed and not retried.
 - NATS-backed graph mutation requests use SemStreams retry-aware mutation request handling.
 - The in-process adapter harness exposes pollable health counters for raw ingest, projection, graph writes, and errors.
+- Structural wiring can compose the NATS-backed writer path without launching the full stack.
 - Commands, mission state, and battery alerts use `indexing_profile=control`.
 - Replay/decode records use `indexing_profile=trace`.
 - No graph entity is created per raw packet.
@@ -122,8 +129,8 @@ Acceptance:
 ## Known Gaps
 
 - The active module path, Go toolchain, and MAVLink parser/generator are modernized.
-- The current-state projection planner and graph writer emit and send current SemStreams graph mutation shapes, but the
-  writer is not yet wired into a live containerized stack.
+- The current-state projection planner and graph writer emit and send current SemStreams graph mutation shapes, and
+  structural wiring composes them; the wiring is not yet hosted in a live containerized stack.
 - The in-process adapter harness is not a UDP/TCP listener and is not yet hosted as `semops-adapter-mavlink`.
 - Raw-lane capture and replay fixture storage are library boundaries; scenario-runner playback and stack retention
   policy are not implemented yet.

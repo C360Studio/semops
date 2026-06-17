@@ -42,6 +42,13 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **THEN** it uses the framework mutation path with retry-aware request handling for transient responder startup races
 - **AND** query-style non-retry requests are not used for mutation writers
 
+#### Scenario: Feed service wiring is testable before Compose hosting
+
+- **WHEN** SemOps builds a feed adapter service boundary
+- **THEN** the structural wiring composes SemStreams requester, graph writer, raw lane, projector, adapter harness,
+  and health state from config
+- **AND** the same wiring is covered by tests without requiring the full container stack
+
 ### Requirement: Scenario runner makes demos repeatable
 
 SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.

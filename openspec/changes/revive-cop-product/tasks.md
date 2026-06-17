@@ -59,6 +59,7 @@
 - [x] 6.7 Add an in-process MAVLink adapter harness with pollable health before Compose wiring
 - [x] 6.8 Add durable MAVLink replay fixture storage behind the bounded raw lane
 - [x] 6.9 Add SemStreams NATS request/retry adapter for graph mutation writers
+- [x] 6.10 Add testable MAVLink structural wiring for NATS-backed graph writes
 
 ## 7. COP UI
 
