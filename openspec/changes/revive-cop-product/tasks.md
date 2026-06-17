@@ -25,12 +25,13 @@
 
 ## 4. MAVLink Salvage
 
-- [ ] 4.1 Move MAVLink parser, generator, and SITL controller behind a modern package boundary
-- [ ] 4.2 Preserve heartbeat, global position, attitude, battery, and command coverage where tests prove it
-- [ ] 4.3 Replace old message/processor wiring with SemStreams projection writes
-- [ ] 4.4 Keep raw frames on a bounded lane and project current vehicle state into signal-profiled entities
-- [ ] 4.5 Add real-frame tests that do not mock away MAVLink decoding
-- [ ] 4.6 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
+- [x] 4.1 Move MAVLink parser and generator behind a modern package boundary
+- [ ] 4.2 Move the SITL controller behind a modern package boundary or deliberately reject it
+- [ ] 4.3 Preserve heartbeat, global position, attitude, battery, and command coverage where tests prove it
+- [ ] 4.4 Replace old message/processor wiring with SemStreams projection writes
+- [ ] 4.5 Keep raw frames on a bounded lane and project current vehicle state into signal-profiled entities
+- [x] 4.6 Add real-frame codec tests that do not mock away MAVLink decoding
+- [ ] 4.7 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
 
 ## 5. Feed Validation And Indexing Ladder
 

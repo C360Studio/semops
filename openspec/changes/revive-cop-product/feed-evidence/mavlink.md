@@ -1,25 +1,23 @@
 # MAVLink Feed Evidence
 
-Status: candidate Phase 1 feed, blocked from implementation by `COP-001`, `COP-002`, `COP-007`, and `COP-008`.
+Status: candidate Phase 1 feed, codec extraction started. Projection remains blocked by `COP-004`.
 
 ## Decision
 
-MAVLink should be the first feed because SemOps already contains parser, generator, payload, rule, and SITL material.
-The salvage path is credible, but the current package still uses the old SemStreams module path and old processor
-shape, so the first implementation work must be modernization and projection contract tests.
+MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
+The active path now has a modern parser/generator package. Projection work still needs current-state SemStreams writes,
+raw-lane boundaries, born-first source/track creation, and SITL/PX4 evidence.
 
 ## Local Evidence
 
-- `pkg/processors/mavlink/parser/mavlink_parser.go` parses MAVLink v1/v2 frames, validates checksums, handles buffer
-  resync, and registers standard message specs.
-- `pkg/processors/mavlink/testing/mavlink/generator.go` generates MAVLink v2 heartbeat, battery, global position, and
-  attitude frames with CRC.
-- `pkg/processors/mavlink/testing/mavlink/generator_test.go` validates generator structure, thread safety, realistic
-  message sequences, and parser compatibility.
-- `pkg/processors/mavlink/parser/mavlink_parser_integration_test.go` exercises generated frames through the parser,
-  multiple messages in one buffer, corrupted messages, and field extraction.
-- `pkg/processors/mavlink/sitl` contains an ArduPilot SITL controller, command helpers, status handling, and skip-clean
-  integration tests when SITL is unavailable.
+- `pkg/adapters/mavlink/parser.go` parses MAVLink v1/v2 frames, validates checksums, handles stream buffering and
+  resync, and registers the first COP message specs.
+- `pkg/adapters/mavlink/generator.go` generates MAVLink v2 heartbeat, battery status, global position, attitude, and
+  deterministic quadcopter scenario frames with CRC.
+- `pkg/adapters/mavlink/parser_test.go` validates generator/parser compatibility, split buffers, noisy resync,
+  checksum rejection, concurrent sequence generation, scenario frame generation, and canonical battery wire order.
+- `pkg/processors/mavlink/sitl` still contains ignored ArduPilot SITL controller/scenario reference files. These are
+  retained only until command/control behavior is extracted or rejected.
 
 ## External Evidence
 
@@ -31,10 +29,10 @@ shape, so the first implementation work must be modernization and projection con
 
 ### Parser Gate
 
-Target command after `COP-001`:
+Current command:
 
 ```bash
-go test ./pkg/processors/mavlink/parser ./pkg/processors/mavlink/testing/mavlink
+go test ./pkg/adapters/mavlink
 ```
 
 Acceptance:
@@ -42,6 +40,7 @@ Acceptance:
 - Heartbeat, battery, global position, and attitude frames parse with expected system/component IDs and fields.
 - Corrupted frames do not panic and do not publish governed graph state.
 - Multiple messages in one buffer produce stable ordered packets.
+- Battery status uses canonical MAVLink wire order, not the older self-consistent SemOps reference layout.
 
 ### Projection Gate
 
@@ -86,11 +85,12 @@ Acceptance:
 
 ## Known Gaps
 
-- The active module path and Go toolchain are modernized, but the retained MAVLink parser/generator/SITL references
-  still need extraction behind modern SemOps package boundaries.
+- The active module path, Go toolchain, and MAVLink parser/generator are modernized.
+- SITL command/control reference files still need extraction behind modern SemOps package boundaries.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
-- Parser comments and message-spec coverage still need review during extraction.
+- Command coverage is not active until the SITL controller and COMMAND_LONG/COMMAND_ACK tests move into the adapter
+  package.
 - PX4 SITL/MAVSDK evidence is not yet in SemOps.
 
 ## Adversarial Feed-Entry Questions

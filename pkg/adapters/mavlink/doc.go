@@ -1,9 +1,10 @@
-// Package mavlink will host the modern SemOps MAVLink adapter.
+// Package mavlink hosts the modern SemOps MAVLink adapter boundary.
 //
-// The current package is intentionally a placeholder. Legacy MAVLink reference
-// files remain under pkg/processors/mavlink with the ignore build constraint
-// until their useful parser, generator, and SITL behavior is extracted here or
-// deleted.
+// The first active slice contains a MAVLink v1/v2 parser, a MAVLink v2
+// scenario generator, and real-frame tests for heartbeat, global position,
+// attitude, and battery status. Legacy SITL files remain under
+// pkg/processors/mavlink with the ignore build constraint until their useful
+// command/control behavior is extracted here or deleted.
 //
 // # Adapter Contract
 //
@@ -23,7 +24,6 @@
 //
 // # First Coverage
 //
-// The first extraction should preserve heartbeat, global position, attitude,
-// battery, and SITL command evidence only where tests prove the behavior from
-// real frames.
+// The next extraction should preserve SITL command evidence only where tests
+// prove the behavior from real frames and explicit simulator gates.
 package mavlink

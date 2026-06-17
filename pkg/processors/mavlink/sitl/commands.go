@@ -8,7 +8,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/c360studio/semops/pkg/processors/mavlink/constants"
+	mavlink "github.com/c360studio/semops/pkg/adapters/mavlink"
 )
 
 // Flight command implementations
@@ -16,7 +16,7 @@ import (
 // Arm arms the drone for flight
 func (c *Controller) Arm() error {
 	params := [7]float32{1, 0, 0, 0, 0, 0, 0} // param1=1 means arm
-	result, err := c.sendCommand(constants.MAV_CMD_COMPONENT_ARM_DISARM, params, 5*time.Second)
+	result, err := c.sendCommand(mavlink.CommandComponentArmDisarm, params, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("arm command failed: %w", err)
 	}
@@ -31,7 +31,7 @@ func (c *Controller) Arm() error {
 // Disarm disarms the drone
 func (c *Controller) Disarm() error {
 	params := [7]float32{0, 0, 0, 0, 0, 0, 0} // param1=0 means disarm
-	result, err := c.sendCommand(constants.MAV_CMD_COMPONENT_ARM_DISARM, params, 5*time.Second)
+	result, err := c.sendCommand(mavlink.CommandComponentArmDisarm, params, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("disarm command failed: %w", err)
 	}
@@ -63,7 +63,7 @@ func (c *Controller) Takeoff(altitude float64) error {
 		float32(altitude),   // altitude
 	}
 
-	result, err := c.sendCommand(constants.MAV_CMD_NAV_TAKEOFF, params, 10*time.Second)
+	result, err := c.sendCommand(mavlink.CommandNavTakeoff, params, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("takeoff command failed: %w", err)
 	}
@@ -95,7 +95,7 @@ func (c *Controller) Land() error {
 		0,                   // altitude (ground level)
 	}
 
-	result, err := c.sendCommand(constants.MAV_CMD_NAV_LAND, params, 10*time.Second)
+	result, err := c.sendCommand(mavlink.CommandNavLand, params, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("land command failed: %w", err)
 	}
@@ -112,7 +112,7 @@ func (c *Controller) RTL() error {
 	// MAV_CMD_NAV_RETURN_TO_LAUNCH has no parameters
 	params := [7]float32{0, 0, 0, 0, 0, 0, 0}
 
-	result, err := c.sendCommand(constants.MAV_CMD_NAV_RETURN_TO_LAUNCH, params, 10*time.Second)
+	result, err := c.sendCommand(mavlink.CommandNavReturnToLaunch, params, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("RTL command failed: %w", err)
 	}
@@ -141,7 +141,7 @@ func (c *Controller) SetMode(mode string) error {
 		0, 0, 0, 0, 0,       // unused parameters
 	}
 
-	result, err := c.sendCommand(constants.MAV_CMD_DO_SET_MODE, params, 5*time.Second)
+	result, err := c.sendCommand(mavlink.CommandDoSetMode, params, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("set mode command failed: %w", err)
 	}
@@ -175,7 +175,7 @@ func (c *Controller) Goto(lat, lon, alt float64) error {
 		float32(alt),        // altitude
 	}
 
-	result, err := c.sendCommand(constants.MAV_CMD_NAV_WAYPOINT, params, 10*time.Second)
+	result, err := c.sendCommand(mavlink.CommandNavWaypoint, params, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("goto command failed: %w", err)
 	}
@@ -209,7 +209,7 @@ func (c *Controller) SetYaw(yaw float64) error {
 		0, 0, 0,                        // unused
 	}
 
-	result, err := c.sendCommand(constants.MAV_CMD_CONDITION_YAW, params, 5*time.Second)
+	result, err := c.sendCommand(mavlink.CommandConditionYaw, params, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("set yaw command failed: %w", err)
 	}

@@ -95,14 +95,17 @@ Compliance and simulator evidence:
 
 Local assets:
 
-- SemOps has a MAVLink v1/v2 parser, real message specs, tests, a generator, UDP parser tests, battery rules, and an
-  ArduPilot SITL controller.
+- SemOps has an active MAVLink v1/v2 parser and MAVLink v2 generator in `pkg/adapters/mavlink`.
+- The active tests prove heartbeat, global position, attitude, battery status, split buffers, noisy resync, checksum
+  rejection, and deterministic scenario frames.
+- The old ignored parser/generator references were deleted after extraction. Only ArduPilot SITL controller/scenario
+  references remain under `pkg/processors/mavlink`.
 - SemSpec memory indicates prior PX4 SITL evidence-ladder work and public-facing harness tags.
 
 Mock or harness:
 
-- Use SemOps generator tests as the no-container parser gate.
-- Use ArduPilot SITL for command/control coverage already reflected in SemOps.
+- Use `go test ./pkg/adapters/mavlink` as the no-container parser/generator gate.
+- Use the retained ArduPilot SITL reference for the next command/control extraction.
 - Add a PX4 SITL or MAVSDK smoke harness when the module/toolchain migration is stable.
 
 Indexing profile pressure:
@@ -116,6 +119,12 @@ First acceptance gate:
 
 - Given real MAVLink frames for heartbeat, global position, attitude, and battery, the adapter writes one current
   vehicle entity with source provenance and does not create one graph entity per packet.
+
+Current codec gate:
+
+- `go test ./pkg/adapters/mavlink` proves real binary decode before graph projection.
+- Battery status now guards canonical MAVLink wire order because the ignored reference layout was self-consistent but
+  not sufficient interoperability evidence.
 
 ### TAK/CoT
 

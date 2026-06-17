@@ -3,7 +3,7 @@ title: Salvage MAVLink and SITL into a modern SemOps adapter library
 assigned: go-developer
 depends_on: [COP-001, COP-002, COP-007, COP-008]
 blocks: [COP-004]
-status: ready
+status: implementation
 reviewer: go-reviewer
 openspec_change: revive-cop-product
 
@@ -23,6 +23,22 @@ acceptance:
   - MAVLink projections use SemOps ownership contracts and current SemStreams graph mutation types.
   - MAVLink `cop.track.source` writes derive ADR-056 ForeignEdgeClaim coverage and do not rely on auto-vivify.
   - The adapter can be hosted in-process for tests or as semops-adapter-mavlink in Compose.
+
+progress:
+  - Active parser, generator, protocol constants, and checksum behavior were extracted into `pkg/adapters/mavlink`.
+  - Active tests prove heartbeat, global position, attitude, battery status, split buffers, noisy resync, checksum
+    rejection, concurrent sequence generation, and deterministic scenario frames.
+  - Battery status extraction corrected the old ignored reference layout to canonical MAVLink wire order.
+  - Ignored parser/generator/constants references were deleted after extraction; only ignored SITL references remain.
+
+current_evidence:
+  - `go test ./pkg/adapters/mavlink`
+
+remaining:
+  - Extract or reject the ignored ArduPilot SITL controller and command helpers.
+  - Add COMMAND_LONG/COMMAND_ACK tests before claiming command coverage.
+  - Add current-state projection tests and born-first graph mutation tests before writing SemStreams state.
+  - Add PX4 SITL or MAVSDK smoke evidence before calling MAVLink Phase 1 complete.
 
 tdd:
   - Add contract tests for MAVLink current-state projection before replacing the old processor wiring.

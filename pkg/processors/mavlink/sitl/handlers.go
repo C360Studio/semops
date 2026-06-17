@@ -9,8 +9,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/c360studio/semops/pkg/processors/mavlink/constants"
-	"github.com/c360studio/semops/pkg/processors/mavlink/parser"
+	mavlink "github.com/c360studio/semops/pkg/adapters/mavlink"
 )
 
 // Message handlers and processing
@@ -20,11 +19,11 @@ func (c *Controller) registerDefaultHandlers() {
 	c.handlerMux.Lock()
 	defer c.handlerMux.Unlock()
 
-	c.messageHandlers[constants.MavlinkMsgIdHeartbeat] = c.handleHeartbeat
-	c.messageHandlers[constants.MavlinkMsgIdGlobalPositionInt] = c.handleGlobalPosition
-	c.messageHandlers[constants.MavlinkMsgIdAttitude] = c.handleAttitude
-	c.messageHandlers[constants.MavlinkMsgIdBatteryStatus] = c.handleBatteryStatus
-	c.messageHandlers[constants.MavlinkMsgIdCommandAck] = c.handleCommandAck
+	c.messageHandlers[mavlink.MessageIDHeartbeat] = c.handleHeartbeat
+	c.messageHandlers[mavlink.MessageIDGlobalPositionInt] = c.handleGlobalPosition
+	c.messageHandlers[mavlink.MessageIDAttitude] = c.handleAttitude
+	c.messageHandlers[mavlink.MessageIDBatteryStatus] = c.handleBatteryStatus
+	c.messageHandlers[mavlink.MessageIDCommandAck] = c.handleCommandAck
 }
 
 // processMessages runs the main message processing loop
@@ -78,7 +77,7 @@ func (c *Controller) processMessages(ctx context.Context) {
 }
 
 // handleMessage dispatches messages to appropriate handlers
-func (c *Controller) handleMessage(packet *parser.MAVLinkPacket) {
+func (c *Controller) handleMessage(packet *mavlink.Packet) {
 	c.handlerMux.RLock()
 	handler, exists := c.messageHandlers[packet.MessageID]
 	c.handlerMux.RUnlock()
@@ -89,7 +88,7 @@ func (c *Controller) handleMessage(packet *parser.MAVLinkPacket) {
 }
 
 // handleHeartbeat processes HEARTBEAT messages
-func (c *Controller) handleHeartbeat(packet *parser.MAVLinkPacket) {
+func (c *Controller) handleHeartbeat(packet *mavlink.Packet) {
 	if packet.SystemID != c.targetSysID {
 		return // Not from our target drone
 	}
@@ -103,7 +102,7 @@ func (c *Controller) handleHeartbeat(packet *parser.MAVLinkPacket) {
 	if packet.ParsedFields != nil {
 		// Update armed status from base mode
 		if baseMode, ok := packet.ParsedFields["base_mode"].(uint8); ok {
-			c.state.Armed = (baseMode & constants.MavModeFlagSafetyArmed) != 0
+			c.state.Armed = (baseMode & mavlink.ModeFlagSafetyArmed) != 0
 		}
 
 		// Update system status
@@ -119,7 +118,7 @@ func (c *Controller) handleHeartbeat(packet *parser.MAVLinkPacket) {
 }
 
 // handleGlobalPosition processes GLOBAL_POSITION_INT messages
-func (c *Controller) handleGlobalPosition(packet *parser.MAVLinkPacket) {
+func (c *Controller) handleGlobalPosition(packet *mavlink.Packet) {
 	if packet.SystemID != c.targetSysID {
 		return
 	}
@@ -158,7 +157,7 @@ func (c *Controller) handleGlobalPosition(packet *parser.MAVLinkPacket) {
 }
 
 // handleAttitude processes ATTITUDE messages
-func (c *Controller) handleAttitude(packet *parser.MAVLinkPacket) {
+func (c *Controller) handleAttitude(packet *mavlink.Packet) {
 	if packet.SystemID != c.targetSysID {
 		return
 	}
@@ -182,7 +181,7 @@ func (c *Controller) handleAttitude(packet *parser.MAVLinkPacket) {
 }
 
 // handleBatteryStatus processes BATTERY_STATUS messages
-func (c *Controller) handleBatteryStatus(packet *parser.MAVLinkPacket) {
+func (c *Controller) handleBatteryStatus(packet *mavlink.Packet) {
 	if packet.SystemID != c.targetSysID {
 		return
 	}
@@ -215,7 +214,7 @@ func (c *Controller) handleBatteryStatus(packet *parser.MAVLinkPacket) {
 }
 
 // handleCommandAck processes COMMAND_ACK messages
-func (c *Controller) handleCommandAck(packet *parser.MAVLinkPacket) {
+func (c *Controller) handleCommandAck(packet *mavlink.Packet) {
 	if packet.SystemID != c.targetSysID {
 		return
 	}
@@ -270,7 +269,7 @@ func (c *Controller) sendHeartbeat(ctx context.Context) {
 		case <-ticker.C:
 			// Send GCS heartbeat
 			payload := c.encodeHeartbeat()
-			frame, err := c.buildMAVLinkFrame(constants.MavlinkMsgIdHeartbeat, payload)
+			frame, err := c.buildMAVLinkFrame(mavlink.MessageIDHeartbeat, payload)
 			if err == nil {
 				_ = c.sendFrame(frame) // Ignore error - heartbeat failure is not fatal
 			}
@@ -281,7 +280,7 @@ func (c *Controller) sendHeartbeat(ctx context.Context) {
 // sendInitialHeartbeat sends an immediate heartbeat to establish communication
 func (c *Controller) sendInitialHeartbeat() {
 	payload := c.encodeHeartbeat()
-	frame, err := c.buildMAVLinkFrame(constants.MavlinkMsgIdHeartbeat, payload)
+	frame, err := c.buildMAVLinkFrame(mavlink.MessageIDHeartbeat, payload)
 	if err == nil {
 		_ = c.sendFrame(frame) // Ignore error - initial heartbeat failure is not fatal
 	}
@@ -295,11 +294,11 @@ func (c *Controller) encodeHeartbeat() []byte {
 	// custom_mode (uint32) - 0 for GCS
 	// payload[0:4] already zero
 
-	payload[4] = constants.MavTypeGcs          // type: Ground Control Station
-	payload[5] = constants.MavAutopilotInvalid // autopilot: Invalid (GCS)
-	payload[6] = 0                             // base_mode: no specific mode
-	payload[7] = constants.MavStateActive      // system_status: Active
-	payload[8] = constants.MavlinkV2           // mavlink_version
+	payload[4] = mavlink.TypeGCS          // type: Ground Control Station
+	payload[5] = mavlink.AutopilotInvalid // autopilot: Invalid (GCS)
+	payload[6] = 0                        // base_mode: no specific mode
+	payload[7] = mavlink.StateActive      // system_status: Active
+	payload[8] = mavlink.Version2         // mavlink_version
 
 	return payload
 }

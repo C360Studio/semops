@@ -15,14 +15,13 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/c360studio/semops/pkg/processors/mavlink/constants"
-	"github.com/c360studio/semops/pkg/processors/mavlink/parser"
+	mavlink "github.com/c360studio/semops/pkg/adapters/mavlink"
 )
 
 // Controller provides programmatic control of ArduPilot SITL drone
 type Controller struct {
 	conn     net.Conn
-	parser   *parser.MAVLinkParser
+	parser   *mavlink.Parser
 	shutdown chan struct{} // Signal shutdown
 	done     chan struct{} // Signal completion
 
@@ -45,7 +44,7 @@ type Controller struct {
 	ackMux      sync.Mutex
 
 	// Message handlers
-	messageHandlers map[uint32]func(*parser.MAVLinkPacket)
+	messageHandlers map[uint32]func(*mavlink.Packet)
 	handlerMux      sync.RWMutex
 }
 
@@ -128,7 +127,7 @@ func NewController(ctx context.Context, config ControllerConfig) (*Controller, e
 
 	controller := &Controller{
 		conn:            conn,
-		parser:          parser.NewMAVLinkParser(),
+		parser:          mavlink.NewParser(),
 		shutdown:        make(chan struct{}),
 		done:            make(chan struct{}),
 		systemID:        config.SystemID,
@@ -137,7 +136,7 @@ func NewController(ctx context.Context, config ControllerConfig) (*Controller, e
 		targetCompID:    config.TargetComponentID,
 		state:           &DroneState{},
 		commandAcks:     make(map[uint16]chan CommandResult),
-		messageHandlers: make(map[uint32]func(*parser.MAVLinkPacket)),
+		messageHandlers: make(map[uint32]func(*mavlink.Packet)),
 	}
 
 	// Register default message handlers
@@ -208,7 +207,7 @@ func (c *Controller) nextSequence() uint8 {
 func (c *Controller) sendCommand(command uint16, params [7]float32, timeout time.Duration) (*CommandResult, error) {
 	// Create command message
 	payload := c.encodeCommandLong(command, params)
-	frame, err := c.buildMAVLinkFrame(constants.MavlinkMsgIdCommandLong, payload)
+	frame, err := c.buildMAVLinkFrame(mavlink.MessageIDCommandLong, payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build command frame: %w", err)
 	}
@@ -271,16 +270,16 @@ func (c *Controller) encodeCommandLong(command uint16, params [7]float32) []byte
 // buildMAVLinkFrame creates a complete MAVLink v2 frame
 func (c *Controller) buildMAVLinkFrame(msgID uint32, payload []byte) ([]byte, error) {
 	payloadLen := len(payload)
-	if payloadLen > constants.MavlinkMaxPayloadLen {
+	if payloadLen > mavlink.MaxPayloadLength {
 		return nil, fmt.Errorf("payload too large: %d bytes", payloadLen)
 	}
 
 	// MAVLink v2 frame size
-	frameLen := constants.MavlinkHeaderSizeV2 + payloadLen + constants.MavlinkChecksumSize
+	frameLen := mavlink.HeaderSizeV2 + payloadLen + mavlink.ChecksumSize
 	frame := make([]byte, frameLen)
 
 	// Build header
-	frame[0] = constants.MavlinkStxV2      // Start marker
+	frame[0] = mavlink.STXV2               // Start marker
 	frame[1] = uint8(payloadLen)           // Payload length
 	frame[2] = 0                           // Incompatibility flags
 	frame[3] = 0                           // Compatibility flags
@@ -292,11 +291,11 @@ func (c *Controller) buildMAVLinkFrame(msgID uint32, payload []byte) ([]byte, er
 	frame[9] = uint8((msgID >> 16) & 0xFF) // Message ID high byte
 
 	// Copy payload
-	copy(frame[constants.MavlinkHeaderSizeV2:], payload)
+	copy(frame[mavlink.HeaderSizeV2:], payload)
 
 	// Calculate and append CRC
-	crc := c.calculateCRC(frame[:constants.MavlinkHeaderSizeV2+payloadLen], msgID)
-	binary.LittleEndian.PutUint16(frame[constants.MavlinkHeaderSizeV2+payloadLen:], crc)
+	crc := c.calculateCRC(frame[:mavlink.HeaderSizeV2+payloadLen], msgID)
+	binary.LittleEndian.PutUint16(frame[mavlink.HeaderSizeV2+payloadLen:], crc)
 
 	return frame, nil
 }
@@ -313,7 +312,7 @@ func (c *Controller) calculateCRC(data []byte, msgID uint32) uint16 {
 	}
 
 	// Add CRC extra byte for COMMAND_LONG
-	if msgID == constants.MavlinkMsgIdCommandLong {
+	if msgID == mavlink.MessageIDCommandLong {
 		tmp := uint8(152) ^ uint8(crc) // CRC extra for COMMAND_LONG
 		tmp ^= tmp << 4
 		crc = (crc >> 8) ^ (uint16(tmp) << 8) ^ (uint16(tmp) << 3) ^ (uint16(tmp) >> 4)

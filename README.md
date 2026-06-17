@@ -13,6 +13,7 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
 - Feed evidence ladder: `docs/feed-validation-and-indexing-ladder.md`
 - COP model baseline: `docs/cop-model-and-governance.md`
 - MAVLink reference hold: `docs/legacy-quarantine.md`
+- Active MAVLink codec boundary: `pkg/adapters/mavlink`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
 StreamKit, EntityStore, ObjectStore, and BaseProcessor product paths have been removed or are outside the active build.
@@ -38,16 +39,14 @@ The initial ownership-contract matrix lives in `pkg/cop` and covers:
 
 ## Reference Material
 
-Only MAVLink material with near-term extraction value remains under `pkg/processors/mavlink`, guarded by the `ignore`
-build constraint:
+Only MAVLink material with near-term SITL extraction value remains under `pkg/processors/mavlink`, guarded by the
+`ignore` build constraint:
 
-- protocol constants
-- binary parser and parser tests
-- test frame generator
 - ArduPilot SITL controller/scenario scaffolding
 
-This is a temporary reference hold. Once the useful parser, generator, and SITL pieces are extracted into modern
-SemOps package boundaries, the ignored reference files should be deleted.
+The active codec now lives in `pkg/adapters/mavlink` with parser/generator tests for heartbeat, global position,
+attitude, battery status, split buffers, resync, checksum rejection, and scenario frames. The remaining ignored SITL
+files should be deleted once useful command/control behavior is extracted or deliberately rejected.
 
 ## Development
 
@@ -57,5 +56,5 @@ Run the current active test gate:
 go test ./...
 ```
 
-The test suite validates the SemStreams contract gate and COP ownership model. Ignored MAVLink reference files are not
-part of the active product build.
+The test suite validates the SemStreams contract gate, COP ownership model, and active MAVLink codec. Ignored SITL
+reference files are not part of the active product build.
