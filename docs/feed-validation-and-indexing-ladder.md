@@ -113,7 +113,8 @@ Mock or harness:
 - Use active COMMAND_LONG/COMMAND_ACK tests as the command codec gate.
 - Use generated or replay MAVLink frames against a live SemStreams graph stack to clear SemOps issue #1 before
   making PX4/SITL a blocking dependency. The generated-frame graph smoke passed on 2026-06-17.
-- Re-run the MAVLink smoke in a clean stack before broad expansion and assert unclassified indexing-profile and
+- The clean-stack owner-registration smoke passed on 2026-06-17 with registry-derived `<owner>#<incarnation>` tokens.
+- Before broad expansion, add before/after assertions for unclassified indexing-profile, owner-token mismatch, and
   dropped-foreign-edge counters.
 - Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 

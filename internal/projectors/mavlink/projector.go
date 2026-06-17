@@ -23,8 +23,11 @@ const (
 )
 
 type Config struct {
-	Org              string
-	Platform         string
+	Org      string
+	Platform string
+	// OwnerTokenSuffix is the SemStreams ownership registry incarnation.
+	// Production wiring should obtain it from copownership.BindingResult rather
+	// than static config.
 	OwnerTokenSuffix string
 	TraceID          string
 	Confidence       float64

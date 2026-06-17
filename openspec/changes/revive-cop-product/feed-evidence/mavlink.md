@@ -1,8 +1,8 @@
 # MAVLink Feed Evidence
 
 Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner, SemStreams graph writer boundary,
-structural wiring, and generated-frame live graph smoke evidence. Live feed integration remains blocked by stack
-hosting, durable replay playback, owner-registration coverage, and restart/replay work in `COP-004`.
+structural wiring, COP owner-registration smoke evidence, and generated-frame live graph smoke evidence. Live feed
+integration remains blocked by stack hosting, durable replay playback, and restart/replay work in `COP-004`.
 
 ## Decision
 
@@ -10,12 +10,13 @@ MAVLink should be the first feed because SemOps already contained parser, genera
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
 coverage, current-state projection planner, tested graph request/reply writer boundary, retry-aware SemStreams NATS
 requester boundary, in-process adapter harness, and testable structural wiring factory. Live feed work still needs
-scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, explicit owner registration/heartbeat
-coverage, restart/replay reconciliation, and stack health checks.
+scenario-runner replay wiring, container stack hosting, SITL/PX4 evidence, runtime composition-root wiring,
+restart/replay reconciliation, and stack health checks.
 
 SemOps GitHub issue #1 added a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
 graph path against live SemStreams before PX4/SITL becomes the blocking milestone. The generated-frame smoke passed
-locally on 2026-06-17; next clean-stack evidence should add owner-registry and counter assertions.
+locally on 2026-06-17. A clean-stack owner-registry smoke also passed on 2026-06-17 with registry-derived
+`<owner>#<incarnation>` owner tokens; next evidence should add counter-delta assertions.
 
 ## Local Evidence
 
@@ -53,9 +54,11 @@ locally on 2026-06-17; next clean-stack evidence should add owner-registry and c
   adapter harness, and health state from config.
 - `internal/stack/mavlink_test.go` proves custom and default retry config propagation, write timeout propagation,
   create/update graph subjects, born-first source edge behavior, raw-lane capture, and writer injection for tests.
+- `internal/copownership` registers first-phase SemOps COP contracts through SemStreams `projection.BindAndHeartbeat`
+  and returns the registry incarnation used by runtime writers.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
-  stack, polls SemStreams graph state, and asserts source asset, track, `cop.track.source`, and
-  `cop.track.position` readback.
+  stack, registers COP ownership, polls SemStreams graph state, and asserts source asset, track, `cop.track.source`,
+  `cop.track.position`, owner lookup, and foreign-edge claim readback.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -121,7 +124,11 @@ Latest evidence:
 
 - 2026-06-17: passed against SemStreams `configs/graph-backend.json` and a JetStream NATS broker at
   `nats://127.0.0.1:55438`.
+- 2026-06-17: passed again against a clean temporary NATS/SemStreams stack at `nats://127.0.0.1:4222` after
+  registering SemOps COP ownership contracts and composing owner tokens from the registry incarnation.
 - SemStreams health remained green after the run via `/health` and the dedicated `/healthz` endpoint.
+- SemStreams logged that `semops.feed.cap` has no enforceable owning or foreign-edge claim because CAP is currently
+  append-evidence only; this is governance evidence, not write-fence protection.
 
 Acceptance:
 
@@ -129,8 +136,10 @@ Acceptance:
 - The source asset is born before the track writes the strict `cop.track.source` edge.
 - Known-track position updates do not rebirth the source asset and do not repeat the strict foreign edge.
 - The run reports no `entity_not_found` mutation failures.
-- A clean-stack run asserts dropped foreign-edge and indexing-profile default counters once the SemStreams metric
-  surface is stable enough for this repository to depend on.
+- The clean-stack run registers SemOps COP owners, enrolls them for heartbeat, and uses registry-derived
+  `<owner>#<incarnation>` owner tokens.
+- A later clean-stack run asserts dropped foreign-edge, owner-token mismatch, and indexing-profile default counter
+  deltas once the SemStreams metric surface is stable enough for this repository to depend on.
 - This gate is complete before PX4/SITL is treated as the next blocking MAVLink milestone.
 
 ### SITL Gate
@@ -162,12 +171,15 @@ Acceptance:
 ## Known Gaps
 
 - The active module path, Go toolchain, and MAVLink parser/generator are modernized.
-- The current-state projection planner, graph writer, and structural wiring now pass a generated-frame live graph
-  smoke against SemStreams; the wiring is not yet hosted in a live containerized stack.
+- The current-state projection planner, graph writer, COP ownership binding, and structural wiring now pass a
+  generated-frame live graph smoke against SemStreams; the wiring is not yet hosted in a live containerized stack.
 - The in-process adapter harness is not a UDP/TCP listener and is not yet hosted as `semops-adapter-mavlink`.
 - Raw-lane capture and replay fixture storage are library boundaries; scenario-runner playback and stack retention
   policy are not implemented yet.
-- Explicit SemOps COP owner registration and heartbeat coverage are not implemented yet.
+- Explicit SemOps COP owner registration and heartbeat coverage exist as library/smoke wiring but are not yet wired
+  into a hosted SemOps process.
+- The SemStreams graph-ingest indexing-profile default counter showed a baseline `message_type="unknown"` value in a
+  clean stack. SemOps needs before/after counter deltas rather than a naive zero-total assertion.
 - Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
   born without a read-back or checkpoint path.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before

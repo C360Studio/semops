@@ -19,6 +19,8 @@ Evidence:
   `cop.track.source` edge, updated `cop.track.position`, and read both entities back through `graph.query.entity`.
 - The broker was an already-running local testcontainer, not a SemOps-owned stack. It became noisy after the smoke,
   with heartbeat and consumer warnings, so counter assertions must be repeated in a clean one-command stack.
+- Follow-up result: pass against a clean temporary NATS/SemStreams stack at `nats://127.0.0.1:4222` after registering
+  SemOps COP owners and using registry-derived `<owner>#<incarnation>` owner tokens.
 
 Adversarial Findings:
 
@@ -28,14 +30,17 @@ Adversarial Findings:
   Compose wiring, and scenario-runner replay still belong to `COP-004`.
 - Go reviewer: The smoke sends owner tokens but does not prove explicit SemOps COP owner registration or heartbeat
   lifecycle. Add a structural-stack smoke for owner registry presence before claiming production ownership behavior.
+- Update: the clean-stack follow-up now proves COP owner registration, heartbeat enrollment, owner lookup, and
+  foreign-edge claim lookup for the MAVLink path.
 - Go reviewer: Restart/replay remains open. The projector still keeps birth knowledge in memory, so a process restart
   needs read-back, checkpointing, or idempotent-create behavior before operational safety claims.
 - Technical writer: The result should be described as generated-frame graph compliance, not MAVLink feed-fidelity or
   command/control evidence.
-- Architect: A shared-broker metrics scrape exposed an indexing-profile default counter. Repeat in a clean stack and
-  assert that SemOps COP message types do not increment unclassified/default indexing-profile metrics.
+- Architect: Metrics need before/after delta assertions. The clean stack still exposed a baseline
+  `message_type="unknown"` indexing-profile default counter, so a total-zero assertion would be misleading.
 
 Decision:
 
 Accept the smoke as the generated/replay ADR-055/056 must-exist gate for MAVLink. Keep COP-009 open for GitHub issue
-evidence publication, owner-registration coverage, clean-stack counter assertions, and restart/replay reconciliation.
+evidence publication, hosted owner-registration wiring, clean-stack counter-delta assertions, and restart/replay
+reconciliation.

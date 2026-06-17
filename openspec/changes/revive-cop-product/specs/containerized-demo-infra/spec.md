@@ -55,8 +55,9 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **THEN** SemOps prioritizes a generated or replay MAVLink live graph smoke over PX4/SITL, UI, or second-feed
   expansion
 - **AND** the smoke actively polls graph state and mutation failures rather than relying on quiet logs
-- **AND** the later clean-stack smoke asserts graph-ingest counters for foreign-edge drops and indexing-profile
-  defaults
+- **AND** the clean-stack smoke registers COP ownership and uses registry-derived owner tokens
+- **AND** the later hosted-stack smoke asserts graph-ingest counter deltas for foreign-edge drops, owner-token
+  mismatches, and indexing-profile defaults
 
 ### Requirement: Scenario runner makes demos repeatable
 

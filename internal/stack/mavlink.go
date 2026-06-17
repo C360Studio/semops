@@ -12,9 +12,12 @@ import (
 )
 
 type MAVLinkAdapterConfig struct {
-	Source           string
-	Org              string
-	Platform         string
+	Source   string
+	Org      string
+	Platform string
+	// OwnerTokenSuffix is the SemStreams ownership registry incarnation used to
+	// form <owner>#<incarnation> OwnerTokens. Use
+	// copownership.BindingResult.OwnerTokenSuffix() in runtime composition.
 	OwnerTokenSuffix string
 	TraceID          string
 	Confidence       float64

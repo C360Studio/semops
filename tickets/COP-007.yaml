@@ -41,8 +41,10 @@ progress:
     structural wiring, and live generated-frame graph smoke evidence.
   - The 2026-06-17 live smoke used SemStreams `configs/graph-backend.json` and passed born-first graph readback for
     source asset, track, `cop.track.source`, and `cop.track.position`.
+  - A clean-stack 2026-06-17 run registered SemOps COP ownership claims and used registry-derived
+    `<owner>#<incarnation>` tokens for MAVLink writes.
 
 remaining:
-  - Re-run the MAVLink graph smoke in a clean one-command stack and assert indexing-profile default counters stay
-    zero for SemOps COP message types.
+  - Add before/after metric assertions so SemOps can distinguish baseline SemStreams `message_type="unknown"`
+    defaults from COP message-type indexing-profile regressions.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.

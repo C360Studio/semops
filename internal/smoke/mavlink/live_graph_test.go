@@ -9,12 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/c360studio/semops/internal/copownership"
 	"github.com/c360studio/semops/internal/stack"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/natsclient"
+	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 const liveGraphNATSEnv = "SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL"
@@ -47,12 +49,26 @@ func TestLiveGraphMAVLinkBornFirstSmoke(t *testing.T) {
 		}
 	})
 
+	ownerRegistry, err := ownership.EnsureBuckets(ctx, client, nil, nil)
+	if err != nil {
+		t.Fatalf("ensure ownership buckets: %v", err)
+	}
+	heartbeater := ownerRegistry.NewHeartbeater(ownership.HeartbeatInterval)
+	heartbeatCtx, heartbeatCancel := context.WithCancel(ctx)
+	t.Cleanup(heartbeatCancel)
+	go heartbeater.Run(heartbeatCtx)
+
+	bindings, err := copownership.RegisterFirstPhase(ctx, ownerRegistry, heartbeater)
+	if err != nil {
+		t.Fatalf("register first-phase COP ownership: %v", err)
+	}
+
 	platform := "smoke-" + time.Now().UTC().Format("20060102150405")
 	adapter, err := stack.NewMAVLinkAdapter(stack.MAVLinkAdapterConfig{
 		Source:           "live-graph-smoke",
 		Org:              "c360",
 		Platform:         platform,
-		OwnerTokenSuffix: "live-graph-smoke",
+		OwnerTokenSuffix: bindings.OwnerTokenSuffix(),
 		TraceID:          "semops-mavlink-live-graph-smoke",
 		WriteTimeout:     2 * time.Second,
 		Retry: natsclient.RetryConfig{
@@ -97,6 +113,7 @@ func TestLiveGraphMAVLinkBornFirstSmoke(t *testing.T) {
 
 	assetID := "c360." + platform + ".cop.mavlink.asset.system-42"
 	trackID := "c360." + platform + ".cop.mavlink.track.system-42"
+	assertMAVLinkOwnership(t, ctx, ownerRegistry, trackID)
 	asset := pollEntity(ctx, t, client, assetID)
 	track := pollEntity(ctx, t, client, trackID)
 
@@ -110,6 +127,33 @@ func TestLiveGraphMAVLinkBornFirstSmoke(t *testing.T) {
 	}
 	requireTriple(t, track.Triples, cop.TrackSource, assetID)
 	requireTriple(t, track.Triples, cop.TrackPosition, "POINT(-77.0000002 38.9000001)")
+}
+
+func assertMAVLinkOwnership(
+	t *testing.T,
+	ctx context.Context,
+	registry *ownership.Registry,
+	trackID string,
+) {
+	t.Helper()
+
+	owner, ok, err := registry.OwnerOf(ctx, trackID, cop.TrackPosition)
+	if err != nil {
+		t.Fatalf("lookup MAVLink track owner: %v", err)
+	}
+	if !ok || owner != cop.OwnerMAVLink {
+		t.Fatalf("MAVLink track owner = %q,%v, want %q,true", owner, ok, cop.OwnerMAVLink)
+	}
+	edge, ok, err := registry.ForeignEdgeClaimFor(ctx, cop.MAVLinkTrackContract().MessageType, cop.TrackSource)
+	if err != nil {
+		t.Fatalf("lookup MAVLink foreign-edge claim: %v", err)
+	}
+	if !ok {
+		t.Fatalf("missing foreign-edge claim for %s/%s", cop.MAVLinkTrackContract().MessageType, cop.TrackSource)
+	}
+	if edge.Owner != cop.OwnerMAVLink || edge.Mode != ownership.EdgeStrict {
+		t.Fatalf("foreign-edge claim = %+v, want owner %q strict", edge, cop.OwnerMAVLink)
+	}
 }
 
 func pollEntity(

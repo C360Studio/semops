@@ -47,6 +47,8 @@ progress:
   - Ran the MAVLink live graph smoke against SemStreams `configs/graph-backend.json` and JetStream NATS on
     2026-06-17; generated heartbeat and position frames wrote and read back source asset, track, source edge, and
     position state.
+  - Added a COP ownership registration boundary and reran the smoke on a clean temporary NATS/SemStreams stack with
+    registry-derived owner tokens.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
@@ -57,8 +59,9 @@ current_evidence:
   - `go test ./pkg/adapters/mavlink`
 
 remaining:
-  - Add explicit owner registration/heartbeat coverage for SemOps COP contracts in the structural stack.
-  - Add clean-stack assertions for graph-ingest indexing-profile defaults and foreign-edge failure counters.
+  - Wire COP ownership registration into the hosted adapter or SemOps composition root.
+  - Add clean-stack before/after assertions for graph-ingest indexing-profile defaults, owner-token mismatches, and
+    foreign-edge failure counters.
   - Host the structural MAVLink wiring in `cmd/semops` or a dedicated adapter service entrypoint.
   - Wire the replay store into scenario-runner playback and retention policy.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.

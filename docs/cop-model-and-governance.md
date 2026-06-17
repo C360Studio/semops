@@ -47,8 +47,14 @@ SemOps adapters must follow SemStreams ADR-055 and ADR-056 directly:
   contract names the producer message type plus target pattern.
 - SemOps issue #1 tracks the live SemStreams breaking-tag proof for this policy; the first generated-frame MAVLink
   graph smoke passed on 2026-06-17.
-- The next hardening gates are explicit SemOps COP owner registration/heartbeat coverage and clean-stack
-  graph-ingest counter assertions.
+- A follow-up clean-stack smoke registered SemOps COP owners, enrolled static owners for heartbeat, and used
+  registry-derived `<owner>#<incarnation>` tokens for MAVLink writes.
+- The next hardening gates are hosted composition-root wiring, restart/replay reconciliation, and clean-stack
+  graph-ingest counter-delta assertions.
+
+Runtime code must treat the incarnation as ownership substrate state, not human-authored adapter config. The
+composition root should register projection contracts, get the registry incarnation, and pass that value into feed
+projectors for owner-token composition.
 
 ## Predicate Conventions
 

@@ -40,9 +40,13 @@ progress:
   - 2026-06-17 live run passed against SemStreams `configs/graph-backend.json` and JetStream NATS:
     `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=nats://127.0.0.1:55438 go test ./internal/smoke/mavlink -v`.
   - SemStreams health remained healthy after the run via `/health` and the dedicated `/healthz` endpoint.
+  - Added `internal/copownership` to register first-phase SemOps COP contracts with SemStreams ownership and enroll
+    static owners for heartbeat.
+  - 2026-06-17 clean-stack live run passed with registry-derived `<owner>#<incarnation>` tokens:
+    `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=nats://127.0.0.1:4222 go test ./internal/smoke/mavlink -v`.
 
 remaining:
   - Push or PR the local revival commits so GitHub issue #1 can see current evidence.
-  - Add owner registration, heartbeat, and registry smoke coverage for SemOps COP contracts in the structural stack.
-  - Re-run the smoke in a clean one-command stack and assert graph-ingest foreign-edge and indexing-profile counters.
+  - Wire COP ownership registration into the eventual `cmd/semops` or adapter-service composition root.
+  - Add before/after metric assertions for graph-ingest foreign-edge, owner-token, and indexing-profile counters.
   - Add restart/replay reconciliation before calling the adapter operationally safe across process restarts.
