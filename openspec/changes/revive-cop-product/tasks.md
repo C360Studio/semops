@@ -35,8 +35,8 @@
 ## 5. Feed Validation And Indexing Ladder
 
 - [x] 5.1 Add initial feed validation and indexing ladder documentation
-- [ ] 5.2 Record mock, simulator, replay, compliance, and sample-data evidence for each feed
-- [ ] 5.3 Define expected `indexing_profile` and cardinality risk for each projected entity type
+- [x] 5.2 Record mock, simulator, replay, compliance, and sample-data evidence for each feed
+- [x] 5.3 Define expected `indexing_profile` and cardinality risk for each projected entity type
 - [ ] 5.4 Prove MAVLink parser, generator, ArduPilot SITL, and PX4 SITL evidence gates
 - [ ] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
 - [ ] 5.6 Prove CAP XML schema and NWS sample gates before adding loose-reader behavior

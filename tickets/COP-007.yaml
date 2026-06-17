@@ -10,6 +10,11 @@ openspec_change: revive-cop-product
 evidence_records:
   - openspec/changes/revive-cop-product/feed-evidence/mavlink.md
   - openspec/changes/revive-cop-product/feed-evidence/tak-cot.md
+  - openspec/changes/revive-cop-product/feed-evidence/cap-edxl.md
+  - openspec/changes/revive-cop-product/feed-evidence/semconnect-csapi-egress.md
+  - openspec/changes/revive-cop-product/feed-evidence/adsb.md
+  - openspec/changes/revive-cop-product/feed-evidence/sapient.md
+  - openspec/changes/revive-cop-product/feed-evidence/klv-stanag4609.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT,
