@@ -98,6 +98,8 @@ Local assets:
 - SemOps has an active MAVLink v1/v2 parser and MAVLink v2 generator in `pkg/adapters/mavlink`.
 - The active tests prove heartbeat, global position, attitude, battery status, split buffers, noisy resync, checksum
   rejection, and deterministic scenario frames.
+- The active raw lane stores copied MAVLink frames under record and byte caps and annotates decoded packets with a
+  `cop.provenance.source_ref` for current-state projections.
 - The old ignored parser/generator references were deleted after extraction. Only ArduPilot SITL controller/scenario
   references remain under `pkg/processors/mavlink`.
 - SemSpec memory indicates prior PX4 SITL evidence-ladder work and public-facing harness tags.
@@ -118,13 +120,14 @@ Indexing profile pressure:
 First acceptance gate:
 
 - Given real MAVLink frames for heartbeat, global position, attitude, and battery, the adapter writes one current
-  vehicle entity with source provenance and does not create one graph entity per packet.
+  vehicle entity with source provenance and a raw source reference, and does not create one graph entity per packet.
 
 Current codec gate:
 
 - `go test ./pkg/adapters/mavlink` proves real binary decode before graph projection.
 - Battery status now guards canonical MAVLink wire order because the ignored reference layout was self-consistent but
   not sufficient interoperability evidence.
+- `pkg/adapters/mavlink/raw_lane_test.go` proves the bounded in-memory raw lane before durable replay storage exists.
 
 ### TAK/CoT
 

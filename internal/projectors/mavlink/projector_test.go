@@ -156,6 +156,53 @@ func TestProjectorMapsAttitudeAndBatterySignals(t *testing.T) {
 	requireTriple(t, update.AddTriples, cop.TrackBattery, int64(85))
 }
 
+func TestProjectorIncludesRawSourceReferenceWithoutRawEntityBirth(t *testing.T) {
+	generator := mavcodec.NewGenerator(42, 7)
+	frame, err := generator.GenerateHeartbeat(mavcodec.HeartbeatMessage{
+		BaseMode:       mavcodec.ModeFlagSafetyArmed,
+		SystemStatus:   mavcodec.StateActive,
+		MavlinkVersion: mavcodec.Version2,
+	})
+	if err != nil {
+		t.Fatalf("generate heartbeat: %v", err)
+	}
+	parser := mavcodec.NewParser()
+	packets, err := parser.Parse(frame)
+	if err != nil {
+		t.Fatalf("parse heartbeat: %v", err)
+	}
+	if len(packets) != 1 {
+		t.Fatalf("packets = %d, want 1", len(packets))
+	}
+	lane := mavcodec.NewRawLane(mavcodec.RawLaneConfig{
+		Source:     "udp:14550",
+		MaxRecords: 8,
+		MaxBytes:   1024,
+	})
+	record, err := lane.Capture(frame, packets[0])
+	if err != nil {
+		t.Fatalf("capture raw frame: %v", err)
+	}
+
+	projector := NewProjector(Config{OwnerTokenSuffix: "test"})
+	plan, err := projector.ProjectPacket(packets[0])
+	if err != nil {
+		t.Fatalf("project heartbeat: %v", err)
+	}
+	if len(plan.Mutations) != 2 {
+		t.Fatalf("mutations = %d, want asset birth + track birth only", len(plan.Mutations))
+	}
+	assetCreate := requireCreate(t, plan.Mutations[0])
+	trackCreate := requireCreate(t, plan.Mutations[1])
+	requireTriple(t, assetCreate.Triples, cop.ProvenanceSourceRef, record.Ref)
+	requireTriple(t, trackCreate.Triples, cop.ProvenanceSourceRef, record.Ref)
+	for _, mutation := range plan.Mutations {
+		if mutation.Kind != MutationCreate && mutation.Kind != MutationUpdate {
+			t.Fatalf("unexpected mutation kind %q", mutation.Kind)
+		}
+	}
+}
+
 func TestProjectorIgnoresUnsupportedMessagesWithoutBirth(t *testing.T) {
 	projector := NewProjector(Config{})
 	plan, err := projector.ProjectPacket(&mavcodec.Packet{

@@ -158,6 +158,9 @@ func (p *Projector) trackTriples(packet *mavcodec.Packet) []message.Triple {
 		triple(trackID, cop.ProvenanceConfidence, p.cfg.Confidence, packet, p.cfg.Confidence),
 		triple(trackID, cop.ProvenanceObservedAt, observedAt(packet), packet, p.cfg.Confidence),
 	}
+	if packet.SourceRef != "" {
+		base = append(base, triple(trackID, cop.ProvenanceSourceRef, packet.SourceRef, packet, p.cfg.Confidence))
+	}
 
 	switch packet.MessageID {
 	case mavcodec.MessageIDHeartbeat:
@@ -211,7 +214,7 @@ func (p *Projector) trackTriples(packet *mavcodec.Packet) []message.Triple {
 }
 
 func (p *Projector) sourceAssetTriples(assetID string, packet *mavcodec.Packet) []message.Triple {
-	return []message.Triple{
+	triples := []message.Triple{
 		triple(assetID, cop.AssetName, fmt.Sprintf("MAVLink system %d", packet.SystemID), packet, p.cfg.Confidence),
 		triple(assetID, cop.AssetKind, "mavlink-system", packet, p.cfg.Confidence),
 		triple(assetID, cop.AssetSource, "mavlink", packet, p.cfg.Confidence),
@@ -220,6 +223,10 @@ func (p *Projector) sourceAssetTriples(assetID string, packet *mavcodec.Packet) 
 		triple(assetID, cop.ProvenanceConfidence, p.cfg.Confidence, packet, p.cfg.Confidence),
 		triple(assetID, cop.ProvenanceObservedAt, observedAt(packet), packet, p.cfg.Confidence),
 	}
+	if packet.SourceRef != "" {
+		triples = append(triples, triple(assetID, cop.ProvenanceSourceRef, packet.SourceRef, packet, p.cfg.Confidence))
+	}
+	return triples
 }
 
 func (p *Projector) sourceAssetID(systemID uint8) string {

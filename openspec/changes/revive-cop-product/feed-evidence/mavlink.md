@@ -1,14 +1,14 @@
 # MAVLink Feed Evidence
 
-Status: candidate Phase 1 feed, codec, projection planner, and SemStreams graph writer boundary extracted. Live feed
-integration remains blocked by raw-lane, stack, and restart/replay work in `COP-004`.
+Status: candidate Phase 1 feed, codec, bounded raw lane, projection planner, and SemStreams graph writer boundary
+extracted. Live feed integration remains blocked by stack, durable replay, and restart/replay work in `COP-004`.
 
 ## Decision
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
-The active path now has a modern parser/generator package, current-state projection planner, and tested graph
-request/reply writer boundary. Live feed work still needs raw-lane boundaries, container stack wiring, SITL/PX4
-evidence, restart/replay reconciliation, and stack health checks.
+The active path now has a modern parser/generator package, bounded in-memory raw lane, current-state projection
+planner, and tested graph request/reply writer boundary. Live feed work still needs durable replay storage, container
+stack wiring, SITL/PX4 evidence, restart/replay reconciliation, and stack health checks.
 
 ## Local Evidence
 
@@ -18,10 +18,14 @@ evidence, restart/replay reconciliation, and stack health checks.
   deterministic quadcopter scenario frames with CRC.
 - `pkg/adapters/mavlink/parser_test.go` validates generator/parser compatibility, split buffers, noisy resync,
   checksum rejection, concurrent sequence generation, scenario frame generation, and canonical battery wire order.
+- `pkg/adapters/mavlink/raw_lane.go` keeps copied native frames in a bounded lane and annotates decoded packets with
+  replay-addressable source references.
+- `pkg/adapters/mavlink/raw_lane_test.go` proves metadata capture, record and byte eviction, oversize rejection,
+  replay lookup, and defensive copies.
 - `internal/projectors/mavlink` maps decoded heartbeat, global position, attitude, and battery packets into ordered
   SemStreams graph mutation requests.
 - `internal/projectors/mavlink/projector_test.go` proves source asset birth before strict `cop.track.source` edges,
-  signal-profiled track current state, and update-only behavior after first birth.
+  signal-profiled track current state, source-reference projection, and update-only behavior after first birth.
 - `internal/projectors/mavlink/writer.go` sends plans to SemStreams `graph.mutation.entity.create_with_triples` and
   `graph.mutation.entity.update_with_triples` request/reply subjects.
 - `internal/projectors/mavlink/writer_test.go` proves write ordering, owner-token transit,
@@ -65,7 +69,7 @@ Acceptance:
 - Heartbeat, global position, attitude, and battery packets create or update one current vehicle entity per MAVLink
   system.
 - The source asset is born before the track writes a strict `cop.track.source` foreign edge.
-- Raw frames remain on a bounded lane or source reference.
+- Raw frames remain in the bounded lane and current-state graph writes carry only `cop.provenance.source_ref`.
 - Vehicle current state uses `indexing_profile=signal`.
 - The graph writer targets the current SemStreams create/update-with-triples request subjects.
 - A committed-but-degraded mutation response is treated as committed and not retried.
@@ -102,7 +106,8 @@ Acceptance:
 - The active module path, Go toolchain, and MAVLink parser/generator are modernized.
 - The current-state projection planner and graph writer emit and send current SemStreams graph mutation shapes, but the
   writer is not yet wired into a live containerized stack.
-- Raw-lane capture and replay fixture storage still need the containerized stack boundary.
+- Raw-lane capture is an in-memory library boundary; durable replay fixture storage still needs the containerized
+  stack boundary.
 - Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
   born without a read-back or checkpoint path.
 - SITL command/control reference files still need extraction behind modern SemOps package boundaries.

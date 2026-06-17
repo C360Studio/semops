@@ -34,6 +34,7 @@
 - [ ] 4.7 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
 - [ ] 4.8 Keep raw frames on a bounded lane and wire projection plans to live SemStreams graph writes
 - [x] 4.9 Add a tested SemStreams graph request/reply writer boundary for MAVLink projection plans
+- [x] 4.10 Add a bounded MAVLink raw frame lane with current-state source references
 
 ## 5. Feed Validation And Indexing Ladder
 

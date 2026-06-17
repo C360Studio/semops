@@ -58,6 +58,7 @@ const (
 	ProvenanceSource     = "cop.provenance.source"
 	ProvenanceConfidence = "cop.provenance.confidence"
 	ProvenanceObservedAt = "cop.provenance.observed_at"
+	ProvenanceSourceRef  = "cop.provenance.source_ref"
 )
 
 var FirstCanonicalEntitySet = []string{
@@ -108,6 +109,7 @@ func SourceAssetContract() projection.Contract {
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,
+				ProvenanceSourceRef,
 			},
 		}},
 	}
@@ -135,6 +137,7 @@ func MAVLinkTrackContract() projection.Contract {
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,
+				ProvenanceSourceRef,
 			},
 		}},
 		ForeignEdges: []projection.ForeignEdge{{
@@ -163,6 +166,7 @@ func TAKTrackContract() projection.Contract {
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,
+				ProvenanceSourceRef,
 			},
 		}},
 		ForeignEdges: []projection.ForeignEdge{{
@@ -190,6 +194,7 @@ func CAPHazardEvidenceContract() projection.Contract {
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,
+				ProvenanceSourceRef,
 			},
 		}},
 	}

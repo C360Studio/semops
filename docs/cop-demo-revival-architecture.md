@@ -69,6 +69,8 @@ SemOps has salvageable MAVLink depth:
   scaffolding.
 - Non-reference StreamKit and BaseProcessor-era MAVLink code has been removed. The retained ignored files are a
   temporary reference hold for extraction.
+- A bounded MAVLink raw frame lane now stores copied frames under record and byte caps and annotates decoded packets
+  with source references for governed current-state projections.
 
 SemLink has the more current product pattern:
 
@@ -230,7 +232,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 
 | Component | Role | Notes |
 | --- | --- | --- |
-| `pkg/adapters/mavlink` | MAVLink codec and future SITL controller | Active parser/generator extracted |
+| `pkg/adapters/mavlink` | MAVLink codec, raw lane, and future SITL controller | Active parser/generator extracted |
 | `pkg/cop` | COP model, predicates, projection contracts | Track, alert, asset, hazard, footprint, task, advisory |
 | `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |

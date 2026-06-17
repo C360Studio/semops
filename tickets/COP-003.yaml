@@ -36,6 +36,8 @@ progress:
     without rebirth or repeated foreign-edge writes.
   - Graph writer boundary now sends projection plans to SemStreams `create_with_triples` and `update_with_triples`
     request/reply subjects with tests for ordering, committed-but-degraded responses, cancellation, and failure stops.
+  - Bounded raw frame lane now stores copied MAVLink frames, annotates decoded packets with
+    `cop.provenance.source_ref`, and keeps raw packet bytes out of graph entity birth.
 
 current_evidence:
   - `go test ./pkg/adapters/mavlink`
@@ -44,7 +46,8 @@ current_evidence:
 remaining:
   - Extract or reject the ignored ArduPilot SITL controller and command helpers.
   - Add COMMAND_LONG/COMMAND_ACK tests before claiming command coverage.
-  - Wire the graph writer into a live SemStreams stack after raw-lane and container boundaries exist.
+  - Wire the graph writer into a live SemStreams stack after container boundaries exist.
+  - Add durable replay fixture storage behind the bounded raw lane.
   - Add restart/replay reconciliation so adapter birth caches do not become production state.
   - Add PX4 SITL or MAVSDK smoke evidence before calling MAVLink Phase 1 complete.
 

@@ -85,7 +85,8 @@ preserved as evidence.
 #### Scenario: Raw evidence can be linked when needed
 
 - **WHEN** a QA, provenance, or replay workflow needs the native payload
-- **THEN** the governed projection includes a source reference instead of copying every raw packet into the graph
+- **THEN** the governed projection includes a `cop.provenance.source_ref` or equivalent source reference instead of
+  copying every raw packet into the graph
 
 #### Scenario: Binary media is referenced instead of embedded
 

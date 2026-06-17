@@ -25,6 +25,7 @@ type Packet struct {
 	Signature    []byte
 	ParsedFields map[string]any
 	Timestamp    time.Time
+	SourceRef    string
 }
 
 // Parser incrementally decodes MAVLink v1 and v2 frames from byte streams.

@@ -55,7 +55,7 @@ Predicate names are product-local until a reusable SemStreams need is proven.
 | Track current state | `cop.track.position`, `cop.track.velocity`, `cop.track.status` | Strict source-owned state |
 | Hazard evidence | `cop.hazard.advisory_text`, `cop.hazard.evidence`, `cop.hazard.source` | CAP starts append-only |
 | Alert derived state | `cop.alert.severity`, `cop.alert.status`, `cop.alert.reason` | Fusion-owned derived facts |
-| Provenance | source, confidence, observed-at predicates | Candidate upstream convention |
+| Provenance | source, confidence, observed-at, source-ref predicates | Candidate upstream convention |
 
 ## Upstream Candidates
 
@@ -65,6 +65,7 @@ failing SemOps tests or awkward duplicated code:
 - A generic provenance source predicate.
 - A generic confidence predicate and confidence range convention.
 - A generic observed-at or source-time predicate.
+- A generic source-reference predicate for bounded raw lanes and replay artifacts.
 - Raw-lane plus current-state projection guidance for high-rate telemetry.
 - Spatial helper conventions for WKT/GeoJSON position, footprint, and hazard geometry predicates.
 
