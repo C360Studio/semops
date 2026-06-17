@@ -34,6 +34,8 @@ progress:
     global position, attitude, and battery packets.
   - Born-first tests prove source asset creation precedes the strict `cop.track.source` edge and known tracks update
     without rebirth or repeated foreign-edge writes.
+  - Graph writer boundary now sends projection plans to SemStreams `create_with_triples` and `update_with_triples`
+    request/reply subjects with tests for ordering, committed-but-degraded responses, cancellation, and failure stops.
 
 current_evidence:
   - `go test ./pkg/adapters/mavlink`
@@ -42,7 +44,8 @@ current_evidence:
 remaining:
   - Extract or reject the ignored ArduPilot SITL controller and command helpers.
   - Add COMMAND_LONG/COMMAND_ACK tests before claiming command coverage.
-  - Wire projection plans to the live SemStreams graph API after raw-lane and stack boundaries exist.
+  - Wire the graph writer into a live SemStreams stack after raw-lane and container boundaries exist.
+  - Add restart/replay reconciliation so adapter birth caches do not become production state.
   - Add PX4 SITL or MAVSDK smoke evidence before calling MAVLink Phase 1 complete.
 
 tdd:

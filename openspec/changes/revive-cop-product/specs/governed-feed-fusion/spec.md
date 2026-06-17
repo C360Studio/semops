@@ -47,6 +47,14 @@ requests before triples or foreign edges are added.
 - **THEN** the adapter must fail or birth the entity explicitly instead of relying on `triple.add` or
   `triple.add_batch` auto-vivify
 
+#### Scenario: Graph writer uses SemStreams mutation request/reply contracts
+
+- **WHEN** a projection plan is ready to commit governed graph state
+- **THEN** creates are sent to `graph.mutation.entity.create_with_triples`
+- **AND** updates are sent to `graph.mutation.entity.update_with_triples`
+- **AND** mutation failures stop later writes in the plan
+- **AND** committed-but-degraded SemStreams mutation responses are treated as committed writes, not retry prompts
+
 #### Scenario: Foreign edges are declared through ADR-056
 
 - **WHEN** a projection writes a relationship onto a different entity than the one it owns

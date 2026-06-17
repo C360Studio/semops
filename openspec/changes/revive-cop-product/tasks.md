@@ -33,6 +33,7 @@
 - [x] 4.6 Add real-frame codec tests that do not mock away MAVLink decoding
 - [ ] 4.7 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
 - [ ] 4.8 Keep raw frames on a bounded lane and wire projection plans to live SemStreams graph writes
+- [x] 4.9 Add a tested SemStreams graph request/reply writer boundary for MAVLink projection plans
 
 ## 5. Feed Validation And Indexing Ladder
 

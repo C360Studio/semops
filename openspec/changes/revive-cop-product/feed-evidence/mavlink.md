@@ -1,13 +1,14 @@
 # MAVLink Feed Evidence
 
-Status: candidate Phase 1 feed, codec and projection-planner extraction started. Live graph writing remains blocked
-by `COP-004`.
+Status: candidate Phase 1 feed, codec, projection planner, and SemStreams graph writer boundary extracted. Live feed
+integration remains blocked by raw-lane, stack, and restart/replay work in `COP-004`.
 
 ## Decision
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
-The active path now has a modern parser/generator package and a current-state projection planner. Live feed work still
-needs raw-lane boundaries, graph API wiring, SITL/PX4 evidence, and stack health checks.
+The active path now has a modern parser/generator package, current-state projection planner, and tested graph
+request/reply writer boundary. Live feed work still needs raw-lane boundaries, container stack wiring, SITL/PX4
+evidence, restart/replay reconciliation, and stack health checks.
 
 ## Local Evidence
 
@@ -21,6 +22,10 @@ needs raw-lane boundaries, graph API wiring, SITL/PX4 evidence, and stack health
   SemStreams graph mutation requests.
 - `internal/projectors/mavlink/projector_test.go` proves source asset birth before strict `cop.track.source` edges,
   signal-profiled track current state, and update-only behavior after first birth.
+- `internal/projectors/mavlink/writer.go` sends plans to SemStreams `graph.mutation.entity.create_with_triples` and
+  `graph.mutation.entity.update_with_triples` request/reply subjects.
+- `internal/projectors/mavlink/writer_test.go` proves write ordering, owner-token transit,
+  committed-but-degraded response handling, cancellation, failure stops, and unsupported mutation rejection.
 - `pkg/processors/mavlink/sitl` still contains ignored ArduPilot SITL controller/scenario reference files. These are
   retained only until command/control behavior is extracted or rejected.
 
@@ -62,6 +67,8 @@ Acceptance:
 - The source asset is born before the track writes a strict `cop.track.source` foreign edge.
 - Raw frames remain on a bounded lane or source reference.
 - Vehicle current state uses `indexing_profile=signal`.
+- The graph writer targets the current SemStreams create/update-with-triples request subjects.
+- A committed-but-degraded mutation response is treated as committed and not retried.
 - Commands, mission state, and battery alerts use `indexing_profile=control`.
 - Replay/decode records use `indexing_profile=trace`.
 - No graph entity is created per raw packet.
@@ -93,9 +100,11 @@ Acceptance:
 ## Known Gaps
 
 - The active module path, Go toolchain, and MAVLink parser/generator are modernized.
-- The current-state projection planner emits graph mutation request shapes but is not yet wired to the live SemStreams
-  graph API.
+- The current-state projection planner and graph writer emit and send current SemStreams graph mutation shapes, but the
+  writer is not yet wired into a live containerized stack.
 - Raw-lane capture and replay fixture storage still need the containerized stack boundary.
+- Restart/replay reconciliation is not implemented; a restarted adapter cannot yet prove whether entities are already
+  born without a read-back or checkpoint path.
 - SITL command/control reference files still need extraction behind modern SemOps package boundaries.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
