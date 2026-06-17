@@ -7,9 +7,9 @@ extracted. Live feed integration remains blocked by stack, durable replay, and r
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
-coverage, current-state projection planner, tested graph request/reply writer boundary, and in-process adapter
-harness. Live feed work still needs scenario-runner replay wiring, container stack wiring, SITL/PX4 evidence,
-restart/replay reconciliation, and stack health checks.
+coverage, current-state projection planner, tested graph request/reply writer boundary, retry-aware SemStreams NATS
+requester boundary, and in-process adapter harness. Live feed work still needs scenario-runner replay wiring,
+container stack wiring, SITL/PX4 evidence, restart/replay reconciliation, and stack health checks.
 
 ## Local Evidence
 
@@ -37,6 +37,8 @@ restart/replay reconciliation, and stack health checks.
   `graph.mutation.entity.update_with_triples` request/reply subjects.
 - `internal/projectors/mavlink/writer_test.go` proves write ordering, owner-token transit,
   committed-but-degraded response handling, cancellation, failure stops, and unsupported mutation rejection.
+- `internal/graphrequest` adapts SemStreams `natsclient.Client.RequestWithRetry` into the graph writer requester
+  interface so mutation writers do not use bare query-style request calls.
 - `internal/adapters/mavlink` composes parser, raw lane, projector, graph plan writer, and pollable health counters
   for the future adapter service boundary.
 - `internal/adapters/mavlink/adapter_test.go` proves valid telemetry writes graph plans, command ACK frames are
@@ -85,6 +87,7 @@ Acceptance:
 - Vehicle current state uses `indexing_profile=signal`.
 - The graph writer targets the current SemStreams create/update-with-triples request subjects.
 - A committed-but-degraded mutation response is treated as committed and not retried.
+- NATS-backed graph mutation requests use SemStreams retry-aware mutation request handling.
 - The in-process adapter harness exposes pollable health counters for raw ingest, projection, graph writes, and errors.
 - Commands, mission state, and battery alerts use `indexing_profile=control`.
 - Replay/decode records use `indexing_profile=trace`.

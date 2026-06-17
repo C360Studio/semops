@@ -36,13 +36,16 @@ progress:
     reach the graph writer.
   - Added a file-backed MAVLink replay store that appends raw-lane records as JSON Lines and loads them back into
     parseable frame records.
+  - Added `internal/graphrequest.NATSRequester` so graph writers use SemStreams `RequestWithRetry` for mutation
+    request/reply instead of bare query-style requests.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
+  - `go test ./internal/graphrequest`
   - `go test ./pkg/adapters/mavlink`
 
 remaining:
-  - Add a real NATS/SemStreams requester behind the graph writer in the structural stack.
+  - Instantiate the NATS requester and MAVLink graph writer in the structural stack.
   - Wire the replay store into scenario-runner playback and retention policy.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.
   - Add graph-state polling smoke tests that exercise at least two feed types.
