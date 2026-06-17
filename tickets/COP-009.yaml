@@ -52,7 +52,10 @@ progress:
     declarations from enforceable write-fence ownership claims.
   - Added and ran `bash scripts/cop-stack-smoke.sh`, proving the one-command graph scaffold passes the metrics-enabled
     MAVLink live graph smoke against Docker-hosted NATS, SemStreams graph backend, and SemOps runtime.
+  - Pushed evidence branch `codex/revive-cop-product` to origin:
+    `https://github.com/C360Studio/semops/compare/main...codex/revive-cop-product?expand=1`.
 
 remaining:
-  - Push or PR the local revival commits so GitHub issue #1 can see current evidence.
+  - Open a draft PR or comment on issue #1 after GitHub write auth is restored; local `gh` currently has an invalid
+    token and the GitHub connector returned 403 for PR creation and issue comments.
   - Add restart/replay reconciliation before calling the adapter operationally safe across process restarts.
