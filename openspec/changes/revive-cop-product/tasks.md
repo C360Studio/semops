@@ -3,7 +3,7 @@
 - [x] 1.1 Add SemOps OpenSpec project context and COP revival change set
 - [x] 1.2 Record SemOps as the complete COP product owner and SemLink as basic-demo prior art
 - [x] 1.3 Link the architecture note and tickets back to the OpenSpec change
-- [ ] 1.4 Run the first adversarial review with architect, reviewers, and technical-writer roles before implementation
+- [x] 1.4 Run the first adversarial review with architect, reviewers, and technical-writer roles before implementation
   begins
 
 ## 2. Modernize Framework Contract

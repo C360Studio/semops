@@ -7,6 +7,9 @@ status: ready
 reviewer: technical-writer
 openspec_change: revive-cop-product
 
+review_records:
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-initial-adversarial-review.md
+
 scope:
   - Run adversarial reviews at framework modernization, COP model, feed-entry, Phase 1 signoff, high-risk claim,
     and upstream-ask boundaries.
@@ -15,7 +18,7 @@ scope:
   - Record decisions, objections, evidence checked, accepted risks, and follow-up tasks.
 
 acceptance:
-  - The first review challenges the revival baseline before broad implementation starts.
+  - The first review challenges the revival baseline before broad implementation starts. [done]
   - Feed-entry reviews exist before MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, or KLV enter the structural stack.
   - Orchestration, topology, tier UI, SAPIENT, KLV, and streaming-binary claims have dedicated adversarial review
     records before demo promotion.
