@@ -60,7 +60,8 @@ progress:
     `bash scripts/cop-stack-smoke.sh` after the typed-token and restart-reconciliation changes.
   - Pushed evidence branch `codex/revive-cop-product` to origin:
     `https://github.com/C360Studio/semops/compare/main...codex/revive-cop-product?expand=1`.
+  - Opened draft PR #2 and commented the current ADR-055/056 evidence on SemOps issue #1 after GitHub connector
+    access was restored.
 
 remaining:
-  - Open a draft PR or comment on issue #1 now that GitHub app access has been updated.
   - Add durable checkpoint/read-back reconciliation before calling restart/replay fully production-grade.
