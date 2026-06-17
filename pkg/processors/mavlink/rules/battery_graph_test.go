@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 // Package rules provides battery monitoring rules for robotics systems
 package rules
 
@@ -5,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	gtypes "github.com/c360/semstreams/types/graph"
-	message "github.com/c360/semstreams/message"
 	roboticspayloads "github.com/c360/semops/pkg/processors/mavlink/payloads"
+	message "github.com/c360/semstreams/message"
+	gtypes "github.com/c360/semstreams/types/graph"
 )
 
 // TestBatteryMonitorRule_CreateEntityStates tests the graph entity creation functionality

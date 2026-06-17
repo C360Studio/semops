@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package payloads
 
 import (
@@ -7,10 +10,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/c360/streamkit/component"
-	message "github.com/c360/semstreams/message"
 	vocab "github.com/c360/semops/pkg/processors/mavlink/vocabulary"
+	message "github.com/c360/semstreams/message"
 	"github.com/c360/semstreams/vocabulary"
+	"github.com/c360/streamkit/component"
 )
 
 func init() {
@@ -23,18 +26,18 @@ func init() {
 		Version:     "v1",
 		Description: "MAVLink GPS/position data for location tracking",
 		Example: map[string]interface{}{
-			"system_id":      1,
-			"lat":            123456789,
-			"lon":            987654321,
-			"alt":            1000,
-			"relative_alt":   100,
-			"vx":             100,
-			"vy":             200,
-			"vz":             -50,
-			"hdg":            9000,
-			"gps_fix":        3,
-			"satellites":     12,
-			"timestamp":      "2024-01-15T10:30:00Z",
+			"system_id":    1,
+			"lat":          123456789,
+			"lon":          987654321,
+			"alt":          1000,
+			"relative_alt": 100,
+			"vx":           100,
+			"vy":           200,
+			"vz":           -50,
+			"hdg":          9000,
+			"gps_fix":      3,
+			"satellites":   12,
+			"timestamp":    "2024-01-15T10:30:00Z",
 		},
 	})
 }
@@ -161,14 +164,14 @@ func (p *PositionPayload) UnmarshalJSON(data []byte) error {
 func (p *PositionPayload) EntityID() string {
 	// System field comes from MAVLink SystemID at runtime
 	system := p.mapSystemIDToSystem()
-	
+
 	entityID := message.EntityID{
-		Org:      "c360",        // TODO: Get from config when available
-		Platform: "platform1",   // TODO: Get from config when available
-		Domain:   "robotics",    // Domain-first hierarchy
-		System:   system,        // RUNTIME value from message
+		Org:      "c360",      // TODO: Get from config when available
+		Platform: "platform1", // TODO: Get from config when available
+		Domain:   "robotics",  // Domain-first hierarchy
+		System:   system,      // RUNTIME value from message
 		Type:     "drone",
-		Instance: "0",  // Single drone per system, no SystemID duplication
+		Instance: "0", // Single drone per system, no SystemID duplication
 	}
 	return entityID.Key()
 }
@@ -416,12 +419,12 @@ func (p *PositionPayload) Triples() []message.Triple {
 		System:   system,
 		Domain:   "robotics",
 		Type:     "drone",
-		Instance: "0",  // Single drone per system, no SystemID duplication
+		Instance: "0", // Single drone per system, no SystemID duplication
 	}.Key()
-	
+
 	timestamp := p.Ts
 	var triples []message.Triple
-	
+
 	// Geospatial location triples
 	triples = append(triples, []message.Triple{
 		{
@@ -457,7 +460,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 0.8, // Relative altitude estimation
 		},
 	}...)
-	
+
 	// Velocity and movement triples
 	if p.GetGroundSpeedMS() > 0 {
 		triples = append(triples, message.Triple{
@@ -469,7 +472,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 0.9, // Calculated from GPS
 		})
 	}
-	
+
 	if p.GetVerticalSpeed() != 0 {
 		triples = append(triples, message.Triple{
 			Subject:    entityID,
@@ -480,7 +483,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 0.8, // Vertical speed calculation
 		})
 	}
-	
+
 	if p.Hdg > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    entityID,
@@ -491,7 +494,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 0.9, // Direct compass measurement
 		})
 	}
-	
+
 	// GPS accuracy and quality triples
 	if p.HDOP > 0 {
 		triples = append(triples, message.Triple{
@@ -503,7 +506,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 1.0, // Direct GPS metric
 		})
 	}
-	
+
 	if p.VDOP > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    entityID,
@@ -514,7 +517,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		})
 	}
-	
+
 	// GPS satellite and fix information
 	triples = append(triples, []message.Triple{
 		{
@@ -534,7 +537,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 1.0, // Satellite count is precise
 		},
 	}...)
-	
+
 	// Quality assessment based on GPS health
 	confidenceScore := 0.0
 	if p.IsGPSHealthy() {
@@ -546,7 +549,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 	} else {
 		confidenceScore = 0.2
 	}
-	
+
 	triples = append(triples, []message.Triple{
 		{
 			Subject:    entityID,
@@ -565,7 +568,7 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Lifecycle events
 	triples = append(triples, []message.Triple{
 		{
@@ -585,6 +588,6 @@ func (p *PositionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	return triples
 }

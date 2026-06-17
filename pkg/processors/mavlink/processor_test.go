@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package robotics
 
 import (
@@ -47,7 +50,7 @@ func TestRoboticsProcessorInterface(t *testing.T) {
 	nc := getTestNATSConnection(t)
 	processor, err := NewRoboticsProcessor(nc)
 	require.NoError(t, err)
-	
+
 	// Test interface methods
 	assert.NotEmpty(t, processor.Name())
 	assert.NotEmpty(t, processor.Domain())
@@ -85,9 +88,6 @@ func TestRoboticsProcessorProcessRawData(t *testing.T) {
 	// Test that processor remains functional
 	assert.Equal(t, "robotics", processor.Name())
 }
-
-
-
 
 // TestRoboticsProcessorConcurrency tests processor thread safety
 func TestRoboticsProcessorConcurrency(t *testing.T) {
@@ -136,7 +136,7 @@ func TestRoboticsProcessorMemoryUsage(t *testing.T) {
 		name := processor.Name()
 		domain := processor.Domain()
 		desc := processor.Description()
-		
+
 		// Verify values are consistent
 		assert.Equal(t, "robotics", name)
 		assert.Equal(t, "robotics", domain)
@@ -226,7 +226,7 @@ func TestRoboticsProcessorGoroutineCancellation(t *testing.T) {
 	start := time.Now()
 	err = processor.Stop(5 * time.Second)
 	require.NoError(t, err)
-	
+
 	elapsed := time.Since(start)
 	assert.Less(t, elapsed, 2*time.Second, "Stop should complete within 2 seconds")
 }
@@ -258,11 +258,11 @@ func TestRoboticsProcessorStressTest(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			testData := []byte(`{"system_id": 1, "component_id": 0, "type": 2}`)
-			
+
 			for j := 0; j < messagesPerGoroutine; j++ {
 				// Process messages concurrently
 				processor.ProcessRawData(ctx, "test.subject", testData)
-				
+
 				// Check if context is cancelled
 				select {
 				case <-ctx.Done():
@@ -280,7 +280,7 @@ func TestRoboticsProcessorStressTest(t *testing.T) {
 	start := time.Now()
 	err = processor.Stop(5 * time.Second)
 	require.NoError(t, err)
-	
+
 	elapsed := time.Since(start)
 	assert.Less(t, elapsed, 2*time.Second, "Stop should complete within 2 seconds even under load")
 
@@ -308,14 +308,14 @@ func TestRoboticsProcessorNoLeaks(t *testing.T) {
 		require.NoError(t, err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		
+
 		// Start and stop immediately
 		err = processor.Start(ctx)
 		require.NoError(t, err)
-		
+
 		err = processor.Stop(5 * time.Second)
 		require.NoError(t, err)
-		
+
 		cancel()
 	}
 
@@ -421,18 +421,18 @@ func (m *mockRoboticsProcessor) Start(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("context cannot be nil")
 	}
-	
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	if !m.initialized {
 		return fmt.Errorf("processor not initialized")
 	}
-	
+
 	if m.started {
 		return fmt.Errorf("processor already started")
 	}
-	
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -455,7 +455,7 @@ func TestRoboticsProcessor_ComprehensiveLifecycle(t *testing.T) {
 	component.StandardLifecycleTests(t, createTestRoboticsProcessor)
 }
 
-// TestRoboticsProcessor_SpecificErrorCases tests robotics-specific error scenarios  
+// TestRoboticsProcessor_SpecificErrorCases tests robotics-specific error scenarios
 func TestRoboticsProcessor_SpecificErrorCases(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -582,7 +582,7 @@ func TestRoboticsProcessor_MemoryStability(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping memory stability test in short mode")
 	}
-	
+
 	// Skip this test by default as it's too slow with testcontainers
 	// Set MEMORY_STABILITY_TEST=1 to enable
 	if os.Getenv("MEMORY_STABILITY_TEST") == "" {
@@ -601,14 +601,14 @@ func TestRoboticsProcessor_MemoryStability(t *testing.T) {
 
 		// Full lifecycle
 		processor.Initialize()
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		processor.Start(ctx)
-		
+
 		// Process some data
 		testData := []byte(`{"system_id": 1, "component_id": 0, "type": 2}`)
 		processor.ProcessRawData(ctx, "test.subject", testData)
-		
+
 		processor.Stop(5 * time.Second)
 		cancel()
 
@@ -697,7 +697,7 @@ func TestRoboticsProcessor_StateTransitions(t *testing.T) {
 			expectError: []bool{false}, // Should always succeed
 		},
 		{
-			name:        "restart_cycle", 
+			name:        "restart_cycle",
 			operations:  []string{"Initialize", "Start", "Stop", "Start", "Stop"},
 			expectError: []bool{false, false, false, false, false}, // Some may need re-init
 		},

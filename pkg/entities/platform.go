@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package entities
 
 import (
@@ -11,11 +14,11 @@ import (
 type PlatformType string
 
 const (
-	PlatformTypeUAV      PlatformType = "uav"       // Unmanned Aerial Vehicle
-	PlatformTypeUSV      PlatformType = "usv"       // Unmanned Surface Vehicle
-	PlatformTypeUGV      PlatformType = "ugv"       // Unmanned Ground Vehicle
-	PlatformTypeAUV      PlatformType = "auv"       // Autonomous Underwater Vehicle
-	PlatformTypeStation  PlatformType = "station"   // Fixed ground station
+	PlatformTypeUAV     PlatformType = "uav"     // Unmanned Aerial Vehicle
+	PlatformTypeUSV     PlatformType = "usv"     // Unmanned Surface Vehicle
+	PlatformTypeUGV     PlatformType = "ugv"     // Unmanned Ground Vehicle
+	PlatformTypeAUV     PlatformType = "auv"     // Autonomous Underwater Vehicle
+	PlatformTypeStation PlatformType = "station" // Fixed ground station
 )
 
 // Platform represents a robotic platform (vehicle, station, etc.)

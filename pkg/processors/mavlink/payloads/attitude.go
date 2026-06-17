@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package payloads
 
 import (
@@ -7,10 +10,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/c360/streamkit/component"
-	message "github.com/c360/semstreams/message"
 	vocab "github.com/c360/semops/pkg/processors/mavlink/vocabulary"
+	message "github.com/c360/semstreams/message"
 	"github.com/c360/semstreams/vocabulary"
+	"github.com/c360/streamkit/component"
 )
 
 func init() {
@@ -23,17 +26,17 @@ func init() {
 		Version:     "v1",
 		Description: "MAVLink attitude message for orientation tracking",
 		Example: map[string]interface{}{
-			"system_id":         1,
-			"roll":              0.1,
-			"pitch":             -0.05,
-			"yaw":               1.57,
-			"rollspeed":         0.02,
-			"pitchspeed":        -0.01,
-			"yawspeed":          0.03,
-			"gyro_calibrated":   true,
-			"accel_calibrated":  true,
-			"mag_calibrated":    false,
-			"timestamp":         "2024-01-15T10:30:00Z",
+			"system_id":        1,
+			"roll":             0.1,
+			"pitch":            -0.05,
+			"yaw":              1.57,
+			"rollspeed":        0.02,
+			"pitchspeed":       -0.01,
+			"yawspeed":         0.03,
+			"gyro_calibrated":  true,
+			"accel_calibrated": true,
+			"mag_calibrated":   false,
+			"timestamp":        "2024-01-15T10:30:00Z",
 		},
 	})
 }
@@ -151,14 +154,14 @@ func (a *AttitudePayload) UnmarshalJSON(data []byte) error {
 func (a *AttitudePayload) EntityID() string {
 	// System field comes from MAVLink SystemID at runtime
 	system := a.mapSystemIDToSystem()
-	
+
 	entityID := message.EntityID{
-		Org:      "c360",        // TODO: Get from config when available
-		Platform: "platform1",   // TODO: Get from config when available
-		Domain:   "robotics",    // Domain-first hierarchy
-		System:   system,        // RUNTIME value from message
+		Org:      "c360",      // TODO: Get from config when available
+		Platform: "platform1", // TODO: Get from config when available
+		Domain:   "robotics",  // Domain-first hierarchy
+		System:   system,      // RUNTIME value from message
 		Type:     "drone",
-		Instance: "0",  // Single drone per system, no SystemID duplication
+		Instance: "0", // Single drone per system, no SystemID duplication
 	}
 	return entityID.Key()
 }
@@ -400,9 +403,9 @@ func (a *AttitudePayload) GetOrientationVector() (x, y, z float64) {
 func (a *AttitudePayload) Triples() []message.Triple {
 	entityID := a.EntityID() // Uses structured EntityID.Key() format
 	timestamp := a.Ts
-	
+
 	var triples []message.Triple
-	
+
 	// Attitude orientation triples
 	triples = append(triples, []message.Triple{
 		{
@@ -438,7 +441,7 @@ func (a *AttitudePayload) Triples() []message.Triple {
 			Confidence: 0.9, // Compass can be affected by magnetic interference
 		},
 	}...)
-	
+
 	// Angular velocity triples
 	triples = append(triples, []message.Triple{
 		{
@@ -466,7 +469,7 @@ func (a *AttitudePayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Add total angular rate as calculated value
 	triples = append(triples, message.Triple{
 		Subject:    entityID,
@@ -476,7 +479,7 @@ func (a *AttitudePayload) Triples() []message.Triple {
 		Timestamp:  timestamp,
 		Confidence: 0.9, // Calculated from components
 	})
-	
+
 	// System status triples based on attitude analysis
 	triples = append(triples, []message.Triple{
 		{
@@ -496,7 +499,7 @@ func (a *AttitudePayload) Triples() []message.Triple {
 			Confidence: 0.9,
 		},
 	}...)
-	
+
 	// Add critical status indicators if present
 	if a.IsInverted() {
 		triples = append(triples, message.Triple{
@@ -508,18 +511,18 @@ func (a *AttitudePayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		})
 	}
-	
+
 	if a.IsSpinning() {
 		triples = append(triples, message.Triple{
 			Subject:    entityID,
 			Predicate:  "robotics.system.alert", // Custom predicate for alerts
 			Object:     "spinning",
-			Source:     "mavlink_attitude", 
+			Source:     "mavlink_attitude",
 			Timestamp:  timestamp,
 			Confidence: 1.0,
 		})
 	}
-	
+
 	if a.IsVibrating() {
 		triples = append(triples, message.Triple{
 			Subject:    entityID,
@@ -530,7 +533,7 @@ func (a *AttitudePayload) Triples() []message.Triple {
 			Confidence: 0.8, // Vibration detection has some uncertainty
 		})
 	}
-	
+
 	// Calibration quality triples
 	triples = append(triples, []message.Triple{
 		{
@@ -566,7 +569,7 @@ func (a *AttitudePayload) Triples() []message.Triple {
 			Confidence: 0.9,
 		},
 	}...)
-	
+
 	// Lifecycle events
 	triples = append(triples, []message.Triple{
 		{
@@ -586,7 +589,7 @@ func (a *AttitudePayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	return triples
 }
 

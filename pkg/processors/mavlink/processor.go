@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 // Package robotics provides autonomous vehicle data processing for the SemStreams platform.
 // It supports MAVLink protocol parsing for drones, ground vehicles, boats, and submarines.
 package robotics
@@ -11,13 +14,13 @@ import (
 	"sync"
 	"time"
 
+	processor "github.com/c360/semstreams/processor/base"
 	"github.com/c360/streamkit/component"
 	"github.com/c360/streamkit/errors"
 	"github.com/c360/streamkit/metric"
-	processor "github.com/c360/semstreams/processor/base"
 	gonats "github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus"
-	
+
 	"github.com/c360/semops/pkg/processors/mavlink/parser"
 	"github.com/c360/semops/pkg/processors/mavlink/payloads"
 	messages "github.com/c360/semstreams/message"
@@ -26,9 +29,9 @@ import (
 // Config defines configuration for the RoboticsProcessor
 type Config struct {
 	// MAVLink filtering
-	SystemIDFilter   []uint8 `json:"system_id_filter"`   // Empty = all systems
+	SystemIDFilter    []uint8 `json:"system_id_filter"`    // Empty = all systems
 	ComponentIDFilter []uint8 `json:"component_id_filter"` // Empty = all components
-	
+
 	// Message type enables
 	ProcessHeartbeat bool `json:"process_heartbeat"`
 	ProcessPosition  bool `json:"process_position"`
@@ -37,9 +40,9 @@ type Config struct {
 	ProcessAttitude  bool `json:"process_attitude"`
 
 	// Dynamic port configuration (optional - overrides conventions)
-	Ports *component.PortConfig `json:"ports,omitempty"`
-	ProcessGPS       bool `json:"process_gps"`
-	
+	Ports      *component.PortConfig `json:"ports,omitempty"`
+	ProcessGPS bool                  `json:"process_gps"`
+
 	// Processing options
 	ValidateChecksum bool `json:"validate_checksum"`
 	DropInvalid      bool `json:"drop_invalid"`
@@ -92,25 +95,25 @@ func DefaultConfig() Config {
 // RoboticsProcessor implements the Processor interface for autonomous vehicles
 type RoboticsProcessor struct {
 	*processor.BaseProcessor
-	nc            *gonats.Conn
+	nc *gonats.Conn
 	// REMOVED: mavlinkParser - creating per-goroutine to avoid concurrency issues
 	// See MAVLINK_PARSER_CONCURRENCY_FIX.md for details
-	mu            sync.RWMutex
-	enabled       bool
-	config        Config
-	organization  string  // Organization for entity ID generation
-	platform      string  // Platform for entity ID generation
-	subscriptions []*gonats.Subscription
-	logger        *slog.Logger
-	startTime     time.Time
+	mu                sync.RWMutex
+	enabled           bool
+	config            Config
+	organization      string // Organization for entity ID generation
+	platform          string // Platform for entity ID generation
+	subscriptions     []*gonats.Subscription
+	logger            *slog.Logger
+	startTime         time.Time
 	messagesProcessed int64
-	errors        int64
-	lastMessageTime time.Time
+	errors            int64
+	lastMessageTime   time.Time
 	// Thread safety fields
-	shutdown      chan struct{}  // Signal shutdown to goroutines
-	done          chan struct{}  // Signal completion of shutdown
-	wg            sync.WaitGroup
-	stopped       chan struct{} // Keep for compatibility
+	shutdown chan struct{} // Signal shutdown to goroutines
+	done     chan struct{} // Signal completion of shutdown
+	wg       sync.WaitGroup
+	stopped  chan struct{} // Keep for compatibility
 
 	// Prometheus metrics
 	metrics *RoboticsMetrics
@@ -191,16 +194,16 @@ var roboticsSchema = component.ConfigSchema{
 
 // RoboticsMetrics holds Prometheus metrics for RoboticsProcessor component
 type RoboticsMetrics struct {
-	messagesReceived      *prometheus.CounterVec
-	messagesProcessed     *prometheus.CounterVec
-	messagesDropped       *prometheus.CounterVec
-	parseDuration         *prometheus.HistogramVec
-	publishDuration       *prometheus.HistogramVec
-	checksumErrors        *prometheus.CounterVec
-	unknownMessages       *prometheus.CounterVec
-	payloadSize           *prometheus.HistogramVec
-	activeVehicles        prometheus.Gauge
-	lastMessageTimestamp  *prometheus.GaugeVec
+	messagesReceived     *prometheus.CounterVec
+	messagesProcessed    *prometheus.CounterVec
+	messagesDropped      *prometheus.CounterVec
+	parseDuration        *prometheus.HistogramVec
+	publishDuration      *prometheus.HistogramVec
+	checksumErrors       *prometheus.CounterVec
+	unknownMessages      *prometheus.CounterVec
+	payloadSize          *prometheus.HistogramVec
+	activeVehicles       prometheus.Gauge
+	lastMessageTimestamp *prometheus.GaugeVec
 }
 
 // newRoboticsMetrics creates and registers RoboticsProcessor metrics
@@ -209,7 +212,7 @@ func newRoboticsMetrics(registry *metric.MetricsRegistry, instanceName string) *
 	if registry == nil {
 		return nil
 	}
-	
+
 	// Only create metrics when registry is provided
 	metrics := &RoboticsMetrics{
 		messagesReceived: prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -321,8 +324,8 @@ func NewRoboticsProcessorWithMetrics(nc *gonats.Conn, metricsRegistry *metric.Me
 	baseProcessor := processor.NewBaseProcessor(info)
 
 	return &RoboticsProcessor{
-		BaseProcessor:      baseProcessor,
-		nc:              nc,
+		BaseProcessor: baseProcessor,
+		nc:            nc,
 		// Parser now created per-message to avoid concurrency issues
 		config:          DefaultConfig(),
 		startTime:       time.Now(),
@@ -418,12 +421,12 @@ func (rp *RoboticsProcessor) ConfigSchema() component.ConfigSchema {
 func (rp *RoboticsProcessor) Initialize() error {
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
-	
+
 	rp.enabled = true
 	rp.startTime = time.Now()
-	
+
 	// Parser now created per-message to avoid concurrency issues
-	
+
 	return nil
 }
 
@@ -463,7 +466,7 @@ func (rp *RoboticsProcessor) Start(ctx context.Context) error {
 			rp.wg.Add(1)
 			go func() {
 				defer rp.wg.Done()
-				
+
 				select {
 				case <-rp.shutdown:
 					return // Shutdown signal received, exit goroutine
@@ -492,16 +495,16 @@ func (rp *RoboticsProcessor) Start(ctx context.Context) error {
 			}
 			return errors.Wrap(err, "RoboticsProcessor", "Start", fmt.Sprintf("subscribe to %s", subject))
 		}
-		
+
 		// Set subscription pending limits to handle concurrent load
 		if err := subscription.SetPendingLimits(5000, 50*1024*1024); err != nil {
 			rp.logger.Warn("Could not set pending limits", "subject", subject, "error", err)
 		}
-		
+
 		rp.subscriptions = append(rp.subscriptions, subscription)
 		rp.logger.Info("Subscribed to NATS subject", "subject", subject)
 	}
-	
+
 	rp.logger.Info("Robotics processor started", "subscription_count", len(rp.subscriptions))
 	return nil
 }
@@ -580,20 +583,20 @@ func (rp *RoboticsProcessor) Stop(timeout time.Duration) error {
 	return nil
 }
 
-// Health returns current health status 
+// Health returns current health status
 func (rp *RoboticsProcessor) Health() component.HealthStatus {
 	rp.mu.RLock()
 	enabled := rp.enabled
 	rp.mu.RUnlock()
 
 	baseHealth := rp.BaseProcessor.Health()
-	
+
 	return component.HealthStatus{
-		Healthy:     enabled && baseHealth.Healthy,
-		LastCheck:   time.Now(),
-		ErrorCount:  int(rp.errors),
-		LastError:   "",
-		Uptime:      time.Since(rp.startTime),
+		Healthy:    enabled && baseHealth.Healthy,
+		LastCheck:  time.Now(),
+		ErrorCount: int(rp.errors),
+		LastError:  "",
+		Uptime:     time.Since(rp.startTime),
 	}
 }
 
@@ -601,17 +604,17 @@ func (rp *RoboticsProcessor) Health() component.HealthStatus {
 func (rp *RoboticsProcessor) DataFlow() component.FlowMetrics {
 	rp.mu.RLock()
 	defer rp.mu.RUnlock()
-	
+
 	var messagesPerSecond float64
 	if uptime := time.Since(rp.startTime).Seconds(); uptime > 0 {
 		messagesPerSecond = float64(rp.messagesProcessed) / uptime
 	}
-	
+
 	var errorRate float64
 	if rp.messagesProcessed > 0 {
 		errorRate = float64(rp.errors) / float64(rp.messagesProcessed)
 	}
-	
+
 	return component.FlowMetrics{
 		MessagesPerSecond: messagesPerSecond,
 		BytesPerSecond:    0, // TODO: Track bytes if needed
@@ -687,7 +690,7 @@ func (rp *RoboticsProcessor) ProcessRawData(ctx context.Context, subject string,
 	} else if strings.Contains(subject, "json") {
 		format = "json"
 	}
-	
+
 	if rp.metrics != nil {
 		rp.metrics.messagesReceived.WithLabelValues(subject, format).Inc()
 	}
@@ -697,22 +700,22 @@ func (rp *RoboticsProcessor) ProcessRawData(ctx context.Context, subject string,
 	nc := rp.nc
 	enabled := rp.enabled
 	rp.mu.RUnlock()
-	
+
 	if !enabled {
 		return nil // Skip processing if disabled
 	}
-	
+
 	if nc == nil {
 		return errors.WrapFatal(errors.ErrNoConnection, "RoboticsProcessor", "ProcessRawData", "check NATS connection")
 	}
-	
+
 	// Determine format from subject and process
 	if format == "mavlink" {
 		return rp.processMAVLinkData(ctx, nc, subject, data)
 	} else if format == "json" {
 		return rp.processJSONData(ctx, nc, subject, data)
 	}
-	
+
 	// Default to JSON processing
 	return rp.processJSONData(ctx, nc, subject, data)
 }
@@ -838,8 +841,6 @@ func parseBool(data map[string]any, key string, target *bool) {
 	}
 }
 
-
-
 // processMAVLinkData processes MAVLink binary data using the robust parser
 func (rp *RoboticsProcessor) processMAVLinkData(ctx context.Context, nc *gonats.Conn, subject string, data []byte) error {
 	rp.logger.Debug("Processing MAVLink data", "bytes", len(data), "subject", subject)
@@ -855,34 +856,34 @@ func (rp *RoboticsProcessor) processMAVLinkData(ctx context.Context, nc *gonats.
 		// Don't return error - keep processing other data
 		return nil
 	}
-	
+
 	rp.logger.Debug("Parsed MAVLink packets", "count", len(packets))
-	
+
 	// Get configuration for filtering
 	rp.mu.RLock()
 	config := rp.config
 	rp.mu.RUnlock()
-	
+
 	// Convert each packet to semantic messages
 	for _, packet := range packets {
 		if err := rp.processMAVLinkPacket(ctx, nc, packet, config, mavlinkParser); err != nil {
 			rp.logger.Error("Error processing packet", "message_id", packet.MessageID, "error", err)
 		}
 	}
-	
+
 	return nil
 }
 
 // processMAVLinkPacket processes a single MAVLink packet
 func (rp *RoboticsProcessor) processMAVLinkPacket(ctx context.Context, nc *gonats.Conn, packet *parser.MAVLinkPacket, config Config, mavlinkParser *parser.MAVLinkParser) error {
 	rp.logger.Debug("Processing packet", "system_id", packet.SystemID, "message_id", packet.MessageID)
-	
+
 	// Track active vehicles for metrics
 	rp.trackVehicleActivity(packet.SystemID)
-	
+
 	// Measure parse duration
 	start := time.Now()
-	
+
 	// Apply filters
 	if !rp.passesSystemIDFilter(packet.SystemID, config) {
 		rp.logger.Debug("Skipping packet from system ID (filtered)", "system_id", packet.SystemID)
@@ -891,7 +892,7 @@ func (rp *RoboticsProcessor) processMAVLinkPacket(ctx context.Context, nc *gonat
 		}
 		return nil
 	}
-	
+
 	if !rp.passesComponentIDFilter(packet.ComponentID, config) {
 		rp.logger.Debug("Skipping packet from component ID (filtered)", "component_id", packet.ComponentID)
 		if rp.metrics != nil {
@@ -899,7 +900,7 @@ func (rp *RoboticsProcessor) processMAVLinkPacket(ctx context.Context, nc *gonat
 		}
 		return nil
 	}
-	
+
 	// Check if message type is enabled
 	if !rp.isMessageTypeEnabled(packet.MessageID) {
 		rp.logger.Debug("Skipping message ID (disabled)", "message_id", packet.MessageID)
@@ -908,27 +909,27 @@ func (rp *RoboticsProcessor) processMAVLinkPacket(ctx context.Context, nc *gonat
 		}
 		return nil
 	}
-	
+
 	messageType := rp.getMessageTypeName(packet.MessageID)
-	
+
 	// Record parse duration
 	if rp.metrics != nil {
 		duration := time.Since(start)
 		rp.metrics.parseDuration.WithLabelValues("mavlink", messageType).Observe(duration.Seconds())
 	}
-	
+
 	return rp.convertAndPublishPacket(ctx, nc, packet, config, mavlinkParser)
 }
 
 // trackVehicleActivity tracks vehicle activity for metrics
 func (rp *RoboticsProcessor) trackVehicleActivity(systemID uint8) {
 	now := time.Now()
-	
+
 	rp.vehiclesMu.Lock()
 	defer rp.vehiclesMu.Unlock()
-	
+
 	rp.knownVehicles[systemID] = now
-	
+
 	// Update metrics
 	if rp.metrics != nil {
 		// Clean up vehicles not seen in the last 5 minutes
@@ -941,7 +942,7 @@ func (rp *RoboticsProcessor) trackVehicleActivity(systemID uint8) {
 				delete(rp.knownVehicles, id)
 			}
 		}
-		
+
 		rp.metrics.activeVehicles.Set(float64(activeCount))
 	}
 }
@@ -951,7 +952,7 @@ func (rp *RoboticsProcessor) passesSystemIDFilter(systemID uint8, config Config)
 	if len(config.SystemIDFilter) == 0 {
 		return true // No filter = allow all
 	}
-	
+
 	for _, allowedID := range config.SystemIDFilter {
 		if systemID == allowedID {
 			return true
@@ -965,7 +966,7 @@ func (rp *RoboticsProcessor) passesComponentIDFilter(componentID uint8, config C
 	if len(config.ComponentIDFilter) == 0 {
 		return true // No filter = allow all
 	}
-	
+
 	for _, allowedID := range config.ComponentIDFilter {
 		if componentID == allowedID {
 			return true
@@ -978,7 +979,7 @@ func (rp *RoboticsProcessor) passesComponentIDFilter(componentID uint8, config C
 func (rp *RoboticsProcessor) convertAndPublishPacket(_ context.Context, nc *gonats.Conn, packet *parser.MAVLinkPacket, config Config, mavlinkParser *parser.MAVLinkParser) error {
 	systemIDStr := fmt.Sprintf("%d", packet.SystemID)
 	messageType := rp.getMessageTypeName(packet.MessageID)
-	
+
 	// Convert to SemStreams message using the parser's conversion
 	msg, err := mavlinkParser.ConvertToSemStreamsMessage(packet)
 	if err != nil {
@@ -990,20 +991,20 @@ func (rp *RoboticsProcessor) convertAndPublishPacket(_ context.Context, nc *gona
 			return nil
 		}
 	}
-	
+
 	// Create Type based on packet type
 	msgType := messages.Type{
 		Domain:   "robotics",
 		Category: rp.getMessageCategory(packet.MessageID),
 		Version:  "v1",
 	}
-	
+
 	// Create BaseMessage wrapper with the payload from parser
 	payload := msg.Payload()
 	baseMsg := messages.NewBaseMessage(msgType, payload, "robotics-processor")
-	
+
 	rp.logger.Debug("Created BaseMessage", "type", msgType.String(), "payload", payload)
-	
+
 	// Marshal the complete BaseMessage (not just payload!)
 	msgBytes, err := json.Marshal(baseMsg)
 	if err != nil {
@@ -1013,43 +1014,43 @@ func (rp *RoboticsProcessor) convertAndPublishPacket(_ context.Context, nc *gona
 		}
 		return errors.Wrap(err, "RoboticsProcessor", "convertAndPublishPacket", "marshal BaseMessage")
 	}
-	
+
 	// Record payload size metric
 	if rp.metrics != nil {
 		payloadType := msgType.Category
 		rp.metrics.payloadSize.WithLabelValues(payloadType).Observe(float64(len(msgBytes)))
 	}
-	
+
 	// Determine the output subject based on message type
 	outputSubject := rp.getOutputSubject(packet.MessageID)
 	rp.logger.Debug("Publishing BaseMessage", "subject", outputSubject)
-	
+
 	// Measure publish duration
 	start := time.Now()
-	
+
 	// Publish BaseMessage format
 	if err := nc.Publish(outputSubject, msgBytes); err != nil {
 		rp.logger.Error("Publish error", "subject", outputSubject, "error", err)
 		if rp.metrics != nil {
 			rp.metrics.messagesDropped.WithLabelValues(systemIDStr, "publish_error", "mavlink").Inc()
 		}
-		return errors.WrapTransient(err, "RoboticsProcessor", "convertAndPublishPacket", 
+		return errors.WrapTransient(err, "RoboticsProcessor", "convertAndPublishPacket",
 			fmt.Sprintf("publish to %s", outputSubject))
 	}
-	
+
 	// Record successful metrics
 	if rp.metrics != nil {
 		// Record publish duration
 		duration := time.Since(start)
 		rp.metrics.publishDuration.WithLabelValues(outputSubject, msgType.Category).Observe(duration.Seconds())
-		
+
 		// Record successful processing
 		rp.metrics.messagesProcessed.WithLabelValues(systemIDStr, messageType, "mavlink").Inc()
-		
+
 		// Record last message timestamp
 		rp.metrics.lastMessageTimestamp.WithLabelValues(systemIDStr, messageType).Set(float64(time.Now().Unix()))
 	}
-	
+
 	rp.logger.Debug("Successfully published BaseMessage", "message_type", rp.getMessageTypeName(packet.MessageID), "system_id", packet.SystemID)
 	return nil
 }
@@ -1080,7 +1081,7 @@ func (rp *RoboticsProcessor) processJSONData(_ context.Context, nc *gonats.Conn,
 			return rp.publishBatteryMessage(context.Background(), nc, parsedData)
 		}
 	}
-	
+
 	return errors.WrapInvalid(errors.ErrInvalidData, "RoboticsProcessor", "processJSONData", "identify message type")
 }
 
@@ -1093,23 +1094,23 @@ func (rp *RoboticsProcessor) processHeartbeat(_ context.Context, nc *gonats.Conn
 	// Simplified MAVLink heartbeat parsing
 	// Real implementation would use proper MAVLink library
 	systemID := uint8(data[3]) // System ID at byte 3
-	
+
 	// Create heartbeat message
 	heartbeat := payloads.NewHeartbeatPayload(systemID, 0, time.Now())
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		heartbeat.Schema(),
 		heartbeat,
 		"robotics-processor",
 	)
-	
+
 	// Marshal the MESSAGE
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return errors.Wrap(err, "RoboticsProcessor", "processHeartbeat", "marshal heartbeat message")
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(0) // HEARTBEAT
 	rp.mu.RUnlock()
@@ -1120,27 +1121,27 @@ func (rp *RoboticsProcessor) processHeartbeat(_ context.Context, nc *gonats.Conn
 func (rp *RoboticsProcessor) processGlobalPosition(_ context.Context, nc *gonats.Conn, data []byte) error {
 	// Simplified MAVLink position parsing
 	systemID := uint8(data[3])
-	
+
 	// Real implementation would parse lat/lon from MAVLink payload
 	lat := 0.0 // Would be parsed from bytes 6-9
 	lon := 0.0 // Would be parsed from bytes 10-13
-	
+
 	// Create position message
 	position := payloads.NewPositionPayload(systemID, time.Now(), lat, lon)
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		position.Schema(),
 		position,
 		"robotics-processor",
 	)
-	
+
 	// Marshal the MESSAGE
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return errors.Wrap(err, "RoboticsProcessor", "marshal", "marshal position message")
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(33) // GLOBAL_POSITION_INT
 	rp.mu.RUnlock()
@@ -1151,23 +1152,23 @@ func (rp *RoboticsProcessor) processGlobalPosition(_ context.Context, nc *gonats
 func (rp *RoboticsProcessor) processAttitude(_ context.Context, nc *gonats.Conn, data []byte) error {
 	// Simplified MAVLink attitude parsing
 	systemID := uint8(data[3])
-	
+
 	// Create attitude message
 	attitude := payloads.NewAttitudePayload(systemID, time.Now())
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		attitude.Schema(),
 		attitude,
 		"robotics-processor",
 	)
-	
+
 	// Marshal the MESSAGE
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return errors.Wrap(err, "RoboticsProcessor", "marshal", "marshal attitude message")
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(30) // ATTITUDE
 	rp.mu.RUnlock()
@@ -1179,23 +1180,23 @@ func (rp *RoboticsProcessor) processBatteryStatus(_ context.Context, nc *gonats.
 	// Simplified MAVLink battery parsing
 	systemID := uint8(data[3])
 	batteryID := uint8(0) // Would be parsed from payload
-	
+
 	// Create battery message
 	battery := payloads.NewBatteryPayload(systemID, batteryID, time.Now())
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		battery.Schema(),
 		battery,
 		"robotics-processor",
 	)
-	
+
 	// Marshal the MESSAGE
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return errors.Wrap(err, "RoboticsProcessor", "marshal", "marshal battery message")
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(147) // BATTERY_STATUS
 	rp.mu.RUnlock()
@@ -1208,33 +1209,33 @@ func (rp *RoboticsProcessor) publishHeartbeatMessage(_ context.Context, nc *gona
 	if !ok {
 		return errors.WrapInvalid(errors.ErrInvalidData, "RoboticsProcessor", "validate", "validate system_id")
 	}
-	
+
 	componentID := uint8(0)
 	if cid, ok := data["component_id"].(float64); ok {
 		componentID = uint8(cid)
 	}
-	
+
 	// Create and publish heartbeat message
 	payload := payloads.NewHeartbeatPayload(uint8(systemID), componentID, time.Now())
-	
+
 	// Set optional fields
 	if vehicleType, ok := data["type"].(float64); ok {
 		payload.VehicleType = uint8(vehicleType)
 	}
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		payload.Schema(),
 		payload,
 		"robotics-processor",
 	)
-	
+
 	// Marshal the MESSAGE
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return errors.Wrap(err, "RoboticsProcessor", "marshal", "marshal heartbeat message")
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(0) // HEARTBEAT
 	rp.mu.RUnlock()
@@ -1247,33 +1248,33 @@ func (rp *RoboticsProcessor) publishPositionMessage(_ context.Context, nc *gonat
 	if !ok {
 		return errors.WrapInvalid(errors.ErrInvalidData, "RoboticsProcessor", "validate", "validate system_id")
 	}
-	
+
 	lat, ok := data["latitude"].(float64)
 	if !ok {
 		return errors.WrapInvalid(errors.ErrInvalidData, "RoboticsProcessor", "publishPositionMessage", "validate latitude")
 	}
-	
+
 	lon, ok := data["longitude"].(float64)
 	if !ok {
 		return errors.WrapInvalid(errors.ErrInvalidData, "RoboticsProcessor", "publishPositionMessage", "validate longitude")
 	}
-	
+
 	// Create and publish position message
 	position := payloads.NewPositionPayload(uint8(systemID), time.Now(), lat, lon)
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		position.Schema(),
 		position,
 		"robotics-processor",
 	)
-	
+
 	// Marshal the MESSAGE
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return errors.Wrap(err, "RoboticsProcessor", "marshal", "marshal position message")
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(33) // GLOBAL_POSITION_INT
 	rp.mu.RUnlock()
@@ -1286,10 +1287,10 @@ func (rp *RoboticsProcessor) publishAttitudeMessage(_ context.Context, nc *gonat
 	if !ok {
 		return errors.WrapInvalid(errors.ErrInvalidData, "RoboticsProcessor", "validate", "validate system_id")
 	}
-	
+
 	// Create and publish attitude message
 	payload := payloads.NewAttitudePayload(uint8(systemID), time.Now())
-	
+
 	// Set optional fields
 	if roll, ok := data["roll"].(float64); ok {
 		payload.Roll = float32(roll)
@@ -1300,20 +1301,20 @@ func (rp *RoboticsProcessor) publishAttitudeMessage(_ context.Context, nc *gonat
 	if yaw, ok := data["yaw"].(float64); ok {
 		payload.Yaw = float32(yaw)
 	}
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		payload.Schema(),
 		payload,
 		"robotics-processor",
 	)
-	
+
 	// Marshal the MESSAGE
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return errors.Wrap(err, "RoboticsProcessor", "marshal", "marshal attitude message")
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(30) // ATTITUDE
 	rp.mu.RUnlock()
@@ -1326,15 +1327,15 @@ func (rp *RoboticsProcessor) publishBatteryMessage(_ context.Context, nc *gonats
 	if !ok {
 		return errors.WrapInvalid(errors.ErrInvalidData, "RoboticsProcessor", "validate", "validate system_id")
 	}
-	
+
 	batteryID := uint8(0)
 	if bid, ok := data["battery_id"].(float64); ok {
 		batteryID = uint8(bid)
 	}
-	
+
 	// Create and publish battery message
 	payload := payloads.NewBatteryPayload(uint8(systemID), batteryID, time.Now())
-	
+
 	// Set optional fields
 	if remaining, ok := data["battery_remaining"].(float64); ok {
 		payload.BatteryRemaining = int8(remaining)
@@ -1342,20 +1343,20 @@ func (rp *RoboticsProcessor) publishBatteryMessage(_ context.Context, nc *gonats
 	if voltage, ok := data["voltage"].(float64); ok {
 		payload.TotalVoltage = voltage
 	}
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		payload.Schema(),
 		payload,
 		"robotics-processor",
 	)
-	
+
 	// Marshal the MESSAGE
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return errors.Wrap(err, "RoboticsProcessor", "marshal", "marshal battery message")
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(147) // BATTERY_STATUS
 	rp.mu.RUnlock()
@@ -1374,24 +1375,24 @@ func (rp *RoboticsProcessor) handleMAVLinkMessage(msg *gonats.Msg) {
 	rp.mu.RLock()
 	enabled := rp.enabled
 	rp.mu.RUnlock()
-	
+
 	if !enabled {
 		return
 	}
-	
+
 	// Extract raw data from envelope
 	var envelope map[string]any
 	if err := json.Unmarshal(msg.Data, &envelope); err != nil {
 		rp.logger.Error("Failed to unmarshal envelope", "error", err)
 		return
 	}
-	
+
 	rawData, ok := envelope["raw"].(string)
 	if !ok {
 		rp.logger.Warn("No 'raw' field found in envelope")
 		return
 	}
-	
+
 	data := []byte(rawData)
 	rp.processDirectMAVLinkData(data)
 }
@@ -1401,29 +1402,29 @@ func (rp *RoboticsProcessor) handleJSONMessage(msg *gonats.Msg) {
 	rp.mu.RLock()
 	enabled := rp.enabled
 	rp.mu.RUnlock()
-	
+
 	if !enabled {
 		return
 	}
-	
+
 	// Extract raw data from envelope
 	var envelope map[string]any
 	if err := json.Unmarshal(msg.Data, &envelope); err != nil {
 		rp.logger.Error("Failed to unmarshal JSON envelope", "error", err)
 		return
 	}
-	
+
 	rawData, ok := envelope["raw"].(string)
 	if !ok {
 		rp.logger.Warn("No 'raw' field found in JSON envelope")
 		return
 	}
-	
+
 	var data map[string]any
 	if err := json.Unmarshal([]byte(rawData), &data); err != nil {
 		return
 	}
-	
+
 	// Route based on data content
 	if _, hasSystemID := data["system_id"]; hasSystemID {
 		if _, hasHeartbeat := data["type"]; hasHeartbeat {
@@ -1445,13 +1446,12 @@ func (rp *RoboticsProcessor) processDirectMAVLinkData(data []byte) {
 		rp.logger.Warn("No NATS connection available for direct MAVLink processing")
 		return
 	}
-	
+
 	// Use the robust parser
 	if err := rp.processMAVLinkData(context.Background(), nc, "direct", data); err != nil {
 		rp.logger.Error("Error processing direct MAVLink data", "error", err)
 	}
 }
-
 
 // publishHeartbeat processes MAVLink heartbeat data and publishes the message
 func (rp *RoboticsProcessor) publishHeartbeat(data []byte) {
@@ -1459,27 +1459,27 @@ func (rp *RoboticsProcessor) publishHeartbeat(data []byte) {
 	if nc == nil {
 		return
 	}
-	
+
 	// Simplified MAVLink heartbeat parsing
 	systemID := uint8(data[3]) // System ID at byte 3
-	
+
 	// Create heartbeat message
 	heartbeat := payloads.NewHeartbeatPayload(systemID, 0, time.Now())
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		heartbeat.Schema(),
 		heartbeat,
 		"robotics-processor",
 	)
-	
+
 	// Marshal and publish
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		rp.logger.Error("Error marshaling heartbeat message", "error", err)
 		return
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(0) // HEARTBEAT
 	rp.mu.RUnlock()
@@ -1492,31 +1492,31 @@ func (rp *RoboticsProcessor) publishPosition(data []byte) {
 	if nc == nil {
 		return
 	}
-	
+
 	// Simplified MAVLink position parsing
 	systemID := uint8(data[3])
-	
+
 	// Real implementation would parse lat/lon from MAVLink payload
 	lat := 0.0 // Would be parsed from bytes 6-9
 	lon := 0.0 // Would be parsed from bytes 10-13
-	
+
 	// Create position message
 	position := payloads.NewPositionPayload(systemID, time.Now(), lat, lon)
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		position.Schema(),
 		position,
 		"robotics-processor",
 	)
-	
+
 	// Marshal and publish
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		rp.logger.Error("Error marshaling position message", "error", err)
 		return
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(33) // GLOBAL_POSITION_INT
 	rp.mu.RUnlock()
@@ -1529,27 +1529,27 @@ func (rp *RoboticsProcessor) publishAttitude(data []byte) {
 	if nc == nil {
 		return
 	}
-	
+
 	// Simplified MAVLink attitude parsing
 	systemID := uint8(data[3])
-	
+
 	// Create attitude message
 	attitude := payloads.NewAttitudePayload(systemID, time.Now())
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		attitude.Schema(),
 		attitude,
 		"robotics-processor",
 	)
-	
+
 	// Marshal and publish
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		rp.logger.Error("Error marshaling attitude message", "error", err)
 		return
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(30) // ATTITUDE
 	rp.mu.RUnlock()
@@ -1562,28 +1562,28 @@ func (rp *RoboticsProcessor) publishBattery(data []byte) {
 	if nc == nil {
 		return
 	}
-	
+
 	// Simplified MAVLink battery parsing
 	systemID := uint8(data[3])
 	batteryID := uint8(0) // Would be parsed from payload
-	
+
 	// Create battery message
 	battery := payloads.NewBatteryPayload(systemID, batteryID, time.Now())
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		battery.Schema(),
 		battery,
 		"robotics-processor",
 	)
-	
+
 	// Marshal and publish
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		rp.logger.Error("Error marshaling battery message", "error", err)
 		return
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(147) // BATTERY_STATUS
 	rp.mu.RUnlock()
@@ -1596,39 +1596,39 @@ func (rp *RoboticsProcessor) publishHeartbeatFromJSON(data map[string]any) {
 	if nc == nil {
 		return
 	}
-	
+
 	systemID, ok := data["system_id"].(float64)
 	if !ok {
 		return
 	}
-	
+
 	componentID := uint8(0)
 	if cid, ok := data["component_id"].(float64); ok {
 		componentID = uint8(cid)
 	}
-	
+
 	// Create heartbeat payload
 	payload := payloads.NewHeartbeatPayload(uint8(systemID), componentID, time.Now())
-	
+
 	// Set optional fields
 	if vehicleType, ok := data["type"].(float64); ok {
 		payload.VehicleType = uint8(vehicleType)
 	}
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		payload.Schema(),
 		payload,
 		"robotics-processor",
 	)
-	
+
 	// Marshal and publish
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		rp.logger.Error("Error marshaling heartbeat message", "error", err)
 		return
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(0) // HEARTBEAT
 	rp.mu.RUnlock()
@@ -1641,39 +1641,39 @@ func (rp *RoboticsProcessor) publishPositionFromJSON(data map[string]any) {
 	if nc == nil {
 		return
 	}
-	
+
 	systemID, ok := data["system_id"].(float64)
 	if !ok {
 		return
 	}
-	
+
 	lat, ok := data["latitude"].(float64)
 	if !ok {
 		return
 	}
-	
+
 	lon, ok := data["longitude"].(float64)
 	if !ok {
 		return
 	}
-	
+
 	// Create position message
 	position := payloads.NewPositionPayload(uint8(systemID), time.Now(), lat, lon)
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		position.Schema(),
 		position,
 		"robotics-processor",
 	)
-	
+
 	// Marshal and publish
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		rp.logger.Error("Error marshaling position message", "error", err)
 		return
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(33) // GLOBAL_POSITION_INT
 	rp.mu.RUnlock()
@@ -1686,15 +1686,15 @@ func (rp *RoboticsProcessor) publishAttitudeFromJSON(data map[string]any) {
 	if nc == nil {
 		return
 	}
-	
+
 	systemID, ok := data["system_id"].(float64)
 	if !ok {
 		return
 	}
-	
+
 	// Create attitude message
 	payload := payloads.NewAttitudePayload(uint8(systemID), time.Now())
-	
+
 	// Set optional fields
 	if roll, ok := data["roll"].(float64); ok {
 		payload.Roll = float32(roll)
@@ -1705,21 +1705,21 @@ func (rp *RoboticsProcessor) publishAttitudeFromJSON(data map[string]any) {
 	if yaw, ok := data["yaw"].(float64); ok {
 		payload.Yaw = float32(yaw)
 	}
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		payload.Schema(),
 		payload,
 		"robotics-processor",
 	)
-	
+
 	// Marshal and publish
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		rp.logger.Error("Error marshaling attitude message", "error", err)
 		return
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(30) // ATTITUDE
 	rp.mu.RUnlock()
@@ -1732,20 +1732,20 @@ func (rp *RoboticsProcessor) publishBatteryFromJSON(data map[string]any) {
 	if nc == nil {
 		return
 	}
-	
+
 	systemID, ok := data["system_id"].(float64)
 	if !ok {
 		return
 	}
-	
+
 	batteryID := uint8(0)
 	if bid, ok := data["battery_id"].(float64); ok {
 		batteryID = uint8(bid)
 	}
-	
+
 	// Create battery message
 	payload := payloads.NewBatteryPayload(uint8(systemID), batteryID, time.Now())
-	
+
 	// Set optional fields
 	if remaining, ok := data["battery_remaining"].(float64); ok {
 		payload.BatteryRemaining = int8(remaining)
@@ -1753,27 +1753,26 @@ func (rp *RoboticsProcessor) publishBatteryFromJSON(data map[string]any) {
 	if voltage, ok := data["voltage"].(float64); ok {
 		payload.TotalVoltage = voltage
 	}
-	
+
 	// Wrap in Message
 	msg := messages.NewBaseMessage(
 		payload.Schema(),
 		payload,
 		"robotics-processor",
 	)
-	
+
 	// Marshal and publish
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		rp.logger.Error("Error marshaling battery message", "error", err)
 		return
 	}
-	
+
 	rp.mu.RLock()
 	subject := rp.getOutputSubject(147) // BATTERY_STATUS
 	rp.mu.RUnlock()
 	nc.Publish(subject, msgBytes)
 }
-
 
 // getOutputSubject determines the NATS subject for publishing semantic messages
 func (rp *RoboticsProcessor) getOutputSubject(messageID uint32) string {
@@ -1834,7 +1833,7 @@ func (rp *RoboticsProcessor) isMessageTypeEnabled(messageID uint32) bool {
 	rp.mu.RLock()
 	config := rp.config
 	rp.mu.RUnlock()
-	
+
 	switch messageID {
 	case 0: // HEARTBEAT
 		return config.ProcessHeartbeat
@@ -1850,8 +1849,8 @@ func (rp *RoboticsProcessor) isMessageTypeEnabled(messageID uint32) bool {
 		return config.ProcessStatus
 	default:
 		// Unknown message types are processed if any category is enabled
-		return config.ProcessHeartbeat || config.ProcessPosition || config.ProcessBattery || 
-		       config.ProcessAttitude || config.ProcessGPS || config.ProcessStatus
+		return config.ProcessHeartbeat || config.ProcessPosition || config.ProcessBattery ||
+			config.ProcessAttitude || config.ProcessGPS || config.ProcessStatus
 	}
 }
 
@@ -1892,20 +1891,20 @@ func CreateRoboticsProcessor(rawConfig json.RawMessage, deps component.Component
 			procConfig.Ports = DefaultConfig().Ports
 		}
 	}
-	
+
 	// Create processor with dependency injection
 	processor, err := NewRoboticsProcessorWithMetrics(deps.NATSClient.GetConnection(), deps.MetricsRegistry)
 	if err != nil {
 		return nil, errors.Wrap(err, "RoboticsProcessor", "CreateRoboticsProcessor", "create robotics processor")
 	}
-	
+
 	// Store organization and platform for entity ID generation
 	processor.organization = deps.Platform.Org
 	processor.platform = deps.Platform.Platform
-	
+
 	// Set logger from ComponentDependencies
 	processor.logger = deps.GetLoggerWithComponent("robotics-processor")
-	
+
 	// Apply configuration
 	processor.ApplyConfig(procConfig)
 	return processor, nil

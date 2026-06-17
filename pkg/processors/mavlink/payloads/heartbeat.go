@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package payloads
 
 import (
@@ -6,11 +9,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/c360/streamkit/component"
-	message "github.com/c360/semstreams/message"
 	"github.com/c360/semops/pkg/processors/mavlink/constants"
 	vocab "github.com/c360/semops/pkg/processors/mavlink/vocabulary"
+	message "github.com/c360/semstreams/message"
 	"github.com/c360/semstreams/vocabulary"
+	"github.com/c360/streamkit/component"
 )
 
 func init() {
@@ -140,14 +143,14 @@ func (h *HeartbeatPayload) UnmarshalJSON(data []byte) error {
 func (h *HeartbeatPayload) EntityID() string {
 	// System field comes from MAVLink SystemID at runtime
 	system := h.mapSystemIDToSystem()
-	
+
 	entityID := message.EntityID{
-		Org:      "c360",        // TODO: Get from config when available
-		Platform: "platform1",   // TODO: Get from config when available
-		Domain:   "robotics",    // Domain-first hierarchy
-		System:   system,        // RUNTIME value from message
+		Org:      "c360",      // TODO: Get from config when available
+		Platform: "platform1", // TODO: Get from config when available
+		Domain:   "robotics",  // Domain-first hierarchy
+		System:   system,      // RUNTIME value from message
 		Type:     "drone",
-		Instance: "0",  // Single drone per system, no SystemID duplication
+		Instance: "0", // Single drone per system, no SystemID duplication
 	}
 	return entityID.Key()
 }
@@ -163,7 +166,6 @@ func (h *HeartbeatPayload) mapSystemIDToSystem() string {
 		return fmt.Sprintf("mav%d", h.SystemID)
 	}
 }
-
 
 func (h *HeartbeatPayload) EntityType() message.EntityType {
 	return vocab.EntityTypeDrone
@@ -229,9 +231,6 @@ func (h *HeartbeatPayload) RelatedMessages() []string {
 		fmt.Sprintf("robotics.mission.%d", h.SystemID),
 	}
 }
-
-
-
 
 // Heartbeat-specific helper methods
 
@@ -305,33 +304,33 @@ func (h *HeartbeatPayload) GetAge() time.Duration {
 // GetControlModeName returns a human-readable description of the current control mode
 func (h *HeartbeatPayload) GetControlModeName() string {
 	modes := []string{}
-	
+
 	if h.IsArmed() {
 		modes = append(modes, "armed")
 	} else {
 		modes = append(modes, "disarmed")
 	}
-	
+
 	if h.IsInAutoMode() {
 		modes = append(modes, "autonomous")
 	}
-	
+
 	if h.IsInGuidedMode() {
 		modes = append(modes, "guided")
 	}
-	
+
 	if h.IsManualInputEnabled() {
 		modes = append(modes, "manual")
 	}
-	
+
 	if h.IsStabilizeEnabled() {
 		modes = append(modes, "stabilized")
 	}
-	
+
 	if len(modes) == 0 {
 		return "unknown"
 	}
-	
+
 	// Join modes with underscore for consistent naming
 	result := ""
 	for i, mode := range modes {
@@ -340,7 +339,7 @@ func (h *HeartbeatPayload) GetControlModeName() string {
 		}
 		result += mode
 	}
-	
+
 	return result
 }
 
@@ -375,9 +374,9 @@ func (h *HeartbeatPayload) GetProperty(key string) (any, bool) {
 func (h *HeartbeatPayload) Triples() []message.Triple {
 	entityID := h.EntityID() // Uses structured EntityID.Key() format
 	timestamp := h.Ts
-	
+
 	var triples []message.Triple
-	
+
 	// System identification triples
 	triples = append(triples, []message.Triple{
 		{
@@ -392,7 +391,7 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 			Subject:    entityID,
 			Predicate:  vocabulary.ROBOTICS_SYSTEM_TYPE,
 			Object:     h.GetVehicleTypeName(),
-			Source:     "mavlink_heartbeat", 
+			Source:     "mavlink_heartbeat",
 			Timestamp:  timestamp,
 			Confidence: 1.0,
 		},
@@ -405,7 +404,7 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Flight state triples
 	triples = append(triples, []message.Triple{
 		{
@@ -449,7 +448,7 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// System version and uptime if available
 	if age := h.GetAge(); age > 0 {
 		triples = append(triples, message.Triple{
@@ -461,7 +460,7 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 			Confidence: 0.9, // Calculated value
 		})
 	}
-	
+
 	// Network connection quality if available
 	if h.LinkQuality > 0 {
 		triples = append(triples, []message.Triple{
@@ -483,7 +482,7 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 			},
 		}...)
 	}
-	
+
 	// Protocol information
 	triples = append(triples, []message.Triple{
 		{
@@ -503,7 +502,7 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Lifecycle events
 	triples = append(triples, []message.Triple{
 		{
@@ -523,7 +522,7 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Component relationship triples
 	// Battery component relationship
 	system := h.mapSystemIDToSystem()
@@ -531,11 +530,11 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 		Org:      "c360",
 		Platform: "platform1",
 		System:   system,
-		Domain:   "robotics", 
+		Domain:   "robotics",
 		Type:     "battery",
-		Instance: "0",  // Battery 0 for this system, no SystemID duplication
+		Instance: "0", // Battery 0 for this system, no SystemID duplication
 	}.Key()
-	
+
 	triples = append(triples, message.Triple{
 		Subject:    entityID,
 		Predicate:  vocabulary.ROBOTICS_COMPONENT_HAS,
@@ -544,17 +543,17 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 		Timestamp:  timestamp,
 		Confidence: 0.9, // Inferred relationship
 	})
-	
+
 	// Autopilot component relationship
 	autopilotEntityID := message.EntityID{
 		Org:      "c360",
 		Platform: "platform1",
 		System:   system,
 		Domain:   "robotics",
-		Type:     "autopilot", 
-		Instance: "0",  // Autopilot 0 for this system, no SystemID duplication
+		Type:     "autopilot",
+		Instance: "0", // Autopilot 0 for this system, no SystemID duplication
 	}.Key()
-	
+
 	triples = append(triples, message.Triple{
 		Subject:    entityID,
 		Predicate:  vocabulary.ROBOTICS_COMPONENT_HAS,
@@ -563,7 +562,7 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 		Timestamp:  timestamp,
 		Confidence: 0.9, // Inferred relationship
 	})
-	
+
 	// Quality metadata for the heartbeat data itself
 	triples = append(triples, []message.Triple{
 		{
@@ -583,6 +582,6 @@ func (h *HeartbeatPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	return triples
 }

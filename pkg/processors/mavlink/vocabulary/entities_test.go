@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package vocabulary
 
 import (
@@ -41,7 +44,7 @@ func TestGetEntityTypeIRI(t *testing.T) {
 			expected:   "https://semstreams.c360.io/robotics#Drone",
 		},
 		{
-			name:       "existing battery type", 
+			name:       "existing battery type",
 			entityType: EntityTypeBattery,
 			expected:   "https://semstreams.c360.io/robotics#Battery",
 		},
@@ -90,7 +93,7 @@ func TestEntityTypeIRIsConsistency(t *testing.T) {
 	}
 
 	// Verify map doesn't contain unexpected entries
-	assert.Equal(t, len(constantTypes), len(EntityTypeIRIs), 
+	assert.Equal(t, len(constantTypes), len(EntityTypeIRIs),
 		"EntityTypeIRIs map should have same number of entries as constants")
 }
 

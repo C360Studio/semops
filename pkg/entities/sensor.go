@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 // Package entities provides domain-specific entity types for robotics operations.
 //
 // These types map to semstreams generic Entity model while providing

@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package rules
 
 import (
@@ -5,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	message "github.com/c360/semstreams/message"
-	gtypes "github.com/c360/semstreams/types/graph"
 	"github.com/c360/semops/pkg/processors/mavlink/constants"
 	roboticspayloads "github.com/c360/semops/pkg/processors/mavlink/payloads"
+	message "github.com/c360/semstreams/message"
+	gtypes "github.com/c360/semstreams/types/graph"
 )
 
 // BatteryAlert represents a battery-related alert or warning
@@ -43,7 +46,7 @@ type BatteryStatus struct {
 
 // BatteryMonitorRule monitors battery status and generates alerts
 type BatteryMonitorRule struct {
-	mu                           sync.RWMutex              // Protects concurrent access to maps
+	mu                           sync.RWMutex // Protects concurrent access to maps
 	name                         string
 	enabled                      bool
 	lowBatteryThreshold          float64                   // Battery level threshold for low warning (%)
@@ -195,11 +198,6 @@ func (b *BatteryMonitorRule) ExecuteEvents(messages []message.Message) ([]gtypes
 
 	return events, nil
 }
-
-
-
-
-
 
 // processBatteryMessage analyzes a battery payload for issues
 func (b *BatteryMonitorRule) processBatteryMessage(battery *roboticspayloads.BatteryPayload) *BatteryAlert {
@@ -824,22 +822,22 @@ func (b *BatteryMonitorRule) createBatteryEntityState(battery *roboticspayloads.
 			ID:   batteryID,
 			Type: "robotics.battery",
 			Properties: map[string]any{
-				"system_id":           battery.SystemID,
-				"battery_id":          battery.BatteryID,
-				"charge_percent":      battery.BatteryRemaining,
-				"voltage_v":           battery.GetTotalVoltage(),
-				"current_a":           battery.GetCurrentAmps(),
-				"power_w":             battery.GetPowerWatts(),
-				"temperature_c":       battery.GetTemperatureCelsius(),
-				"cell_count":          len(battery.Voltages),
-				"cell_imbalance_mv":   battery.GetCellImbalance(),
-				"charge_state":        battery.GetChargeStateName(),
-				"time_remaining_min":  battery.GetTimeRemainingMinutes(),
-				"energy_consumed_wh":  battery.GetEnergyConsumedWh(),
-				"is_healthy":          battery.IsHealthy(),
-				"is_critical":         battery.IsCritical(),
-				"is_charging":         battery.IsCharging(),
-				"alert_severity":      battery.GetAlertSeverity(),
+				"system_id":          battery.SystemID,
+				"battery_id":         battery.BatteryID,
+				"charge_percent":     battery.BatteryRemaining,
+				"voltage_v":          battery.GetTotalVoltage(),
+				"current_a":          battery.GetCurrentAmps(),
+				"power_w":            battery.GetPowerWatts(),
+				"temperature_c":      battery.GetTemperatureCelsius(),
+				"cell_count":         len(battery.Voltages),
+				"cell_imbalance_mv":  battery.GetCellImbalance(),
+				"charge_state":       battery.GetChargeStateName(),
+				"time_remaining_min": battery.GetTimeRemainingMinutes(),
+				"energy_consumed_wh": battery.GetEnergyConsumedWh(),
+				"is_healthy":         battery.IsHealthy(),
+				"is_critical":        battery.IsCritical(),
+				"is_charging":        battery.IsCharging(),
+				"alert_severity":     battery.GetAlertSeverity(),
 			},
 			Status: b.getBatteryEntityStatus(battery.BatteryRemaining),
 		},
@@ -856,7 +854,7 @@ func (b *BatteryMonitorRule) getBatteryEntityStatus(percent int8) gtypes.EntityS
 	if percent < 0 {
 		return gtypes.StatusUnknown
 	}
-	
+
 	switch {
 	case percent <= int8(b.emergencyBatteryThreshold):
 		return gtypes.StatusEmergency
@@ -873,7 +871,7 @@ func (b *BatteryMonitorRule) getBatteryEntityStatus(percent int8) gtypes.EntityS
 func (b *BatteryMonitorRule) createEntityEvents(battery *roboticspayloads.BatteryPayload) []gtypes.Event {
 	var events []gtypes.Event
 	now := battery.Ts
-	
+
 	// Create metadata for events
 	metadata := gtypes.EventMetadata{
 		RuleName:  b.name,
@@ -882,7 +880,7 @@ func (b *BatteryMonitorRule) createEntityEvents(battery *roboticspayloads.Batter
 		Reason:    "Battery telemetry update",
 		Version:   "1.0.0",
 	}
-	
+
 	// Create/update drone entity
 	droneID := fmt.Sprintf("drone_%03d", battery.SystemID)
 	droneProperties := map[string]any{
@@ -893,11 +891,11 @@ func (b *BatteryMonitorRule) createEntityEvents(battery *roboticspayloads.Batter
 		"battery_temp_c":  battery.GetTemperatureCelsius(),
 		"status":          b.getBatteryEntityStatus(battery.BatteryRemaining),
 	}
-	
+
 	droneEvent := gtypes.NewEntityUpdateEvent(droneID, droneProperties, metadata)
 	droneEvent.Confidence = 1.0
 	events = append(events, *droneEvent)
-	
+
 	// Create/update battery entity
 	batteryID := fmt.Sprintf("battery_%03d_%d", battery.SystemID, battery.BatteryID)
 	batteryProperties := map[string]any{
@@ -920,11 +918,11 @@ func (b *BatteryMonitorRule) createEntityEvents(battery *roboticspayloads.Batter
 		"alert_severity":     battery.GetAlertSeverity(),
 		"status":             b.getBatteryEntityStatus(battery.BatteryRemaining),
 	}
-	
+
 	batteryEvent := gtypes.NewEntityUpdateEvent(batteryID, batteryProperties, metadata)
 	batteryEvent.Confidence = 1.0
 	events = append(events, *batteryEvent)
-	
+
 	// Create relationship between drone and battery
 	relationshipEvent := gtypes.NewRelationshipCreateEvent(droneID, batteryID, "POWERED_BY", metadata)
 	relationshipEvent.Properties["voltage_v"] = battery.GetTotalVoltage()
@@ -935,7 +933,7 @@ func (b *BatteryMonitorRule) createEntityEvents(battery *roboticspayloads.Batter
 	relationshipEvent.Properties["charge_percent"] = battery.BatteryRemaining
 	relationshipEvent.Properties["time_remaining_min"] = battery.GetTimeRemainingMinutes()
 	events = append(events, *relationshipEvent)
-	
+
 	return events
 }
 
@@ -948,26 +946,26 @@ func (b *BatteryMonitorRule) createAlertEvent(alert *BatteryAlert, _ *roboticspa
 		Reason:    fmt.Sprintf("Battery alert: %s", alert.Message),
 		Version:   "1.0.0",
 	}
-	
+
 	// Create alert properties
 	alertProperties := map[string]any{
-		"alert_type":       alert.AlertType,
-		"severity":         alert.Severity,
-		"message":          alert.Message,
-		"current_value":    alert.CurrentValue,
-		"threshold_value":  alert.ThresholdValue,
-		"action":           alert.Action,
-		"system_id":        alert.SystemID,
-		"battery_id":       alert.BatteryID,
-		"source_entity":    fmt.Sprintf("drone_%03d", alert.SystemID),
-		"target_entity":    fmt.Sprintf("battery_%03d_%d", alert.SystemID, alert.BatteryID),
+		"alert_type":      alert.AlertType,
+		"severity":        alert.Severity,
+		"message":         alert.Message,
+		"current_value":   alert.CurrentValue,
+		"threshold_value": alert.ThresholdValue,
+		"action":          alert.Action,
+		"system_id":       alert.SystemID,
+		"battery_id":      alert.BatteryID,
+		"source_entity":   fmt.Sprintf("drone_%03d", alert.SystemID),
+		"target_entity":   fmt.Sprintf("battery_%03d_%d", alert.SystemID, alert.BatteryID),
 	}
-	
+
 	// Add custom properties from alert
 	for k, v := range alert.Properties {
 		alertProperties[k] = v
 	}
-	
+
 	// Create alert entity event
 	return gtypes.NewAlertEvent(alert.AlertType, fmt.Sprintf("drone_%03d", alert.SystemID), alertProperties, metadata)
 }

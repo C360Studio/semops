@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package payloads
 
 import (
@@ -6,11 +9,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/c360/streamkit/component"
-	message "github.com/c360/semstreams/message"
 	"github.com/c360/semops/pkg/processors/mavlink/constants"
 	vocab "github.com/c360/semops/pkg/processors/mavlink/vocabulary"
+	message "github.com/c360/semstreams/message"
 	"github.com/c360/semstreams/vocabulary"
+	"github.com/c360/streamkit/component"
 )
 
 func init() {
@@ -161,14 +164,14 @@ func (b *BatteryPayload) UnmarshalJSON(data []byte) error {
 func (b *BatteryPayload) EntityID() string {
 	// System field comes from MAVLink SystemID at runtime
 	system := b.mapSystemIDToSystem()
-	
+
 	entityID := message.EntityID{
-		Org:      "c360",        // TODO: Get from config when available
-		Platform: "platform1",   // TODO: Get from config when available
-		Domain:   "robotics",    // Domain moves up in hierarchy
-		System:   system,        // RUNTIME value from message
+		Org:      "c360",      // TODO: Get from config when available
+		Platform: "platform1", // TODO: Get from config when available
+		Domain:   "robotics",  // Domain moves up in hierarchy
+		System:   system,      // RUNTIME value from message
 		Type:     "battery",
-		Instance: fmt.Sprintf("%d", b.BatteryID),  // Just battery ID, not compound
+		Instance: fmt.Sprintf("%d", b.BatteryID), // Just battery ID, not compound
 	}
 	return entityID.Key()
 }
@@ -256,10 +259,6 @@ func (b *BatteryPayload) RelatedMessages() []string {
 		fmt.Sprintf("robotics.heartbeat.%d", b.SystemID),
 	}
 }
-
-
-
-
 
 // Battery-specific helper methods
 
@@ -469,24 +468,24 @@ func (b *BatteryPayload) Triples() []message.Triple {
 	droneEntityID := message.EntityID{
 		Org:      "c360",
 		Platform: "platform1",
-		Domain:   "robotics",    // Domain-first hierarchy
+		Domain:   "robotics", // Domain-first hierarchy
 		System:   system,
 		Type:     "drone",
-		Instance: "0",  // Single drone per system, no SystemID duplication
+		Instance: "0", // Single drone per system, no SystemID duplication
 	}.Key()
-	
+
 	batteryEntityID := message.EntityID{
 		Org:      "c360",
 		Platform: "platform1",
-		Domain:   "robotics",    // Domain-first hierarchy
+		Domain:   "robotics", // Domain-first hierarchy
 		System:   system,
 		Type:     "battery",
-		Instance: fmt.Sprintf("%d", b.BatteryID),  // Just battery ID per new standard
+		Instance: fmt.Sprintf("%d", b.BatteryID), // Just battery ID per new standard
 	}.Key()
-	
+
 	timestamp := b.Ts
 	var triples []message.Triple
-	
+
 	// Battery power and energy triples
 	if b.BatteryRemaining >= 0 {
 		triples = append(triples, message.Triple{
@@ -498,7 +497,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 1.0, // Direct measurement
 		})
 	}
-	
+
 	if voltage := b.GetTotalVoltage(); voltage > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    batteryEntityID,
@@ -509,7 +508,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 0.9, // Calculated from cells
 		})
 	}
-	
+
 	if current := b.GetCurrentAmps(); current > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    batteryEntityID,
@@ -520,7 +519,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 0.9,
 		})
 	}
-	
+
 	if b.TimeRemaining > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    batteryEntityID,
@@ -531,7 +530,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 0.8, // Estimated value
 		})
 	}
-	
+
 	if b.CurrentConsumed > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    batteryEntityID,
@@ -542,7 +541,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 1.0, // Direct measurement
 		})
 	}
-	
+
 	// Temperature measurement
 	if b.Temperature != -1 {
 		tempCelsius := b.GetTemperatureCelsius()
@@ -555,7 +554,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 0.9, // Temperature sensor
 		})
 	}
-	
+
 	// System identification
 	triples = append(triples, []message.Triple{
 		{
@@ -583,7 +582,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Battery powers drone (relationship from battery's perspective)
 	triples = append(triples, message.Triple{
 		Subject:    batteryEntityID,
@@ -593,7 +592,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 		Timestamp:  timestamp,
 		Confidence: 1.0,
 	})
-	
+
 	// Lifecycle events
 	triples = append(triples, []message.Triple{
 		{
@@ -613,7 +612,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Quality and health assessments
 	healthScore := 0.0
 	if b.IsHealthy() {
@@ -623,7 +622,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 	} else if b.IsCritical() {
 		healthScore = 0.2
 	}
-	
+
 	triples = append(triples, []message.Triple{
 		{
 			Subject:    batteryEntityID,
@@ -642,7 +641,7 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Cell voltage analysis if available
 	if len(b.Voltages) > 1 {
 		imbalance := b.GetCellImbalance()
@@ -655,6 +654,6 @@ func (b *BatteryPayload) Triples() []message.Triple {
 			Confidence: 0.8, // Cell balance analysis
 		})
 	}
-	
+
 	return triples
 }

@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 // Package mavlink provides MAVLink message generation utilities for testing drone communication protocols.
 // It implements the MAVLink v2 protocol specification for generating realistic test data
 // in E2E testing scenarios.
@@ -16,8 +19,8 @@ import (
 
 // CRCTable stores MAVLink CRC extra values for message validation
 var crcTable = map[uint32]uint8{
-	constants.MavlinkMsgIdHeartbeat:          50,  // HEARTBEAT
-	constants.MavlinkMsgIdBatteryStatus:      154, // BATTERY_STATUS
+	constants.MavlinkMsgIdHeartbeat:         50,  // HEARTBEAT
+	constants.MavlinkMsgIdBatteryStatus:     154, // BATTERY_STATUS
 	constants.MavlinkMsgIdGlobalPositionInt: 104, // GLOBAL_POSITION_INT
 	constants.MavlinkMsgIdAttitude:          39,  // ATTITUDE
 }
@@ -57,7 +60,7 @@ func (g *Generator) nextSequence() uint8 {
 // HeartbeatMessage represents a MAVLink HEARTBEAT message payload
 type HeartbeatMessage struct {
 	VehicleType    uint8  // MAV_TYPE
-	Autopilot      uint8  // MAV_AUTOPILOT  
+	Autopilot      uint8  // MAV_AUTOPILOT
 	BaseMode       uint8  // MAV_MODE_FLAG
 	CustomMode     uint32 // Custom mode
 	SystemStatus   uint8  // MAV_STATE
@@ -68,7 +71,7 @@ type HeartbeatMessage struct {
 func (g *Generator) GenerateHeartbeat(msg HeartbeatMessage) ([]byte, error) {
 	// MAVLink v2 HEARTBEAT payload: 9 bytes
 	payload := make([]byte, 9)
-	
+
 	// Pack payload according to MAVLink HEARTBEAT message format
 	binary.LittleEndian.PutUint32(payload[0:4], msg.CustomMode)
 	payload[4] = msg.VehicleType
@@ -83,15 +86,15 @@ func (g *Generator) GenerateHeartbeat(msg HeartbeatMessage) ([]byte, error) {
 // BatteryMessage represents a MAVLink BATTERY_STATUS message payload
 // According to parser specification (36 bytes total)
 type BatteryMessage struct {
-	BatteryID        uint8     // Battery ID
-	BatteryFunction  uint8     // Battery function  
-	BatteryType      uint8     // Battery type
-	Temperature      int16     // Temperature (cdegC)
+	BatteryID        uint8      // Battery ID
+	BatteryFunction  uint8      // Battery function
+	BatteryType      uint8      // Battery type
+	Temperature      int16      // Temperature (cdegC)
 	Voltages         [10]uint16 // Cell voltages (mV)
-	CurrentBattery   int16     // Current (10*mA)
-	CurrentConsumed  int32     // Current consumed charge (mAh)
-	EnergyConsumed   int32     // Consumed energy (hJ)
-	BatteryRemaining int8      // Battery remaining (%)
+	CurrentBattery   int16      // Current (10*mA)
+	CurrentConsumed  int32      // Current consumed charge (mAh)
+	EnergyConsumed   int32      // Consumed energy (hJ)
+	BatteryRemaining int8       // Battery remaining (%)
 }
 
 // GenerateBatteryStatus creates a valid MAVLink BATTERY_STATUS message
@@ -109,18 +112,18 @@ func (g *Generator) GenerateBatteryStatus(msg BatteryMessage) ([]byte, error) {
 	// 31      4     energy_consumed (int32, hJ)
 	// 35      1     battery_remaining (int8, %)
 	payload := make([]byte, 36)
-	
+
 	// Pack payload according to parser specification layout
 	payload[0] = msg.BatteryID
 	payload[1] = msg.BatteryFunction
 	payload[2] = msg.BatteryType
 	binary.LittleEndian.PutUint16(payload[3:5], uint16(msg.Temperature))
-	
+
 	// Pack cell voltages (10 cells * 2 bytes each = 20 bytes, starting at offset 5)
 	for i := 0; i < 10; i++ {
 		binary.LittleEndian.PutUint16(payload[5+i*2:7+i*2], msg.Voltages[i])
 	}
-	
+
 	// Pack remaining fields at correct offsets
 	binary.LittleEndian.PutUint16(payload[25:27], uint16(msg.CurrentBattery))
 	binary.LittleEndian.PutUint32(payload[27:31], uint32(msg.CurrentConsumed))
@@ -132,22 +135,22 @@ func (g *Generator) GenerateBatteryStatus(msg BatteryMessage) ([]byte, error) {
 
 // PositionMessage represents a MAVLink GLOBAL_POSITION_INT message payload
 type PositionMessage struct {
-	TimeBootMs uint32 // Timestamp (ms since system boot)
-	Lat        int32  // Latitude (degE7)
-	Lon        int32  // Longitude (degE7) 
-	Alt        int32  // Altitude (mm)
-	RelativeAlt int32 // Relative altitude (mm)
-	Vx         int16  // Ground X velocity (cm/s)
-	Vy         int16  // Ground Y velocity (cm/s)
-	Vz         int16  // Ground Z velocity (cm/s)
-	Hdg        uint16 // Heading (cdeg)
+	TimeBootMs  uint32 // Timestamp (ms since system boot)
+	Lat         int32  // Latitude (degE7)
+	Lon         int32  // Longitude (degE7)
+	Alt         int32  // Altitude (mm)
+	RelativeAlt int32  // Relative altitude (mm)
+	Vx          int16  // Ground X velocity (cm/s)
+	Vy          int16  // Ground Y velocity (cm/s)
+	Vz          int16  // Ground Z velocity (cm/s)
+	Hdg         uint16 // Heading (cdeg)
 }
 
 // GenerateGlobalPosition creates a valid MAVLink GLOBAL_POSITION_INT message
 func (g *Generator) GenerateGlobalPosition(msg PositionMessage) ([]byte, error) {
 	// MAVLink v2 GLOBAL_POSITION_INT payload: 28 bytes
 	payload := make([]byte, 28)
-	
+
 	// Pack payload according to MAVLink GLOBAL_POSITION_INT message format
 	binary.LittleEndian.PutUint32(payload[0:4], msg.TimeBootMs)
 	binary.LittleEndian.PutUint32(payload[4:8], uint32(msg.Lat))
@@ -177,7 +180,7 @@ type AttitudeMessage struct {
 func (g *Generator) GenerateAttitude(msg AttitudeMessage) ([]byte, error) {
 	// MAVLink v2 ATTITUDE payload: 28 bytes
 	payload := make([]byte, 28)
-	
+
 	// Pack payload according to MAVLink ATTITUDE message format
 	binary.LittleEndian.PutUint32(payload[0:4], msg.TimeBootMs)
 	binary.LittleEndian.PutUint32(payload[4:8], math.Float32bits(msg.Roll))
@@ -202,16 +205,16 @@ func (g *Generator) buildMAVLinkV2Frame(msgID uint32, payload []byte) ([]byte, e
 	frame := make([]byte, frameLen)
 
 	// Build header
-	frame[0] = constants.MavlinkStxV2        // Start marker
-	frame[1] = uint8(payloadLen)             // Payload length
-	frame[2] = 0                             // Incompatibility flags
-	frame[3] = 0                             // Compatibility flags  
-	frame[4] = g.nextSequence()              // Sequence
-	frame[5] = g.systemID                    // System ID
-	frame[6] = g.componentID                 // Component ID
-	frame[7] = uint8(msgID & 0xFF)           // Message ID low byte
-	frame[8] = uint8((msgID >> 8) & 0xFF)    // Message ID middle byte
-	frame[9] = uint8((msgID >> 16) & 0xFF)   // Message ID high byte
+	frame[0] = constants.MavlinkStxV2      // Start marker
+	frame[1] = uint8(payloadLen)           // Payload length
+	frame[2] = 0                           // Incompatibility flags
+	frame[3] = 0                           // Compatibility flags
+	frame[4] = g.nextSequence()            // Sequence
+	frame[5] = g.systemID                  // System ID
+	frame[6] = g.componentID               // Component ID
+	frame[7] = uint8(msgID & 0xFF)         // Message ID low byte
+	frame[8] = uint8((msgID >> 8) & 0xFF)  // Message ID middle byte
+	frame[9] = uint8((msgID >> 16) & 0xFF) // Message ID high byte
 
 	// Copy payload
 	copy(frame[constants.MavlinkHeaderSizeV2:], payload)
@@ -228,21 +231,21 @@ func (g *Generator) calculateCRC(data []byte, msgID uint32) uint16 {
 	// MAVLink uses CRC-16-CCITT with polynomial 0x1021
 	// Implementation based on MAVLink specification
 	crc := uint16(0xFFFF)
-	
+
 	// Process data starting from byte 1 (skip STX)
 	for i := 1; i < len(data); i++ {
 		tmp := data[i] ^ uint8(crc)
 		tmp ^= tmp << 4
 		crc = (crc >> 8) ^ (uint16(tmp) << 8) ^ (uint16(tmp) << 3) ^ (uint16(tmp) >> 4)
 	}
-	
+
 	// Add CRC extra byte if available for this message type
 	if crcExtra, ok := crcTable[msgID]; ok {
 		tmp := crcExtra ^ uint8(crc)
 		tmp ^= tmp << 4
 		crc = (crc >> 8) ^ (uint16(tmp) << 8) ^ (uint16(tmp) << 3) ^ (uint16(tmp) >> 4)
 	}
-	
+
 	return crc
 }
 
@@ -288,23 +291,23 @@ func (ms *MessageSequence) GenerateRealisticHeartbeat(vehicleType uint8) ([]byte
 func (ms *MessageSequence) GenerateRealisticBatteryStatus(batteryPercent int8) ([]byte, error) {
 	// Generate realistic cell voltages based on battery percentage
 	cellVoltage := uint16(3300 + (4200-3300)*int(batteryPercent)/100) // 3.3V to 4.2V per cell
-	
+
 	msg := BatteryMessage{
 		BatteryID:        0,
-		BatteryFunction:  0, // Main battery
-		BatteryType:      1, // LiPo
-		Temperature:      2500, // 25°C in centigrade
-		CurrentBattery:   -1500, // -15A discharge
-		CurrentConsumed:  1000, // 1Ah consumed
+		BatteryFunction:  0,      // Main battery
+		BatteryType:      1,      // LiPo
+		Temperature:      2500,   // 25°C in centigrade
+		CurrentBattery:   -1500,  // -15A discharge
+		CurrentConsumed:  1000,   // 1Ah consumed
 		EnergyConsumed:   144000, // 4Wh in hJ
 		BatteryRemaining: batteryPercent,
 	}
-	
+
 	// Set realistic cell voltages (4S battery)
 	for i := 0; i < 4; i++ {
 		msg.Voltages[i] = cellVoltage + uint16(rand.Intn(50)) // Add some variation
 	}
-	
+
 	return ms.generator.GenerateBatteryStatus(msg)
 }
 
@@ -312,14 +315,14 @@ func (ms *MessageSequence) GenerateRealisticBatteryStatus(batteryPercent int8) (
 func (ms *MessageSequence) GenerateRealisticPosition(lat, lon float64, alt int32) ([]byte, error) {
 	msg := PositionMessage{
 		TimeBootMs:  ms.currentTime,
-		Lat:         int32(lat * 1e7),    // Convert to degE7
-		Lon:         int32(lon * 1e7),    // Convert to degE7
-		Alt:         alt * 1000,          // Convert to mm
-		RelativeAlt: alt * 1000,          // Convert to mm
-		Vx:          500,                 // 5 m/s north
-		Vy:          0,                   // 0 m/s east
-		Vz:          0,                   // 0 m/s down
-		Hdg:         uint16(0 * 100),     // 0 degrees in cdeg
+		Lat:         int32(lat * 1e7), // Convert to degE7
+		Lon:         int32(lon * 1e7), // Convert to degE7
+		Alt:         alt * 1000,       // Convert to mm
+		RelativeAlt: alt * 1000,       // Convert to mm
+		Vx:          500,              // 5 m/s north
+		Vy:          0,                // 0 m/s east
+		Vz:          0,                // 0 m/s down
+		Hdg:         uint16(0 * 100),  // 0 degrees in cdeg
 	}
 	return ms.generator.GenerateGlobalPosition(msg)
 }
@@ -329,9 +332,9 @@ func (ms *MessageSequence) GenerateRealisticAttitude(roll, pitch, yaw float32) (
 	msg := AttitudeMessage{
 		TimeBootMs: ms.currentTime,
 		Roll:       roll,
-		Pitch:      pitch,  
+		Pitch:      pitch,
 		Yaw:        yaw,
-		Rollspeed:  0.01,   // Small angular velocity
+		Rollspeed:  0.01, // Small angular velocity
 		Pitchspeed: 0.01,
 		Yawspeed:   0.02,
 	}
@@ -363,7 +366,7 @@ func (qs *QuadcopterScenario) NextHeartbeat() ([]byte, error) {
 	return qs.sequence.GenerateRealisticHeartbeat(constants.MavTypeQuadrotor)
 }
 
-// NextBatteryStatus generates the next battery status message in the scenario  
+// NextBatteryStatus generates the next battery status message in the scenario
 func (qs *QuadcopterScenario) NextBatteryStatus() ([]byte, error) {
 	// Gradually drain battery over time
 	if qs.batteryPercent > 0 {
@@ -375,12 +378,12 @@ func (qs *QuadcopterScenario) NextBatteryStatus() ([]byte, error) {
 // NextPosition generates the next position message in the scenario
 func (qs *QuadcopterScenario) NextPosition() ([]byte, error) {
 	// Simple circular pattern around start position
-	radius := 0.001 // ~100m in degrees
+	radius := 0.001                                     // ~100m in degrees
 	angle := float64(qs.sequence.currentTime) / 10000.0 // Slow circular motion
-	
+
 	lat := qs.startLat + radius*math.Sin(angle)
 	lon := qs.startLon + radius*math.Cos(angle)
-	
+
 	return qs.sequence.GenerateRealisticPosition(lat, lon, qs.startAlt)
 }
 
@@ -390,7 +393,7 @@ func (qs *QuadcopterScenario) NextAttitude() ([]byte, error) {
 	roll := float32(0.05 * math.Sin(float64(qs.sequence.currentTime)/1000.0))
 	pitch := float32(0.03 * math.Sin(float64(qs.sequence.currentTime)/1500.0))
 	yaw := float32(float64(qs.sequence.currentTime) / 10000.0) // Slowly rotating
-	
+
 	return qs.sequence.GenerateRealisticAttitude(roll, pitch, yaw)
 }
 

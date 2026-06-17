@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package rule
 
 import (
@@ -7,9 +10,9 @@ import (
 	"time"
 
 	"github.com/c360/semstreams/message"
+	"github.com/c360/semstreams/processor/robotics/payloads"
 	"github.com/c360/streamkit/metric"
 	"github.com/c360/streamkit/natsclient"
-	"github.com/c360/semstreams/processor/robotics/payloads"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,18 +20,18 @@ import (
 
 func TestRuleProcessor_MetricsInitialization(t *testing.T) {
 	// Test metrics initialization with nil registry
-	natsClient := natsclient.NewTestClient(t, 
+	natsClient := natsclient.NewTestClient(t,
 		natsclient.WithJetStream(),
 		natsclient.WithKVBuckets("ENTITY_STATES"))
 	processor := NewProcessorWithMetrics(natsClient.Client, nil, nil)
-	
+
 	// Should have nil metrics when no registry provided
 	assert.Nil(t, processor.metrics)
-	
+
 	// Test with metrics registry
 	registry := metric.NewMetricsRegistry()
 	processorWithMetrics := NewProcessorWithMetrics(natsClient.Client, nil, registry)
-	
+
 	// Should have non-nil metrics when registry provided
 	assert.NotNil(t, processorWithMetrics.metrics)
 	assert.NotNil(t, processorWithMetrics.metrics.messagesReceived)
@@ -64,8 +67,8 @@ func TestRuleProcessor_MetricsTracking(t *testing.T) {
 
 	// Create config with KV watch patterns
 	config := CreateRuleTestConfig(
-		[]string{"battery_monitor"},                // enabled rules
-		[]string{"test.robotics.*.battery.*"},      // KV watch patterns
+		[]string{"battery_monitor"},           // enabled rules
+		[]string{"test.robotics.*.battery.*"}, // KV watch patterns
 	)
 
 	processor := NewProcessorWithMetrics(natsClient.Client, &config, registry)
@@ -110,9 +113,9 @@ func TestRuleProcessor_MetricsTracking(t *testing.T) {
 
 	// Create a low battery entity that should trigger the rule
 	batteryEntity := CreateBatteryEntity(
-		"test.robotics.drone.battery.001",  // ID matching watch pattern
-		15.0,  // Low battery level (triggers at <= 20)
-		3.3,   // Low voltage
+		"test.robotics.drone.battery.001", // ID matching watch pattern
+		15.0,                              // Low battery level (triggers at <= 20)
+		3.3,                               // Low voltage
 	)
 
 	// Write entity to KV bucket - this triggers the rule evaluation
@@ -160,62 +163,62 @@ func TestRuleProcessor_MetricsTracking(t *testing.T) {
 }
 
 func TestRuleProcessor_ErrorMetrics(t *testing.T) {
-	natsClient := natsclient.NewTestClient(t, 
+	natsClient := natsclient.NewTestClient(t,
 		natsclient.WithJetStream(),
 		natsclient.WithKVBuckets("ENTITY_STATES"))
-	
+
 	registry := metric.NewMetricsRegistry()
 	processor := NewProcessorWithMetrics(natsClient.Client, nil, registry)
 	require.NotNil(t, processor.metrics)
-	
+
 	// Simulate various types of errors
 	processor.recordError("rule battery_monitor execution failed: test error")
 	processor.recordError("failed to unmarshal message: invalid json")
 	processor.recordError("failed to publish event: connection lost")
 	processor.recordError("validation failed: missing field")
 	processor.recordError("generic error message")
-	
+
 	// Check error metrics
 	// Should have recorded errors with different types
 	if processor.metrics != nil && processor.metrics.errorsTotal != nil {
 		// Check different error types that were recorded based on actual categorization logic:
 		// 1. "rule battery_monitor execution failed:" -> ruleName="battery_monitor", errorType="rule_execution"
 		executionErrorCount := testutil.ToFloat64(processor.metrics.errorsTotal.WithLabelValues("battery_monitor", "rule_execution"))
-		
+
 		// 2. "failed to unmarshal message:" -> ruleName="unknown", errorType="serialization"
 		serializationErrorCount := testutil.ToFloat64(processor.metrics.errorsTotal.WithLabelValues("unknown", "serialization"))
-		
+
 		// 3. "failed to publish event:" -> ruleName="unknown", errorType="publishing"
 		publishErrorCount := testutil.ToFloat64(processor.metrics.errorsTotal.WithLabelValues("unknown", "publishing"))
-		
+
 		// 4. "validation failed:" -> ruleName="unknown", errorType="validation"
 		validationErrorCount := testutil.ToFloat64(processor.metrics.errorsTotal.WithLabelValues("unknown", "validation"))
-		
+
 		// 5. "generic error message" -> ruleName="unknown", errorType="generic"
 		genericErrorCount := testutil.ToFloat64(processor.metrics.errorsTotal.WithLabelValues("unknown", "generic"))
-		
+
 		totalErrors := executionErrorCount + serializationErrorCount + publishErrorCount + validationErrorCount + genericErrorCount
 		assert.True(t, totalErrors >= 5.0, "Should have recorded at least 5 errors, got %f", totalErrors)
 	}
 }
 
 func TestRuleProcessor_BufferMetrics(t *testing.T) {
-	natsClient := natsclient.NewTestClient(t, 
+	natsClient := natsclient.NewTestClient(t,
 		natsclient.WithJetStream(),
 		natsclient.WithKVBuckets("ENTITY_STATES"))
-	
+
 	registry := metric.NewMetricsRegistry()
-	
+
 	config := DefaultConfig()
 	// Override specific test settings
 	config.EnabledRules = []string{"battery_monitor"}
 	config.BufferWindowSize = "100ms" // Very short window for testing expiration
 	config.AlertCooldownPeriod = "2m"
 	config.EnableGraphIntegration = true
-	
+
 	processor := NewProcessorWithMetrics(natsClient.Client, &config, registry)
 	require.NotNil(t, processor.metrics)
-	
+
 	// Initialize the processor (loads rules)
 	err := processor.Initialize()
 	require.NoError(t, err)
@@ -248,7 +251,7 @@ func TestRuleProcessor_BufferMetrics(t *testing.T) {
 	// Wait for subscription to be fully established in NATS server
 	// This is critical for integration tests to avoid race conditions
 	time.Sleep(1 * time.Second)
-	
+
 	// Send multiple messages quickly to build up buffer
 	for i := 0; i < 3; i++ {
 		batteryMsg := &payloads.BatteryPayload{
@@ -256,60 +259,60 @@ func TestRuleProcessor_BufferMetrics(t *testing.T) {
 			BatteryID:        0,
 			BatteryRemaining: 50,
 			Voltages:         []uint16{4000, 4010, 4000},
-			CurrentBattery:   100, // 1.0A in 10*mA units
+			CurrentBattery:   100,  // 1.0A in 10*mA units
 			Temperature:      2500, // 25C in centi-degrees
 			Ts:               time.Now(),
 		}
-		
+
 		// Create proper BaseMessage wrapper
 		msgType := message.Type{Domain: "robotics", Category: "battery", Version: "v1"}
 		baseMsg := message.NewBaseMessage(msgType, batteryMsg, "test-source")
-		
+
 		data, err := json.Marshal(baseMsg)
 		require.NoError(t, err)
-		
+
 		err = natsClient.Client.Publish(ctx, "process.robotics.battery", data)
 		require.NoError(t, err)
-		
+
 		time.Sleep(10 * time.Millisecond) // Small delay between messages
 	}
-	
+
 	// Wait for processing
 	time.Sleep(200 * time.Millisecond)
-	
+
 	// Send another message after buffer should have expired
 	time.Sleep(200 * time.Millisecond) // Wait for buffer expiration
-	
+
 	batteryMsg := &payloads.BatteryPayload{
 		SystemID:         1,
 		BatteryID:        0,
 		BatteryRemaining: 40,
 		Voltages:         []uint16{3800, 3810, 3790},
-		CurrentBattery:   150, // 1.5A in 10*mA units
+		CurrentBattery:   150,  // 1.5A in 10*mA units
 		Temperature:      2600, // 26C in centi-degrees
 		Ts:               time.Now(),
 	}
-	
+
 	// Create proper BaseMessage wrapper
 	msgType := message.Type{Domain: "robotics", Category: "battery", Version: "v1"}
 	baseMsg := message.NewBaseMessage(msgType, batteryMsg, "test-source")
-	
+
 	data, err := json.Marshal(baseMsg)
 	require.NoError(t, err)
-	
+
 	err = natsClient.Client.Publish(ctx, "process.robotics.battery", data)
 	require.NoError(t, err)
-	
+
 	// Wait for processing
 	time.Sleep(300 * time.Millisecond)
-	
+
 	// Check buffer metrics
 	// Should have tracked buffer size
 	if processor.metrics != nil && processor.metrics.bufferSize != nil {
 		bufferSize := testutil.ToFloat64(processor.metrics.bufferSize.WithLabelValues("battery_monitor"))
 		assert.True(t, bufferSize >= 0, "Buffer size should be tracked")
 	}
-	
+
 	// Should have some expired messages due to short window
 	if processor.metrics != nil && processor.metrics.bufferExpiredTotal != nil {
 		expiredCount := testutil.ToFloat64(processor.metrics.bufferExpiredTotal.WithLabelValues("battery_monitor"))
@@ -338,20 +341,20 @@ func TestRuleProcessor_PublishingMetrics(t *testing.T) {
 
 	// Create config with KV watch patterns
 	config := CreateRuleTestConfig(
-		[]string{"battery_monitor"},                // enabled rules
-		[]string{"test.robotics.*.battery.*"},      // KV watch patterns
+		[]string{"battery_monitor"},           // enabled rules
+		[]string{"test.robotics.*.battery.*"}, // KV watch patterns
 	)
 	config.BufferWindowSize = "10m"
 	config.AlertCooldownPeriod = "1ms" // Very short cooldown for testing
 	config.EnableGraphIntegration = true
-	
+
 	processor := NewProcessorWithMetrics(natsClient.Client, &config, registry)
 	require.NotNil(t, processor.metrics)
-	
+
 	// Initialize the processor (loads rules)
 	err = processor.Initialize()
 	require.NoError(t, err)
-	
+
 	// Start processor with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -381,9 +384,9 @@ func TestRuleProcessor_PublishingMetrics(t *testing.T) {
 
 	// Create a very low battery entity that should trigger the rule
 	batteryEntity := CreateBatteryEntity(
-		"test.robotics.drone.battery.001",  // ID matching watch pattern
-		8.0,   // Very low battery level (triggers at <= 20)
-		3.0,   // Very low voltage
+		"test.robotics.drone.battery.001", // ID matching watch pattern
+		8.0,                               // Very low battery level (triggers at <= 20)
+		3.0,                               // Very low voltage
 	)
 
 	// Write entity to KV bucket - this triggers the rule evaluation
@@ -391,7 +394,7 @@ func TestRuleProcessor_PublishingMetrics(t *testing.T) {
 
 	// Wait for KV evaluation to complete
 	time.Sleep(500 * time.Millisecond)
-	
+
 	// Check metrics
 	// Should have triggered a rule (using "info" severity as per implementation)
 	// KV rules use rule ID with "_kv" suffix
@@ -409,4 +412,3 @@ func TestRuleProcessor_PublishingMetrics(t *testing.T) {
 		// assert.True(t, publishedCount > 0, "Should have published at least one event")
 	}
 }
-

@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package sitl
 
 import (
@@ -17,11 +20,11 @@ func (c *Controller) Arm() error {
 	if err != nil {
 		return fmt.Errorf("arm command failed: %w", err)
 	}
-	
+
 	if !result.Success {
 		return fmt.Errorf("arm command rejected: %s", result.Message)
 	}
-	
+
 	return nil
 }
 
@@ -32,11 +35,11 @@ func (c *Controller) Disarm() error {
 	if err != nil {
 		return fmt.Errorf("disarm command failed: %w", err)
 	}
-	
+
 	if !result.Success {
 		return fmt.Errorf("disarm command rejected: %s", result.Message)
 	}
-	
+
 	return nil
 }
 
@@ -45,30 +48,30 @@ func (c *Controller) Takeoff(altitude float64) error {
 	// MAV_CMD_NAV_TAKEOFF parameters:
 	// param1: pitch (unused for multirotor)
 	// param2: empty
-	// param3: empty  
+	// param3: empty
 	// param4: yaw angle (NaN for current yaw)
 	// param5: latitude (NaN for current position)
 	// param6: longitude (NaN for current position)
 	// param7: altitude in meters
 	params := [7]float32{
-		0,                    // pitch (unused for multirotor)
-		0,                    // empty
-		0,                    // empty
-		float32(math.NaN()),  // yaw (current)
-		float32(math.NaN()),  // lat (current)
-		float32(math.NaN()),  // lon (current)
-		float32(altitude),    // altitude
+		0,                   // pitch (unused for multirotor)
+		0,                   // empty
+		0,                   // empty
+		float32(math.NaN()), // yaw (current)
+		float32(math.NaN()), // lat (current)
+		float32(math.NaN()), // lon (current)
+		float32(altitude),   // altitude
 	}
-	
+
 	result, err := c.sendCommand(constants.MAV_CMD_NAV_TAKEOFF, params, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("takeoff command failed: %w", err)
 	}
-	
+
 	if !result.Success {
 		return fmt.Errorf("takeoff command rejected: %s", result.Message)
 	}
-	
+
 	return nil
 }
 
@@ -83,24 +86,24 @@ func (c *Controller) Land() error {
 	// param6: longitude (NaN for current position)
 	// param7: altitude (0 for ground level)
 	params := [7]float32{
-		0,                    // abort altitude
-		0,                    // precision land mode
-		0,                    // empty
-		float32(math.NaN()),  // yaw (current)
-		float32(math.NaN()),  // lat (current)
-		float32(math.NaN()),  // lon (current)
-		0,                    // altitude (ground level)
+		0,                   // abort altitude
+		0,                   // precision land mode
+		0,                   // empty
+		float32(math.NaN()), // yaw (current)
+		float32(math.NaN()), // lat (current)
+		float32(math.NaN()), // lon (current)
+		0,                   // altitude (ground level)
 	}
-	
+
 	result, err := c.sendCommand(constants.MAV_CMD_NAV_LAND, params, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("land command failed: %w", err)
 	}
-	
+
 	if !result.Success {
 		return fmt.Errorf("land command rejected: %s", result.Message)
 	}
-	
+
 	return nil
 }
 
@@ -108,16 +111,16 @@ func (c *Controller) Land() error {
 func (c *Controller) RTL() error {
 	// MAV_CMD_NAV_RETURN_TO_LAUNCH has no parameters
 	params := [7]float32{0, 0, 0, 0, 0, 0, 0}
-	
+
 	result, err := c.sendCommand(constants.MAV_CMD_NAV_RETURN_TO_LAUNCH, params, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("RTL command failed: %w", err)
 	}
-	
+
 	if !result.Success {
 		return fmt.Errorf("RTL command rejected: %s", result.Message)
 	}
-	
+
 	return nil
 }
 
@@ -128,31 +131,31 @@ func (c *Controller) SetMode(mode string) error {
 	if err != nil {
 		return fmt.Errorf("invalid mode %s: %w", mode, err)
 	}
-	
+
 	// MAV_CMD_DO_SET_MODE parameters:
 	// param1: flight mode (1 = custom mode)
 	// param2: custom mode number
 	params := [7]float32{
-		1,                      // mode flag (1 = custom mode)
-		float32(customMode),    // custom mode number
-		0, 0, 0, 0, 0,         // unused parameters
+		1,                   // mode flag (1 = custom mode)
+		float32(customMode), // custom mode number
+		0, 0, 0, 0, 0,       // unused parameters
 	}
-	
+
 	result, err := c.sendCommand(constants.MAV_CMD_DO_SET_MODE, params, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("set mode command failed: %w", err)
 	}
-	
+
 	if !result.Success {
 		return fmt.Errorf("set mode command rejected: %s", result.Message)
 	}
-	
+
 	return nil
 }
 
 // Movement commands
 
-// Goto commands the drone to fly to the specified GPS position  
+// Goto commands the drone to fly to the specified GPS position
 func (c *Controller) Goto(lat, lon, alt float64) error {
 	// MAV_CMD_NAV_WAYPOINT parameters:
 	// param1: hold time at waypoint (seconds)
@@ -160,7 +163,7 @@ func (c *Controller) Goto(lat, lon, alt float64) error {
 	// param3: pass radius (meters, 0 = no pass through)
 	// param4: yaw angle (NaN for current yaw)
 	// param5: latitude
-	// param6: longitude  
+	// param6: longitude
 	// param7: altitude
 	params := [7]float32{
 		0,                   // hold time
@@ -171,16 +174,16 @@ func (c *Controller) Goto(lat, lon, alt float64) error {
 		float32(lon),        // longitude
 		float32(alt),        // altitude
 	}
-	
+
 	result, err := c.sendCommand(constants.MAV_CMD_NAV_WAYPOINT, params, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("goto command failed: %w", err)
 	}
-	
+
 	if !result.Success {
 		return fmt.Errorf("goto command rejected: %s", result.Message)
 	}
-	
+
 	return nil
 }
 
@@ -205,16 +208,16 @@ func (c *Controller) SetYaw(yaw float64) error {
 		0,                              // absolute angle
 		0, 0, 0,                        // unused
 	}
-	
+
 	result, err := c.sendCommand(constants.MAV_CMD_CONDITION_YAW, params, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("set yaw command failed: %w", err)
 	}
-	
+
 	if !result.Success {
 		return fmt.Errorf("set yaw command rejected: %s", result.Message)
 	}
-	
+
 	return nil
 }
 
@@ -247,10 +250,10 @@ func (c *Controller) stringToCustomMode(mode string) (uint32, error) {
 		"SYSTEMID":     25,
 		"AUTOROTATE":   26,
 	}
-	
+
 	if customMode, exists := modes[mode]; exists {
 		return customMode, nil
 	}
-	
+
 	return 0, fmt.Errorf("unknown mode: %s", mode)
 }

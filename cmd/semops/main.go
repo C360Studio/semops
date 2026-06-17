@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	_ "github.com/c360/semops" // Import for documentation
+	_ "github.com/c360studio/semops" // Import for documentation
 )
 
 // Version information (set by build)

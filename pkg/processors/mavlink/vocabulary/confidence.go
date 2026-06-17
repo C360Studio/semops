@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package vocabulary
 
 // GPS confidence levels based on fix quality and accuracy.

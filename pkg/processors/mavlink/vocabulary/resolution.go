@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package vocabulary
 
 // Resolution strategies for entity deduplication and conflict resolution.

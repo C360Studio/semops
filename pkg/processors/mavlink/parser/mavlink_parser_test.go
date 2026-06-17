@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package parser
 
 import (
@@ -8,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	message "github.com/c360/semstreams/message"
 	"github.com/c360/semops/pkg/processors/mavlink/constants"
 	roboticsPayloads "github.com/c360/semops/pkg/processors/mavlink/payloads"
+	message "github.com/c360/semstreams/message"
 )
 
 func TestNewMAVLinkParser(t *testing.T) {

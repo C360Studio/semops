@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package parser
 
 import (
@@ -6,9 +9,9 @@ import (
 	"fmt"
 	"time"
 
-	message "github.com/c360/semstreams/message"
 	"github.com/c360/semops/pkg/processors/mavlink/constants"
 	"github.com/c360/semops/pkg/processors/mavlink/payloads"
+	message "github.com/c360/semstreams/message"
 )
 
 // MAVLinkPacket represents a parsed MAVLink packet

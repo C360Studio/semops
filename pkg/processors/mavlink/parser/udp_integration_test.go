@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package parser
 
 import (
@@ -86,7 +89,7 @@ func TestUDPIntegration(t *testing.T) {
 			Autopilot:      3,  // MAV_AUTOPILOT_ARDUPILOTMEGA
 			BaseMode:       81, // ARMED + MANUAL
 			CustomMode:     0,
-			SystemStatus:   4,  // MAV_STATE_ACTIVE
+			SystemStatus:   4, // MAV_STATE_ACTIVE
 			MavlinkVersion: 3,
 		})
 		require.NoError(t, err)

@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package vocabulary
 
 import "github.com/c360/semstreams/message"

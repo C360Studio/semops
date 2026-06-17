@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package vocabulary
 
 // Relationship constants commonly used by robotics domain.

@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package robotics
 
 import (
@@ -26,7 +29,7 @@ func TestRoboticsProcessorInterfaceCompliance(t *testing.T) {
 
 	// Verify it implements LifecycleComponent interface
 	var _ component.LifecycleComponent = roboticsProcessor
-	
+
 	// Verify it implements Discoverable interface
 	var _ component.Discoverable = roboticsProcessor
 
@@ -172,24 +175,24 @@ func TestCreateRoboticsProcessor_EmptyConfigPreservesDefaultPorts(t *testing.T) 
 	}
 
 	tests := []struct {
-		name           string
-		config         string
-		expectPorts    bool
-		expectedInputs int
+		name            string
+		config          string
+		expectPorts     bool
+		expectedInputs  int
 		expectedOutputs int
 	}{
 		{
-			name:           "empty config preserves default ports",
-			config:         `{}`,
-			expectPorts:    true,
-			expectedInputs: 1,
+			name:            "empty config preserves default ports",
+			config:          `{}`,
+			expectPorts:     true,
+			expectedInputs:  1,
 			expectedOutputs: 1,
 		},
 		{
-			name:           "nil config uses default ports",
-			config:         ``,
-			expectPorts:    true,
-			expectedInputs: 1,
+			name:            "nil config uses default ports",
+			config:          ``,
+			expectPorts:     true,
+			expectedInputs:  1,
 			expectedOutputs: 1,
 		},
 		{
@@ -200,8 +203,8 @@ func TestCreateRoboticsProcessor_EmptyConfigPreservesDefaultPorts(t *testing.T) 
 					"outputs": [{"name": "custom", "pattern": "stream", "subject": "custom.out"}]
 				}
 			}`,
-			expectPorts:    true,
-			expectedInputs: 2,  // default + custom
+			expectPorts:     true,
+			expectedInputs:  2, // default + custom
 			expectedOutputs: 2, // default + custom
 		},
 	}

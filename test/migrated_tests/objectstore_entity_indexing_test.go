@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package objectstore
 
 import (
@@ -9,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/c360/semstreams/processor/robotics/payloads"
 	"github.com/c360/streamkit/cache"
 	"github.com/c360/streamkit/natsclient"
-	"github.com/c360/semstreams/processor/robotics/payloads"
 )
 
 // Helper function to create a store with default config for entity indexing tests
@@ -89,11 +92,11 @@ func TestEntityIndexing_QueryByEntityID(t *testing.T) {
 	require.NoError(t, err)
 
 	// NOTE: Due to key collision, only the last message for the same primary entity is stored
-	// Both battery1 and battery2 have the same EntityID (c360.platform1.robotics.mav123.battery.0) and 
+	// Both battery1 and battery2 have the same EntityID (c360.platform1.robotics.mav123.battery.0) and
 	// are stored within the same time bucket, so battery2 overwrites battery1
 	// This is expected behavior for last-writer-wins semantics
 	assert.Len(t, foundKeys, 1, "Only one message should be stored due to key collision")
-	
+
 	// The stored message should be either key1 or key2 (whichever was stored last)
 	// Due to the timing, it should be key2
 	if len(foundKeys) > 0 {
@@ -251,4 +254,3 @@ func TestEntityIndexing_MetadataFormat(t *testing.T) {
 	assert.True(t, strings.Contains(roleHeader, "primary"),
 		"Entity role should contain 'primary' role")
 }
-

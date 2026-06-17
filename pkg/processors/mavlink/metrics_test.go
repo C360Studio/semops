@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package robotics
 
 import (
@@ -67,11 +70,11 @@ func TestRoboticsProcessorMetrics_Basic(t *testing.T) {
 	if processor.metrics.messagesReceived != nil {
 		processor.metrics.messagesReceived.WithLabelValues("raw.drone.mavlink", "mavlink").Inc()
 		processor.metrics.messagesReceived.WithLabelValues("raw.drone.json", "json").Inc()
-		
+
 		// Verify the labeled counters
 		mavlinkValue := testutil.ToFloat64(processor.metrics.messagesReceived.WithLabelValues("raw.drone.mavlink", "mavlink"))
 		jsonValue := testutil.ToFloat64(processor.metrics.messagesReceived.WithLabelValues("raw.drone.json", "json"))
-		
+
 		if mavlinkValue != 1.0 {
 			t.Errorf("Expected MAVLink counter to be 1.0, got %f", mavlinkValue)
 		}
@@ -84,10 +87,10 @@ func TestRoboticsProcessorMetrics_Basic(t *testing.T) {
 	if processor.metrics.messagesProcessed != nil {
 		processor.metrics.messagesProcessed.WithLabelValues("1", "HEARTBEAT", "mavlink").Inc()
 		processor.metrics.messagesProcessed.WithLabelValues("1", "POSITION", "mavlink").Inc()
-		
+
 		heartbeatValue := testutil.ToFloat64(processor.metrics.messagesProcessed.WithLabelValues("1", "HEARTBEAT", "mavlink"))
 		positionValue := testutil.ToFloat64(processor.metrics.messagesProcessed.WithLabelValues("1", "POSITION", "mavlink"))
-		
+
 		if heartbeatValue != 1.0 {
 			t.Errorf("Expected HEARTBEAT counter to be 1.0, got %f", heartbeatValue)
 		}
@@ -100,14 +103,14 @@ func TestRoboticsProcessorMetrics_Basic(t *testing.T) {
 	if processor.metrics.parseDuration != nil {
 		processor.metrics.parseDuration.WithLabelValues("mavlink", "HEARTBEAT").Observe(0.001)
 		processor.metrics.parseDuration.WithLabelValues("json", "POSITION").Observe(0.002)
-		
+
 		// Histograms are complex to verify, just ensure they don't panic and can be observed
 	}
 
 	// Test active vehicles gauge
 	if processor.metrics.activeVehicles != nil {
 		processor.metrics.activeVehicles.Set(3)
-		
+
 		value := testutil.ToFloat64(processor.metrics.activeVehicles)
 		if value != 3.0 {
 			t.Errorf("Expected active vehicles to be 3.0, got %f", value)
@@ -118,7 +121,7 @@ func TestRoboticsProcessorMetrics_Basic(t *testing.T) {
 	if processor.metrics.payloadSize != nil {
 		processor.metrics.payloadSize.WithLabelValues("heartbeat").Observe(128)
 		processor.metrics.payloadSize.WithLabelValues("position").Observe(256)
-		
+
 		// Histograms store samples, just ensure no panic
 	}
 }
@@ -177,10 +180,10 @@ func TestRoboticsProcessorMetrics_ErrorHandling(t *testing.T) {
 	if processor.metrics.messagesDropped != nil {
 		processor.metrics.messagesDropped.WithLabelValues("1", "parsing_error", "mavlink").Inc()
 		processor.metrics.messagesDropped.WithLabelValues("2", "checksum_error", "mavlink").Inc()
-		
+
 		parsingErrorValue := testutil.ToFloat64(processor.metrics.messagesDropped.WithLabelValues("1", "parsing_error", "mavlink"))
 		checksumErrorValue := testutil.ToFloat64(processor.metrics.messagesDropped.WithLabelValues("2", "checksum_error", "mavlink"))
-		
+
 		if parsingErrorValue != 1.0 {
 			t.Errorf("Expected parsing error counter to be 1.0, got %f", parsingErrorValue)
 		}
@@ -192,7 +195,7 @@ func TestRoboticsProcessorMetrics_ErrorHandling(t *testing.T) {
 	// Test checksum errors counter
 	if processor.metrics.checksumErrors != nil {
 		processor.metrics.checksumErrors.WithLabelValues("1", "0").Inc() // Heartbeat message
-		
+
 		value := testutil.ToFloat64(processor.metrics.checksumErrors.WithLabelValues("1", "0"))
 		if value != 1.0 {
 			t.Errorf("Expected checksum error counter to be 1.0, got %f", value)
@@ -202,7 +205,7 @@ func TestRoboticsProcessorMetrics_ErrorHandling(t *testing.T) {
 	// Test unknown messages counter
 	if processor.metrics.unknownMessages != nil {
 		processor.metrics.unknownMessages.WithLabelValues("1", "999").Inc() // Unknown message ID
-		
+
 		value := testutil.ToFloat64(processor.metrics.unknownMessages.WithLabelValues("1", "999"))
 		if value != 1.0 {
 			t.Errorf("Expected unknown message counter to be 1.0, got %f", value)
@@ -224,7 +227,7 @@ func TestRoboticsProcessorMetrics_TimestampTracking(t *testing.T) {
 	if processor.metrics.lastMessageTimestamp != nil {
 		now := float64(time.Now().Unix())
 		processor.metrics.lastMessageTimestamp.WithLabelValues("1", "HEARTBEAT").Set(now)
-		
+
 		value := testutil.ToFloat64(processor.metrics.lastMessageTimestamp.WithLabelValues("1", "HEARTBEAT"))
 		if value != now {
 			t.Errorf("Expected timestamp to be %f, got %f", now, value)

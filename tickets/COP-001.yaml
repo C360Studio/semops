@@ -3,12 +3,16 @@ title: Modernize SemOps against current SemStreams contracts
 assigned: architect
 depends_on: []
 blocks: [COP-002, COP-003, COP-004]
-status: ready
+status: review
 reviewer: go-reviewer
 openspec_change: revive-cop-product
 
 review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-17-framework-modernization-impact.md
+
+evidence_records:
+  - docs/legacy-quarantine.md
+  - internal/contracts/semstreams_contract_test.go
 
 scope:
   - Update SemOps to the current SemStreams module path github.com/c360studio/semstreams.

@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package sitl
 
 import (
@@ -16,7 +19,7 @@ import (
 func (c *Controller) registerDefaultHandlers() {
 	c.handlerMux.Lock()
 	defer c.handlerMux.Unlock()
-	
+
 	c.messageHandlers[constants.MavlinkMsgIdHeartbeat] = c.handleHeartbeat
 	c.messageHandlers[constants.MavlinkMsgIdGlobalPositionInt] = c.handleGlobalPosition
 	c.messageHandlers[constants.MavlinkMsgIdAttitude] = c.handleAttitude
@@ -33,9 +36,9 @@ func (c *Controller) processMessages(ctx context.Context) {
 			close(c.done)
 		}
 	}()
-	
+
 	buffer := make([]byte, 1024)
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -48,7 +51,7 @@ func (c *Controller) processMessages(ctx context.Context) {
 				// Log but continue - read deadline is best effort
 				continue
 			}
-			
+
 			n, err := c.conn.Read(buffer)
 			if err != nil {
 				// Check if it's a timeout or actual error
@@ -58,14 +61,14 @@ func (c *Controller) processMessages(ctx context.Context) {
 				// Actual error, likely connection closed
 				return
 			}
-			
+
 			// Parse MAVLink packets
 			packets, err := c.parser.Parse(buffer[:n])
 			if err != nil {
 				// Log error but continue processing
 				continue
 			}
-			
+
 			// Process each packet
 			for _, packet := range packets {
 				c.handleMessage(packet)
@@ -79,7 +82,7 @@ func (c *Controller) handleMessage(packet *parser.MAVLinkPacket) {
 	c.handlerMux.RLock()
 	handler, exists := c.messageHandlers[packet.MessageID]
 	c.handlerMux.RUnlock()
-	
+
 	if exists {
 		handler(packet)
 	}
@@ -90,24 +93,24 @@ func (c *Controller) handleHeartbeat(packet *parser.MAVLinkPacket) {
 	if packet.SystemID != c.targetSysID {
 		return // Not from our target drone
 	}
-	
+
 	c.stateMux.Lock()
 	defer c.stateMux.Unlock()
-	
+
 	c.state.Connected = true
 	c.state.LastHeartbeat = packet.Timestamp
-	
+
 	if packet.ParsedFields != nil {
 		// Update armed status from base mode
 		if baseMode, ok := packet.ParsedFields["base_mode"].(uint8); ok {
 			c.state.Armed = (baseMode & constants.MavModeFlagSafetyArmed) != 0
 		}
-		
+
 		// Update system status
 		if systemStatus, ok := packet.ParsedFields["system_status"].(uint8); ok {
 			c.state.SystemStatus = systemStatus
 		}
-		
+
 		// Update flight mode from custom mode
 		if customMode, ok := packet.ParsedFields["custom_mode"].(uint32); ok {
 			c.state.FlightMode = c.customModeToString(customMode)
@@ -120,10 +123,10 @@ func (c *Controller) handleGlobalPosition(packet *parser.MAVLinkPacket) {
 	if packet.SystemID != c.targetSysID {
 		return
 	}
-	
+
 	c.stateMux.Lock()
 	defer c.stateMux.Unlock()
-	
+
 	if packet.ParsedFields != nil {
 		// Update position
 		if lat, ok := packet.ParsedFields["lat"].(int32); ok {
@@ -138,7 +141,7 @@ func (c *Controller) handleGlobalPosition(packet *parser.MAVLinkPacket) {
 		if relAlt, ok := packet.ParsedFields["relative_alt"].(int32); ok {
 			c.state.RelativeAlt = float64(relAlt) / 1000.0 // mm to meters
 		}
-		
+
 		// Update velocity
 		if vx, ok := packet.ParsedFields["vx"].(int16); ok {
 			c.state.VelocityX = float32(vx) / 100.0 // cm/s to m/s
@@ -149,7 +152,7 @@ func (c *Controller) handleGlobalPosition(packet *parser.MAVLinkPacket) {
 		if vz, ok := packet.ParsedFields["vz"].(int16); ok {
 			c.state.VelocityZ = float32(vz) / 100.0 // cm/s to m/s
 		}
-		
+
 		c.state.LastPosition = packet.Timestamp
 	}
 }
@@ -159,10 +162,10 @@ func (c *Controller) handleAttitude(packet *parser.MAVLinkPacket) {
 	if packet.SystemID != c.targetSysID {
 		return
 	}
-	
+
 	c.stateMux.Lock()
 	defer c.stateMux.Unlock()
-	
+
 	if packet.ParsedFields != nil {
 		if roll, ok := packet.ParsedFields["roll"].(float32); ok {
 			c.state.Roll = roll
@@ -173,7 +176,7 @@ func (c *Controller) handleAttitude(packet *parser.MAVLinkPacket) {
 		if yaw, ok := packet.ParsedFields["yaw"].(float32); ok {
 			c.state.Yaw = yaw
 		}
-		
+
 		c.state.LastAttitude = packet.Timestamp
 	}
 }
@@ -183,15 +186,15 @@ func (c *Controller) handleBatteryStatus(packet *parser.MAVLinkPacket) {
 	if packet.SystemID != c.targetSysID {
 		return
 	}
-	
+
 	c.stateMux.Lock()
 	defer c.stateMux.Unlock()
-	
+
 	if packet.ParsedFields != nil {
 		if remaining, ok := packet.ParsedFields["battery_remaining"].(int8); ok {
 			c.state.BatteryPercent = remaining
 		}
-		
+
 		// Calculate average cell voltage
 		if voltages, ok := packet.ParsedFields["voltages"].([]uint16); ok && len(voltages) > 0 {
 			var total uint32
@@ -206,7 +209,7 @@ func (c *Controller) handleBatteryStatus(packet *parser.MAVLinkPacket) {
 				c.state.BatteryVoltage = float32(total) / float32(count) / 1000.0 // mV to V
 			}
 		}
-		
+
 		c.state.LastBattery = packet.Timestamp
 	}
 }
@@ -216,27 +219,27 @@ func (c *Controller) handleCommandAck(packet *parser.MAVLinkPacket) {
 	if packet.SystemID != c.targetSysID {
 		return
 	}
-	
+
 	if packet.ParsedFields == nil {
 		return
 	}
-	
+
 	command, ok1 := packet.ParsedFields["command"].(uint16)
 	result, ok2 := packet.ParsedFields["result"].(uint8)
-	
+
 	if !ok1 || !ok2 {
 		return
 	}
-	
+
 	// Find waiting command acknowledgment
 	c.ackMux.Lock()
 	ackChan, exists := c.commandAcks[command]
 	c.ackMux.Unlock()
-	
+
 	if !exists {
 		return // No one waiting for this command
 	}
-	
+
 	// Create result
 	commandResult := CommandResult{
 		Command: command,
@@ -244,7 +247,7 @@ func (c *Controller) handleCommandAck(packet *parser.MAVLinkPacket) {
 		Success: result == 0, // MAV_RESULT_ACCEPTED = 0
 		Message: c.mavResultToString(result),
 	}
-	
+
 	// Send result to waiting goroutine (non-blocking)
 	select {
 	case ackChan <- commandResult:
@@ -257,7 +260,7 @@ func (c *Controller) handleCommandAck(packet *parser.MAVLinkPacket) {
 func (c *Controller) sendHeartbeat(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -288,16 +291,16 @@ func (c *Controller) sendInitialHeartbeat() {
 func (c *Controller) encodeHeartbeat() []byte {
 	// HEARTBEAT payload: 9 bytes
 	payload := make([]byte, 9)
-	
+
 	// custom_mode (uint32) - 0 for GCS
 	// payload[0:4] already zero
-	
-	payload[4] = constants.MavTypeGcs        // type: Ground Control Station
+
+	payload[4] = constants.MavTypeGcs          // type: Ground Control Station
 	payload[5] = constants.MavAutopilotInvalid // autopilot: Invalid (GCS)
-	payload[6] = 0                           // base_mode: no specific mode
-	payload[7] = constants.MavStateActive    // system_status: Active
-	payload[8] = constants.MavlinkV2         // mavlink_version
-	
+	payload[6] = 0                             // base_mode: no specific mode
+	payload[7] = constants.MavStateActive      // system_status: Active
+	payload[8] = constants.MavlinkV2           // mavlink_version
+
 	return payload
 }
 
@@ -305,7 +308,7 @@ func (c *Controller) encodeHeartbeat() []byte {
 func (c *Controller) monitorConnection(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -352,11 +355,11 @@ func (c *Controller) customModeToString(customMode uint32) string {
 		25: "SYSTEMID",
 		26: "AUTOROTATE",
 	}
-	
+
 	if mode, exists := modes[customMode]; exists {
 		return mode
 	}
-	
+
 	return fmt.Sprintf("UNKNOWN(%d)", customMode)
 }
 

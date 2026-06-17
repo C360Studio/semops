@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package payloads
 
 import (
@@ -7,11 +10,11 @@ import (
 	"math"
 	"time"
 
-	"github.com/c360/streamkit/component"
-	message "github.com/c360/semstreams/message"
 	"github.com/c360/semops/pkg/processors/mavlink/constants"
 	vocab "github.com/c360/semops/pkg/processors/mavlink/vocabulary"
+	message "github.com/c360/semstreams/message"
 	"github.com/c360/semstreams/vocabulary"
+	"github.com/c360/streamkit/component"
 )
 
 func init() {
@@ -197,14 +200,14 @@ func (m *MissionPayload) UnmarshalJSON(data []byte) error {
 func (m *MissionPayload) EntityID() string {
 	// System field comes from MAVLink SystemID at runtime
 	system := m.mapSystemIDToSystem()
-	
+
 	entityID := message.EntityID{
-		Org:      "c360",        // TODO: Get from config when available
-		Platform: "platform1",   // TODO: Get from config when available
-		Domain:   "robotics",    // Domain-first hierarchy
-		System:   system,        // RUNTIME value from message
+		Org:      "c360",      // TODO: Get from config when available
+		Platform: "platform1", // TODO: Get from config when available
+		Domain:   "robotics",  // Domain-first hierarchy
+		System:   system,      // RUNTIME value from message
 		Type:     "mission",
-		Instance: fmt.Sprintf("%d", m.ComponentID),  // Just ComponentID, no SystemID duplication
+		Instance: fmt.Sprintf("%d", m.ComponentID), // Just ComponentID, no SystemID duplication
 	}
 	return entityID.Key()
 }
@@ -232,10 +235,10 @@ func (m *MissionPayload) DroneEntityID() string {
 	entityID := message.EntityID{
 		Org:      "c360",
 		Platform: "platform1",
-		Domain:   "robotics",    // Domain-first hierarchy
+		Domain:   "robotics", // Domain-first hierarchy
 		System:   system,
 		Type:     "drone",
-		Instance: "0",  // Single drone per system, no SystemID duplication
+		Instance: "0", // Single drone per system, no SystemID duplication
 	}
 	return entityID.Key()
 }
@@ -343,10 +346,10 @@ func (m *MissionPayload) AddLoiterPoint(lat, lon, alt, radius, loiterTime float6
 		Command:      constants.MAV_CMD_NAV_LOITER_TIME,
 		Current:      0,
 		Autocontinue: 1,
-		Param1:       float32(loiterTime),   // Loiter time in seconds
-		Param2:       0,               // Empty
-		Param3:       float32(radius), // Loiter radius
-		Param4:       0,               // Yaw
+		Param1:       float32(loiterTime), // Loiter time in seconds
+		Param2:       0,                   // Empty
+		Param3:       float32(radius),     // Loiter radius
+		Param4:       0,                   // Yaw
 		X:            float32(lat),
 		Y:            float32(lon),
 		Z:            float32(alt),
@@ -593,9 +596,9 @@ func (m *MissionPayload) IsActive() bool {
 func (m *MissionPayload) Triples() []message.Triple {
 	entityID := m.EntityID() // mission_systemid_componentid format
 	timestamp := m.Ts
-	
+
 	var triples []message.Triple
-	
+
 	// Mission metadata triples
 	triples = append(triples, []message.Triple{
 		{
@@ -615,7 +618,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Mission progress triples
 	if m.TotalItems > 0 {
 		triples = append(triples, []message.Triple{
@@ -645,7 +648,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			},
 		}...)
 	}
-	
+
 	// Mission name if available
 	if m.MissionName != "" {
 		triples = append(triples, message.Triple{
@@ -657,7 +660,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		})
 	}
-	
+
 	// Distance and time metrics if available
 	if m.DistanceTotal > 0 {
 		triples = append(triples, message.Triple{
@@ -669,7 +672,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 0.9, // Calculated distance
 		})
 	}
-	
+
 	if m.DistanceRemaining > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    entityID,
@@ -680,7 +683,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 0.8, // Estimated remaining
 		})
 	}
-	
+
 	if m.TimeElapsed > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    entityID,
@@ -691,7 +694,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		})
 	}
-	
+
 	if m.EstimatedDuration > 0 {
 		triples = append(triples, message.Triple{
 			Subject:    entityID,
@@ -702,7 +705,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 0.7, // Estimation uncertainty
 		})
 	}
-	
+
 	// Mission status assessments
 	triples = append(triples, []message.Triple{
 		{
@@ -722,7 +725,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Behind schedule assessment if we have timing data
 	if m.EstimatedDuration > 0 {
 		triples = append(triples, message.Triple{
@@ -734,7 +737,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 0.8, // Schedule assessment has uncertainty
 		})
 	}
-	
+
 	// Current waypoint location if available
 	if currentWaypoint := m.GetCurrentWaypoint(); currentWaypoint != nil && m.IsGeographicFrame(currentWaypoint.Frame) {
 		droneEntityID := m.DroneEntityID()
@@ -765,18 +768,18 @@ func (m *MissionPayload) Triples() []message.Triple {
 			},
 		}...)
 	}
-	
+
 	// Relationship triple - Drone executes Mission
 	droneEntityID := m.DroneEntityID()
 	triples = append(triples, message.Triple{
 		Subject:    droneEntityID,
 		Predicate:  "robotics.component.executes", // Custom predicate
-		Object:     entityID, // Entity reference
+		Object:     entityID,                      // Entity reference
 		Source:     "mavlink_mission",
 		Timestamp:  timestamp,
 		Confidence: 1.0,
 	})
-	
+
 	// System identification for the drone
 	triples = append(triples, message.Triple{
 		Subject:    droneEntityID,
@@ -786,7 +789,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 		Timestamp:  timestamp,
 		Confidence: 1.0,
 	})
-	
+
 	// Quality metadata
 	triples = append(triples, []message.Triple{
 		{
@@ -806,7 +809,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	// Lifecycle events
 	triples = append(triples, []message.Triple{
 		{
@@ -826,7 +829,7 @@ func (m *MissionPayload) Triples() []message.Triple {
 			Confidence: 1.0,
 		},
 	}...)
-	
+
 	return triples
 }
 

@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 // Package vocabulary provides controlled vocabulary constants for the robotics domain.
 //
 // This package defines entity types, relationship types, confidence levels, and

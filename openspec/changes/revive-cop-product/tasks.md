@@ -8,10 +8,10 @@
 
 ## 2. Modernize Framework Contract
 
-- [ ] 2.1 Update SemOps to the current SemStreams module path
-- [ ] 2.2 Align the Go toolchain with current SemStreams
-- [ ] 2.3 Quarantine old StreamKit/BaseProcessor assumptions behind migration notes or delete them
-- [ ] 2.4 Add a compile-time contract test importing current projection and graph mutation packages
+- [x] 2.1 Update SemOps to the current SemStreams module path
+- [x] 2.2 Align the Go toolchain with current SemStreams
+- [x] 2.3 Quarantine old StreamKit/BaseProcessor assumptions behind migration notes or delete them
+- [x] 2.4 Add a compile-time contract test importing current projection and graph mutation packages
 - [x] 2.5 Run adversarial review on framework ownership and migration blast radius before broad rewiring
 
 ## 3. COP Model And Governance

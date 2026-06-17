@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package sitl
 
 import (
@@ -12,12 +15,12 @@ import (
 func (c *Controller) GetPosition() (lat, lon, alt float64, err error) {
 	c.stateMux.RLock()
 	defer c.stateMux.RUnlock()
-	
+
 	// Check if we have recent position data
 	if time.Since(c.state.LastPosition) > 5*time.Second {
 		return 0, 0, 0, fmt.Errorf("no recent position data (last update: %v)", c.state.LastPosition)
 	}
-	
+
 	return c.state.Latitude, c.state.Longitude, c.state.Altitude, nil
 }
 
@@ -25,12 +28,12 @@ func (c *Controller) GetPosition() (lat, lon, alt float64, err error) {
 func (c *Controller) GetBattery() (float64, error) {
 	c.stateMux.RLock()
 	defer c.stateMux.RUnlock()
-	
+
 	// Check if we have recent battery data
 	if time.Since(c.state.LastBattery) > 10*time.Second {
 		return 0, fmt.Errorf("no recent battery data (last update: %v)", c.state.LastBattery)
 	}
-	
+
 	return float64(c.state.BatteryPercent), nil
 }
 
@@ -38,11 +41,11 @@ func (c *Controller) GetBattery() (float64, error) {
 func (c *Controller) GetMode() (string, error) {
 	c.stateMux.RLock()
 	defer c.stateMux.RUnlock()
-	
+
 	if c.state.FlightMode == "" {
 		return "", fmt.Errorf("flight mode not available")
 	}
-	
+
 	return c.state.FlightMode, nil
 }
 
@@ -57,11 +60,11 @@ func (c *Controller) IsArmed() bool {
 func (c *Controller) GetAltitude() (msl, relative float64, err error) {
 	c.stateMux.RLock()
 	defer c.stateMux.RUnlock()
-	
+
 	if time.Since(c.state.LastPosition) > 5*time.Second {
 		return 0, 0, fmt.Errorf("no recent altitude data")
 	}
-	
+
 	return c.state.Altitude, c.state.RelativeAlt, nil
 }
 
@@ -69,11 +72,11 @@ func (c *Controller) GetAltitude() (msl, relative float64, err error) {
 func (c *Controller) GetAttitude() (roll, pitch, yaw float32, err error) {
 	c.stateMux.RLock()
 	defer c.stateMux.RUnlock()
-	
+
 	if time.Since(c.state.LastAttitude) > 5*time.Second {
 		return 0, 0, 0, fmt.Errorf("no recent attitude data")
 	}
-	
+
 	return c.state.Roll, c.state.Pitch, c.state.Yaw, nil
 }
 
@@ -81,11 +84,11 @@ func (c *Controller) GetAttitude() (roll, pitch, yaw float32, err error) {
 func (c *Controller) GetVelocity() (vx, vy, vz float32, err error) {
 	c.stateMux.RLock()
 	defer c.stateMux.RUnlock()
-	
+
 	if time.Since(c.state.LastPosition) > 5*time.Second {
 		return 0, 0, 0, fmt.Errorf("no recent velocity data")
 	}
-	
+
 	return c.state.VelocityX, c.state.VelocityY, c.state.VelocityZ, nil
 }
 
@@ -93,11 +96,11 @@ func (c *Controller) GetVelocity() (vx, vy, vz float32, err error) {
 func (c *Controller) GetSystemStatus() (status uint8, statusName string, err error) {
 	c.stateMux.RLock()
 	defer c.stateMux.RUnlock()
-	
+
 	if !c.state.Connected {
 		return 0, "", fmt.Errorf("not connected to drone")
 	}
-	
+
 	return c.state.SystemStatus, c.getSystemStatusName(c.state.SystemStatus), nil
 }
 
@@ -106,12 +109,12 @@ func (c *Controller) GetSystemStatus() (status uint8, statusName string, err err
 // WaitForArmed waits for the drone to be armed/disarmed with timeout
 func (c *Controller) WaitForArmed(ctx context.Context, armed bool, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	
+
 	for time.Now().Before(deadline) {
 		if c.IsArmed() == armed {
 			return nil
 		}
-		
+
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("context cancelled")
@@ -119,19 +122,19 @@ func (c *Controller) WaitForArmed(ctx context.Context, armed bool, timeout time.
 			continue
 		}
 	}
-	
+
 	return fmt.Errorf("timeout waiting for armed=%v after %v", armed, timeout)
 }
 
 // WaitForMode waits for the drone to enter a specific flight mode with timeout
 func (c *Controller) WaitForMode(ctx context.Context, mode string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	
+
 	for time.Now().Before(deadline) {
 		if currentMode, err := c.GetMode(); err == nil && currentMode == mode {
 			return nil
 		}
-		
+
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("context cancelled")
@@ -139,14 +142,14 @@ func (c *Controller) WaitForMode(ctx context.Context, mode string, timeout time.
 			continue
 		}
 	}
-	
+
 	return fmt.Errorf("timeout waiting for mode %s after %v", mode, timeout)
 }
 
 // WaitForAltitude waits for the drone to reach a specific altitude with tolerance
 func (c *Controller) WaitForAltitude(ctx context.Context, targetAlt, tolerance float64, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	
+
 	for time.Now().Before(deadline) {
 		_, relativeAlt, err := c.GetAltitude()
 		if err == nil {
@@ -158,7 +161,7 @@ func (c *Controller) WaitForAltitude(ctx context.Context, targetAlt, tolerance f
 				return nil
 			}
 		}
-		
+
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("context cancelled")
@@ -166,14 +169,14 @@ func (c *Controller) WaitForAltitude(ctx context.Context, targetAlt, tolerance f
 			continue
 		}
 	}
-	
+
 	return fmt.Errorf("timeout waiting for altitude %.1fm (tolerance %.1fm) after %v", targetAlt, tolerance, timeout)
 }
 
 // WaitForPosition waits for the drone to reach a specific GPS position with tolerance
 func (c *Controller) WaitForPosition(ctx context.Context, targetLat, targetLon, tolerance float64, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	
+
 	for time.Now().Before(deadline) {
 		lat, lon, _, err := c.GetPosition()
 		if err == nil {
@@ -181,12 +184,12 @@ func (c *Controller) WaitForPosition(ctx context.Context, targetLat, targetLon, 
 			dlat := targetLat - lat
 			dlon := targetLon - lon
 			distance := 111000.0 * (dlat*dlat + dlon*dlon*0.5) // rough approximation in meters
-			
+
 			if distance <= tolerance {
 				return nil
 			}
 		}
-		
+
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("context cancelled")
@@ -194,8 +197,8 @@ func (c *Controller) WaitForPosition(ctx context.Context, targetLat, targetLon, 
 			continue
 		}
 	}
-	
-	return fmt.Errorf("timeout waiting for position (%.6f, %.6f) tolerance %.1fm after %v", 
+
+	return fmt.Errorf("timeout waiting for position (%.6f, %.6f) tolerance %.1fm after %v",
 		targetLat, targetLon, tolerance, timeout)
 }
 

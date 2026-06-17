@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package robotics
 
 import message "github.com/c360/semstreams/message"
@@ -50,22 +53,22 @@ var (
 // Domain-specific entity types using structured EntityType (replaces old colon notation)
 var (
 	// Vehicle types
-	DomainTypeUAV        = message.EntityType{Domain: "robotics", Type: "uav"}
-	DomainTypeUGV        = message.EntityType{Domain: "robotics", Type: "ugv"}
-	DomainTypeUSV        = message.EntityType{Domain: "robotics", Type: "usv"}
-	DomainTypeAUV        = message.EntityType{Domain: "robotics", Type: "auv"}
-	DomainTypeRover      = message.EntityType{Domain: "robotics", Type: "rover"}
-	DomainTypeDrone      = message.EntityType{Domain: "robotics", Type: "drone"}
+	DomainTypeUAV   = message.EntityType{Domain: "robotics", Type: "uav"}
+	DomainTypeUGV   = message.EntityType{Domain: "robotics", Type: "ugv"}
+	DomainTypeUSV   = message.EntityType{Domain: "robotics", Type: "usv"}
+	DomainTypeAUV   = message.EntityType{Domain: "robotics", Type: "auv"}
+	DomainTypeRover = message.EntityType{Domain: "robotics", Type: "rover"}
+	DomainTypeDrone = message.EntityType{Domain: "robotics", Type: "drone"}
 
 	// System components
-	DomainTypeAutopilot  = message.EntityType{Domain: "robotics", Type: "autopilot"}
-	DomainTypeGimbal     = message.EntityType{Domain: "robotics", Type: "gimbal"}
-	DomainTypeActuator   = message.EntityType{Domain: "robotics", Type: "actuator"}
-	DomainTypeSensor     = message.EntityType{Domain: "robotics", Type: "sensor"}
+	DomainTypeAutopilot = message.EntityType{Domain: "robotics", Type: "autopilot"}
+	DomainTypeGimbal    = message.EntityType{Domain: "robotics", Type: "gimbal"}
+	DomainTypeActuator  = message.EntityType{Domain: "robotics", Type: "actuator"}
+	DomainTypeSensor    = message.EntityType{Domain: "robotics", Type: "sensor"}
 
 	// Mission/event types
-	DomainTypeMission    = message.EntityType{Domain: "robotics", Type: "mission"}
-	DomainTypeWaypoint   = message.EntityType{Domain: "robotics", Type: "waypoint"}
-	DomainTypeCommand    = message.EntityType{Domain: "robotics", Type: "command"}
-	DomainTypeTelemetry  = message.EntityType{Domain: "robotics", Type: "telemetry"}
+	DomainTypeMission   = message.EntityType{Domain: "robotics", Type: "mission"}
+	DomainTypeWaypoint  = message.EntityType{Domain: "robotics", Type: "waypoint"}
+	DomainTypeCommand   = message.EntityType{Domain: "robotics", Type: "command"}
+	DomainTypeTelemetry = message.EntityType{Domain: "robotics", Type: "telemetry"}
 )
