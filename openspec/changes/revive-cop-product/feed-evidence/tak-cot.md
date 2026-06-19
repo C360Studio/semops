@@ -1,6 +1,7 @@
 # TAK/CoT Feed Evidence
 
-Status: native parser gate started, still blocked from structural adapter status by `COP-007` and `COP-008`.
+Status: native parser and UDP/TCP fixture replay gates started, still blocked from structural adapter status by
+`COP-008` and the projection/graph gates.
 
 ## Decision
 
@@ -10,7 +11,10 @@ compliance suite was verified. Treat TAK as fixture/replay/interoperability-test
 
 ## Local Evidence
 
-- `pkg/adapters/cot` now contains a SemOps-local dependency-light XML CoT codec for the first fixture/replay gate.
+- `pkg/adapters/cot` now contains a SemOps-local dependency-light XML CoT codec, bounded raw lane, JSON Lines replay
+  store, and deterministic seed fixture pack for the first fixture/replay gates.
+- `internal/adapters/cot` hosts a graph-free CoT adapter harness with UDP and newline-delimited TCP listeners plus
+  reusable fixture replay senders.
 - `/Users/coby/Code/c360/semlink/internal/cot/cot.go` contains a dependency-light XML CoT codec for air tracks,
   operator positions, markers, GeoChat, and alerts.
 - `/Users/coby/Code/c360/semlink/internal/tak/bridge.go` supports outbound multicast/TCP and inbound UDP/TCP paths,
@@ -51,19 +55,23 @@ Current evidence:
 
 ### Mock Transport Gate
 
-Target command in the SemOps stack:
+Target command in the SemOps port:
 
 ```bash
-SEMLINK_TAK_SEED=true ./scripts/demo-up.sh
+go test ./internal/adapters/cot
 ```
-
-SemOps should replace this with an equivalent scenario-runner fixture rather than depending on SemLink at runtime.
 
 Acceptance:
 
 - UDP seed events can produce ALPHA/BRAVO operator dots, a marker, and GeoChat in the COP.
 - TCP inbound fixture support exists before claiming TCP coverage.
 - The feed can be run with deterministic local fixtures and no TAK Server.
+
+Current evidence:
+
+- `go test ./internal/adapters/cot` passes for direct ingest, malformed capture, replay append error handling, UDP
+  fixture replay, TCP fixture replay, and listener/replay config guardrails.
+- The replay fixtures are SemOps-owned through `cot.SeedEvents`, not SemLink runtime scripts.
 
 ### Projection Gate
 
@@ -91,12 +99,18 @@ Acceptance:
 
 - Replaying the fixture yields deterministic COP state, provenance facts, and stale-data behavior.
 
+Current evidence:
+
+- `go test ./pkg/adapters/cot` proves JSON Lines append/load for raw CoT records and parse-after-load stability.
+- Stale timestamps are carried in parsed events and raw records, but stale-data behavior is not yet implemented.
+
 ## Known Gaps
 
 - No verified public TAK/CoT conformance suite.
-- No SemOps-local TAK transport, replay store, projector, graph writer, or UI feed state yet.
+- No SemOps-local TAK projector, graph writer, COP UI feed state, or stale-data downgrade policy yet.
 - Tasking remains out of scope until a dedicated operator-value and protocol review.
 - Cross-source identity resolution between TAK-reported UAVs and MAVLink UAVs is out of scope for Phase 1.
+- TAK Server-equivalent behavior remains future SemOps/SemStreams-backed service scope, not MVP adapter scope.
 
 ## Adversarial Feed-Entry Questions
 

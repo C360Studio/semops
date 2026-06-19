@@ -13,6 +13,16 @@ evidence_records:
   - openspec/changes/revive-cop-product/feed-evidence/tak-cot.md
   - pkg/adapters/cot/cot.go
   - pkg/adapters/cot/cot_test.go
+  - pkg/adapters/cot/raw_lane.go
+  - pkg/adapters/cot/raw_lane_test.go
+  - pkg/adapters/cot/replay.go
+  - pkg/adapters/cot/replay_test.go
+  - internal/adapters/cot/adapter.go
+  - internal/adapters/cot/adapter_test.go
+  - internal/adapters/cot/udp_listener.go
+  - internal/adapters/cot/tcp_listener.go
+  - internal/adapters/cot/fixture_replay.go
+  - internal/adapters/cot/transport_test.go
   - openspec/changes/revive-cop-product/feed-evidence/cap-edxl.md
   - openspec/changes/revive-cop-product/feed-evidence/semconnect-csapi-egress.md
   - openspec/changes/revive-cop-product/feed-evidence/adsb.md
@@ -21,6 +31,7 @@ evidence_records:
 
 review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-parser-gate-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-transport-replay-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT,
@@ -58,6 +69,8 @@ progress:
     scaffold with NATS, SemStreams graph backend, and SemOps runtime.
   - TAK/CoT now has a SemOps-local native parser gate in `pkg/adapters/cot`, tested against SemLink-style operator,
     marker, GeoChat, air-track, classifier, and malformed-input fixtures.
+  - TAK/CoT now has SemOps-owned bounded raw capture, JSON Lines replay storage, deterministic seed fixtures, and
+    UDP/TCP fixture replay tests in `pkg/adapters/cot` and `internal/adapters/cot`.
   - Added `docs/feed-product-roadmap.md` so every feed carries an explicit demo/MVP lane, full product lane,
     preserved boundary, and not-claimed-yet list; TAK Server is tracked as future SemOps/SemStreams-backed service
     scope, with external TAK interoperability as part of the migration path.
@@ -65,3 +78,5 @@ progress:
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
+  - Add TAK projection, born-first source asset behavior, graph smoke, COP UI feed state, and stale-data downgrade
+    policy before TAK enters the structural stack.

@@ -15,6 +15,7 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
 - COP model baseline: `docs/cop-model-and-governance.md`
 - COP UI baseline: `docs/cop-ui-stack.md`
 - Active MAVLink codec boundary: `pkg/adapters/mavlink`
+- Active TAK/CoT codec and replay boundary: `pkg/adapters/cot`, `internal/adapters/cot`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
 StreamKit, EntityStore, ObjectStore, and BaseProcessor product paths have been removed or are outside the active build.

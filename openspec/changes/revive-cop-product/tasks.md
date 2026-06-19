@@ -48,7 +48,7 @@
 - [x] 5.2 Record mock, simulator, replay, compliance, and sample-data evidence for each feed
 - [x] 5.3 Define expected `indexing_profile` and cardinality risk for each projected entity type
 - [ ] 5.4 Prove MAVLink parser, generator, ArduPilot SITL, and PX4 SITL evidence gates
-- [ ] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
+- [x] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
 - [ ] 5.6 Prove CAP XML schema and NWS sample gates before adding loose-reader behavior
 - [ ] 5.7 Verify or reject public SAPIENT compliance/fixture availability before phase commitment
 - [ ] 5.8 Run a KLV/SemSource binary proof spike before claiming streaming-binary support
@@ -56,6 +56,7 @@
 - [x] 5.10 Treat ADR-055/056 live graph smoke as a MAVLink gate before simulator fidelity claims
 - [x] 5.11 Add SemOps-local TAK/CoT native parser gate before UDP/TCP replay or graph projection
 - [x] 5.12 Track demo/MVP versus full-product roadmap boundaries for every feed
+- [x] 5.13 Add SemOps-owned TAK/CoT UDP/TCP fixture replay harness before graph projection
 
 ## 6. Structural COP Stack
 
