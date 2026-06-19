@@ -25,6 +25,8 @@ const (
 	EnvMAVLinkWriteTimeout        = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
 	EnvMAVLinkUDPListenAddr       = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
 	EnvMAVLinkUDPMaxDatagramBytes = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
+	EnvCOPGraphQueryTimeout       = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
+	EnvCOPMAVLinkSystemIDs        = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
 )
 
 type Config struct {
@@ -35,6 +37,7 @@ type Config struct {
 	APIAddr                    string
 	OwnershipHeartbeatInterval time.Duration
 	MAVLink                    MAVLinkConfig
+	COP                        COPConfig
 }
 
 type MAVLinkConfig struct {
@@ -53,6 +56,11 @@ type MAVLinkConfig struct {
 type MAVLinkUDPConfig struct {
 	ListenAddr       string
 	MaxDatagramBytes int
+}
+
+type COPConfig struct {
+	GraphQueryTimeout time.Duration
+	MAVLinkSystemIDs  []int
 }
 
 func DefaultConfig() Config {
@@ -79,6 +87,10 @@ func DefaultConfig() Config {
 				MaxBackoff:        500 * time.Millisecond,
 				BackoffMultiplier: 2,
 			},
+		},
+		COP: COPConfig{
+			GraphQueryTimeout: 2 * time.Second,
+			MAVLinkSystemIDs:  []int{42},
 		},
 	}
 }
@@ -116,6 +128,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.COP.GraphQueryTimeout, err = durationFromEnv(
+		getenv,
+		EnvCOPGraphQueryTimeout,
+		cfg.COP.GraphQueryTimeout,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.MAVLink.Enabled, err = boolFromEnv(getenv, EnvMAVLinkEnabled, cfg.MAVLink.Enabled); err != nil {
 		return Config{}, err
 	}
@@ -124,6 +143,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		EnvMAVLinkUDPMaxDatagramBytes,
 		cfg.MAVLink.UDP.MaxDatagramBytes,
 	); err != nil {
+		return Config{}, err
+	}
+	if cfg.COP.MAVLinkSystemIDs, err = intListFromEnv(getenv, EnvCOPMAVLinkSystemIDs, cfg.COP.MAVLinkSystemIDs); err != nil {
 		return Config{}, err
 	}
 
@@ -142,6 +164,17 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.APIAddr) == "" {
 		return fmt.Errorf("%s is required", EnvAPIAddr)
+	}
+	if c.COP.GraphQueryTimeout <= 0 {
+		return fmt.Errorf("%s must be greater than zero", EnvCOPGraphQueryTimeout)
+	}
+	if len(c.COP.MAVLinkSystemIDs) == 0 {
+		return fmt.Errorf("%s must include at least one system id", EnvCOPMAVLinkSystemIDs)
+	}
+	for _, systemID := range c.COP.MAVLinkSystemIDs {
+		if systemID < 0 || systemID > 255 {
+			return fmt.Errorf("%s contains invalid MAVLink system id %d", EnvCOPMAVLinkSystemIDs, systemID)
+		}
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("shutdown timeout must be greater than zero")
@@ -214,4 +247,25 @@ func intFromEnv(getenv func(string) string, name string, fallback int) (int, err
 		return 0, fmt.Errorf("parse %s: %w", name, err)
 	}
 	return parsed, nil
+}
+
+func intListFromEnv(getenv func(string) string, name string, fallback []int) ([]int, error) {
+	value := strings.TrimSpace(getenv(name))
+	if value == "" {
+		return append([]int(nil), fallback...), nil
+	}
+	parts := strings.Split(value, ",")
+	values := make([]int, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		parsed, err := strconv.Atoi(part)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", name, err)
+		}
+		values = append(values, parsed)
+	}
+	return values, nil
 }

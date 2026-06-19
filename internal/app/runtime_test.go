@@ -240,6 +240,8 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvNATSConnectTimeout:         "3s",
 		EnvAPIAddr:                    ":18088",
 		EnvOwnershipHeartbeatInterval: "4s",
+		EnvCOPGraphQueryTimeout:       "1500ms",
+		EnvCOPMAVLinkSystemIDs:        "42, 43",
 		EnvMAVLinkEnabled:             "false",
 		EnvMAVLinkSource:              "udp:14550",
 		EnvOrg:                        "lab",
@@ -265,6 +267,12 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if cfg.OwnershipHeartbeatInterval != 4*time.Second {
 		t.Fatalf("heartbeat interval = %s", cfg.OwnershipHeartbeatInterval)
+	}
+	if cfg.COP.GraphQueryTimeout != 1500*time.Millisecond {
+		t.Fatalf("COP graph query timeout = %s", cfg.COP.GraphQueryTimeout)
+	}
+	if len(cfg.COP.MAVLinkSystemIDs) != 2 || cfg.COP.MAVLinkSystemIDs[0] != 42 || cfg.COP.MAVLinkSystemIDs[1] != 43 {
+		t.Fatalf("COP MAVLink systems = %+v", cfg.COP.MAVLinkSystemIDs)
 	}
 	if cfg.MAVLink.Enabled {
 		t.Fatal("MAVLink enabled = true, want false")
@@ -294,6 +302,26 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			name: "bad write timeout",
 			env:  map[string]string{EnvMAVLinkWriteTimeout: "forever"},
 			want: EnvMAVLinkWriteTimeout,
+		},
+		{
+			name: "bad graph query timeout",
+			env:  map[string]string{EnvCOPGraphQueryTimeout: "forever"},
+			want: EnvCOPGraphQueryTimeout,
+		},
+		{
+			name: "bad mavlink system ids",
+			env:  map[string]string{EnvCOPMAVLinkSystemIDs: "42,bad"},
+			want: EnvCOPMAVLinkSystemIDs,
+		},
+		{
+			name: "empty mavlink system ids",
+			env:  map[string]string{EnvCOPMAVLinkSystemIDs: ","},
+			want: EnvCOPMAVLinkSystemIDs,
+		},
+		{
+			name: "out of range mavlink system ids",
+			env:  map[string]string{EnvCOPMAVLinkSystemIDs: "300"},
+			want: EnvCOPMAVLinkSystemIDs,
 		},
 		{
 			name: "bad udp max datagram",
@@ -347,6 +375,14 @@ func (c *fakeSemStreamsClient) RequestWithRetry(
 	time.Duration,
 	natsclient.RetryConfig,
 ) ([]byte, error) {
+	return nil, errors.New("not used")
+}
+
+func (c *fakeSemStreamsClient) Request(context.Context, string, []byte, time.Duration) ([]byte, error) {
+	return nil, errors.New("not used")
+}
+
+func (c *fakeSemStreamsClient) RequestClassified(context.Context, string, []byte, time.Duration) ([]byte, error) {
 	return nil, errors.New("not used")
 }
 

@@ -26,8 +26,15 @@ type App struct {
 
 type semstreamsClient interface {
 	graphrequest.RetryRequester
+	Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
+	RequestClassified(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
 	Connect(context.Context) error
 	Close(context.Context) error
+}
+
+type GraphRequester interface {
+	Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
+	RequestClassified(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
 }
 
 type dependencies struct {
@@ -95,6 +102,13 @@ func (a *App) MAVLinkAdapter() *mavadapter.Adapter {
 		return nil
 	}
 	return a.mavlinkAdapter
+}
+
+func (a *App) GraphRequester() GraphRequester {
+	if a == nil {
+		return nil
+	}
+	return a.client
 }
 
 func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
