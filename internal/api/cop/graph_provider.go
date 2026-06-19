@@ -237,17 +237,17 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	hazardsByID := make(map[string]graph.EntityState)
 	var firstErr error
 
-	discovered := false
+	var discovered graphDiscoveryResult
 	if p.discovery.Enabled {
-		if ok, err := p.discoverInto(ctx, assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID); err != nil {
+		if result, err := p.discoverInto(ctx, assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID); err != nil {
 			firstErr = errors.Join(firstErr, err)
-			discovered = ok
+			discovered = result
 		} else {
-			discovered = ok
+			discovered = result
 		}
 	}
 
-	if !discovered {
+	if !discovered.mavlink {
 		for _, system := range p.mavlinkSystems {
 			if asset, ok, err := p.queryEntity(ctx, system.assetID()); err != nil {
 				firstErr = errors.Join(firstErr, err)
@@ -260,7 +260,9 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 				tracksByID[track.ID] = track
 			}
 		}
+	}
 
+	if !discovered.cot {
 		for _, uid := range p.cotUIDs {
 			if asset, ok, err := p.queryEntity(ctx, uid.assetID()); err != nil {
 				firstErr = errors.Join(firstErr, err)
@@ -283,7 +285,9 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 				advisoriesByID[advisory.ID] = advisory
 			}
 		}
+	}
 
+	if !discovered.cap {
 		for _, alert := range p.capAlerts {
 			if hazard, ok, err := p.queryEntity(ctx, alert.hazardID()); err != nil {
 				firstErr = errors.Join(firstErr, err)
@@ -312,6 +316,13 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 type graphDiscoveryTarget struct {
 	Prefix string
 	Kind   string
+	Family string
+}
+
+type graphDiscoveryResult struct {
+	mavlink bool
+	cot     bool
+	cap     bool
 }
 
 func (p *GraphProvider) discoverInto(
@@ -321,8 +332,8 @@ func (p *GraphProvider) discoverInto(
 	tasksByID map[string]graph.EntityState,
 	advisoriesByID map[string]graph.EntityState,
 	hazardsByID map[string]graph.EntityState,
-) (bool, error) {
-	var found bool
+) (graphDiscoveryResult, error) {
+	var result graphDiscoveryResult
 	var firstErr error
 	for _, target := range p.discoveryTargets() {
 		entities, err := p.queryPrefix(ctx, target.Prefix)
@@ -334,7 +345,14 @@ func (p *GraphProvider) discoverInto(
 			if entity.ID == "" {
 				continue
 			}
-			found = true
+			switch target.Family {
+			case "mavlink":
+				result.mavlink = true
+			case "cot":
+				result.cot = true
+			case "cap":
+				result.cap = true
+			}
 			switch target.Kind {
 			case copmodel.EntityAsset:
 				assetsByID[entity.ID] = entity
@@ -349,20 +367,20 @@ func (p *GraphProvider) discoverInto(
 			}
 		}
 	}
-	return found, firstErr
+	return result, firstErr
 }
 
 func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*7)
 	for _, scope := range p.discovery.Scopes {
 		targets = append(targets,
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "mavlink", copmodel.EntityAsset), Kind: copmodel.EntityAsset},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "mavlink", copmodel.EntityTrack), Kind: copmodel.EntityTrack},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityAsset), Kind: copmodel.EntityAsset},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityTrack), Kind: copmodel.EntityTrack},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityTask), Kind: copmodel.EntityTask},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityAdvisory), Kind: copmodel.EntityAdvisory},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "cap", copmodel.EntityHazardArea), Kind: copmodel.EntityHazardArea},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "mavlink", copmodel.EntityAsset), Kind: copmodel.EntityAsset, Family: "mavlink"},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "mavlink", copmodel.EntityTrack), Kind: copmodel.EntityTrack, Family: "mavlink"},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityAsset), Kind: copmodel.EntityAsset, Family: "cot"},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityTrack), Kind: copmodel.EntityTrack, Family: "cot"},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityTask), Kind: copmodel.EntityTask, Family: "cot"},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityAdvisory), Kind: copmodel.EntityAdvisory, Family: "cot"},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "cap", copmodel.EntityHazardArea), Kind: copmodel.EntityHazardArea, Family: "cap"},
 		)
 	}
 	return targets

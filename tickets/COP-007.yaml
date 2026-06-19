@@ -25,6 +25,8 @@ evidence_records:
   - internal/adapters/cot/transport_test.go
   - internal/scenario/runner.go
   - internal/scenario/runner_test.go
+  - internal/api/cop/graph_provider.go
+  - internal/api/cop/graph_provider_test.go
   - internal/projectors/cot/projector.go
   - internal/projectors/cot/projector_test.go
   - internal/projectors/cot/writer.go
@@ -46,6 +48,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-graph-wiring-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-readback-csapi-interop-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-feed-service-promotion-csapi-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-cot-cap-index-discovery-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
@@ -105,11 +108,13 @@ progress:
     Part 2 dynamic data, with command/control input explicitly routed through SemOps command authority.
   - Added the first `internal/scenario` runner core so generated MAVLink, deterministic TAK/CoT seed events, and CAP
     lifecycle XML records replay through real adapter/projector seams with pollable status and false-green guardrails.
+  - Added index-backed COP snapshot discovery for MAVLink, TAK/CoT, and CAP prefixes, removed required CoT/CAP seed
+    ID defaults from the normal runtime path, and kept seed entity reads as family-scoped fallback when discovery is
+    disabled, unavailable, or empty for that feed family.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
-  - Add index-backed discovery for CoT entities so seed UID readback is not the long-term COP snapshot discovery
-    model.
+  - Add source/type cardinality diagnostics for prefix-discovered state before large mixed-feed demos.
   - Implement the CS API bridge only after SemOps has enough stable structural graph state for meaningful ingress,
     egress, replay, and SemConnect conformance checks.

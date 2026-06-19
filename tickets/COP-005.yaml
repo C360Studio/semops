@@ -12,6 +12,8 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-ui-api-caddy-spine-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-live-snapshot-provider-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-maplibre-layer-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-prefix-discovery-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-cot-cap-index-discovery-review.md
 
 evidence_records:
   - docs/cop-ui-stack.md
@@ -60,8 +62,9 @@ progress:
     markers, alert rows, feed health, freshness, confidence, and provenance fields.
   - Added a fixture-backed SemOps API snapshot client with fallback behavior so local UI work remains useful when the
     API is unavailable.
-  - Added a graph-backed SemOps API provider that queries configured MAVLink asset/track entities and maps triples
-    into the COP snapshot view model, retaining fixtures only as a cold-start/development fallback.
+  - Added a graph-backed SemOps API provider that discovers MAVLink, TAK/CoT, and CAP COP entities by SemStreams
+    prefix query and maps triples into the COP snapshot view model, retaining configured seed IDs only as
+    family-scoped compatibility fallback and fixtures only as a cold-start/development fallback.
   - Added Caddy same-origin ingress in Compose so `/api/*` reaches SemOps API without browser CORS drift.
   - Added a hosted stack smoke that sends generated MAVLink over UDP and waits for the Caddy-routed snapshot to show
     graph-backed track state.

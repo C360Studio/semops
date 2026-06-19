@@ -11,15 +11,15 @@ ideas that are promising but risky for a Phase 1 demo.
 The current implementation is intentionally narrow:
 
 - `ui` contains the clean-sheet Svelte 5/SvelteKit COP surface.
-- `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider for configured MAVLink systems
-  and TAK/CoT seed UIDs, with the fixture provider retained only as a development fallback before live graph state
-  exists.
+- `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider that discovers MAVLink,
+  TAK/CoT, and CAP entities by SemStreams prefix query, with configured seed IDs retained only as family-scoped
+  compatibility fallback.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
 - The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, TAK/CoT tasks,
   TAK/CoT advisories, hazards, labels, and picking, plus alert, feed state, and provenance panels.
 
 This is the first full-stack spine, not the final map implementation. Bounded deltas, real basemap/terrain sources,
-footprints, alert geometry, index-backed CoT discovery, and scenario playback remain next gates.
+footprints, alert geometry, source diagnostics, and scenario playback remain next gates.
 
 ## Direction
 
@@ -70,11 +70,12 @@ trace events stay behind the SemOps API unless an operator workflow proves they 
 
 The first live snapshot provider prefers SemStreams `graph.query.prefix` over seed-only point lookups. It discovers
 MAVLink, TAK/CoT, and CAP entities by their 5-part COP prefixes, maps owned triples into the COP view model, and keeps
-seeded `graph.query.entity` reads as compatibility fallback when prefix discovery is unavailable or empty. That makes
-SemStreams responsible for graph discovery while SemOps owns the curated operator view. The fixture snapshot remains a
-fallback for local development and cold-start demos; it is not graph-compliance evidence. CAP hazard lifecycle status
-is derived in the view model from advisory evidence and freshness; distinct expired/cancelled/stale map symbology is a
-future UX gate.
+seeded `graph.query.entity` reads as family-scoped compatibility fallback when prefix discovery is disabled,
+unavailable, or empty for that feed family. CoT/CAP seed IDs are optional in the normal Compose path when discovery is
+enabled. That makes SemStreams responsible for graph discovery while SemOps owns the curated operator view. The fixture
+snapshot remains a fallback for local development and cold-start demos; it is not graph-compliance evidence. CAP hazard
+lifecycle status is derived in the view model from advisory evidence and freshness; distinct expired/cancelled/stale map
+symbology is a future UX gate.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for

@@ -44,11 +44,13 @@ Phase 1.
 
 #### Scenario: First live snapshot path discovers governed graph state
 
-- **WHEN** MAVLink source asset/track entities, TAK/CoT seed UID entities, or CAP hazard-evidence entities exist in
+- **WHEN** MAVLink source asset/track entities, TAK/CoT entities, or CAP hazard-evidence entities exist in
   SemStreams under configured COP graph discovery scopes
 - **THEN** `GET /api/cop/snapshot` maps their governed triples into the COP track, asset, task, advisory, hazard,
   feed-health, freshness, confidence, and provenance view model
-- **AND** the primary read path uses SemStreams prefix discovery before falling back to configured seed entity IDs
+- **AND** the primary read path uses SemStreams prefix discovery before falling back to configured seed entity IDs only
+  for feed families with disabled, unavailable, or empty discovery
+- **AND** CoT/CAP snapshot state does not require configured seed UID or alert-ID lists when graph discovery is enabled
 - **AND** graph query not-found responses are handled as cold-start state rather than silently decoded as successful
   entity data
 
