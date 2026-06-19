@@ -73,9 +73,18 @@ progress:
     service that runs the HADR replay once on startup and exposes `/healthz` plus `/scenario/status`.
   - Extended `scripts/cop-stack-smoke.sh` to poll the hosted scenario runner and assert the replay reached
     `state=succeeded` before running the hosted snapshot and direct live graph checks.
+  - Added `TestHostedCOPSnapshotReflectsScenarioRunner` so the stack smoke proves the scenario runner's MAVLink,
+    TAK/CoT, and CAP graph writes are visible through the Caddy-routed COP snapshot.
+  - Moved SemStreams' dedicated health listener to container port 8081 in `compose.cop.yml` so it no longer races the
+    service-manager HTTP port 8080, while keeping the host health URL on port 18080.
+  - Added compose startup diagnostics to `scripts/cop-stack-smoke.sh` so NATS and SemStreams logs are printed when the
+    stack fails to become healthy.
   - Ran `bash scripts/cop-stack-smoke.sh` successfully after adding the scenario runner service; the stack built the
     second binary, started the new container, waited for scenario success, ran hosted MAVLink/CoT snapshot checks, ran
-    direct MAVLink/CoT/CAP live graph smokes, and tore down cleanly.
+    hosted scenario-runner snapshot checks, ran direct MAVLink/CoT/CAP live graph smokes, and tore down cleanly.
+  - Diagnosed a local Docker Desktop resource failure where NATS JetStream reported `Max Storage: 0 B`; after pruning
+    unused Docker build cache and moving SemStreams health to the non-conflicting listener port, reran
+    `bash scripts/cop-stack-smoke.sh` successfully.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
@@ -83,6 +92,7 @@ current_evidence:
   - `go test ./internal/app`
   - `go test ./internal/api/cop`
   - `go test ./internal/smoke/mavlink`
+  - `go test ./internal/smoke/cop`
   - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
   - `go test ./internal/stack`
   - `go test ./pkg/adapters/mavlink`

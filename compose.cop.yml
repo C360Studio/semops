@@ -35,7 +35,7 @@ services:
       - "--log-format"
       - "text"
       - "--health-port"
-      - "8080"
+      - "8081"
     depends_on:
       semops-nats:
         condition: service_healthy
@@ -45,10 +45,10 @@ services:
     volumes:
       - ${SEMSTREAMS_ROOT:-../semstreams}/configs:/app/configs:ro
     ports:
-      - "${SEMOPS_SEMSTREAMS_HEALTH_HOST_PORT:-18080}:8080"
+      - "${SEMOPS_SEMSTREAMS_HEALTH_HOST_PORT:-18080}:8081"
       - "${SEMOPS_SEMSTREAMS_METRICS_HOST_PORT:-9090}:9090"
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/healthz"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8081/healthz"]
       interval: 5s
       timeout: 3s
       retries: 24

@@ -36,6 +36,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+print_compose_failure_diagnostics() {
+  echo "Compose stack failed to become healthy; recent SemOps COP infrastructure state follows." >&2
+  docker compose -p "$PROJECT" -f "$COMPOSE_FILE" ps >&2 || true
+  docker compose -p "$PROJECT" -f "$COMPOSE_FILE" logs --no-color --tail=120 semops-nats semstreams >&2 || true
+}
+
 wait_http() {
   local name="$1"
   local url="$2"
@@ -85,7 +91,10 @@ wait_svelte_assets() {
   done
 }
 
-docker compose -p "$PROJECT" -f "$COMPOSE_FILE" up -d --build --wait
+if ! docker compose -p "$PROJECT" -f "$COMPOSE_FILE" up -d --build --wait; then
+  print_compose_failure_diagnostics
+  exit 1
+fi
 
 wait_http "SemStreams health" "$HEALTH_URL" 90
 wait_http "SemStreams metrics" "$METRICS_URL" 90
@@ -98,9 +107,10 @@ wait_http "SemOps scenario runner" "$SCENARIO_HEALTH_URL" 90
 curl -fsS "$SCENARIO_STATUS_URL" | grep -q '"state":"succeeded"'
 
 SEMOPS_COP_SMOKE_SNAPSHOT_URL="$COP_API_SNAPSHOT_URL" \
+SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL="$SCENARIO_STATUS_URL" \
 SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR="$MAVLINK_UDP_ADDR" \
 SEMOPS_COP_SMOKE_COT_UDP_ADDR="$COT_UDP_ADDR" \
-  go test ./internal/smoke/cop -run 'TestHostedCOPSnapshotReflects(MAVLink|CoT)UDP' -count=1 -v
+  go test ./internal/smoke/cop -run 'TestHostedCOPSnapshotReflects(MAVLinkUDP|CoTUDP|ScenarioRunner)' -count=1 -v
 
 SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL="$NATS_URL" \
 SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL="$METRICS_URL" \

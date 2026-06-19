@@ -57,10 +57,13 @@ registers COP owners before composing the MAVLink and TAK/CoT adapters. The Dock
 SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy; polls health, metrics, API, UI, and Svelte
 immutable assets; sends generated MAVLink and CoT seed events over hosted UDP listeners; waits for the Caddy-routed
 COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink, CoT, and CAP live graph smokes.
-CAP is deliberately proved as append-only hazard evidence, not authoritative hazard state. The COP now derives CAP
-hazard lifecycle status from evidence for readback. The `semops-scenario-runner` service now runs the first HADR
-flood/evacuation fixture against the live SemStreams graph in Compose and exposes `/healthz` plus
-`/scenario/status`; remaining structural evidence is hosted CAP polling, shared-airspace playback, operator scenario
+SemStreams health uses its dedicated listener on container port `8081`, mapped to host port `18080`, so it does not
+race the service-manager HTTP port. CAP is deliberately proved as append-only hazard evidence, not authoritative
+hazard state. The COP now derives CAP hazard lifecycle status from evidence for readback. The
+`semops-scenario-runner` service now runs the first HADR
+flood/evacuation fixture against the live SemStreams graph in Compose, exposes `/healthz` plus `/scenario/status`,
+and the stack smoke asserts the Caddy-routed COP snapshot contains the scenario MAVLink track, TAK/CoT task/advisory,
+and CAP hazard. Remaining structural evidence is hosted CAP polling, shared-airspace playback, operator scenario
 controls, and durable checkpoint/read-back reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
@@ -83,7 +86,8 @@ SemOps started materially stale; the first revival slices are correcting that:
 - `internal/scenario` now provides a deterministic HADR flood/evacuation runner core that exercises MAVLink,
   TAK/CoT, and CAP lifecycle replay through the same adapter/projector seams used by hosted graph writes. Container
   packaging is now present through `cmd/semops-scenario-runner`; an operator/API control surface and the
-  shared-airspace vignette remain open.
+  shared-airspace vignette remain open. The one-command stack smoke now verifies the runner's graph writes are
+  product-visible through the same-origin COP snapshot.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
@@ -208,6 +212,9 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
   prefix-discovery contract tag that follows the shipped ADR-055 must-exist flip.
 - The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,
   `go test ./...`, `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
+- The one-command smoke now prints NATS/SemStreams diagnostics on compose startup failure. This caught a local Docker
+  Desktop storage condition where NATS JetStream reported `Max Storage: 0 B`; after pruning unused Docker build cache
+  and moving SemStreams dedicated health off the service-manager port, the stack smoke passed again.
 - SemStreams currently warns that `semops.feed.cap` has no enforceable ownership claim because it is
   append-evidence-only. That matches the intended split between evidence-contribution declarations and write-fence
   ownership, but SemOps should keep watching the tag for any bind-result/token behavior change on append-only
