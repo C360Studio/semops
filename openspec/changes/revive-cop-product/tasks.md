@@ -55,6 +55,7 @@
 - [ ] 5.9 Run adversarial review for each feed before it enters the structural stack
 - [x] 5.10 Treat ADR-055/056 live graph smoke as a MAVLink gate before simulator fidelity claims
 - [x] 5.11 Add SemOps-local TAK/CoT native parser gate before UDP/TCP replay or graph projection
+- [x] 5.12 Track demo/MVP versus full-product roadmap boundaries for every feed
 
 ## 6. Structural COP Stack
 

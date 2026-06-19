@@ -11,6 +11,7 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
 - OpenSpec change: `openspec/changes/revive-cop-product`
 - Architecture baseline: `docs/cop-demo-revival-architecture.md`
 - Feed evidence ladder: `docs/feed-validation-and-indexing-ladder.md`
+- Feed product roadmap: `docs/feed-product-roadmap.md`
 - COP model baseline: `docs/cop-model-and-governance.md`
 - COP UI baseline: `docs/cop-ui-stack.md`
 - Active MAVLink codec boundary: `pkg/adapters/mavlink`

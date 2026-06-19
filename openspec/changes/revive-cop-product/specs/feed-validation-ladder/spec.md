@@ -14,6 +14,29 @@ Each feed SHALL pass documented validation gates before it is treated as a SemOp
 - **WHEN** the revival plan sequences feed work
 - **THEN** it starts with MAVLink, then TAK/CoT, then CAP/EDXL before ADS-B, SAPIENT, KLV, or CS API egress
 
+### Requirement: Feed roadmaps distinguish demo scope from full product scope
+
+SemOps SHALL track the narrow demo path and the eventual full-product path for every feed so Phase 1 shortcuts do not
+become dead-end architecture.
+
+#### Scenario: Feed has two-lane roadmap before implementation
+
+- **WHEN** SemOps starts or broadens a feed adapter
+- **THEN** the feed record identifies the demo/MVP lane, the full product lane, the preserved boundary, and the claims
+  that are still out of scope
+
+#### Scenario: TAK Server is future service scope
+
+- **WHEN** SemOps adds TAK/CoT support for the MVP demo
+- **THEN** local CoT parsing and fixture replay remain separate from projection logic
+- **AND** a SemStreams-backed SemOps TAK service is tracked as future product scope rather than an MVP service
+
+#### Scenario: Feed server capabilities preserve service seams
+
+- **WHEN** a feed's full product shape requires server, gateway, collaboration, session, or federation behavior
+- **THEN** the MVP adapter keeps parser, transport, service state, and graph projection seams separate so SemOps can
+  later promote that feed into a SemStreams-backed service without rewriting the governed projection contract
+
 ### Requirement: Compliance claims require reproducible evidence
 
 SemOps SHALL NOT claim protocol or standards conformance unless a reproducible local harness, official schema,
