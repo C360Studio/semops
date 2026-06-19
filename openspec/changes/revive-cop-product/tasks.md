@@ -97,6 +97,8 @@
 - [x] 6.29 Assert hosted scenario-runner graph writes are visible through the COP snapshot
 - [x] 6.30 Move SemStreams dedicated health to a non-conflicting container port and print NATS/SemStreams diagnostics
       on compose startup failure
+- [x] 6.31 Remove required CoT/CAP seed IDs from the COP snapshot path and rely on prefix discovery for hosted
+      state
 
 ## 7. COP UI
 

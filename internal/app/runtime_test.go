@@ -574,6 +574,22 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 }
 
+func TestConfigDefaultsUseDiscoveryForCoTCAPSnapshotState(t *testing.T) {
+	cfg, err := ConfigFromEnv(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("config from defaults: %v", err)
+	}
+	if !cfg.COP.GraphDiscoveryEnabled {
+		t.Fatal("COP graph discovery enabled = false, want true")
+	}
+	if len(cfg.COP.CoTUIDs) != 0 {
+		t.Fatalf("default CoT UIDs = %+v, want discovery-only path", cfg.COP.CoTUIDs)
+	}
+	if len(cfg.COP.CAPAlertIDs) != 0 {
+		t.Fatalf("default CAP alert IDs = %+v, want discovery-only path", cfg.COP.CAPAlertIDs)
+	}
+}
+
 func TestConfigFromEnvReportsBadValues(t *testing.T) {
 	tests := []struct {
 		name string
@@ -626,8 +642,26 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			want: EnvCOPCoTUIDs,
 		},
 		{
+			name: "discovery disabled without cot uids",
+			env: map[string]string{
+				EnvCOPGraphDiscoveryEnabled: "false",
+				EnvCOPCoTUIDs:               "",
+				EnvCOPCAPAlertIDs:           "nws-demo-flood-warning",
+			},
+			want: EnvCOPCoTUIDs,
+		},
+		{
 			name: "empty cap alert ids",
 			env:  map[string]string{EnvCOPCAPAlertIDs: ","},
+			want: EnvCOPCAPAlertIDs,
+		},
+		{
+			name: "discovery disabled without cap alert ids",
+			env: map[string]string{
+				EnvCOPGraphDiscoveryEnabled: "false",
+				EnvCOPCoTUIDs:               "ANDROID-ALPHA",
+				EnvCOPCAPAlertIDs:           "",
+			},
 			want: EnvCOPCAPAlertIDs,
 		},
 		{

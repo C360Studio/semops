@@ -538,6 +538,99 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	}
 }
 
+func TestGraphProviderFallsBackPerFeedWhenDiscoveryIsPartial(t *testing.T) {
+	now := time.Date(2026, 6, 19, 17, 30, 0, 0, time.UTC)
+	observed := now.Add(-20 * time.Second)
+	platform := "edge-partial"
+	mavAssetID := "c360.edge-partial.cop.mavlink.asset.system-77"
+	mavTrackID := "c360.edge-partial.cop.mavlink.track.system-77"
+	takTaskID := cotprojector.EntityID("c360", platform, copmodel.EntityTask, "MARKER-EVAC")
+	takAdvisoryID := cotprojector.EntityID("c360", platform, copmodel.EntityAdvisory, "CHAT-EVAC")
+	hazardID := capprojector.EntityID("c360", platform, "nws-demo-flood-warning")
+	requester := &fakeGraphSnapshotRequester{
+		prefixEntities: map[string][]graph.EntityState{
+			graphEntityPrefix("c360", platform, "mavlink", copmodel.EntityAsset): {{
+				ID:        mavAssetID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(mavAssetID, copmodel.AssetName, "MAVLink system 77", observed),
+					testTriple(mavAssetID, copmodel.AssetSource, "mavlink", observed),
+					testTriple(mavAssetID, copmodel.ProvenanceObservedAt, observed, observed),
+				},
+			}},
+			graphEntityPrefix("c360", platform, "mavlink", copmodel.EntityTrack): {{
+				ID:        mavTrackID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(mavTrackID, copmodel.TrackNativeID, "mavlink.system.77.component.1", observed),
+					testTriple(mavTrackID, copmodel.TrackStatus, "active.armed", observed),
+					testTriple(mavTrackID, copmodel.TrackPosition, "POINT(-77.0400000 38.9000000)", observed),
+					testTriple(mavTrackID, copmodel.TrackSource, mavAssetID, observed),
+					testTriple(mavTrackID, copmodel.TrackObservedAt, observed, observed),
+					testTriple(mavTrackID, copmodel.ProvenanceSource, "mavlink", observed),
+					testTriple(mavTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+				},
+			}},
+		},
+		entities: map[string]graph.EntityState{
+			takTaskID: {
+				ID:        takTaskID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(takTaskID, copmodel.TaskName, "Evacuation Marker", observed),
+					testTriple(takTaskID, copmodel.TaskKind, "marker", observed),
+					testTriple(takTaskID, copmodel.TaskStatus, "active.marker", observed),
+					testTriple(takTaskID, copmodel.TaskPosition, "POINT(-77.0380000 38.8940000)", observed),
+					testTriple(takTaskID, copmodel.ProvenanceSource, "tak-cot", observed),
+					testTriple(takTaskID, copmodel.ProvenanceObservedAt, observed, observed),
+				},
+			},
+			takAdvisoryID: {
+				ID:        takAdvisoryID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(takAdvisoryID, copmodel.AdvisoryText, "evacuate north route", observed),
+					testTriple(takAdvisoryID, copmodel.AdvisoryKind, "geochat", observed),
+					testTriple(takAdvisoryID, copmodel.AdvisoryStatus, "active.geochat", observed),
+					testTriple(takAdvisoryID, copmodel.AdvisorySender, "ANDROID-EVAC", observed),
+					testTriple(takAdvisoryID, copmodel.ProvenanceSource, "tak-cot", observed),
+					testTriple(takAdvisoryID, copmodel.ProvenanceObservedAt, observed, observed),
+				},
+			},
+			hazardID: capHazardEntity(t, hazardID, observed, capLifecycleEvidence(copmodel.HazardEvidenceDocument{
+				Identifier: "nws-demo-flood-warning",
+			})),
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithGraphDiscoveryScopes([]GraphDiscoveryScope{{Org: "c360", Platform: platform}}),
+		WithMAVLinkSystems("c360", platform, []int{77}),
+		WithCoTUIDs("c360", platform, []string{"MARKER-EVAC", "CHAT-EVAC"}),
+		WithCAPAlertIDs("c360", platform, []string{"nws-demo-flood-warning"}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveTracks != 1 || snapshot.Summary.ActiveTasks != 1 ||
+		snapshot.Summary.ActiveAdvisories != 1 || len(snapshot.Hazards) != 1 {
+		t.Fatalf("snapshot summary/entities = %+v hazards=%+v", snapshot.Summary, snapshot.Hazards)
+	}
+	if hasString(requester.entityRequests, mavAssetID) || hasString(requester.entityRequests, mavTrackID) {
+		t.Fatalf("MAVLink discovery should avoid MAVLink seed lookups, entity requests = %+v", requester.entityRequests)
+	}
+	if !hasString(requester.entityRequests, takTaskID) || !hasString(requester.entityRequests, hazardID) {
+		t.Fatalf("partial discovery should fall back for CoT/CAP seeds, entity requests = %+v", requester.entityRequests)
+	}
+}
+
 func TestGraphProviderDowngradesStaleTAKStateAtReadTime(t *testing.T) {
 	now := time.Date(2026, 6, 19, 15, 30, 0, 0, time.UTC)
 	observed := now.Add(-5 * time.Minute)
@@ -610,6 +703,7 @@ type fakeGraphSnapshotRequester struct {
 	prefixEntities map[string][]graph.EntityState
 	subjects       []string
 	prefixRequests []recordedPrefixRequest
+	entityRequests []string
 }
 
 type recordedPrefixRequest struct {
@@ -661,9 +755,11 @@ func (r *fakeGraphSnapshotRequester) request(
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, err
 	}
-	entity, ok := r.entities[req["id"]]
+	entityID := req["id"]
+	r.entityRequests = append(r.entityRequests, entityID)
+	entity, ok := r.entities[entityID]
 	if !ok {
-		return nil, errors.New("not found: " + req["id"])
+		return nil, errors.New("not found: " + entityID)
 	}
 	return json.Marshal(entity)
 }
@@ -744,4 +840,13 @@ func capLifecycleEvidence(base copmodel.HazardEvidenceDocument) copmodel.HazardE
 		}}
 	}
 	return base
+}
+
+func hasString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }

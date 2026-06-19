@@ -153,8 +153,9 @@ operator or diagnostic lens exposes them.
 The first implemented browser path runs through Caddy in local Compose. Caddy serves the Svelte COP and proxies
 `/api/*` plus `/healthz` to SemOps API so local development sees the same-origin shape the deployed product should
 use. The snapshot endpoint now prefers SemStreams `graph.query.prefix` discovery for MAVLink, TAK/CoT, and CAP COP
-entity prefixes, maps graph triples into a curated COP view model, and falls back to seeded point reads or fixtures
-only when discovery is unavailable or no live graph state is available.
+entity prefixes, maps graph triples into a curated COP view model, and uses seeded point reads only as
+family-scoped compatibility fallback when discovery is disabled, unavailable, or empty for that feed family. The
+Compose path relies on discovery for CoT/CAP snapshot state rather than configured seed UID lists.
 
 Dynamic UI is scoped narrowly:
 
@@ -222,8 +223,8 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - CAP now has a local parser, raw XML lifecycle fixture replay, born-first append-evidence projection planner/writer,
   graph-backed COP hazard readback, and derived lifecycle status in the COP view model. It is still not a hosted
   CAP/NWS service and does not claim CAP consumer conformance.
-- Remaining compliance hardening requires index-backed CoT discovery, CAP schema/NWS/lifecycle expansion, and durable
-  checkpoint/read-back reconciliation.
+- Remaining compliance hardening requires source/type cardinality diagnostics, CAP schema/NWS validation expansion,
+  and durable checkpoint/read-back reconciliation.
 
 ## CS API Positioning
 

@@ -153,15 +153,6 @@ func DefaultConfig() Config {
 			GraphDiscoveryEnabled: true,
 			GraphDiscoveryLimit:   500,
 			MAVLinkSystemIDs:      []int{42},
-			CoTUIDs: []string{
-				"ANDROID-ALPHA",
-				"ANDROID-BRAVO",
-				"MARKER-NORTH-GATE",
-				"CHAT-ALPHA-1",
-			},
-			CAPAlertIDs: []string{
-				"nws-demo-flood-warning",
-			},
 		},
 	}
 }
@@ -300,11 +291,11 @@ func (c Config) Validate() error {
 			return fmt.Errorf("%s contains invalid MAVLink system id %d", EnvCOPMAVLinkSystemIDs, systemID)
 		}
 	}
-	if len(c.COP.CoTUIDs) == 0 {
-		return fmt.Errorf("%s must include at least one UID", EnvCOPCoTUIDs)
+	if !c.COP.GraphDiscoveryEnabled && len(c.COP.CoTUIDs) == 0 {
+		return fmt.Errorf("%s must include at least one UID when %s is false", EnvCOPCoTUIDs, EnvCOPGraphDiscoveryEnabled)
 	}
-	if len(c.COP.CAPAlertIDs) == 0 {
-		return fmt.Errorf("%s must include at least one alert identifier", EnvCOPCAPAlertIDs)
+	if !c.COP.GraphDiscoveryEnabled && len(c.COP.CAPAlertIDs) == 0 {
+		return fmt.Errorf("%s must include at least one alert identifier when %s is false", EnvCOPCAPAlertIDs, EnvCOPGraphDiscoveryEnabled)
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("shutdown timeout must be greater than zero")
