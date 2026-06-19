@@ -32,14 +32,14 @@ index pressure and partial prefix-read failure while SemOps adds feeds one at a 
 
 - `at_limit` means the returned count reached the configured prefix query limit, not that SemStreams knows the true
   total cardinality.
-- Errors are exposed as technical evidence text in the snapshot; future operator-facing wording may need a cleaner
-  source-health alert abstraction.
+- Closed by `2026-06-19-source-health-alerting-review.md`: errors are exposed as technical evidence text in the
+  snapshot; future operator-facing wording may need a cleaner source-health alert abstraction.
 - Source-card chips are a temporary diagnostic surface until the product has a deliberate technical evidence panel.
 
 ## Follow-Up Tasks
 
 - Ask SemStreams for typed pagination or total-count metadata only after mixed-feed demos prove the need.
-- Convert repeated at-limit pressure into source-health alerting before high-cardinality feeds such as ADS-B or KLV
-  enter the main demo.
+- Closed by `2026-06-19-source-health-alerting-review.md`: convert repeated at-limit pressure into source-health
+  alerting before high-cardinality feeds such as ADS-B or KLV enter the main demo.
 - Keep raw graph inspection behind a deliberate diagnostic lens, ideally informed by SemConnect/SemLink graph-view
   prior art.

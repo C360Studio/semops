@@ -18,6 +18,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-feed-service-promotion-csapi-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-cot-cap-index-discovery-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-source-cardinality-diagnostics-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-source-health-alerting-review.md
 
 scope:
   - Run adversarial reviews at framework modernization, COP model, feed-entry, Phase 1 signoff, high-risk claim,

@@ -15,6 +15,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-prefix-discovery-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-cot-cap-index-discovery-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-source-cardinality-diagnostics-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-source-health-alerting-review.md
 
 evidence_records:
   - docs/cop-ui-stack.md
@@ -76,6 +77,8 @@ progress:
     map and alert controls.
   - Added compact prefix-discovery count chips to source cards so source/type cardinality pressure is visible without
     turning the first screen into a graph console.
+  - Added source-health warning alerts for prefix discovery errors and at-limit pressure so diagnostics enter the
+    existing alert workflow.
 
 current_evidence:
   - `go test ./internal/api/cop ./internal/app ./internal/smoke/cop -count=1`
