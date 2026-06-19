@@ -21,7 +21,9 @@ import (
 
 const (
 	SubjectGraphQueryEntity      = "graph.query.entity"
+	SubjectGraphQueryPrefix      = "graph.query.prefix"
 	DefaultGraphQueryTimeout     = 2 * time.Second
+	DefaultGraphDiscoveryLimit   = 500
 	DefaultFeedFreshnessWindow   = 2 * time.Minute
 	DefaultCoTUIDAndroidAlpha    = "ANDROID-ALPHA"
 	DefaultCoTUIDAndroidBravo    = "ANDROID-BRAVO"
@@ -41,12 +43,14 @@ type classifiedGraphRequester interface {
 type GraphProvider struct {
 	requester      GraphRequester
 	querySubject   string
+	prefixSubject  string
 	queryTimeout   time.Duration
 	now            func() time.Time
 	fallback       SnapshotProvider
 	mavlinkSystems []MAVLinkSystemRef
 	cotUIDs        []CoTUIDRef
 	capAlerts      []CAPAlertRef
+	discovery      GraphDiscoveryConfig
 	freshness      time.Duration
 }
 
@@ -68,6 +72,17 @@ type CAPAlertRef struct {
 	Identifier string
 }
 
+type GraphDiscoveryConfig struct {
+	Enabled bool
+	Limit   int
+	Scopes  []GraphDiscoveryScope
+}
+
+type GraphDiscoveryScope struct {
+	Org      string
+	Platform string
+}
+
 type GraphProviderOption func(*GraphProvider)
 
 func NewGraphProvider(requester GraphRequester, opts ...GraphProviderOption) (*GraphProvider, error) {
@@ -75,11 +90,20 @@ func NewGraphProvider(requester GraphRequester, opts ...GraphProviderOption) (*G
 		return nil, fmt.Errorf("graph snapshot provider requires a requester")
 	}
 	provider := &GraphProvider{
-		requester:    requester,
-		querySubject: SubjectGraphQueryEntity,
-		queryTimeout: DefaultGraphQueryTimeout,
-		now:          time.Now,
-		freshness:    DefaultFeedFreshnessWindow,
+		requester:     requester,
+		querySubject:  SubjectGraphQueryEntity,
+		prefixSubject: SubjectGraphQueryPrefix,
+		queryTimeout:  DefaultGraphQueryTimeout,
+		now:           time.Now,
+		freshness:     DefaultFeedFreshnessWindow,
+		discovery: GraphDiscoveryConfig{
+			Enabled: true,
+			Limit:   DefaultGraphDiscoveryLimit,
+			Scopes: []GraphDiscoveryScope{{
+				Org:      "c360",
+				Platform: "edge",
+			}},
+		},
 		mavlinkSystems: []MAVLinkSystemRef{{
 			Org:      "c360",
 			Platform: "edge",
@@ -97,6 +121,7 @@ func NewGraphProvider(requester GraphRequester, opts ...GraphProviderOption) (*G
 	provider.mavlinkSystems = normalizeMAVLinkSystems(provider.mavlinkSystems)
 	provider.cotUIDs = normalizeCoTUIDs(provider.cotUIDs)
 	provider.capAlerts = normalizeCAPAlerts(provider.capAlerts)
+	provider.discovery = normalizeGraphDiscovery(provider.discovery)
 	if provider.now == nil {
 		provider.now = time.Now
 	}
@@ -108,6 +133,9 @@ func NewGraphProvider(requester GraphRequester, opts ...GraphProviderOption) (*G
 	}
 	if provider.querySubject == "" {
 		provider.querySubject = SubjectGraphQueryEntity
+	}
+	if provider.prefixSubject == "" {
+		provider.prefixSubject = SubjectGraphQueryPrefix
 	}
 	return provider, nil
 }
@@ -123,6 +151,26 @@ func WithGraphQueryTimeout(timeout time.Duration) GraphProviderOption {
 		if timeout > 0 {
 			provider.queryTimeout = timeout
 		}
+	}
+}
+
+func WithGraphDiscovery(enabled bool) GraphProviderOption {
+	return func(provider *GraphProvider) {
+		provider.discovery.Enabled = enabled
+	}
+}
+
+func WithGraphDiscoveryLimit(limit int) GraphProviderOption {
+	return func(provider *GraphProvider) {
+		if limit > 0 {
+			provider.discovery.Limit = limit
+		}
+	}
+}
+
+func WithGraphDiscoveryScopes(scopes []GraphDiscoveryScope) GraphProviderOption {
+	return func(provider *GraphProvider) {
+		provider.discovery.Scopes = append([]GraphDiscoveryScope(nil), scopes...)
 	}
 }
 
@@ -189,47 +237,59 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	hazardsByID := make(map[string]graph.EntityState)
 	var firstErr error
 
-	for _, system := range p.mavlinkSystems {
-		if asset, ok, err := p.queryEntity(ctx, system.assetID()); err != nil {
+	discovered := false
+	if p.discovery.Enabled {
+		if ok, err := p.discoverInto(ctx, assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID); err != nil {
 			firstErr = errors.Join(firstErr, err)
-		} else if ok {
-			assetsByID[asset.ID] = asset
-		}
-		if track, ok, err := p.queryEntity(ctx, system.trackID()); err != nil {
-			firstErr = errors.Join(firstErr, err)
-		} else if ok {
-			tracksByID[track.ID] = track
+			discovered = ok
+		} else {
+			discovered = ok
 		}
 	}
 
-	for _, uid := range p.cotUIDs {
-		if asset, ok, err := p.queryEntity(ctx, uid.assetID()); err != nil {
-			firstErr = errors.Join(firstErr, err)
-		} else if ok {
-			assetsByID[asset.ID] = asset
+	if !discovered {
+		for _, system := range p.mavlinkSystems {
+			if asset, ok, err := p.queryEntity(ctx, system.assetID()); err != nil {
+				firstErr = errors.Join(firstErr, err)
+			} else if ok {
+				assetsByID[asset.ID] = asset
+			}
+			if track, ok, err := p.queryEntity(ctx, system.trackID()); err != nil {
+				firstErr = errors.Join(firstErr, err)
+			} else if ok {
+				tracksByID[track.ID] = track
+			}
 		}
-		if track, ok, err := p.queryEntity(ctx, uid.trackID()); err != nil {
-			firstErr = errors.Join(firstErr, err)
-		} else if ok {
-			tracksByID[track.ID] = track
-		}
-		if task, ok, err := p.queryEntity(ctx, uid.taskID()); err != nil {
-			firstErr = errors.Join(firstErr, err)
-		} else if ok {
-			tasksByID[task.ID] = task
-		}
-		if advisory, ok, err := p.queryEntity(ctx, uid.advisoryID()); err != nil {
-			firstErr = errors.Join(firstErr, err)
-		} else if ok {
-			advisoriesByID[advisory.ID] = advisory
-		}
-	}
 
-	for _, alert := range p.capAlerts {
-		if hazard, ok, err := p.queryEntity(ctx, alert.hazardID()); err != nil {
-			firstErr = errors.Join(firstErr, err)
-		} else if ok {
-			hazardsByID[hazard.ID] = hazard
+		for _, uid := range p.cotUIDs {
+			if asset, ok, err := p.queryEntity(ctx, uid.assetID()); err != nil {
+				firstErr = errors.Join(firstErr, err)
+			} else if ok {
+				assetsByID[asset.ID] = asset
+			}
+			if track, ok, err := p.queryEntity(ctx, uid.trackID()); err != nil {
+				firstErr = errors.Join(firstErr, err)
+			} else if ok {
+				tracksByID[track.ID] = track
+			}
+			if task, ok, err := p.queryEntity(ctx, uid.taskID()); err != nil {
+				firstErr = errors.Join(firstErr, err)
+			} else if ok {
+				tasksByID[task.ID] = task
+			}
+			if advisory, ok, err := p.queryEntity(ctx, uid.advisoryID()); err != nil {
+				firstErr = errors.Join(firstErr, err)
+			} else if ok {
+				advisoriesByID[advisory.ID] = advisory
+			}
+		}
+
+		for _, alert := range p.capAlerts {
+			if hazard, ok, err := p.queryEntity(ctx, alert.hazardID()); err != nil {
+				firstErr = errors.Join(firstErr, err)
+			} else if ok {
+				hazardsByID[hazard.ID] = hazard
+			}
 		}
 	}
 
@@ -247,6 +307,102 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	}
 
 	return p.snapshotFromGraph(assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID), nil
+}
+
+type graphDiscoveryTarget struct {
+	Prefix string
+	Kind   string
+}
+
+func (p *GraphProvider) discoverInto(
+	ctx context.Context,
+	assetsByID map[string]graph.EntityState,
+	tracksByID map[string]graph.EntityState,
+	tasksByID map[string]graph.EntityState,
+	advisoriesByID map[string]graph.EntityState,
+	hazardsByID map[string]graph.EntityState,
+) (bool, error) {
+	var found bool
+	var firstErr error
+	for _, target := range p.discoveryTargets() {
+		entities, err := p.queryPrefix(ctx, target.Prefix)
+		if err != nil {
+			firstErr = errors.Join(firstErr, err)
+			continue
+		}
+		for _, entity := range entities {
+			if entity.ID == "" {
+				continue
+			}
+			found = true
+			switch target.Kind {
+			case copmodel.EntityAsset:
+				assetsByID[entity.ID] = entity
+			case copmodel.EntityTrack:
+				tracksByID[entity.ID] = entity
+			case copmodel.EntityTask:
+				tasksByID[entity.ID] = entity
+			case copmodel.EntityAdvisory:
+				advisoriesByID[entity.ID] = entity
+			case copmodel.EntityHazardArea:
+				hazardsByID[entity.ID] = entity
+			}
+		}
+	}
+	return found, firstErr
+}
+
+func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
+	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*7)
+	for _, scope := range p.discovery.Scopes {
+		targets = append(targets,
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "mavlink", copmodel.EntityAsset), Kind: copmodel.EntityAsset},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "mavlink", copmodel.EntityTrack), Kind: copmodel.EntityTrack},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityAsset), Kind: copmodel.EntityAsset},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityTrack), Kind: copmodel.EntityTrack},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityTask), Kind: copmodel.EntityTask},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityAdvisory), Kind: copmodel.EntityAdvisory},
+			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "cap", copmodel.EntityHazardArea), Kind: copmodel.EntityHazardArea},
+		)
+	}
+	return targets
+}
+
+func (p *GraphProvider) queryPrefix(ctx context.Context, prefix string) ([]graph.EntityState, error) {
+	body, err := json.Marshal(map[string]any{
+		"prefix": prefix,
+		"limit":  p.discovery.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	response, err := p.requestPrefix(ctx, body)
+	if err != nil {
+		return nil, fmt.Errorf("query graph prefix %s: %w", prefix, err)
+	}
+	if isLegacyErrorResponse(response) {
+		if isNotFoundText(string(response)) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query graph prefix %s: %s", prefix, string(response))
+	}
+	var envelope struct {
+		Entities []graph.EntityState `json:"entities"`
+		Data     struct {
+			Entities []graph.EntityState `json:"entities"`
+		} `json:"data"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(response, &envelope); err != nil {
+		return nil, fmt.Errorf("decode graph prefix %s: %w", prefix, err)
+	}
+	if envelope.Error != "" {
+		return nil, fmt.Errorf("query graph prefix %s: %s", prefix, envelope.Error)
+	}
+	if len(envelope.Entities) > 0 {
+		return envelope.Entities, nil
+	}
+	return envelope.Data.Entities, nil
 }
 
 func (p *GraphProvider) queryEntity(ctx context.Context, entityID string) (graph.EntityState, bool, error) {
@@ -284,6 +440,13 @@ func (p *GraphProvider) requestEntity(ctx context.Context, body []byte) ([]byte,
 		return classified.RequestClassified(ctx, p.querySubject, body, p.queryTimeout)
 	}
 	return p.requester.Request(ctx, p.querySubject, body, p.queryTimeout)
+}
+
+func (p *GraphProvider) requestPrefix(ctx context.Context, body []byte) ([]byte, error) {
+	if classified, ok := p.requester.(classifiedGraphRequester); ok {
+		return classified.RequestClassified(ctx, p.prefixSubject, body, p.queryTimeout)
+	}
+	return p.requester.Request(ctx, p.prefixSubject, body, p.queryTimeout)
 }
 
 func (p *GraphProvider) snapshotFromGraph(
@@ -1024,6 +1187,33 @@ func normalizeCAPAlerts(alerts []CAPAlertRef) []CAPAlertRef {
 	return out
 }
 
+func normalizeGraphDiscovery(discovery GraphDiscoveryConfig) GraphDiscoveryConfig {
+	if discovery.Limit <= 0 {
+		discovery.Limit = DefaultGraphDiscoveryLimit
+	}
+	if len(discovery.Scopes) == 0 {
+		discovery.Scopes = []GraphDiscoveryScope{{Org: "c360", Platform: "edge"}}
+	}
+	out := make([]GraphDiscoveryScope, 0, len(discovery.Scopes))
+	seen := make(map[string]struct{}, len(discovery.Scopes))
+	for _, scope := range discovery.Scopes {
+		if scope.Org == "" {
+			scope.Org = "c360"
+		}
+		if scope.Platform == "" {
+			scope.Platform = "edge"
+		}
+		key := scope.Org + "\x00" + scope.Platform
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, scope)
+	}
+	discovery.Scopes = out
+	return discovery
+}
+
 func (s MAVLinkSystemRef) assetID() string {
 	return mavlinkEntityID(s.Org, s.Platform, copmodel.EntityAsset, s.SystemID)
 }
@@ -1041,6 +1231,10 @@ func mavlinkEntityID(org, platform, entityType string, systemID int) string {
 		Type:     entityType,
 		Instance: fmt.Sprintf("system-%d", systemID),
 	}.Key()
+}
+
+func graphEntityPrefix(org, platform, system, entityType string) string {
+	return strings.Join([]string{org, platform, "cop", system, entityType}, ".")
 }
 
 func (s CoTUIDRef) assetID() string {

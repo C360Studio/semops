@@ -141,9 +141,9 @@ operator or diagnostic lens exposes them.
 
 The first implemented browser path runs through Caddy in local Compose. Caddy serves the Svelte COP and proxies
 `/api/*` plus `/healthz` to SemOps API so local development sees the same-origin shape the deployed product should
-use. The first snapshot endpoint now queries configured MAVLink source asset and track entities through SemStreams
-`graph.query.entity`, maps graph triples into a curated COP view model, and falls back to fixtures only while no live
-graph state is available.
+use. The snapshot endpoint now prefers SemStreams `graph.query.prefix` discovery for MAVLink, TAK/CoT, and CAP COP
+entity prefixes, maps graph triples into a curated COP view model, and falls back to seeded point reads or fixtures
+only when discovery is unavailable or no live graph state is available.
 
 Dynamic UI is scoped narrowly:
 

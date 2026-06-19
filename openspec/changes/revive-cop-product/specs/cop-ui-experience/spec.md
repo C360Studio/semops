@@ -42,12 +42,13 @@ Phase 1.
 - **THEN** it renders the fixture snapshot and marks the source as fixture rather than presenting an empty COP
 - **AND** the fixture path remains a development fallback, not evidence that the graph-backed COP contract is complete
 
-#### Scenario: First live snapshot path reads governed graph state
+#### Scenario: First live snapshot path discovers governed graph state
 
-- **WHEN** configured MAVLink source asset/track entities, TAK/CoT seed UID entities, or CAP hazard-evidence entities
-  exist in SemStreams
+- **WHEN** MAVLink source asset/track entities, TAK/CoT seed UID entities, or CAP hazard-evidence entities exist in
+  SemStreams under configured COP graph discovery scopes
 - **THEN** `GET /api/cop/snapshot` maps their governed triples into the COP track, asset, task, advisory, hazard,
   feed-health, freshness, confidence, and provenance view model
+- **AND** the primary read path uses SemStreams prefix discovery before falling back to configured seed entity IDs
 - **AND** graph query not-found responses are handled as cold-start state rather than silently decoded as successful
   entity data
 

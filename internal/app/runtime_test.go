@@ -478,6 +478,8 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvAPIAddr:                    ":18088",
 		EnvOwnershipHeartbeatInterval: "4s",
 		EnvCOPGraphQueryTimeout:       "1500ms",
+		EnvCOPGraphDiscoveryEnabled:   "false",
+		EnvCOPGraphDiscoveryLimit:     "75",
 		EnvCOPMAVLinkSystemIDs:        "42, 43",
 		EnvCOPCoTUIDs:                 "ANDROID-ALPHA, MARKER-NORTH-GATE",
 		EnvCOPCAPAlertIDs:             "nws-demo-flood-warning, nws-demo-flood-update",
@@ -516,6 +518,12 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if cfg.COP.GraphQueryTimeout != 1500*time.Millisecond {
 		t.Fatalf("COP graph query timeout = %s", cfg.COP.GraphQueryTimeout)
+	}
+	if cfg.COP.GraphDiscoveryEnabled {
+		t.Fatal("COP graph discovery enabled = true, want false")
+	}
+	if cfg.COP.GraphDiscoveryLimit != 75 {
+		t.Fatalf("COP graph discovery limit = %d", cfg.COP.GraphDiscoveryLimit)
 	}
 	if len(cfg.COP.MAVLinkSystemIDs) != 2 || cfg.COP.MAVLinkSystemIDs[0] != 42 || cfg.COP.MAVLinkSystemIDs[1] != 43 {
 		t.Fatalf("COP MAVLink systems = %+v", cfg.COP.MAVLinkSystemIDs)
@@ -581,6 +589,21 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			name: "bad graph query timeout",
 			env:  map[string]string{EnvCOPGraphQueryTimeout: "forever"},
 			want: EnvCOPGraphQueryTimeout,
+		},
+		{
+			name: "bad graph discovery enabled",
+			env:  map[string]string{EnvCOPGraphDiscoveryEnabled: "sometimes"},
+			want: EnvCOPGraphDiscoveryEnabled,
+		},
+		{
+			name: "bad graph discovery limit",
+			env:  map[string]string{EnvCOPGraphDiscoveryLimit: "many"},
+			want: EnvCOPGraphDiscoveryLimit,
+		},
+		{
+			name: "zero graph discovery limit",
+			env:  map[string]string{EnvCOPGraphDiscoveryLimit: "0"},
+			want: EnvCOPGraphDiscoveryLimit,
 		},
 		{
 			name: "bad mavlink system ids",

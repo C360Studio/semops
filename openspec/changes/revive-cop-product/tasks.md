@@ -86,6 +86,7 @@
 - [x] 6.22 Add TAK/CoT graph writer, adapter graph path, stack constructor, and opt-in hosted listener wiring
 - [x] 6.23 Add TAK/CoT live graph smoke and hosted UDP-to-Caddy-snapshot readback
 - [x] 6.24 Add CAP born-first graph writer path for hazard evidence plans
+- [x] 6.25 Add SemStreams prefix discovery for graph-backed COP readback
 
 ## 7. COP UI
 
@@ -105,6 +106,7 @@
 - [x] 7.14 Add TAK/CoT task and advisory readback to the COP API/UI contract
 - [ ] 7.15 Add sensor footprints and alert geometry after their graph contracts have evidence
 - [x] 7.16 Add CAP hazard evidence readback to the COP API contract
+- [x] 7.17 Record SemConnect/SemLink graph visualization prior art for future graph lenses
 
 ## 8. Tier Escalation And Egress
 

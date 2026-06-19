@@ -88,6 +88,13 @@ requests before triples or foreign edges are added.
 - **AND** feed health reflects live or stale state from graph observation timestamps
 - **AND** the result remains a seed-UID readback gate, not a claim of TAK Server-equivalent behavior
 
+#### Scenario: COP readback uses SemStreams discovery primitives
+
+- **WHEN** SemOps needs to hydrate the operator snapshot from graph state
+- **THEN** it uses SemStreams `graph.query.prefix` to discover source-partitioned COP entities by 5-part graph prefix
+- **AND** configured seed IDs are compatibility fallback, not the product-grade discovery model
+- **AND** SemOps does not bypass SemStreams with direct KV scans for normal browser readback
+
 #### Scenario: CAP evidence readback stays append-only
 
 - **WHEN** a CAP alert fixture is parsed and projected into SemStreams graph state

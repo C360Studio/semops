@@ -33,6 +33,8 @@ const (
 	EnvCoTTCPListenAddr           = "SEMOPS_COT_TCP_LISTEN_ADDR"
 	EnvCoTTCPMaxEventBytes        = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
 	EnvCOPGraphQueryTimeout       = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
+	EnvCOPGraphDiscoveryEnabled   = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
+	EnvCOPGraphDiscoveryLimit     = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
 	EnvCOPMAVLinkSystemIDs        = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
 	EnvCOPCoTUIDs                 = "SEMOPS_COP_COT_UIDS"
 	EnvCOPCAPAlertIDs             = "SEMOPS_COP_CAP_ALERT_IDS"
@@ -93,10 +95,12 @@ type CoTTCPConfig struct {
 }
 
 type COPConfig struct {
-	GraphQueryTimeout time.Duration
-	MAVLinkSystemIDs  []int
-	CoTUIDs           []string
-	CAPAlertIDs       []string
+	GraphQueryTimeout     time.Duration
+	GraphDiscoveryEnabled bool
+	GraphDiscoveryLimit   int
+	MAVLinkSystemIDs      []int
+	CoTUIDs               []string
+	CAPAlertIDs           []string
 }
 
 func DefaultConfig() Config {
@@ -145,8 +149,10 @@ func DefaultConfig() Config {
 			},
 		},
 		COP: COPConfig{
-			GraphQueryTimeout: 2 * time.Second,
-			MAVLinkSystemIDs:  []int{42},
+			GraphQueryTimeout:     2 * time.Second,
+			GraphDiscoveryEnabled: true,
+			GraphDiscoveryLimit:   500,
+			MAVLinkSystemIDs:      []int{42},
 			CoTUIDs: []string{
 				"ANDROID-ALPHA",
 				"ANDROID-BRAVO",
@@ -213,6 +219,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.COP.GraphDiscoveryEnabled, err = boolFromEnv(
+		getenv,
+		EnvCOPGraphDiscoveryEnabled,
+		cfg.COP.GraphDiscoveryEnabled,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.MAVLink.Enabled, err = boolFromEnv(getenv, EnvMAVLinkEnabled, cfg.MAVLink.Enabled); err != nil {
 		return Config{}, err
 	}
@@ -237,6 +250,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvCoTTCPMaxEventBytes,
 		cfg.CoT.TCP.MaxEventBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.COP.GraphDiscoveryLimit, err = intFromEnv(
+		getenv,
+		EnvCOPGraphDiscoveryLimit,
+		cfg.COP.GraphDiscoveryLimit,
 	); err != nil {
 		return Config{}, err
 	}
@@ -268,6 +288,9 @@ func (c Config) Validate() error {
 	}
 	if c.COP.GraphQueryTimeout <= 0 {
 		return fmt.Errorf("%s must be greater than zero", EnvCOPGraphQueryTimeout)
+	}
+	if c.COP.GraphDiscoveryLimit <= 0 {
+		return fmt.Errorf("%s must be greater than zero", EnvCOPGraphDiscoveryLimit)
 	}
 	if len(c.COP.MAVLinkSystemIDs) == 0 {
 		return fmt.Errorf("%s must include at least one system id", EnvCOPMAVLinkSystemIDs)

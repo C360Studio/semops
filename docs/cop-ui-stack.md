@@ -68,11 +68,11 @@ The browser should not connect directly to NATS in Phase 1. SemOps API owns the 
 The UI consumes curated COP view models. Native packets, raw frames, SemStreams graph mutation details, and high-rate
 trace events stay behind the SemOps API unless an operator workflow proves they need a visible diagnostic lens.
 
-The first live snapshot provider queries SemStreams `graph.query.entity` for configured MAVLink source asset/track IDs
-and known TAK/CoT seed UIDs. It maps owned triples into the COP view model and uses SemStreams classified query errors
-when available so not-found graph state is handled deliberately instead of being mis-decoded as success. The fixture
-snapshot remains a fallback for local development and cold-start demos; it is not graph-compliance evidence. Seed UID
-readback is the current proof path; index-backed discovery is a product-grade follow-up.
+The first live snapshot provider prefers SemStreams `graph.query.prefix` over seed-only point lookups. It discovers
+MAVLink, TAK/CoT, and CAP entities by their 5-part COP prefixes, maps owned triples into the COP view model, and keeps
+seeded `graph.query.entity` reads as compatibility fallback when prefix discovery is unavailable or empty. That makes
+SemStreams responsible for graph discovery while SemOps owns the curated operator view. The fixture snapshot remains a
+fallback for local development and cold-start demos; it is not graph-compliance evidence.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
@@ -97,6 +97,11 @@ Deferred behavior:
 - Topology, tier, or orchestration panels without an adversarial review proving the operator job they improve.
 
 The short version: ontology hydrates the inspector; SemOps owns the view.
+
+Graph/source visualization prior art should come from C360's existing stack before SemOps invents a new surface.
+SemConnect and SemLink both contain useful graph-lens patterns for source-aware inspection and standards bridge
+debugging. SemOps should reuse or adapt those ideas when a graph visualization answers an operator or diagnostic
+question that the tactical map cannot answer cleanly.
 
 ## UX Principles
 
