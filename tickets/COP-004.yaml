@@ -1,0 +1,94 @@
+ticket: COP-004
+title: Stand up the containerized structural COP stack
+assigned: go-developer
+depends_on: [COP-001, COP-002, COP-003, COP-007, COP-008]
+blocks: [COP-005, COP-006, COP-009]
+status: ready
+reviewer: go-reviewer
+openspec_change: revive-cop-product
+
+scope:
+  - Add a first Compose stack with NATS, SemStreams structural services, SemOps API, UI, scenario runner,
+    MAVLink adapter, TAK/CoT adapter, and CAP adapter.
+  - Gate each adapter on parser, mock/simulator, projection, replay, and indexing-profile evidence.
+  - Keep SemConnect out of the critical path for Phase 1, but leave a documented extension point.
+  - Add health endpoints for services and active polling checks for long-running demo runs.
+
+acceptance:
+  - One command starts the structural demo stack locally.
+  - Health checks prove NATS, SemStreams, SemOps API, and the scenario runner are alive.
+  - The scenario runner produces visible graph writes from at least two feed types.
+  - Logs and metrics distinguish raw ingest, projection writes, rules, and COP API state.
+  - Feed graph writes declare expected indexing profiles and do not create graph entities per raw packet.
+  - Smoke tests prove feed adapters create entities before updates or ADR-056 foreign-edge writes.
+  - A generated/replay MAVLink smoke clears the ADR-055/056 must-exist graph gate before UI or second-feed expansion.
+  - Adversarial Phase 1 review has challenged demo credibility, monitoring, and graph/index cardinality.
+
+tdd:
+  - Add a smoke test that polls health and graph state instead of relying only on logs.
+  - Avoid arbitrary sleeps; use explicit readiness and state polling.
+
+progress:
+  - Added `internal/adapters/mavlink` as an in-process adapter harness that composes parser, bounded raw lane,
+    projector, and graph plan writer.
+  - Harness tests prove valid telemetry captures raw bytes, projects current state, writes graph plans, and exposes
+    pollable health counters without sleeps.
+  - Harness tests also prove unsupported command ACK frames are captured without graph writes and corrupt frames never
+    reach the graph writer.
+  - Added a file-backed MAVLink replay store that appends raw-lane records as JSON Lines and loads them back into
+    parseable frame records.
+  - Added `internal/graphrequest.NATSRequester` so graph writers use SemStreams `RequestWithRetry` for mutation
+    request/reply instead of bare query-style requests.
+  - Added `internal/stack.NewMAVLinkAdapter` as a structural wiring factory for parser, raw lane, projector,
+    retry-aware NATS requester, graph writer, adapter harness, and health state.
+  - SemOps issue #1 triage prioritizes a generated/replay MAVLink live graph smoke before PX4/SITL, UI, or
+    second-feed expansion.
+  - Added `internal/smoke/mavlink` as the skipped-by-default live graph smoke target for the compliance gate.
+  - Ran the MAVLink live graph smoke against SemStreams `configs/graph-backend.json` and JetStream NATS on
+    2026-06-17; generated heartbeat and position frames wrote and read back source asset, track, source edge, and
+    position state.
+  - Added a COP ownership registration boundary and reran the smoke on a clean temporary NATS/SemStreams stack with
+    typed owner tokens minted by SemStreams registry/bind results.
+  - Added optional live-smoke metrics-delta checks for SemOps owner-token mismatch, foreign-edge, and
+    indexing-profile-default counters.
+  - Wired `cmd/semops` through `internal/app` so hosted startup connects to SemStreams, registers COP ownership,
+    starts heartbeat, and composes the MAVLink adapter with typed owner tokens.
+  - Added `Dockerfile`, `compose.cop.yml`, and `scripts/cop-stack-smoke.sh` for a one-command graph scaffold with
+    NATS, SemStreams graph backend, SemOps runtime, active health/metrics polling, and the MAVLink live graph smoke.
+  - Ran `bash scripts/cop-stack-smoke.sh` successfully on 2026-06-17; the script built images, started the stack,
+    passed metrics-enabled MAVLink graph smoke, and tore the stack down.
+  - Added MAVLink restart create-conflict reconciliation so an existing asset/track strict create response can be
+    converted into a reprojected update path after process restart.
+  - Migrated the hosted stack to SemStreams typed `ownership.OwnerToken` bind results and reran
+    `bash scripts/cop-stack-smoke.sh` successfully on 2026-06-17.
+  - Added hosted MAVLink UDP listener lifecycle wiring behind `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`, with runtime cleanup
+    tests and localhost UDP adapter tests.
+  - Added `internal/api/cop` with a fixture-backed `GET /api/cop/snapshot` and `/healthz` handler for the first
+    browser/API contract.
+  - Added `semops-ui` and `caddy` services to `compose.cop.yml`; Caddy exposes the local COP on port 8080 and proxies
+    `/api/*` plus `/healthz` to SemOps API on the same origin.
+  - Extended `scripts/cop-stack-smoke.sh` to poll the direct API and the Caddy-routed UI/API path before running the
+    MAVLink live graph smoke.
+
+current_evidence:
+  - `go test ./internal/adapters/mavlink`
+  - `go test ./internal/graphrequest`
+  - `go test ./internal/app`
+  - `go test ./internal/api/cop`
+  - `go test ./internal/smoke/mavlink`
+  - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
+  - `go test ./internal/stack`
+  - `go test ./pkg/adapters/mavlink`
+  - `(cd ui && npm run check)`
+  - `(cd ui && npm run test)`
+  - `(cd ui && npm run build)`
+  - `go build ./cmd/semops`
+  - `docker compose -f compose.cop.yml config`
+  - `bash scripts/cop-stack-smoke.sh`
+
+remaining:
+  - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
+  - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
+  - Replace the fixture API provider with a live graph-backed COP snapshot query.
+  - Add scenario runner and Phase 1 TAK/CoT and CAP feed transports to the one-command stack.
+  - Add graph-state polling smoke tests that exercise at least two feed types.

@@ -1,0 +1,112 @@
+services:
+  semops-nats:
+    image: nats:2.12-alpine
+    command:
+      - "-js"
+      - "-sd"
+      - "/data"
+      - "-m"
+      - "8222"
+      - "--name"
+      - "semops-cop-nats"
+    ports:
+      - "${SEMOPS_NATS_HOST_PORT:-4222}:4222"
+      - "${SEMOPS_NATS_MON_HOST_PORT:-8222}:8222"
+    volumes:
+      - semops-nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  semstreams:
+    image: c360studio/semstreams:semops-graph
+    build:
+      context: ${SEMSTREAMS_ROOT:-../semstreams}
+      dockerfile: docker/Dockerfile
+      target: production
+    command:
+      - "--config"
+      - "/app/configs/graph-backend.json"
+      - "--log-level"
+      - "info"
+      - "--log-format"
+      - "text"
+      - "--health-port"
+      - "8080"
+    depends_on:
+      semops-nats:
+        condition: service_healthy
+    environment:
+      SEMSTREAMS_NATS_URLS: nats://semops-nats:4222
+      SEMSTREAMS_CONFIG: /app/configs/graph-backend.json
+    volumes:
+      - ${SEMSTREAMS_ROOT:-../semstreams}/configs:/app/configs:ro
+    ports:
+      - "${SEMOPS_SEMSTREAMS_HEALTH_HOST_PORT:-18080}:8080"
+      - "${SEMOPS_SEMSTREAMS_METRICS_HOST_PORT:-9090}:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 10s
+
+  semops:
+    image: c360studio/semops:cop-local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        semstreams: ${SEMSTREAMS_ROOT:-../semstreams}
+    depends_on:
+      semstreams:
+        condition: service_healthy
+    environment:
+      SEMOPS_NATS_URL: nats://semops-nats:4222
+      SEMOPS_NATS_NAME: semops-cop
+      SEMOPS_API_ADDR: :8088
+      SEMOPS_MAVLINK_ENABLED: "true"
+      SEMOPS_MAVLINK_SOURCE: mavlink:compose
+      SEMOPS_ORG: c360
+      SEMOPS_PLATFORM: edge-compose
+      SEMOPS_TRACE_ID: semops-compose
+      SEMOPS_MAVLINK_WRITE_TIMEOUT: 2s
+    ports:
+      - "${SEMOPS_API_HOST_PORT:-8088}:8088"
+
+  semops-ui:
+    image: c360studio/semops-ui:cop-local
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    depends_on:
+      semops:
+        condition: service_started
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      ORIGIN: "${SEMOPS_COP_ORIGIN:-http://localhost:8080}"
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      semops:
+        condition: service_started
+      semops-ui:
+        condition: service_started
+    ports:
+      - "${SEMOPS_CADDY_HOST_PORT:-8080}:8080"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  semops-nats-data:

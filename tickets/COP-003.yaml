@@ -1,0 +1,72 @@
+ticket: COP-003
+title: Salvage MAVLink and SITL into a modern SemOps adapter library
+assigned: go-developer
+depends_on: [COP-001, COP-002, COP-007, COP-008]
+blocks: [COP-004]
+status: implementation
+reviewer: go-reviewer
+openspec_change: revive-cop-product
+
+scope:
+  - Move the useful MAVLink parser, generator, and SITL controller behind a clean package boundary.
+  - Preserve heartbeat, global position, attitude, battery, and ArduPilot command coverage where it is correct.
+  - Add PX4 SITL or MAVSDK smoke evidence once the current SemStreams module/toolchain migration is stable.
+  - Replace old BaseMessage/processor wiring with current SemStreams projection writes.
+  - Keep raw high-rate frames on a bounded lane and project current vehicle state into signal-profiled entities.
+  - Birth source asset and track entities explicitly before adding triples or foreign edges.
+  - Clear generated/replay MAVLink graph compliance before making PX4/SITL the blocking MAVLink milestone.
+
+acceptance:
+  - Parser and generator tests run without external containers.
+  - SITL tests skip cleanly when SITL is unavailable and run against an explicit SITL target.
+  - PX4 SITL or MAVSDK smoke evidence is documented before calling MAVLink Phase 1 complete.
+  - Adversarial review has challenged MAVLink evidence, indexing profile, and raw-lane/current-state boundaries.
+  - MAVLink projections use SemOps ownership contracts and current SemStreams graph mutation types.
+  - MAVLink `cop.track.source` writes derive ADR-056 ForeignEdgeClaim coverage and do not rely on auto-vivify.
+  - Generated or replay MAVLink frames prove born-first graph writes against SemStreams before PX4/SITL fidelity.
+  - The adapter can be hosted in-process for tests or as semops-adapter-mavlink in Compose.
+
+progress:
+  - Active parser, generator, protocol constants, and checksum behavior were extracted into `pkg/adapters/mavlink`.
+  - Active tests prove heartbeat, global position, attitude, battery status, split buffers, noisy resync, checksum
+    rejection, concurrent sequence generation, and deterministic scenario frames.
+  - Battery status extraction corrected the old ignored reference layout to canonical MAVLink wire order.
+  - COMMAND_LONG and COMMAND_ACK support moved into the active adapter package with real-frame tests.
+  - Ignored parser/generator/constants and SITL controller/scenario references were deleted after extraction or
+    deliberate rejection.
+  - MAVLink current-state projection planner now emits SemStreams create/update mutation requests for heartbeat,
+    global position, attitude, and battery packets.
+  - Born-first tests prove source asset creation precedes the strict `cop.track.source` edge and known tracks update
+    without rebirth or repeated foreign-edge writes.
+  - Graph writer boundary now sends projection plans to SemStreams `create_with_triples` and `update_with_triples`
+    request/reply subjects with tests for ordering, committed-but-degraded responses, cancellation, and failure stops.
+  - Bounded raw frame lane now stores copied MAVLink frames, annotates decoded packets with
+    `cop.provenance.source_ref`, and keeps raw packet bytes out of graph entity birth.
+  - SemOps issue #1 triage changed the next MAVLink milestone to generated/replay live graph smoke before PX4/SITL.
+  - Generated MAVLink heartbeat and position frames passed the live SemStreams graph smoke on 2026-06-17, proving
+    born-first source asset and track writes before PX4/SITL fidelity work.
+  - `cmd/semops` now hosts the SemStreams/COP ownership registration path and composes the in-process MAVLink adapter
+    with typed owner tokens minted by SemStreams registry/bind results.
+  - MAVLink projection is pure until graph write success; accepted create plans or strict `entity_already_exists`
+    restart conflicts explicitly mark asset/track births before subsequent update-only projection.
+  - Added an opt-in UDP datagram listener for hosted MAVLink ingestion. Tests send generated MAVLink frames over
+    localhost UDP and prove corrupt datagrams do not kill the listener.
+
+current_evidence:
+  - `go test ./pkg/adapters/mavlink`
+  - `go test ./internal/adapters/mavlink`
+  - `go test ./internal/projectors/mavlink`
+  - `go test ./internal/app`
+  - `go build ./cmd/semops`
+  - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
+
+remaining:
+  - Add durable checkpoint/read-back reconciliation so adapter birth caches are not the only restart evidence.
+  - Add TCP/serial transport variants or explicitly reject them after PX4/SITL/MAVSDK evidence selects the path.
+  - Add a modern ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
+  - Add PX4 SITL or MAVSDK smoke evidence before calling MAVLink Phase 1 complete.
+
+tdd:
+  - Add contract tests for MAVLink current-state projection before replacing the old processor wiring.
+  - Add born-first tests for source asset and track creation before update or foreign-edge writes.
+  - Use real MAVLink frames in tests; do not mock away the codec.

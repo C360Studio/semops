@@ -1,0 +1,32 @@
+ticket: COP-008
+title: Run adversarial stage reviews for the COP revival
+assigned: architect
+depends_on: [COP-001, COP-002, COP-007]
+blocks: [COP-003, COP-004, COP-005, COP-006]
+status: ready
+reviewer: technical-writer
+openspec_change: revive-cop-product
+
+review_records:
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-initial-adversarial-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-framework-modernization-impact.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-cop-model-governance-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-17-must-exist-issue-triage.md
+
+scope:
+  - Run adversarial reviews at framework modernization, COP model, feed-entry, Phase 1 signoff, high-risk claim,
+    and upstream-ask boundaries.
+  - Challenge product value, framework ownership, protocol evidence, compliance wording, indexing profiles,
+    cardinality risk, binary-handling claims, and demo credibility.
+  - Record decisions, objections, evidence checked, accepted risks, and follow-up tasks.
+
+acceptance:
+  - The first review challenges the revival baseline before broad implementation starts. [done]
+  - Feed-entry reviews exist before MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, or KLV enter the structural stack.
+  - Orchestration, topology, tier UI, SAPIENT, KLV, and streaming-binary claims have dedicated adversarial review
+    records before demo promotion.
+  - Upstream SemStreams asks include review evidence separating product-local pressure from reusable framework need.
+
+tdd:
+  - Treat unresolved review objections as the red state for the next stage gate.
+  - Add or update failing fixtures when objections expose missing evidence rather than accepting narrative claims.

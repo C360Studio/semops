@@ -1,0 +1,67 @@
+ticket: COP-009
+title: Clear ADR-055/056 must-exist breaking-tag gate
+assigned: go-developer
+depends_on: [COP-002, COP-003, COP-004]
+blocks: [COP-005, COP-006]
+status: implementation
+reviewer: go-reviewer
+openspec_change: revive-cop-product
+github_issue: https://github.com/C360Studio/semops/issues/1
+
+scope:
+  - Track SemStreams issue #1 for the ADR-055/056 must-exist flip.
+  - Keep SemOps revival adapters on born-first create/update mutation paths.
+  - Prove MAVLink generated or replay frames can write through a live SemStreams graph stack before PX4/SITL.
+  - Prove registered projection contracts derive expected ForeignEdgeClaim records before structural feed expansion.
+  - Poll graph state and failure counters instead of accepting log-only evidence.
+
+acceptance:
+  - SemOps has no active legacy MAVLink auto-vivify writer paths.
+  - MAVLink source asset and track are created before update or strict `cop.track.source` edge writes.
+  - A generated or replay MAVLink smoke run against the current SemStreams graph stack reports no
+    `entity_not_found` failures.
+  - The smoke checks for dropped foreign-edge evidence once SemStreams exposes the relevant counter or state.
+  - The GitHub issue is updated with design evidence, local test evidence, and remaining post-tag verification.
+
+tdd:
+  - Start with generated or replay MAVLink frames, not PX4/SITL, so graph compliance is isolated from simulator
+    fidelity.
+  - Use active polling of graph state and counters; do not infer compliance from quiet logs.
+  - Treat restart/replay birth-cache behavior as a failing operational edge until read-back, checkpointing, or
+    idempotent create handling exists.
+
+progress:
+  - Local legacy auto-vivify MAVLink rule/payload paths have been deleted.
+  - COP contracts and docs cite ADR-055/056 and derive ForeignEdgeClaim records.
+  - MAVLink projector tests prove asset birth before track birth and no repeated strict source edge on updates.
+  - MAVLink graph writer and structural wiring tests use create/update-with-triples mutation subjects.
+  - Added `go test ./internal/smoke/mavlink` as a skipped-by-default live graph smoke harness. It runs only when
+    `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL` points at a live SemStreams graph stack.
+  - 2026-06-17 live run passed against SemStreams `configs/graph-backend.json` and JetStream NATS:
+    `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=nats://127.0.0.1:55438 go test ./internal/smoke/mavlink -v`.
+  - SemStreams health remained healthy after the run via `/health` and the dedicated `/healthz` endpoint.
+  - Added `internal/copownership` to register first-phase SemOps COP contracts with SemStreams ownership and enroll
+    static owners for heartbeat.
+  - 2026-06-17 clean-stack live run passed with typed owner tokens minted by SemStreams registry/bind results:
+    `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=nats://127.0.0.1:4222 go test ./internal/smoke/mavlink -v`.
+  - Added optional metrics-delta assertions to the live smoke and passed them against clean SemStreams metrics:
+    `SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL=http://localhost:9090/metrics`.
+  - Wired hosted ownership registration into `cmd/semops` through `internal/app`; startup now registers owners before
+    composing the MAVLink adapter.
+  - SemStreams accepted the SemOps feedback to add typed owner-token minting and distinguish append-evidence
+    declarations from enforceable write-fence ownership claims.
+  - Migrated SemOps runtime/projector wiring to typed `ownership.OwnerToken` values from SemStreams bind results;
+    `OwnerToken.Wire()` is now called only at graph mutation request construction.
+  - Added MAVLink restart create-conflict reconciliation: strict `entity_already_exists` responses for known
+    asset/track births mark that entity born, reproject the current packet, and continue as update-only state.
+  - Added and ran `bash scripts/cop-stack-smoke.sh`, proving the one-command graph scaffold passes the metrics-enabled
+    MAVLink live graph smoke against Docker-hosted NATS, SemStreams graph backend, and SemOps runtime.
+  - Reran `go test ./... -count=1`, `go build -o /private/tmp/semops-build ./cmd/semops`, and
+    `bash scripts/cop-stack-smoke.sh` after the typed-token and restart-reconciliation changes.
+  - Pushed evidence branch `codex/revive-cop-product` to origin:
+    `https://github.com/C360Studio/semops/compare/main...codex/revive-cop-product?expand=1`.
+  - Opened draft PR #2 and commented the current ADR-055/056 evidence on SemOps issue #1 after GitHub connector
+    access was restored.
+
+remaining:
+  - Add durable checkpoint/read-back reconciliation before calling restart/replay fully production-grade.

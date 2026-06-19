@@ -1,0 +1,24 @@
+ticket: COP-006
+title: Convert SemOps revival gaps into SemStreams upstream asks
+assigned: technical-writer
+depends_on: [COP-004, COP-005, COP-007, COP-008, COP-009]
+blocks: []
+status: ready
+reviewer: architect
+openspec_change: revive-cop-product
+
+scope:
+  - Track SemOps requirements that look framework-owned rather than product-owned.
+  - Draft upstream issues for proven deployment manifests, escalation events, provenance/confidence conventions,
+    spatial-temporal query helpers, raw-lane patterns, indexing-profile/cardinality helpers, and edge/core sync.
+  - Keep each ask backed by a live SemOps demo need.
+
+acceptance:
+  - Every upstream ask cites a concrete SemOps workflow or failure mode.
+  - Product-only SemOps behavior is not pushed into SemStreams prematurely.
+  - Indexing-profile asks cite at least two feed fixtures showing that clean entity boundaries are insufficient.
+  - Each upstream ask includes adversarial ownership-review notes.
+  - The SemOps architecture doc links to the accepted upstream issues once created.
+
+tdd:
+  - Use demo evidence and failing contract gaps as the red state before proposing framework work.

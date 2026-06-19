@@ -1,0 +1,14 @@
+{
+	auto_https off
+}
+
+:8080 {
+	encode zstd gzip
+
+	@semops_api {
+		path /api/* /healthz
+	}
+	reverse_proxy @semops_api semops:8088
+
+	reverse_proxy semops-ui:3000
+}
