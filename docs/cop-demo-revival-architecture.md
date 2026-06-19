@@ -198,10 +198,10 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - The first one-command graph smoke passes through `scripts/cop-stack-smoke.sh`; it starts the graph scaffold, polls
   health, metrics, API, UI, Svelte immutable asset caching, the hosted MAVLink UDP-to-snapshot path, and the direct
   MAVLink live graph smoke before tearing the stack down.
-- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.112`, the
-  shipped ADR-055 must-exist flip tag.
-- The 2026-06-19 post-tag smoke passed against `v1.0.0-beta.112`: focused graph snapshot tests, `go test ./...`,
-  `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
+- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.113`, the
+  prefix-discovery contract tag that follows the shipped ADR-055 must-exist flip.
+- The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,
+  `go test ./...`, `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
 - SemStreams currently warns that `semops.feed.cap` has no enforceable ownership claim because it is
   append-evidence-only. That matches the intended split between evidence-contribution declarations and write-fence
   ownership, but SemOps should keep watching the tag for any bind-result/token behavior change on append-only
