@@ -50,6 +50,15 @@ Post-tag verification after SemStreams published `v1.0.0-beta.112`:
 - `go build -o /private/tmp/semops-build ./cmd/semops`
 - `bash scripts/cop-stack-smoke.sh`
 
+Prefix-discovery contract verification after SemStreams published `v1.0.0-beta.113`:
+
+- Bumped the SemOps module pin to `github.com/c360studio/semstreams v1.0.0-beta.113`.
+- Confirmed the sibling SemStreams checkout used by `scripts/cop-stack-smoke.sh` is also at `v1.0.0-beta.113`.
+- `go test ./internal/contracts ./internal/api/cop ./internal/smoke/cap ./internal/smoke/cot ./internal/smoke/mavlink`
+- `go test ./...`
+- `go build -o /tmp/semops ./cmd/semops`
+- `bash scripts/cop-stack-smoke.sh`
+
 ## Follow-Up Tasks
 
 - Add graph revision/readback metadata to the selected-entity inspector.

@@ -1,10 +1,10 @@
 import type { EntityRef, GeoPoint, Hazard, Snapshot } from './types';
 
-export type TacticalEntityKind = 'track' | 'asset' | 'hazard';
+export type TacticalEntityKind = 'track' | 'asset' | 'task' | 'advisory' | 'hazard';
 
 export type TacticalPoint = {
   id: string;
-  kind: Extract<TacticalEntityKind, 'track' | 'asset'>;
+  kind: Extract<TacticalEntityKind, 'track' | 'asset' | 'task' | 'advisory'>;
   label: string;
   position: [number, number];
   selected: boolean;
@@ -73,7 +73,42 @@ export function tacticalPoints(snapshot: Snapshot, selected: EntityRef): Tactica
     radius: selected.kind === 'track' && selected.id === track.id ? 92 : 66
   }));
 
-  return [...assetPoints, ...trackPoints];
+  const taskPoints = snapshot.tasks.flatMap((task): TacticalPoint[] => {
+    if (!task.position) {
+      return [];
+    }
+    return [
+      {
+        id: task.id,
+        kind: 'task',
+        label: task.label,
+        position: lngLat(task.position),
+        selected: selected.kind === 'task' && selected.id === task.id,
+        color: selected.kind === 'task' && selected.id === task.id ? [98, 74, 145, 248] : [112, 86, 158, 222],
+        radius: selected.kind === 'task' && selected.id === task.id ? 86 : 62
+      }
+    ];
+  });
+
+  const advisoryPoints = snapshot.advisories.flatMap((advisory): TacticalPoint[] => {
+    if (!advisory.position) {
+      return [];
+    }
+    return [
+      {
+        id: advisory.id,
+        kind: 'advisory',
+        label: advisory.label,
+        position: lngLat(advisory.position),
+        selected: selected.kind === 'advisory' && selected.id === advisory.id,
+        color:
+          selected.kind === 'advisory' && selected.id === advisory.id ? [180, 116, 42, 248] : [189, 126, 48, 224],
+        radius: selected.kind === 'advisory' && selected.id === advisory.id ? 74 : 52
+      }
+    ];
+  });
+
+  return [...assetPoints, ...trackPoints, ...taskPoints, ...advisoryPoints];
 }
 
 export function tacticalPolygons(snapshot: Snapshot, selected: EntityRef): TacticalPolygon[] {
@@ -116,7 +151,35 @@ export function tacticalLabels(snapshot: Snapshot): TacticalLabel[] {
       position: lngLat(track.position),
       offset: [16, -18] as [number, number],
       anchor: 'start' as const
-    }))
+    })),
+    ...snapshot.tasks.flatMap((task) =>
+      task.position
+        ? [
+            {
+              id: task.id,
+              kind: 'task' as const,
+              label: task.label,
+              position: lngLat(task.position),
+              offset: [14, 18] as [number, number],
+              anchor: 'start' as const
+            }
+          ]
+        : []
+    ),
+    ...snapshot.advisories.flatMap((advisory) =>
+      advisory.position
+        ? [
+            {
+              id: advisory.id,
+              kind: 'advisory' as const,
+              label: advisory.label,
+              position: lngLat(advisory.position),
+              offset: [0, 30] as [number, number],
+              anchor: 'middle' as const
+            }
+          ]
+        : []
+    )
   ];
   const hazardLabels = snapshot.hazards
     .filter((hazard) => hazard.geometry.length > 0)
@@ -136,6 +199,8 @@ export function tacticalSelectionItems(snapshot: Snapshot): TacticalSelectionIte
   return [
     ...snapshot.tracks.map((track) => ({ id: track.id, kind: 'track' as const, label: track.label })),
     ...snapshot.assets.map((asset) => ({ id: asset.id, kind: 'asset' as const, label: asset.label })),
+    ...snapshot.tasks.map((task) => ({ id: task.id, kind: 'task' as const, label: task.label })),
+    ...snapshot.advisories.map((advisory) => ({ id: advisory.id, kind: 'advisory' as const, label: advisory.label })),
     ...snapshot.hazards.map((hazard) => ({ id: hazard.id, kind: 'hazard' as const, label: hazard.label }))
   ];
 }
@@ -144,6 +209,8 @@ export function tacticalMapView(snapshot: Snapshot): TacticalMapView {
   const points = [
     ...snapshot.tracks.map((track) => track.position),
     ...snapshot.assets.flatMap((asset) => (asset.position ? [asset.position] : [])),
+    ...snapshot.tasks.flatMap((task) => (task.position ? [task.position] : [])),
+    ...snapshot.advisories.flatMap((advisory) => (advisory.position ? [advisory.position] : [])),
     ...snapshot.hazards.flatMap((hazard) => hazard.geometry)
   ];
   if (points.length === 0) {

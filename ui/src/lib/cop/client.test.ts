@@ -22,7 +22,8 @@ describe('loadSnapshot', () => {
 
     expect(result.source).toBe('fixture');
     expect(result.error).toContain('offline');
-    expect(result.snapshot.tracks).toHaveLength(1);
+    expect(result.snapshot.tracks).toHaveLength(2);
+    expect(result.snapshot.tasks).toHaveLength(1);
   });
 });
 

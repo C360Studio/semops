@@ -11,14 +11,15 @@ ideas that are promising but risky for a Phase 1 demo.
 The current implementation is intentionally narrow:
 
 - `ui` contains the clean-sheet Svelte 5/SvelteKit COP surface.
-- `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider for configured MAVLink systems,
-  with the fixture provider retained only as a development fallback before live graph state exists.
+- `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider for configured MAVLink systems
+  and TAK/CoT seed UIDs, with the fixture provider retained only as a development fallback before live graph state
+  exists.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
-- The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, hazards, labels, and
-  picking, plus alert, feed state, and provenance panels.
+- The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, TAK/CoT tasks,
+  TAK/CoT advisories, hazards, labels, and picking, plus alert, feed state, and provenance panels.
 
 This is the first full-stack spine, not the final map implementation. Bounded deltas, real basemap/terrain sources,
-footprints, alert/task geometry, second-feed state, and scenario playback remain next gates.
+footprints, alert geometry, index-backed CoT discovery, and scenario playback remain next gates.
 
 ## Direction
 
@@ -49,10 +50,11 @@ selected entity needs a richer 3D inspection surface than a map symbol, footprin
 
 The first implemented map layer uses a local empty MapLibre style so the demo does not depend on external tiles while
 the API and graph spine are still moving. deck.gl currently owns point, polygon, label, and picking overlays for the
-snapshot's tracks, assets, and hazard areas. That proves the rendering integration and selection path, not a finished
-cartographic basemap, temporal trail layer, or task/alert geometry model. Vite pins deck/luma/math/probe packages into a
-single renderer chunk to avoid luma's circular re-export warning in production builds; the remaining large renderer
-chunks are accepted while the first screen is inherently map-first.
+snapshot's tracks, assets, TAK/CoT tasks, TAK/CoT advisories, and hazard areas. That proves the rendering integration
+and selection path, not a finished cartographic basemap, temporal trail layer, alert geometry model, or full tasking
+workflow. Vite pins deck/luma/math/probe packages into a single renderer chunk to avoid luma's circular re-export
+warning in production builds; the remaining large renderer chunks are accepted while the first screen is inherently
+map-first.
 
 ## Browser Contract
 
@@ -66,10 +68,13 @@ The browser should not connect directly to NATS in Phase 1. SemOps API owns the 
 The UI consumes curated COP view models. Native packets, raw frames, SemStreams graph mutation details, and high-rate
 trace events stay behind the SemOps API unless an operator workflow proves they need a visible diagnostic lens.
 
-The first live snapshot provider queries SemStreams `graph.query.entity` for configured MAVLink source asset and track
-IDs. It maps owned triples into the COP view model and uses SemStreams classified query errors when available so
-not-found graph state is handled deliberately instead of being mis-decoded as success. The fixture snapshot remains a
-fallback for local development and cold-start demos; it is not graph-compliance evidence.
+The first live snapshot provider prefers SemStreams `graph.query.prefix` over seed-only point lookups. It discovers
+MAVLink, TAK/CoT, and CAP entities by their 5-part COP prefixes, maps owned triples into the COP view model, and keeps
+seeded `graph.query.entity` reads as compatibility fallback when prefix discovery is unavailable or empty. That makes
+SemStreams responsible for graph discovery while SemOps owns the curated operator view. The fixture snapshot remains a
+fallback for local development and cold-start demos; it is not graph-compliance evidence. CAP hazard lifecycle status
+is derived in the view model from advisory evidence and freshness; distinct expired/cancelled/stale map symbology is a
+future UX gate.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
@@ -94,6 +99,11 @@ Deferred behavior:
 - Topology, tier, or orchestration panels without an adversarial review proving the operator job they improve.
 
 The short version: ontology hydrates the inspector; SemOps owns the view.
+
+Graph/source visualization prior art should come from C360's existing stack before SemOps invents a new surface.
+SemConnect and SemLink both contain useful graph-lens patterns for source-aware inspection and standards bridge
+debugging. SemOps should reuse or adapt those ideas when a graph visualization answers an operator or diagnostic
+question that the tactical map cannot answer cleanly.
 
 ## UX Principles
 

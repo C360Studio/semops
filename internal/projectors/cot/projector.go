@@ -457,9 +457,19 @@ func (p *Projector) advisoryID(uid string) string {
 }
 
 func (p *Projector) entityID(entityType, uid string) string {
+	return EntityID(p.cfg.Org, p.cfg.Platform, entityType, uid)
+}
+
+func EntityID(org, platform, entityType, uid string) string {
+	if org == "" {
+		org = "c360"
+	}
+	if platform == "" {
+		platform = "edge"
+	}
 	return message.EntityID{
-		Org:      p.cfg.Org,
-		Platform: p.cfg.Platform,
+		Org:      org,
+		Platform: platform,
 		Domain:   "cop",
 		System:   "tak",
 		Type:     entityType,

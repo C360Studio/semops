@@ -126,7 +126,7 @@ Each ask must cite a SemOps workflow, failing test, missing primitive, or demo c
 
 ### 8. Feeds enter one at a time through evidence gates
 
-Feed order is MAVLink, TAK/CoT, CAP/EDXL, SemConnect CS API egress, ADS-B, SAPIENT, then KLV/STANAG 4609.
+Feed order is MAVLink, TAK/CoT, CAP/EDXL, CS API bidirectional interop, ADS-B, SAPIENT, then KLV/STANAG 4609.
 
 Every feed needs a parser gate, mock or simulator gate, projection gate, replay gate, and demo gate. Compliance gates
 are required where a public suite, official schema, or documented interoperability test exists. If no compliance
@@ -174,13 +174,13 @@ accepted risks, and follow-up tasks.
 2. Add canonical COP entity and predicate contracts.
 3. Move useful MAVLink parser, generator, and SITL code behind a clean adapter package.
 4. Add structural projection writers and born-first contract tests.
-5. Add the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT, and KLV.
+5. Add the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT, and KLV.
 6. Run adversarial reviews for framework modernization, COP model, and feed evidence before Phase 1 implementation.
 7. Add generated/replay MAVLink live graph smoke for the ADR-055/056 must-exist breaking-tag gate.
 8. Add first Compose stack with NATS, SemStreams, SemOps API, UI, scenario runner, and three feed adapters.
 9. Build the MapLibre/deck.gl source/provenance COP product surface.
 10. Add ADS-B/SAPIENT and statistical track association.
-11. Add KLV, SemConnect egress, and semantic translation.
+11. Add KLV, SemConnect CS API interop, and semantic translation.
 12. Split edge/core placement after the single-stack demo is stable.
 
 ## Open Questions

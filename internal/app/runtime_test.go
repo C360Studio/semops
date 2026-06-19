@@ -478,7 +478,11 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvAPIAddr:                    ":18088",
 		EnvOwnershipHeartbeatInterval: "4s",
 		EnvCOPGraphQueryTimeout:       "1500ms",
+		EnvCOPGraphDiscoveryEnabled:   "false",
+		EnvCOPGraphDiscoveryLimit:     "75",
 		EnvCOPMAVLinkSystemIDs:        "42, 43",
+		EnvCOPCoTUIDs:                 "ANDROID-ALPHA, MARKER-NORTH-GATE",
+		EnvCOPCAPAlertIDs:             "nws-demo-flood-warning, nws-demo-flood-update",
 		EnvMAVLinkEnabled:             "false",
 		EnvMAVLinkSource:              "udp:14550",
 		EnvOrg:                        "lab",
@@ -515,8 +519,22 @@ func TestConfigFromEnv(t *testing.T) {
 	if cfg.COP.GraphQueryTimeout != 1500*time.Millisecond {
 		t.Fatalf("COP graph query timeout = %s", cfg.COP.GraphQueryTimeout)
 	}
+	if cfg.COP.GraphDiscoveryEnabled {
+		t.Fatal("COP graph discovery enabled = true, want false")
+	}
+	if cfg.COP.GraphDiscoveryLimit != 75 {
+		t.Fatalf("COP graph discovery limit = %d", cfg.COP.GraphDiscoveryLimit)
+	}
 	if len(cfg.COP.MAVLinkSystemIDs) != 2 || cfg.COP.MAVLinkSystemIDs[0] != 42 || cfg.COP.MAVLinkSystemIDs[1] != 43 {
 		t.Fatalf("COP MAVLink systems = %+v", cfg.COP.MAVLinkSystemIDs)
+	}
+	if len(cfg.COP.CoTUIDs) != 2 || cfg.COP.CoTUIDs[0] != "ANDROID-ALPHA" || cfg.COP.CoTUIDs[1] != "MARKER-NORTH-GATE" {
+		t.Fatalf("COP CoT UIDs = %+v", cfg.COP.CoTUIDs)
+	}
+	if len(cfg.COP.CAPAlertIDs) != 2 ||
+		cfg.COP.CAPAlertIDs[0] != "nws-demo-flood-warning" ||
+		cfg.COP.CAPAlertIDs[1] != "nws-demo-flood-update" {
+		t.Fatalf("COP CAP alert IDs = %+v", cfg.COP.CAPAlertIDs)
 	}
 	if cfg.MAVLink.Enabled {
 		t.Fatal("MAVLink enabled = true, want false")
@@ -573,6 +591,21 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			want: EnvCOPGraphQueryTimeout,
 		},
 		{
+			name: "bad graph discovery enabled",
+			env:  map[string]string{EnvCOPGraphDiscoveryEnabled: "sometimes"},
+			want: EnvCOPGraphDiscoveryEnabled,
+		},
+		{
+			name: "bad graph discovery limit",
+			env:  map[string]string{EnvCOPGraphDiscoveryLimit: "many"},
+			want: EnvCOPGraphDiscoveryLimit,
+		},
+		{
+			name: "zero graph discovery limit",
+			env:  map[string]string{EnvCOPGraphDiscoveryLimit: "0"},
+			want: EnvCOPGraphDiscoveryLimit,
+		},
+		{
 			name: "bad mavlink system ids",
 			env:  map[string]string{EnvCOPMAVLinkSystemIDs: "42,bad"},
 			want: EnvCOPMAVLinkSystemIDs,
@@ -586,6 +619,16 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			name: "out of range mavlink system ids",
 			env:  map[string]string{EnvCOPMAVLinkSystemIDs: "300"},
 			want: EnvCOPMAVLinkSystemIDs,
+		},
+		{
+			name: "empty cot uids",
+			env:  map[string]string{EnvCOPCoTUIDs: ","},
+			want: EnvCOPCoTUIDs,
+		},
+		{
+			name: "empty cap alert ids",
+			env:  map[string]string{EnvCOPCAPAlertIDs: ","},
+			want: EnvCOPCAPAlertIDs,
 		},
 		{
 			name: "bad udp max datagram",

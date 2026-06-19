@@ -5,12 +5,16 @@ export type Snapshot = {
   feeds: FeedHealth[];
   assets: Asset[];
   tracks: Track[];
+  tasks: Task[];
+  advisories: Advisory[];
   hazards: Hazard[];
   alerts: Alert[];
 };
 
 export type Summary = {
   active_tracks: number;
+  active_tasks: number;
+  active_advisories: number;
   active_alerts: number;
   stale_feeds: number;
 };
@@ -47,11 +51,39 @@ export type Track = {
   provenance: Provenance;
 };
 
+export type Task = {
+  id: string;
+  label: string;
+  kind: string;
+  source: string;
+  status: string;
+  position?: GeoPoint;
+  description?: string;
+  confidence: number;
+  updated_at: string;
+  provenance: Provenance;
+};
+
+export type Advisory = {
+  id: string;
+  label: string;
+  kind: string;
+  source: string;
+  status: string;
+  text: string;
+  sender?: string;
+  position?: GeoPoint;
+  confidence: number;
+  updated_at: string;
+  provenance: Provenance;
+};
+
 export type Hazard = {
   id: string;
   label: string;
   kind: string;
   severity: string;
+  status: string;
   geometry: GeoPoint[];
   source: string;
   confidence: number;
@@ -83,5 +115,7 @@ export type Provenance = {
 export type EntityRef =
   | { kind: 'track'; id: string }
   | { kind: 'asset'; id: string }
+  | { kind: 'task'; id: string }
+  | { kind: 'advisory'; id: string }
   | { kind: 'hazard'; id: string }
   | { kind: 'alert'; id: string };

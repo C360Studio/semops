@@ -23,7 +23,8 @@ Product boundary:
   scenario playback, and product-scoped governance.
 - SemStreams owns the substrate: NATS/JetStream, graph mutation/query contracts, projection contracts,
   ownership claims, indexing profiles, rule processing, and tiered structural/statistical/semantic services.
-- SemConnect owns the standards-facing OGC Connected Systems API egress path.
+- SemConnect owns the standards-facing OGC Connected Systems API bridge and conformance evidence while SemOps keeps
+  native feed ingestion and governed COP state as the product core.
 - SemLink remains useful prior art for the modern GCS UI pattern, source-aware graph lens, TAK bridge, CS API bridge,
   and bounded raw telemetry lane. SemLink should stay a basic demo unless explicitly rechartered; SemOps owns the
   complete COP product going forward.
@@ -42,16 +43,23 @@ Review gate: adversarial reviews are required at key stage boundaries. Reviews s
 framework ownership, evidence quality, compliance language, index-profile decisions, and demo credibility before the
 next implementation tranche begins.
 
+CS API gate: CS API is an interface, not the SemOps internal architecture. SemOps should ingest native feeds close to
+their source, project them into SemStreams governed graph state, and use a bidirectional CS API bridge for systems that
+already speak or need to consume CS API. That preserves product velocity, semantic graph flexibility, and standards
+risk isolation while still giving SemOps a standards-facing interoperability story.
+
 Breaking-tag gate: SemStreams issue #1 tracks the ADR-055/056 must-exist flip for SemOps. SemOps should prove
 generated or replay MAVLink frames against the live SemStreams graph path before PX4/SITL, UI, or second-feed
 expansion. PX4/SITL remains feed-fidelity evidence; it is not the prerequisite for born-first graph compliance.
 The first generated-frame smoke passed on 2026-06-17. Follow-up clean-stack runs also registered SemOps COP owners
 and used typed owner tokens minted by SemStreams registry/bind results. The hosted `cmd/semops` composition root now
-registers COP owners before composing the MAVLink adapter. The Docker Compose smoke now starts NATS, SemStreams graph
-backend, SemOps runtime/API, Svelte UI, and Caddy; polls health, metrics, API, UI, and Svelte immutable assets; sends
-generated MAVLink over the hosted UDP listener; waits for the Caddy-routed COP snapshot to show graph-backed track
-state; then runs the direct MAVLink live graph smoke with metrics. Remaining structural evidence is scenario-runner
-expansion, second-feed graph-state smoke coverage, and durable checkpoint/read-back reconciliation.
+registers COP owners before composing the MAVLink and TAK/CoT adapters. The Docker Compose smoke now starts NATS,
+SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy; polls health, metrics, API, UI, and Svelte
+immutable assets; sends generated MAVLink and CoT seed events over hosted UDP listeners; waits for the Caddy-routed
+COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink, CoT, and CAP live graph smokes.
+CAP is deliberately proved as append-only hazard evidence, not authoritative hazard state. The COP now derives CAP
+hazard lifecycle status from evidence for readback, while remaining structural evidence is scenario-runner expansion,
+hosted CAP polling, and durable checkpoint/read-back reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -102,8 +110,8 @@ SemOps now has TAK/CoT depth beyond prior-art replay:
   `content` advisories while preserving raw source refs.
 - A CoT graph writer and adapter graph path now follow the same born-first and restart reconciliation discipline as
   MAVLink.
-- The hosted runtime can compose CoT behind explicit `SEMOPS_COT_ENABLED` and UDP/TCP listener settings, but the
-  COP API/UI and live graph smoke still need CoT-specific readback before structural promotion.
+- The hosted runtime can compose CoT behind explicit `SEMOPS_COT_ENABLED` and UDP/TCP listener settings, and the COP
+  API/UI now reads graph-backed CoT tracks, tasks, and advisories for configured seed UIDs.
 
 SemLink has the more current product pattern:
 
@@ -134,9 +142,9 @@ operator or diagnostic lens exposes them.
 
 The first implemented browser path runs through Caddy in local Compose. Caddy serves the Svelte COP and proxies
 `/api/*` plus `/healthz` to SemOps API so local development sees the same-origin shape the deployed product should
-use. The first snapshot endpoint now queries configured MAVLink source asset and track entities through SemStreams
-`graph.query.entity`, maps graph triples into a curated COP view model, and falls back to fixtures only while no live
-graph state is available.
+use. The snapshot endpoint now prefers SemStreams `graph.query.prefix` discovery for MAVLink, TAK/CoT, and CAP COP
+entity prefixes, maps graph triples into a curated COP view model, and falls back to seeded point reads or fixtures
+only when discovery is unavailable or no live graph state is available.
 
 Dynamic UI is scoped narrowly:
 
@@ -190,15 +198,33 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - The first one-command graph smoke passes through `scripts/cop-stack-smoke.sh`; it starts the graph scaffold, polls
   health, metrics, API, UI, Svelte immutable asset caching, the hosted MAVLink UDP-to-snapshot path, and the direct
   MAVLink live graph smoke before tearing the stack down.
-- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.112`, the
-  shipped ADR-055 must-exist flip tag.
-- The 2026-06-19 post-tag smoke passed against `v1.0.0-beta.112`: focused graph snapshot tests, `go test ./...`,
-  `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
+- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.113`, the
+  prefix-discovery contract tag that follows the shipped ADR-055 must-exist flip.
+- The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,
+  `go test ./...`, `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
 - SemStreams currently warns that `semops.feed.cap` has no enforceable ownership claim because it is
   append-evidence-only. That matches the intended split between evidence-contribution declarations and write-fence
   ownership, but SemOps should keep watching the tag for any bind-result/token behavior change on append-only
   contributors.
-- Remaining compliance hardening requires second-feed stack expansion and durable checkpoint/read-back reconciliation.
+- CAP now has a local parser, raw XML lifecycle fixture replay, born-first append-evidence projection planner/writer,
+  graph-backed COP hazard readback, and derived lifecycle status in the COP view model. It is still not a hosted
+  CAP/NWS service and does not claim CAP consumer conformance.
+- Remaining compliance hardening requires index-backed CoT discovery, CAP schema/NWS/lifecycle expansion, and durable
+  checkpoint/read-back reconciliation.
+
+## CS API Positioning
+
+SemOps should use a native core plus standards bridge posture.
+
+Native adapters are the fast path for operational feeds: MAVLink, TAK/CoT, CAP/EDXL, ADS-B, SAPIENT, and KLV can
+arrive in disaster-response environments without a standards driver in front of them. SemOps should decode those
+formats at the boundary, preserve their native semantics where they matter, and project governed current state,
+evidence, provenance, freshness, and confidence into SemStreams.
+
+CS API remains valuable at the ecosystem edge. It can decouple standards-aware clients, support systems that already
+publish CS API, expose SemOps state to federated consumers, and provide a unified vocabulary for standards-facing
+tasking. Those benefits do not require making CS API the COP's internal language. If CS API mappings evolve, the bridge
+should absorb that change; the native adapters and COP model should not be hostage to an external standards lifecycle.
 
 ## Adversarial Review Gates
 
@@ -235,7 +261,7 @@ flowchart LR
         INGRESS["Caddy ingress"]
         UI["SemOps Svelte COP"]
         BROWSER["Operator browser"]
-        CS["SemConnect CS API egress"]
+        CS["SemConnect CS API interop"]
     end
 
     subgraph Ops["Operations"]
@@ -286,7 +312,7 @@ stack, then split edge/core only after the deployment metadata has real value.
 | `semops-adapter-klv` | SemOps | Video metadata/footprint extraction from STANAG 4609 KLV subset | Phase 3 |
 | `semops-track-association` | SemOps | Statistical tier for ambiguous cross-source track association | Phase 2 |
 | `semops-translation-agent` | SemOps | Semantic tier for civilian advisory translation and explanations | Phase 3 |
-| `semconnect-csapi` | SemConnect | Standards egress and conformance surface | Phase 3 |
+| `semconnect-csapi` | SemConnect | Standards ingress/egress bridge and conformance surface | Phase 3 |
 | `observability` | Infra | Prometheus/Otel/log aggregation for active demo monitoring | Phase 0 |
 
 Do not make each deterministic mapper its own service by default. A mapper becomes a service only when it owns an
@@ -347,7 +373,7 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
 SemOps should stress current indexing behavior deliberately:
 
 - MAVLink, ADS-B, TAK position events, SAPIENT detections, and KLV sensor positions are high-rate `signal`.
-- Alerts, tasks, commands, feed health, scenario state, and egress state are durable `control`.
+- Alerts, tasks, commands, feed health, scenario state, and standards bridge state are durable `control`.
 - CAP advisory text, operator notes, chat text, and semantic explanations are `content`.
 - Replay steps, native packet references, and decode logs are `trace`.
 
@@ -379,9 +405,9 @@ profile semantics.
 - Add a statistical track association service for ambiguous air tracks.
 - Write association evidence back to the graph; add UI only if it helps operator decisions.
 
-### Phase 3: Semantic Translation And Standards Egress
+### Phase 3: Semantic Translation And Standards Interop
 
-- Add KLV footprint extraction and CS API egress through SemConnect.
+- Add KLV footprint extraction and CS API bidirectional interop through SemConnect.
 - Add the semantic translation service for civilian advisories and anomaly explanation.
 - Expose provenance and trajectory for every semantic answer.
 

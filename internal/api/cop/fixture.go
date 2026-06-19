@@ -19,6 +19,7 @@ func NewFixtureProvider(now func() time.Time) *FixtureProvider {
 func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 	now := p.now().UTC()
 	observed := now.Add(-18 * time.Second)
+	takObserved := now.Add(-46 * time.Second)
 	hazardObserved := now.Add(-2 * time.Minute)
 
 	snapshot := Snapshot{
@@ -37,9 +38,9 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 				ID:          "feed.tak",
 				Name:        "TAK/CoT",
 				Kind:        "operators",
-				Status:      "planned",
-				LastEventAt: now.Add(-18 * time.Minute),
-				Message:     "Seed replay gate pending",
+				Status:      "live",
+				LastEventAt: takObserved,
+				Message:     "Seed replay track, task, and GeoChat smoke path",
 			},
 			{
 				ID:          "feed.cap",
@@ -82,6 +83,58 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 					Observed:  observed,
 				},
 			},
+			{
+				ID:         "c360.edge.cop.tak.track.android-alpha",
+				Label:      "ANDROID-ALPHA",
+				Source:     "tak-cot",
+				Status:     "active.operator",
+				Position:   GeoPoint{Lat: 38.892, Lon: -77.035},
+				Velocity:   "",
+				Confidence: 1,
+				UpdatedAt:  takObserved,
+				Provenance: Provenance{
+					Owner:     "semops.feed.tak",
+					SourceRef: "cot://fixture/0001",
+					Observed:  takObserved,
+				},
+			},
+		},
+		Tasks: []Task{
+			{
+				ID:          "c360.edge.cop.tak.task.marker-north-gate",
+				Label:       "North Gate",
+				Kind:        "marker",
+				Source:      "tak-cot",
+				Status:      "active.marker",
+				Position:    &GeoPoint{Lat: 38.894, Lon: -77.038},
+				Description: "checkpoint",
+				Confidence:  1,
+				UpdatedAt:   takObserved,
+				Provenance: Provenance{
+					Owner:     "semops.feed.tak",
+					SourceRef: "cot://fixture/0003",
+					Observed:  takObserved,
+				},
+			},
+		},
+		Advisories: []Advisory{
+			{
+				ID:         "c360.edge.cop.tak.advisory.chat-alpha-1",
+				Label:      "GeoChat ANDROID-ALPHA",
+				Kind:       "geochat",
+				Source:     "tak-cot",
+				Status:     "active.geochat",
+				Text:       "hold at checkpoint",
+				Sender:     "ANDROID-ALPHA",
+				Position:   &GeoPoint{Lat: 38.892, Lon: -77.035},
+				Confidence: 1,
+				UpdatedAt:  takObserved,
+				Provenance: Provenance{
+					Owner:     "semops.feed.tak",
+					SourceRef: "cot://fixture/0004",
+					Observed:  takObserved,
+				},
+			},
 		},
 		Hazards: []Hazard{
 			{
@@ -89,6 +142,7 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 				Label:    "Flood watch sector",
 				Kind:     "flood",
 				Severity: "watch",
+				Status:   "active",
 				Geometry: []GeoPoint{
 					{Lat: 38.895, Lon: -77.012},
 					{Lat: 38.907, Lon: -77.011},
@@ -118,9 +172,11 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 		},
 	}
 	snapshot.Summary = Summary{
-		ActiveTracks: len(snapshot.Tracks),
-		ActiveAlerts: len(snapshot.Alerts),
-		StaleFeeds:   countFeeds(snapshot.Feeds, "stale"),
+		ActiveTracks:     len(snapshot.Tracks),
+		ActiveTasks:      len(snapshot.Tasks),
+		ActiveAdvisories: len(snapshot.Advisories),
+		ActiveAlerts:     len(snapshot.Alerts),
+		StaleFeeds:       countFeeds(snapshot.Feeds, "stale"),
 	}
 	return snapshot, nil
 }

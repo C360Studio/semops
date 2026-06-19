@@ -15,7 +15,8 @@ current SemStreams projection, ownership, indexing, rule, and tiering patterns.
   playback, and product-scoped governance.
 - SemStreams owns framework substrate: NATS/JetStream, graph mutation/query APIs, projection contracts, ownership
   claims, indexing profiles, rules, lifecycle primitives, and reusable tier infrastructure.
-- SemConnect owns OGC Connected Systems API egress and conformance claims.
+- SemConnect owns OGC Connected Systems API bridge behavior and conformance claims unless SemOps is explicitly
+  rechartered to own that gateway product.
 - SemLink remains a basic GCS/demo proving selected patterns. SemOps may reuse or port anything useful from it, but
   SemOps owns the complete COP product going forward.
 

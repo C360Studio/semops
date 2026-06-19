@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { Crosshair, MapPinned, ShieldCheck } from '@lucide/svelte';
+  import { ClipboardList, Crosshair, MapPinned, MessageSquareText, ShieldCheck } from '@lucide/svelte';
   import {
     tacticalLabels,
     tacticalMapView,
@@ -213,6 +213,10 @@
           <Crosshair size={16} />
         {:else if item.kind === 'asset'}
           <ShieldCheck size={16} />
+        {:else if item.kind === 'task'}
+          <ClipboardList size={16} />
+        {:else if item.kind === 'advisory'}
+          <MessageSquareText size={16} />
         {:else}
           <MapPinned size={16} />
         {/if}

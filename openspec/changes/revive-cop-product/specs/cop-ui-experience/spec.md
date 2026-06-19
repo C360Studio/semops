@@ -20,10 +20,10 @@ deck.gl for high-rate tactical overlays.
 #### Scenario: First tactical map layer is bounded
 
 - **WHEN** the first MapLibre/deck.gl implementation is present
-- **THEN** it renders snapshot tracks, assets, and hazard areas through deck.gl point, polygon, label, and picking
-  overlays
-- **AND** it does not claim finished basemap tiles, terrain, track trails, footprints, alert geometry, task geometry, or
-  temporal scrubbing until those layers have their own evidence
+- **THEN** it renders snapshot tracks, assets, TAK/CoT tasks, TAK/CoT advisories, and hazard areas through deck.gl
+  point, polygon, label, and picking overlays
+- **AND** it does not claim finished basemap tiles, terrain, track trails, footprints, alert geometry, full task
+  workflow geometry, or temporal scrubbing until those layers have their own evidence
 
 ### Requirement: Browser state comes through SemOps API
 
@@ -42,11 +42,13 @@ Phase 1.
 - **THEN** it renders the fixture snapshot and marks the source as fixture rather than presenting an empty COP
 - **AND** the fixture path remains a development fallback, not evidence that the graph-backed COP contract is complete
 
-#### Scenario: First live snapshot path reads governed graph state
+#### Scenario: First live snapshot path discovers governed graph state
 
-- **WHEN** configured MAVLink source asset and track entities exist in SemStreams
-- **THEN** `GET /api/cop/snapshot` maps their governed triples into the COP track, asset, feed-health, freshness,
-  confidence, and provenance view model
+- **WHEN** MAVLink source asset/track entities, TAK/CoT seed UID entities, or CAP hazard-evidence entities exist in
+  SemStreams under configured COP graph discovery scopes
+- **THEN** `GET /api/cop/snapshot` maps their governed triples into the COP track, asset, task, advisory, hazard,
+  feed-health, freshness, confidence, and provenance view model
+- **AND** the primary read path uses SemStreams prefix discovery before falling back to configured seed entity IDs
 - **AND** graph query not-found responses are handled as cold-start state rather than silently decoded as successful
   entity data
 

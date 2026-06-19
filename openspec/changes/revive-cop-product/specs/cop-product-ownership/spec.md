@@ -29,14 +29,23 @@ SemOps MUST consume SemStreams substrate contracts rather than reimplementing fr
 - **WHEN** a SemOps feature needs reusable deployment metadata, inference evidence, provenance, or query helpers
 - **THEN** SemOps records the product need and routes the reusable primitive to SemStreams for review
 
-### Requirement: SemConnect owns standards egress
+### Requirement: SemConnect owns standards bridge evidence
 
-SemOps SHALL use SemConnect for OGC Connected Systems API egress and conformance claims.
+SemOps SHALL use SemConnect for OGC Connected Systems API bridge behavior and conformance claims unless SemOps is
+explicitly rechartered to own that gateway product.
 
 #### Scenario: Governed COP state is published as CS API
 
 - **WHEN** the COP publishes Systems, Datastreams, Observations, SystemEvents, or Commands to a standards consumer
-- **THEN** SemOps sends a curated projection to SemConnect rather than making raw feed data pass through CS API
+- **THEN** SemOps sends a curated projection to SemConnect rather than making raw native feed data pass through CS API
+  first
+
+#### Scenario: CS API input enters through the same governed path
+
+- **WHEN** a source system already publishes OGC Connected Systems API resources
+- **THEN** SemOps may consume them through a CS API ingress adapter or bridge
+- **AND** the adapter maps that input into SemOps governed COP state with the same ownership, provenance, freshness,
+  indexing, and command-authority rules as native feed adapters
 
 #### Scenario: Conformance is not overclaimed
 

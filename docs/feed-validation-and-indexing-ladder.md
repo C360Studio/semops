@@ -25,7 +25,7 @@ Recommended order:
 1. MAVLink.
 2. TAK/CoT.
 3. CAP/EDXL.
-4. SemConnect CS API egress.
+4. CS API bidirectional interop.
 5. ADS-B.
 6. SAPIENT.
 7. KLV/STANAG 4609.
@@ -219,7 +219,8 @@ Current graph-wiring gate:
 
 ### CAP/EDXL
 
-Status: third feed.
+Status: third feed; parser, deterministic raw XML lifecycle fixture replay, append-evidence projection, graph writer,
+COP readback, first lifecycle-status readback, and skipped-by-default live graph smoke exist.
 
 Compliance and sample evidence:
 
@@ -228,28 +229,61 @@ Compliance and sample evidence:
 
 Local assets:
 
-- None identified in SemOps yet.
+- `pkg/adapters/cap` parses the CAP 1.2 subset needed for deterministic civilian-warning fixtures.
+- `pkg/adapters/cap` stores replayable raw XML CAP alert records and includes a HA/DR flood lifecycle fixture with
+  alert, update, cancel, and expired-alert records.
+- `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
+  CAP evidence contract.
+- `internal/api/cop` maps CAP hazard evidence JSON into the COP hazard view model for the map overlay and derives
+  operator-facing status from CAP `msgType`, `status`, `expires`, and freshness without writing authoritative hazard
+  status predicates.
 
 Mock or harness:
 
-- Use OASIS CAP examples and local fixtures for the parser gate.
+- Use local CAP fixtures for the parser gate.
+- Use the local HA/DR flood lifecycle fixture for deterministic replay without requiring live NWS calls.
 - Use NWS alert samples for realistic civilian-warning input.
-- Validate XML schema and CAP consumer rules before graph writes.
+- Validate XML schema and CAP consumer rules before claiming CAP consumer conformance.
 
 Indexing profile pressure:
 
-- Hazard areas and alert lifecycle state are `control`.
-- Advisory text, instructions, and multilingual descriptions are `content`.
+- The current CAP slice uses `content` because it contributes append-only advisory and geometry evidence.
+- Future authoritative alert lifecycle state is `control`.
+- Advisory text, instructions, and multilingual descriptions remain `content`.
 - Poll history and raw alert fetch traces are `trace`.
 
 First acceptance gate:
 
-- Given a CAP alert with polygon or circle area data, the adapter writes a hazard area and advisory with provenance,
-  confidence, expiry/staleness behavior, and no overwrite of stricter source facts.
+- Given a CAP alert with polygon or circle area data, the parser preserves area evidence, the projector writes a
+  born-first hazard area with provenance and confidence, and `GET /api/cop/snapshot` renders the hazard and derived
+  lifecycle status without CAP claiming authoritative hazard geometry, severity, or status predicates.
 
-### SemConnect CS API Egress
+Current commands:
 
-Status: egress after structural graph is stable.
+```bash
+go test ./pkg/adapters/cap ./internal/projectors/cap ./internal/api/cop ./internal/smoke/cap
+```
+
+Live graph gate:
+
+```bash
+SEMOPS_CAP_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/cap -run TestLiveGraphCAPBornFirstSmoke -v
+```
+
+This test skips unless `SEMOPS_CAP_LIVE_GRAPH_NATS_URL` points at a live SemStreams graph stack. It creates a CAP
+hazard entity before appending update evidence, polls `graph.query.prefix`, and asserts CAP did not write
+authoritative hazard geometry, severity, or status predicates.
+
+Remaining gates:
+
+- NWS samples captured as deterministic fixtures.
+- XML schema and CAP consumer-rule validation.
+- NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
+- Hosted poller or webhook service boundary.
+
+### CS API Bidirectional Interop
+
+Status: interop after structural graph is stable.
 
 Compliance evidence:
 
@@ -263,18 +297,21 @@ Local assets:
 
 Mock or harness:
 
-- Use SemOps graph state as input and SemConnect as a standards-facing projection.
+- Use SemOps graph state as input and SemConnect as a standards-facing projection for egress.
+- Use a later SemOps CS API ingress adapter only for systems that already speak CS API.
 - Run the SemConnect harness when SemOps exposes enough system, deployment, datastream, and observation state.
 
 Indexing profile pressure:
 
 - CS API projection targets should not drive indexing directly. The SemOps graph owner decides profile at entity
-  birth; egress is a view.
+  birth; the bridge is an interface.
 
 First acceptance gate:
 
 - A SemOps asset, sensor, datastream, and observation can be projected through SemConnect and checked by the
   conformance harness without weakening SemOps ownership rules.
+- A CS API source fixture can be mapped into SemOps canonical COP state without bypassing born-first writes,
+  provenance, freshness, or command authority.
 
 ### ADS-B
 

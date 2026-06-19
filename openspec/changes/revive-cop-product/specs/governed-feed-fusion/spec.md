@@ -81,6 +81,42 @@ requests before triples or foreign edges are added.
 - **AND** GeoChat text becomes `content` advisory state
 - **AND** native CoT XML remains on bounded raw or replay lanes referenced by provenance source refs
 
+#### Scenario: TAK readback proves graph state before broader feed expansion
+
+- **WHEN** the hosted SemOps stack receives seed CoT events over the configured UDP listener
+- **THEN** the live COP snapshot reads TAK/CoT track, task, and advisory entities back from SemStreams graph state
+- **AND** feed health reflects live or stale state from graph observation timestamps
+- **AND** the result remains a seed-UID readback gate, not a claim of TAK Server-equivalent behavior
+
+#### Scenario: COP readback uses SemStreams discovery primitives
+
+- **WHEN** SemOps needs to hydrate the operator snapshot from graph state
+- **THEN** it uses SemStreams `graph.query.prefix` to discover source-partitioned COP entities by 5-part graph prefix
+- **AND** configured seed IDs are compatibility fallback, not the product-grade discovery model
+- **AND** SemOps does not bypass SemStreams with direct KV scans for normal browser readback
+
+#### Scenario: CAP evidence readback stays append-only
+
+- **WHEN** a CAP alert fixture is parsed and projected into SemStreams graph state
+- **THEN** SemOps births a source-partitioned `hazard_area` entity before appending CAP advisory and geometry
+  evidence
+- **AND** the projection uses the CAP append-evidence contract without claiming authoritative
+  `cop.hazard.geometry`, `cop.hazard.severity`, or `cop.hazard.status`
+- **AND** the COP snapshot may render the evidence as a hazard overlay while preserving provenance and source
+  confidence
+- **AND** the result remains a parser/projection/readback gate, not a claim of hosted CAP polling, NWS integration,
+  or full CAP consumer conformance
+
+#### Scenario: CS API interop remains bidirectional and standards-facing
+
+- **WHEN** an external system can publish or consume OGC Connected Systems API resources
+- **THEN** SemOps SHALL preserve a path to map that state into or out of the governed COP model through a CS API
+  gateway or projection boundary
+- **AND** native adapters for MAVLink, TAK/CoT, CAP/EDXL, ADS-B, SAPIENT, and KLV remain first-class paths when their
+  native protocols carry product-critical semantics
+- **AND** CS API interop MUST preserve SemStreams ownership, provenance, freshness, and indexing-profile decisions
+  rather than becoming a bypass around governed feed fusion
+
 #### Scenario: Must-exist compliance is proven before feed-fidelity expansion
 
 - **WHEN** SemOps prepares for a SemStreams ADR-055/056 must-exist breaking tag

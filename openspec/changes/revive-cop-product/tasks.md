@@ -49,7 +49,7 @@
 - [x] 5.3 Define expected `indexing_profile` and cardinality risk for each projected entity type
 - [ ] 5.4 Prove MAVLink parser, generator, ArduPilot SITL, and PX4 SITL evidence gates
 - [x] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
-- [ ] 5.6 Prove CAP XML schema and NWS sample gates before adding loose-reader behavior
+- [ ] 5.6 Prove CAP XML schema, NWS sample, and lifecycle gates before CAP conformance or service claims
 - [ ] 5.7 Verify or reject public SAPIENT compliance/fixture availability before phase commitment
 - [ ] 5.8 Run a KLV/SemSource binary proof spike before claiming streaming-binary support
 - [ ] 5.9 Run adversarial review for each feed before it enters the structural stack
@@ -58,6 +58,10 @@
 - [x] 5.12 Track demo/MVP versus full-product roadmap boundaries for every feed
 - [x] 5.13 Add SemOps-owned TAK/CoT UDP/TCP fixture replay harness before graph projection
 - [x] 5.14 Add TAK/CoT projection planner for born-first tracks, marker control state, and GeoChat content state
+- [x] 5.15 Add CAP parser fixtures and append-evidence projection gate before hosted CAP service work
+- [x] 5.16 Add CAP live graph smoke for born-first append-evidence readback
+- [x] 5.17 Add CAP lifecycle-status readback without claiming authoritative hazard status
+- [x] 5.18 Add CAP raw XML lifecycle fixture replay for scenario-runner input
 
 ## 6. Structural COP Stack
 
@@ -65,7 +69,7 @@
 - [ ] 6.2 Add MAVLink, TAK/CoT, and CAP/EDXL structural adapters
 - [ ] 6.3 Add service health and active state polling for long-running demo runs
 - [ ] 6.4 Add scenario playback for a flood/evacuation and shared-airspace vignette
-- [ ] 6.5 Add smoke test that verifies graph state from at least two feed types
+- [x] 6.5 Add smoke test that verifies graph state from at least two feed types
 - [ ] 6.6 Run adversarial review on demo credibility, monitoring, and graph/index cardinality before Phase 1 signoff
 - [x] 6.7 Add an in-process MAVLink adapter harness with pollable health before Compose wiring
 - [x] 6.8 Add durable MAVLink replay fixture storage behind the bounded raw lane
@@ -83,12 +87,16 @@
 - [x] 6.20 Add fixture-backed SemOps COP API, Svelte UI container, and Caddy same-origin ingress to the stack smoke
 - [x] 6.21 Add hosted MAVLink UDP-to-Caddy-snapshot smoke for the first product-visible live graph path
 - [x] 6.22 Add TAK/CoT graph writer, adapter graph path, stack constructor, and opt-in hosted listener wiring
+- [x] 6.23 Add TAK/CoT live graph smoke and hosted UDP-to-Caddy-snapshot readback
+- [x] 6.24 Add CAP born-first graph writer path for hazard evidence plans
+- [x] 6.25 Add SemStreams prefix discovery for graph-backed COP readback
+- [x] 6.26 Add CAP live graph smoke to the one-command COP stack
 
 ## 7. COP UI
 
 - [x] 7.1 Build Svelte 5 first screen as the usable COP, not a landing page
-- [ ] 7.2 Add map layer for tracks, assets, hazard areas, footprints, alerts, and tasks
-- [ ] 7.3 Add source and provenance lenses for selected entities
+- [x] 7.2 Add map layer for tracks, assets, TAK tasks/advisories, and hazard areas
+- [x] 7.3 Add source and provenance lenses for selected entities
 - [ ] 7.4 Validate whether topology/tier UI answers a real operator question before building it
 - [ ] 7.5 Add component tests and accessibility checks for core operator flows
 - [ ] 7.6 Run adversarial UX review before promoting topology, tier, or orchestration UI
@@ -99,13 +107,18 @@
 - [x] 7.11 Replace the static-only API provider with a graph-backed MAVLink snapshot provider and fixture fallback
 - [x] 7.12 Add first MapLibre/deck.gl tactical layer for tracks, assets, hazards, labels, and picking
 - [x] 7.13 Add tested selection reconciliation and pressed-state affordances for map/alert controls
+- [x] 7.14 Add TAK/CoT task and advisory readback to the COP API/UI contract
+- [ ] 7.15 Add sensor footprints and alert geometry after their graph contracts have evidence
+- [x] 7.16 Add CAP hazard evidence readback to the COP API contract
+- [x] 7.17 Record SemConnect/SemLink graph visualization prior art for future graph lenses
+- [x] 7.18 Surface derived CAP hazard lifecycle status in the COP view model
 
 ## 8. Tier Escalation And Egress
 
 - [ ] 8.1 Add ADS-B and SAPIENT feed boundaries
 - [ ] 8.2 Add statistical track association for ambiguous air tracks
 - [ ] 8.3 Add KLV footprint extraction
-- [ ] 8.4 Add SemConnect CS API egress as a standards-facing projection
+- [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge
 - [ ] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory
 - [ ] 8.6 Run adversarial review before SAPIENT, KLV, semantic, or standards-conformance claims are demoed
 

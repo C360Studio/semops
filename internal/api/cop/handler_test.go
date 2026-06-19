@@ -31,8 +31,11 @@ func TestHandlerServesSnapshot(t *testing.T) {
 	if snapshot.GeneratedAt != now {
 		t.Fatalf("generated at = %s, want %s", snapshot.GeneratedAt, now)
 	}
-	if snapshot.Summary.ActiveTracks != 1 || len(snapshot.Tracks) != 1 {
-		t.Fatalf("tracks summary/list = %d/%d, want 1/1", snapshot.Summary.ActiveTracks, len(snapshot.Tracks))
+	if snapshot.Summary.ActiveTracks != 2 || len(snapshot.Tracks) != 2 {
+		t.Fatalf("tracks summary/list = %d/%d, want 2/2", snapshot.Summary.ActiveTracks, len(snapshot.Tracks))
+	}
+	if snapshot.Summary.ActiveTasks != 1 || snapshot.Summary.ActiveAdvisories != 1 {
+		t.Fatalf("TAK summary = %+v", snapshot.Summary)
 	}
 	if snapshot.Tracks[0].Position.Lat == 0 || snapshot.Tracks[0].Position.Lon == 0 {
 		t.Fatalf("track position missing: %+v", snapshot.Tracks[0].Position)
