@@ -204,6 +204,7 @@
         class:selected={selected.kind === item.kind && selected.id === item.id}
         class={`map-selector-button ${item.kind}`}
         type="button"
+        aria-pressed={selected.kind === item.kind && selected.id === item.id}
         aria-label={`Select ${item.label}`}
         title={item.label}
         onclick={() => selectEntity(item.kind, item.id)}
