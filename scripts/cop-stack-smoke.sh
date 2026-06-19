@@ -46,6 +46,36 @@ wait_http() {
   done
 }
 
+wait_svelte_assets() {
+  local name="$1"
+  local url="$2"
+  local deadline="${3:-60}"
+  local start
+  start="$(date +%s)"
+
+  while true; do
+    local html
+    html="$(curl -fsS "$url")"
+    local css_asset
+    css_asset="$(printf '%s' "$html" | grep -Eo '(\./)?_app/immutable/assets/[^"]+\.css' | head -n 1 || true)"
+    local js_asset
+    js_asset="$(printf '%s' "$html" | grep -Eo '(\./)?_app/immutable/entry/[^"]+\.js' | head -n 1 || true)"
+    if [[ -n "$css_asset" && -n "$js_asset" ]]; then
+      css_asset="${css_asset#./}"
+      js_asset="${js_asset#./}"
+      if curl -fsS -I "${url%/}/$css_asset" | grep -qi 'cache-control: .*immutable' &&
+        curl -fsS -I "${url%/}/$js_asset" | grep -qi 'cache-control: .*immutable'; then
+        return
+      fi
+    fi
+    if (( "$(date +%s)" - start >= deadline )); then
+      echo "Timed out waiting for ${name} Svelte assets via ${url}" >&2
+      return 1
+    fi
+    sleep 2
+  done
+}
+
 docker compose -p "$PROJECT" -f "$COMPOSE_FILE" up -d --build --wait
 
 wait_http "SemStreams health" "$HEALTH_URL" 90
@@ -53,6 +83,7 @@ wait_http "SemStreams metrics" "$METRICS_URL" 90
 wait_http "SemOps API health" "$API_HEALTH_URL" 90
 wait_http "SemOps COP snapshot" "$API_SNAPSHOT_URL" 90
 wait_http "SemOps Caddy COP UI" "$COP_URL" 90
+wait_svelte_assets "SemOps Caddy COP UI" "$COP_URL" 90
 wait_http "SemOps Caddy COP snapshot" "$COP_API_SNAPSHOT_URL" 90
 
 SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL="$NATS_URL" \
