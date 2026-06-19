@@ -100,6 +100,7 @@
 - [x] 6.31 Remove required CoT/CAP seed IDs from the COP snapshot path and rely on prefix discovery for hosted
       state
 - [x] 6.32 Add source/type cardinality diagnostics for prefix-discovered snapshot state
+- [x] 6.33 Promote prefix discovery pressure into source-health warning alerts
 
 ## 7. COP UI
 
@@ -122,6 +123,7 @@
 - [x] 7.17 Record SemConnect/SemLink graph visualization prior art for future graph lenses
 - [x] 7.18 Surface derived CAP hazard lifecycle status in the COP view model
 - [x] 7.19 Surface compact prefix-discovery counts in source cards
+- [x] 7.20 Surface prefix discovery pressure in the alert list
 
 ## 8. Tier Escalation And Egress
 

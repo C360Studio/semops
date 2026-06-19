@@ -19,7 +19,7 @@ The current implementation is intentionally narrow:
   TAK/CoT advisories, hazards, labels, and picking, plus alert, feed state, and provenance panels.
 
 This is the first full-stack spine, not the final map implementation. Bounded deltas, real basemap/terrain sources,
-footprints, alert geometry, source diagnostic alerting, and scenario playback remain next gates.
+footprints, alert geometry, discovery pagination guidance, and scenario playback remain next gates.
 
 ## Direction
 
@@ -79,8 +79,8 @@ symbology is a future UX gate.
 
 The snapshot includes prefix-discovery diagnostics for each configured source/type prefix: org, platform, source,
 entity type, returned count, query limit, at-limit pressure, and prefix-query error text when a partial read fails. The
-UI surfaces those counts compactly in the source cards so large mixed-feed demos can show index-pressure evidence
-without exposing raw graph triples as an operator workflow.
+UI surfaces those counts compactly in the source cards and promotes at-limit/error diagnostics into warning alerts so
+large mixed-feed demos can show index-pressure evidence without exposing raw graph triples as an operator workflow.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for

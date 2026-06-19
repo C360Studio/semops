@@ -50,6 +50,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-feed-service-promotion-csapi-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-cot-cap-index-discovery-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-source-cardinality-diagnostics-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-source-health-alerting-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
@@ -114,11 +115,11 @@ progress:
     disabled, unavailable, or empty for that feed family.
   - Added source/type prefix-discovery diagnostics to the COP snapshot contract with returned count, query limit,
     at-limit pressure, and partial prefix-read error state.
+  - Added source-health warning alerts for prefix discovery errors and at-limit pressure.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
-  - Turn at-limit discovery pressure into explicit source-health alerting or pagination guidance before large
-    mixed-feed demos.
+  - Add SemStreams pagination or total-count guidance before large mixed-feed demos make at-limit alerts routine.
   - Implement the CS API bridge only after SemOps has enough stable structural graph state for meaningful ingress,
     egress, replay, and SemConnect conformance checks.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -726,6 +727,27 @@ func TestGraphProviderReportsDiscoveryLimitPressureAndErrors(t *testing.T) {
 		advisoryDiagnostic.Error == "" {
 		t.Fatalf("TAK advisory diagnostic = %+v", advisoryDiagnostic)
 	}
+	if snapshot.Summary.ActiveAlerts != 2 || len(snapshot.Alerts) != 2 {
+		t.Fatalf("active alerts/list = %d/%d: %+v", snapshot.Summary.ActiveAlerts, len(snapshot.Alerts), snapshot.Alerts)
+	}
+	limitAlert, ok := findAlert(snapshot.Alerts, "alert.discovery.c360.edge-pressure.mavlink.track.limit")
+	if !ok {
+		t.Fatalf("missing limit alert: %+v", snapshot.Alerts)
+	}
+	if limitAlert.EntityID != "feed.mavlink" ||
+		limitAlert.Severity != "warning" ||
+		!strings.Contains(limitAlert.Reason, "configured limit of 2") {
+		t.Fatalf("limit alert = %+v", limitAlert)
+	}
+	errorAlert, ok := findAlert(snapshot.Alerts, "alert.discovery.c360.edge-pressure.tak.advisory.error")
+	if !ok {
+		t.Fatalf("missing error alert: %+v", snapshot.Alerts)
+	}
+	if errorAlert.EntityID != "feed.tak" ||
+		errorAlert.Severity != "warning" ||
+		!strings.Contains(errorAlert.Reason, "temporary prefix index unavailable") {
+		t.Fatalf("error alert = %+v", errorAlert)
+	}
 }
 
 func TestGraphProviderDowngradesStaleTAKStateAtReadTime(t *testing.T) {
@@ -963,4 +985,13 @@ func findDiscoveryDiagnostic(
 		}
 	}
 	return DiscoveryDiagnostic{}, false
+}
+
+func findAlert(alerts []Alert, id string) (Alert, bool) {
+	for _, alert := range alerts {
+		if alert.ID == id {
+			return alert, true
+		}
+	}
+	return Alert{}, false
 }

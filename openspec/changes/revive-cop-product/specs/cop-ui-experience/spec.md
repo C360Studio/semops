@@ -53,6 +53,7 @@ Phase 1.
 - **AND** CoT/CAP snapshot state does not require configured seed UID or alert-ID lists when graph discovery is enabled
 - **AND** the snapshot exposes source/type discovery diagnostics with returned count, query limit, at-limit pressure,
   and partial prefix-read error state
+- **AND** at-limit or error diagnostics become active warning alerts tied to the affected source feed
 - **AND** graph query not-found responses are handled as cold-start state rather than silently decoded as successful
   entity data
 
@@ -83,6 +84,13 @@ SemOps MUST NOT treat dynamic ontology-generated UI as a Phase 1 feature.
 - **WHEN** SemOps renders source health for graph-backed snapshot state
 - **THEN** the source cards may show compact prefix-discovery counts by source/type
 - **AND** those cards highlight at-limit pressure without exposing raw graph triples or native packet payloads
+
+#### Scenario: Discovery pressure becomes source-health alerts
+
+- **WHEN** prefix discovery reaches its configured limit or a prefix read fails
+- **THEN** the snapshot emits active warning alerts tied to the affected source feed
+- **AND** those alerts explain the pressure or partial read failure without presenting the condition as authoritative
+  fusion state
 
 #### Scenario: Dynamic UI requires a future review
 

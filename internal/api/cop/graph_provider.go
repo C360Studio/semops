@@ -561,6 +561,8 @@ func (p *GraphProvider) snapshotFromGraph(
 	}
 
 	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories, hazards)
+	discoveryDiagnostics = normalizeDiscoveryDiagnostics(discoveryDiagnostics)
+	alerts := diagnosticAlertsFromDiscovery(discoveryDiagnostics, now)
 	return Snapshot{
 		GeneratedAt: now,
 		Scenario:    "phase-1-live-graph",
@@ -568,11 +570,11 @@ func (p *GraphProvider) snapshotFromGraph(
 			ActiveTracks:     len(tracks),
 			ActiveTasks:      len(tasks),
 			ActiveAdvisories: len(advisories),
-			ActiveAlerts:     0,
+			ActiveAlerts:     len(alerts),
 			StaleFeeds:       countFeeds(feeds, "stale"),
 		},
 		Diagnostics: SnapshotDiagnostics{
-			Discovery: normalizeDiscoveryDiagnostics(discoveryDiagnostics),
+			Discovery: discoveryDiagnostics,
 		},
 		Feeds:      feeds,
 		Assets:     assets,
@@ -580,7 +582,7 @@ func (p *GraphProvider) snapshotFromGraph(
 		Tasks:      tasks,
 		Advisories: advisories,
 		Hazards:    hazards,
-		Alerts:     []Alert{},
+		Alerts:     alerts,
 	}
 }
 
@@ -589,6 +591,87 @@ func normalizeDiscoveryDiagnostics(diagnostics []DiscoveryDiagnostic) []Discover
 		return []DiscoveryDiagnostic{}
 	}
 	return diagnostics
+}
+
+func diagnosticAlertsFromDiscovery(diagnostics []DiscoveryDiagnostic, now time.Time) []Alert {
+	alerts := make([]Alert, 0)
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Error != "" {
+			alerts = append(alerts, Alert{
+				ID:        discoveryAlertID(diagnostic, "error"),
+				Label:     fmt.Sprintf("%s %s discovery error", sourceLabel(diagnostic.Source), entityTypeLabel(diagnostic.EntityType)),
+				Severity:  "warning",
+				Status:    "active",
+				EntityID:  feedIDForDiscoverySource(diagnostic.Source),
+				Reason:    fmt.Sprintf("Prefix query for %s returned an error: %s", diagnostic.Prefix, diagnostic.Error),
+				UpdatedAt: now,
+			})
+		}
+		if diagnostic.AtLimit {
+			alerts = append(alerts, Alert{
+				ID:        discoveryAlertID(diagnostic, "limit"),
+				Label:     fmt.Sprintf("%s %s discovery at limit", sourceLabel(diagnostic.Source), entityTypeLabel(diagnostic.EntityType)),
+				Severity:  "warning",
+				Status:    "active",
+				EntityID:  feedIDForDiscoverySource(diagnostic.Source),
+				Reason:    fmt.Sprintf("Prefix query returned %d entities, reaching the configured limit of %d; snapshot results may be truncated.", diagnostic.Count, diagnostic.Limit),
+				UpdatedAt: now,
+			})
+		}
+	}
+	return alerts
+}
+
+func discoveryAlertID(diagnostic DiscoveryDiagnostic, suffix string) string {
+	return strings.Join([]string{
+		"alert",
+		"discovery",
+		alertIDSegment(diagnostic.Org),
+		alertIDSegment(diagnostic.Platform),
+		alertIDSegment(diagnostic.Source),
+		alertIDSegment(diagnostic.EntityType),
+		alertIDSegment(suffix),
+	}, ".")
+}
+
+func alertIDSegment(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, "_", "-")
+	value = strings.ReplaceAll(value, " ", "-")
+	if value == "" {
+		return "unknown"
+	}
+	return value
+}
+
+func sourceLabel(source string) string {
+	switch source {
+	case "mavlink":
+		return "MAVLink"
+	case "tak":
+		return "TAK/CoT"
+	case "cap":
+		return "CAP"
+	default:
+		return source
+	}
+}
+
+func entityTypeLabel(entityType string) string {
+	return strings.ReplaceAll(entityType, "_", " ")
+}
+
+func feedIDForDiscoverySource(source string) string {
+	switch source {
+	case "mavlink":
+		return "feed.mavlink"
+	case "tak":
+		return "feed.tak"
+	case "cap":
+		return "feed.cap"
+	default:
+		return "feed." + alertIDSegment(source)
+	}
 }
 
 func firstPhaseFeedHealth(
