@@ -47,6 +47,14 @@ explicitly rechartered to own that gateway product.
 - **AND** the adapter maps that input into SemOps governed COP state with the same ownership, provenance, freshness,
   indexing, and command-authority rules as native feed adapters
 
+#### Scenario: Standards tasking does not bypass command authority
+
+- **WHEN** CS API ControlStream, Command, or command-status input reaches SemOps
+- **THEN** SemOps routes the request through product command authority, native safety checks, and audit/replay
+  evidence before any feed-owned state changes
+- **AND** SemConnect or any CS API bridge remains a standards interface, not the authority that decides whether a
+  vehicle, sensor, alerting, or collaboration command is safe to issue
+
 #### Scenario: Conformance is not overclaimed
 
 - **WHEN** a demo uses SAPIENT, OGC, STANAG 4609, ASTERIX, or another standard

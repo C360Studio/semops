@@ -37,6 +37,15 @@ become dead-end architecture.
 - **THEN** the MVP adapter keeps parser, transport, service state, and graph projection seams separate so SemOps can
   later promote that feed into a SemStreams-backed service without rewriting the governed projection contract
 
+#### Scenario: Service promotion requires product forces
+
+- **WHEN** SemOps proposes promoting a feed adapter into a SemOps-owned service or gateway
+- **THEN** the proposal identifies the product force: external protocol exposure, auth/session/federation state,
+  bidirectional command or tasking, scaling or placement isolation, durable collaboration or replay state, secrets,
+  cost, or failure-domain isolation
+- **AND** the promotion preserves the existing governed projection contract rather than moving ownership decisions
+  into transport glue
+
 ### Requirement: Compliance claims require reproducible evidence
 
 SemOps SHALL NOT claim protocol or standards conformance unless a reproducible local harness, official schema,
@@ -52,6 +61,13 @@ public conformance suite, or documented interoperability test backs the claim.
 - **WHEN** no public compliance suite is verified for a feed such as TAK/CoT or SAPIENT
 - **THEN** SemOps records the gap and uses mock, replay, schema, or interoperability evidence without calling it
   conformance
+
+#### Scenario: CS API conformance is standards-edge evidence
+
+- **WHEN** SemOps maps governed COP state through OGC Connected Systems API
+- **THEN** conformance evidence comes from SemConnect, an official schema, an official or accepted ETS, or a
+  documented interoperability run
+- **AND** the conformance result does not imply native MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, or KLV conformance
 
 ### Requirement: Every projected entity declares an indexing profile
 

@@ -297,6 +297,10 @@ Compliance evidence:
 
 - SemConnect has an OGC Connected Systems API conformance harness. Treat `./conformance/run.sh` as the truth source
   for current status, not a substitute `go test`.
+- OGC positions Connected Systems API as the bridge between feature resources and dynamic data. Part 1 covers
+  feature resources such as systems, procedures, deployments, sampling features, subsystems/components, and property
+  definitions. Part 2 covers dynamic data such as datastreams, observations, control streams, commands, command
+  status, system events, streaming, and snapshots.
 
 Local assets:
 
@@ -316,10 +320,13 @@ Indexing profile pressure:
 
 First acceptance gate:
 
-- A SemOps asset, sensor, datastream, and observation can be projected through SemConnect and checked by the
-  conformance harness without weakening SemOps ownership rules.
-- A CS API source fixture can be mapped into SemOps canonical COP state without bypassing born-first writes,
+- Egress: a SemOps asset/platform, hosted sensor, datastream, observation, deployment, and system event can be
+  projected through SemConnect and checked by the conformance harness without weakening SemOps ownership rules.
+- Ingress: a CS API source fixture can be mapped into SemOps canonical COP state without bypassing born-first writes,
   provenance, freshness, or command authority.
+- Tasking: CS API command/control input routes through SemOps command authority and native safety controls rather
+  than directly mutating feed-owned state.
+- Replay: the same fixture can be replayed deterministically so bridge drift is visible before conformance claims.
 
 ### ADS-B
 
@@ -438,5 +445,7 @@ Do not file all of these immediately. Use SemOps evidence first.
 - OASIS CAP 1.2: <https://docs.oasis-open.org/emergency/cap/v1.2/CAP-v1.2-os.pdf>
 - NWS API: <https://www.weather.gov/documentation/services-web-api>
 - OpenSky REST API: <https://openskynetwork.github.io/opensky-api/rest.html>
+- OGC API - Connected Systems overview: <https://ogcapi.ogc.org/connectedsystems/>
+- OGC Connected Systems SWG repository: <https://github.com/opengeospatial/ogcapi-connected-systems>
 - jMISB: <https://github.com/WestRidgeSystems/jmisb>
 - klvdata: <https://github.com/paretech/klvdata>

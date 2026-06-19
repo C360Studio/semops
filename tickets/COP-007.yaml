@@ -45,6 +45,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-projection-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-graph-wiring-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-readback-csapi-interop-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-feed-service-promotion-csapi-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
@@ -97,6 +98,11 @@ progress:
   - Recorded the native core plus standards bridge positioning for CS API: native adapters remain first-class, while
     CS API ingress/egress is a bidirectional standards edge that preserves SemOps ownership, provenance, freshness,
     command authority, and indexing decisions.
+  - Added a service-promotion matrix that keeps MAVLink, TAK/CoT, CAP, CS API, ADS-B, SAPIENT, and KLV adapters
+    bounded until external protocol exposure, auth/session/federation, command/tasking, placement/scale, durable
+    collaboration/replay, secrets, cost, or failure-domain forces justify a SemOps-owned service.
+  - Anchored the CS API bridge gates to current OGC Connected Systems resource families: Part 1 feature resources and
+    Part 2 dynamic data, with command/control input explicitly routed through SemOps command authority.
   - Added the first `internal/scenario` runner core so generated MAVLink, deterministic TAK/CoT seed events, and CAP
     lifecycle XML records replay through real adapter/projector seams with pollable status and false-green guardrails.
 
@@ -105,3 +111,5 @@ remaining:
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
   - Add index-backed discovery for CoT entities so seed UID readback is not the long-term COP snapshot discovery
     model.
+  - Implement the CS API bridge only after SemOps has enough stable structural graph state for meaningful ingress,
+    egress, replay, and SemConnect conformance checks.

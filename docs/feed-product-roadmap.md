@@ -25,6 +25,12 @@ Every feed entry MUST answer four questions before it enters implementation:
 3. What abstraction or boundary prevents the demo path from blocking the full product?
 4. What are we explicitly not claiming yet?
 
+Every feed also needs a service-promotion answer. A feed starts as a bounded adapter or fixture unless product forces
+justify a SemOps-owned service or gateway. Promotion requires at least one concrete force: external protocol exposure,
+auth/session/federation state, bidirectional command or tasking, scaling or placement isolation, durable collaboration
+or replay state, secrets, cost, or failure-domain isolation. The MVP seam must keep parser, transport, session/service
+state, command authority, and graph projection separate so promotion does not rewrite governed COP state contracts.
+
 ## Standards Positioning
 
 SemOps uses a native core plus standards bridge strategy.
@@ -42,6 +48,70 @@ provenance, freshness, command authority, and indexing decisions.
 
 The positioning statement is: SemOps moves fast natively, interoperates through standards, and isolates standards
 change at the bridge instead of coupling the COP core to an external schema lifecycle.
+
+OGC's Connected Systems API material reinforces this split. Part 1 covers feature resources such as systems,
+procedures, deployments, sampling features, subsystems/components, and property definitions. Part 2 covers dynamic
+data such as datastreams, observations, control streams, commands, command status, system events, streaming, and
+snapshot mechanisms. Those are excellent edge contracts for standards-aware systems, but SemOps still chooses entity
+ownership, provenance, freshness, command authority, and indexing profile inside the COP graph.
+
+## Service Promotion Matrix
+
+MAVLink:
+
+- Demo/MVP boundary: local codec, bounded raw lane, UDP/replay adapter, and governed graph projector.
+- Full product path: vehicle-link service with SITL/hardware profiles, multi-vehicle lifecycle, mission/command
+  authority, reconnect, and stale-data policy.
+- Promotion trigger: multi-vehicle operations, command workflows, hardware links, or auth/signing.
+- Guardrail: keep autopilot protocol and command authority out of the graph projector.
+
+TAK/CoT:
+
+- Demo/MVP boundary: native CoT parser, UDP/TCP fixture replay, and source-aware track/task/advisory projection.
+- Full product path: SemStreams-backed SemOps TAK service with auth/certs, identity/session, subscriptions, GeoChat,
+  markers, packages, and federation posture.
+- Promotion trigger: collaboration state, subscriptions, federation, or TAK-compatible gateway ownership.
+- Guardrail: do not hide TAK Server behavior inside the first CoT adapter.
+
+CAP/EDXL:
+
+- Demo/MVP boundary: parser, lifecycle fixtures, NWS samples, and append-evidence hazard/advisory projection.
+- Full product path: alert feed service with polling/webhook ingestion, update/cancel/expire lifecycle, geocodes,
+  multilingual info, resources, retention, and audit.
+- Promotion trigger: continuous public-alert ingestion or alert audit obligations.
+- Guardrail: CAP evidence does not become authoritative hazard truth.
+
+CS API:
+
+- Demo/MVP boundary: standards bridge over SemOps graph state through SemConnect once structural state exists.
+- Full product path: standards gateway with ingress/egress, auth, pagination, subscriptions/delta export, tasking
+  governance, and conformance evidence.
+- Promotion trigger: federated consumers, CS API-native sources, or proposal/compliance obligations.
+- Guardrail: do not route native feeds through CS API just to make the core look standard-shaped.
+
+ADS-B:
+
+- Demo/MVP boundary: recorded OpenSky-shaped JSON fixture and replay for aircraft current state.
+- Full product path: live OpenSky or receiver/readsb/dump1090 service, rate limits, ASTERIX later, association, and
+  airspace filters.
+- Promotion trigger: shared-airspace vignette or live receiver requirement.
+- Guardrail: raw receiver rows stay off the graph; association is a separate fusion claim.
+
+SAPIENT:
+
+- Demo/MVP boundary: no implementation until authoritative schema, fixture, or validator is found.
+- Full product path: SAPIENT-facing service with versioned protobuf, sensor identity, detection lifecycle, tasking,
+  fusion, and deployment profiles.
+- Promotion trigger: authoritative artifacts plus product need for sensor/detection/tasking integration.
+- Guardrail: no guessed schema support or conformance language.
+
+KLV/STANAG 4609:
+
+- Demo/MVP boundary: tiny video-plus-KLV proof spike with binary-by-reference and memory bounds.
+- Full product path: media/KLV pipeline with demux, parser sidecar or native parser, object storage, keyframes,
+  footprints, security, replay, and retention.
+- Promotion trigger: real video metadata exploitation or streaming-binary proof need.
+- Guardrail: binary bytes stay in object/media storage, not graph triples.
 
 ## Feed Roadmaps
 
@@ -106,9 +176,10 @@ inputs exist. CS API ingress remains a later adapter boundary for systems that a
 Observations, Deployments, or Events through CS API.
 
 Full product lane:
-Production standards gateway with auth, pagination, deployment/system/datastream/observation coverage, subscriptions
-or delta export, schema evolution, bidirectional mapping, command/tasking governance, and conformance evidence per
-release.
+Production standards gateway with auth, pagination, feature-resource coverage for systems, procedures, deployments,
+sampling features, subsystems/components, and property definitions; dynamic-data coverage for datastreams,
+observations, control streams, commands, command status, system events, snapshots, subscriptions or delta export,
+schema evolution, bidirectional mapping, command/tasking governance, and conformance evidence per release.
 
 Boundary to preserve now:
 Keep CS API as a bridge over SemOps-owned graph state; do not route native feed ingestion through CS API just to make
@@ -193,3 +264,8 @@ needs prove the value.
 - Before claiming compliance, link the exact harness, schema, official test, or documented interoperability run.
 - Before broadening a feed, verify whether the new capability belongs in SemOps product space, SemStreams framework
   space, SemConnect CS API interop, SemSource media handling, or an external system integration.
+
+## Source Links
+
+- OGC API - Connected Systems overview: <https://ogcapi.ogc.org/connectedsystems/>
+- OGC Connected Systems SWG repository: <https://github.com/opengeospatial/ogcapi-connected-systems>
