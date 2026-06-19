@@ -167,13 +167,15 @@ Local assets:
 
 - SemOps now has `pkg/adapters/cot`, a dependency-light XML CoT codec tested against SemLink-style seed shapes for
   operator dots, markers, GeoChat, air-track marshal/unmarshal, and malformed input rejection.
+- SemOps also has a CoT bounded raw lane, JSON Lines replay store, deterministic seed fixture pack, graph-free adapter
+  harness, and UDP/TCP fixture replay tests.
 - SemLink has a TAK bridge and `scripts/demo-up.sh` seeds UDP CoT events for operators, markers, and chat.
 
 Mock or harness:
 
-- Start with SemLink-style UDP and TCP seed events. The native parser gate is now SemOps-local; the next gate is
-  SemOps-owned UDP/TCP fixture replay, not runtime dependency on SemLink.
-- Add fixture replay for common event kinds: operator location, marker, GeoChat, hazard marker, and stale event.
+- Use SemOps-owned UDP and TCP seed events through `internal/adapters/cot`; SemLink remains prior art, not runtime
+  dependency.
+- Expand fixture replay next for hazard marker, stale event, duplicate UID, and malformed transport cases.
 
 Indexing profile pressure:
 
@@ -191,6 +193,12 @@ Current parser gate:
 
 - `go test ./pkg/adapters/cot` passes for SemLink-style ALPHA/BRAVO seed shapes, North Gate marker, GeoChat remarks
   fallback, air-track marshal/unmarshal, classifier checks, and malformed input rejection.
+
+Current transport/replay gate:
+
+- `go test ./internal/adapters/cot` passes for direct ingest, malformed capture, replay append error handling, UDP
+  fixture replay, TCP fixture replay, and listener/replay config guardrails.
+- `go test ./pkg/adapters/cot` also proves raw CoT JSON Lines replay append/load and parse-after-load stability.
 
 ### CAP/EDXL
 
