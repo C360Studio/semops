@@ -58,11 +58,10 @@ SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy; polls health
 immutable assets; sends generated MAVLink and CoT seed events over hosted UDP listeners; waits for the Caddy-routed
 COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink, CoT, and CAP live graph smokes.
 CAP is deliberately proved as append-only hazard evidence, not authoritative hazard state. The COP now derives CAP
-hazard lifecycle status from evidence for readback, while remaining structural evidence is scenario-runner expansion,
-hosted CAP polling, and durable checkpoint/read-back reconciliation. The first `internal/scenario` runner core now
-replays a HADR flood/evacuation fixture through the real MAVLink adapter, TAK/CoT adapter, and CAP
-projector/writer seams with pollable run status; it is not yet the hosted scenario-runner service or shared-airspace
-vignette.
+hazard lifecycle status from evidence for readback. The `semops-scenario-runner` service now runs the first HADR
+flood/evacuation fixture against the live SemStreams graph in Compose and exposes `/healthz` plus
+`/scenario/status`; remaining structural evidence is hosted CAP polling, shared-airspace playback, operator scenario
+controls, and durable checkpoint/read-back reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -79,11 +78,12 @@ SemOps started materially stale; the first revival slices are correcting that:
   MAVLink UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`; it can also opt into TAK/CoT UDP/TCP graph
   writes with `SEMOPS_COT_ENABLED`. API/UI readback for CoT state, monitoring services, TCP/serial MAVLink transport,
   and dedicated adapter-process packaging remain open.
-- `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy for the current
-  graph smoke scaffold plus first browser-facing COP path.
+- `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, Caddy, and the hosted
+  scenario runner for the current graph smoke scaffold plus first browser-facing COP path.
 - `internal/scenario` now provides a deterministic HADR flood/evacuation runner core that exercises MAVLink,
   TAK/CoT, and CAP lifecycle replay through the same adapter/projector seams used by hosted graph writes. Container
-  packaging, an operator/API control surface, and the shared-airspace vignette remain open.
+  packaging is now present through `cmd/semops-scenario-runner`; an operator/API control surface and the
+  shared-airspace vignette remain open.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
@@ -339,6 +339,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 | `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
 | `internal/projectors/cot` | Decoded CoT events to graph mutation plans | Track, task, advisory planner |
 | `internal/scenario` | Deterministic HA/DR scenario runner core | Replays MAVLink, TAK/CoT, and CAP fixtures through real seams |
+| `cmd/semops-scenario-runner` | Hosted one-shot scenario service | Runs HADR replay and exposes status/health for active polling |
 | `internal/stack` | Testable service composition factories | Wires SemStreams clients, writers, adapters |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |

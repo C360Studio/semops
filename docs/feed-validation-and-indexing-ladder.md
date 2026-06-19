@@ -57,8 +57,10 @@ Before a feed enters the structural stack, run an adversarial review against the
 cardinality risk, stale-data behavior, and claim language.
 
 The first scenario-runner core lives in `internal/scenario`. It replays generated MAVLink, deterministic TAK/CoT seed
-events, and CAP lifecycle XML records through the real adapter/projector seams and exposes a pollable run status. This
-is replay infrastructure evidence, not a hosted scenario-runner service or full shared-airspace vignette.
+events, and CAP lifecycle XML records through the real adapter/projector seams and exposes a pollable run status.
+`cmd/semops-scenario-runner` hosts that core in the local Compose stack and the stack smoke polls
+`/scenario/status`. This is replay infrastructure evidence, not a full shared-airspace vignette or operator scenario
+control surface.
 
 ## Indexing Pressure
 

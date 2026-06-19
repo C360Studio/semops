@@ -65,7 +65,7 @@
 
 ## 6. Structural COP Stack
 
-- [ ] 6.1 Add Compose stack for NATS, SemStreams, SemOps API, SemOps UI, and scenario runner
+- [x] 6.1 Add Compose stack for NATS, SemStreams, SemOps API, SemOps UI, and scenario runner
 - [ ] 6.2 Add MAVLink, TAK/CoT, and CAP/EDXL structural adapters
 - [ ] 6.3 Add service health and active state polling for long-running demo runs
 - [ ] 6.4 Add scenario playback for a flood/evacuation and shared-airspace vignette
@@ -83,7 +83,7 @@
 - [x] 6.16 Carry live graph metrics URL into the one-command hosted stack smoke
 - [x] 6.17 Rerun one-command hosted stack smoke after typed-token migration and restart reconciliation
 - [x] 6.18 Add hosted MAVLink UDP listener lifecycle wiring behind explicit runtime config
-- [ ] 6.19 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
+- [x] 6.19 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
 - [x] 6.20 Add fixture-backed SemOps COP API, Svelte UI container, and Caddy same-origin ingress to the stack smoke
 - [x] 6.21 Add hosted MAVLink UDP-to-Caddy-snapshot smoke for the first product-visible live graph path
 - [x] 6.22 Add TAK/CoT graph writer, adapter graph path, stack constructor, and opt-in hosted listener wiring
@@ -92,6 +92,7 @@
 - [x] 6.25 Add SemStreams prefix discovery for graph-backed COP readback
 - [x] 6.26 Add CAP live graph smoke to the one-command COP stack
 - [x] 6.27 Add in-process HADR scenario runner core for MAVLink, TAK/CoT, and CAP lifecycle replay
+- [x] 6.28 Add hosted scenario-runner service with active status polling to the one-command stack smoke
 
 ## 7. COP UI
 
