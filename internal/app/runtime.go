@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
 	mavadapter "github.com/c360studio/semops/internal/adapters/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
 	"github.com/c360studio/semops/internal/graphrequest"
@@ -20,6 +21,8 @@ type App struct {
 	ownershipResult  copownership.BindingResult
 	mavlinkAdapter   *mavadapter.Adapter
 	mavlinkTransport mavlinkTransport
+	cotAdapter       *cotadapter.Adapter
+	cotTransports    []runningCoTTransport
 	transportCancel  context.CancelFunc
 	transportDone    chan error
 }
@@ -42,11 +45,26 @@ type dependencies struct {
 	registerOwners        func(context.Context, semstreamsClient, time.Duration) (copownership.BindingResult, func(), error)
 	newMAVLinkAdapter     func(stack.MAVLinkAdapterConfig, stack.MAVLinkAdapterDeps) (*mavadapter.Adapter, error)
 	newMAVLinkUDPListener func(mavadapter.UDPListenerConfig, *mavadapter.Adapter) (mavlinkTransport, error)
+	newCoTAdapter         func(stack.CoTAdapterConfig, stack.CoTAdapterDeps) (*cotadapter.Adapter, error)
+	newCoTUDPListener     func(cotadapter.UDPListenerConfig, *cotadapter.Adapter) (cotTransport, error)
+	newCoTTCPListener     func(cotadapter.TCPListenerConfig, *cotadapter.Adapter) (cotTransport, error)
 }
 
 type mavlinkTransport interface {
 	Run(context.Context) error
 	Close() error
+}
+
+type cotTransport interface {
+	Run(context.Context) error
+	Close() error
+}
+
+type runningCoTTransport struct {
+	name      string
+	transport cotTransport
+	cancel    context.CancelFunc
+	done      chan error
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -64,9 +82,21 @@ func (a *App) Close(ctx context.Context) error {
 	if a.transportCancel != nil {
 		a.transportCancel()
 	}
+	for _, running := range a.cotTransports {
+		if running.cancel != nil {
+			running.cancel()
+		}
+	}
 	if a.mavlinkTransport != nil {
 		if err := a.mavlinkTransport.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("close MAVLink transport: %w", err))
+		}
+	}
+	for _, running := range a.cotTransports {
+		if running.transport != nil {
+			if err := running.transport.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("close %s transport: %w", running.name, err))
+			}
 		}
 	}
 	if a.transportDone != nil {
@@ -77,6 +107,19 @@ func (a *App) Close(ctx context.Context) error {
 			}
 		case <-ctx.Done():
 			errs = append(errs, fmt.Errorf("wait for MAVLink transport shutdown: %w", ctx.Err()))
+		}
+	}
+	for _, running := range a.cotTransports {
+		if running.done == nil {
+			continue
+		}
+		select {
+		case err := <-running.done:
+			if err != nil {
+				errs = append(errs, fmt.Errorf("run %s transport: %w", running.name, err))
+			}
+		case <-ctx.Done():
+			errs = append(errs, fmt.Errorf("wait for %s transport shutdown: %w", running.name, ctx.Err()))
 		}
 	}
 	if a.ownershipStop != nil {
@@ -102,6 +145,13 @@ func (a *App) MAVLinkAdapter() *mavadapter.Adapter {
 		return nil
 	}
 	return a.mavlinkAdapter
+}
+
+func (a *App) CoTAdapter() *cotadapter.Adapter {
+	if a == nil {
+		return nil
+	}
+	return a.cotAdapter
 }
 
 func (a *App) GraphRequester() GraphRequester {
@@ -163,6 +213,44 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 		}
 	}
 
+	if cfg.CoT.Enabled {
+		adapter, err := deps.newCoTAdapter(stack.CoTAdapterConfig{
+			Source:        cfg.CoT.Source,
+			Org:           cfg.CoT.Org,
+			Platform:      cfg.CoT.Platform,
+			OwnerTokens:   bindings.OwnerTokenMap(),
+			TraceID:       cfg.CoT.TraceID,
+			RawMaxRecords: cfg.CoT.RawMaxRecords,
+			RawMaxBytes:   cfg.CoT.RawMaxBytes,
+			WriteTimeout:  cfg.CoT.WriteTimeout,
+			Retry:         cfg.CoT.Retry,
+		}, stack.CoTAdapterDeps{NATS: client})
+		if err != nil {
+			return nil, fmt.Errorf("compose CoT adapter: %w", err)
+		}
+		app.cotAdapter = adapter
+		if cfg.CoT.UDP.ListenAddr != "" {
+			transport, err := deps.newCoTUDPListener(cotadapter.UDPListenerConfig{
+				ListenAddr:       cfg.CoT.UDP.ListenAddr,
+				MaxDatagramBytes: cfg.CoT.UDP.MaxDatagramBytes,
+			}, adapter)
+			if err != nil {
+				return nil, fmt.Errorf("start CoT UDP listener: %w", err)
+			}
+			app.startCoTTransport("CoT UDP", transport)
+		}
+		if cfg.CoT.TCP.ListenAddr != "" {
+			transport, err := deps.newCoTTCPListener(cotadapter.TCPListenerConfig{
+				ListenAddr:    cfg.CoT.TCP.ListenAddr,
+				MaxEventBytes: cfg.CoT.TCP.MaxEventBytes,
+			}, adapter)
+			if err != nil {
+				return nil, fmt.Errorf("start CoT TCP listener: %w", err)
+			}
+			app.startCoTTransport("CoT TCP", transport)
+		}
+	}
+
 	cleanup = false
 	return app, nil
 }
@@ -173,6 +261,9 @@ func defaultDependencies() dependencies {
 		registerOwners:        registerOwners,
 		newMAVLinkAdapter:     stack.NewMAVLinkAdapter,
 		newMAVLinkUDPListener: newMAVLinkUDPListener,
+		newCoTAdapter:         stack.NewCoTAdapter,
+		newCoTUDPListener:     newCoTUDPListener,
+		newCoTTCPListener:     newCoTTCPListener,
 	}
 }
 
@@ -189,6 +280,15 @@ func fillDependencies(deps dependencies) dependencies {
 	}
 	if deps.newMAVLinkUDPListener == nil {
 		deps.newMAVLinkUDPListener = defaults.newMAVLinkUDPListener
+	}
+	if deps.newCoTAdapter == nil {
+		deps.newCoTAdapter = defaults.newCoTAdapter
+	}
+	if deps.newCoTUDPListener == nil {
+		deps.newCoTUDPListener = defaults.newCoTUDPListener
+	}
+	if deps.newCoTTCPListener == nil {
+		deps.newCoTTCPListener = defaults.newCoTTCPListener
 	}
 	return deps
 }
@@ -217,11 +317,39 @@ func (a *App) startMAVLinkUDPTransport(
 	return nil
 }
 
+func (a *App) startCoTTransport(name string, transport cotTransport) {
+	transportCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	a.cotTransports = append(a.cotTransports, runningCoTTransport{
+		name:      name,
+		transport: transport,
+		cancel:    cancel,
+		done:      done,
+	})
+	go func() {
+		done <- transport.Run(transportCtx)
+	}()
+}
+
 func newMAVLinkUDPListener(
 	cfg mavadapter.UDPListenerConfig,
 	adapter *mavadapter.Adapter,
 ) (mavlinkTransport, error) {
 	return mavadapter.ListenUDP(cfg, adapter)
+}
+
+func newCoTUDPListener(
+	cfg cotadapter.UDPListenerConfig,
+	adapter *cotadapter.Adapter,
+) (cotTransport, error) {
+	return cotadapter.ListenUDP(cfg, adapter)
+}
+
+func newCoTTCPListener(
+	cfg cotadapter.TCPListenerConfig,
+	adapter *cotadapter.Adapter,
+) (cotTransport, error) {
+	return cotadapter.ListenTCP(cfg, adapter)
 }
 
 func newNATSClient(cfg Config) (semstreamsClient, error) {

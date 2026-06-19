@@ -209,6 +209,14 @@ Current projection gate:
   track source edges, marker-to-task `control` projection, GeoChat-to-advisory `content` projection, source refs,
   unsupported alert no-ops, and restart born-state seeding.
 
+Current graph-wiring gate:
+
+- `go test ./internal/projectors/cot ./internal/adapters/cot ./internal/stack ./internal/app` passes for CoT
+  create/update graph writer behavior, restart birth reconciliation, NATS-backed stack composition, opt-in hosted
+  CoT adapter composition, and UDP/TCP listener lifecycle wiring.
+- TAK/CoT graph wiring remains a local unit/integration gate until a skipped live graph smoke verifies source asset,
+  track, task, advisory, and source-ref readback against a running SemStreams graph.
+
 ### CAP/EDXL
 
 Status: third feed.

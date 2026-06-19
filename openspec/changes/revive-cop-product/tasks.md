@@ -82,6 +82,7 @@
 - [ ] 6.19 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
 - [x] 6.20 Add fixture-backed SemOps COP API, Svelte UI container, and Caddy same-origin ingress to the stack smoke
 - [x] 6.21 Add hosted MAVLink UDP-to-Caddy-snapshot smoke for the first product-visible live graph path
+- [x] 6.22 Add TAK/CoT graph writer, adapter graph path, stack constructor, and opt-in hosted listener wiring
 
 ## 7. COP UI
 
