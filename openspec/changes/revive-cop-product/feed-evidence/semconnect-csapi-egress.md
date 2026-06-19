@@ -48,6 +48,10 @@ without forcing disaster-response feed ingestion through a standards driver befo
 
 ## External Evidence
 
+- OGC describes Connected Systems API as a bridge between static feature resources and dynamic data. Part 1 covers
+  Systems, Procedures, Deployments, Sampling Features, Subsystems/Components, and Property Definitions. Part 2 covers
+  Dynamic Feature Properties, Data Streams, Observations, Control Streams, Commands, Command Status, and System Events,
+  plus streaming and snapshot mechanisms.
 - SemConnect uses OGC Team Engine and the Botts CS API ETS as its conformance harness.
 
 ## Gates
@@ -66,6 +70,8 @@ Acceptance:
 - CS API ingress does not auto-vivify graph entities outside SemStreams born-first mutation contracts.
 - Source provenance records that the data arrived through CS API without erasing the upstream system identity.
 - Indexing profiles are selected by SemOps entity semantics, not by the fact that the transport was CS API.
+- CS API Command or ControlStream input routes through SemOps command authority rather than directly mutating
+  feed-owned state.
 
 ### Egress Gate
 
@@ -79,6 +85,7 @@ Acceptance:
 
 - SemOps can map a COP asset/platform to a CS API System.
 - SemOps can map a sensor and current observation to CS API datastream/observation surfaces.
+- SemOps can map deployments and system events without creating product claims for unsupported native feeds.
 - SemOps can preserve source provenance and ownership when projecting to egress.
 - CS API egress remains a view and does not decide SemOps indexing profiles.
 
@@ -125,4 +132,6 @@ Acceptance:
 
 ## Source Links
 
+- OGC API - Connected Systems overview: <https://ogcapi.ogc.org/connectedsystems/>
+- OGC Connected Systems SWG repository: <https://github.com/opengeospatial/ogcapi-connected-systems>
 - OGC Team Engine: <https://github.com/opengeospatial/teamengine>

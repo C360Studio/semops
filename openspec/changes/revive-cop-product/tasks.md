@@ -62,6 +62,7 @@
 - [x] 5.16 Add CAP live graph smoke for born-first append-evidence readback
 - [x] 5.17 Add CAP lifecycle-status readback without claiming authoritative hazard status
 - [x] 5.18 Add CAP raw XML lifecycle fixture replay for scenario-runner input
+- [x] 5.19 Add service-promotion matrix and current CS API source anchors without claiming bridge implementation
 
 ## 6. Structural COP Stack
 

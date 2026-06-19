@@ -132,6 +132,13 @@ Every feed needs a parser gate, mock or simulator gate, projection gate, replay 
 are required where a public suite, official schema, or documented interoperability test exists. If no compliance
 surface is verified, the gap must be recorded before implementation starts.
 
+Every feed also needs a service-promotion gate. The MVP starts as a bounded adapter or fixture unless product forces
+justify a SemOps-owned service or gateway: protocol exposure, auth/session/federation state, bidirectional command or
+tasking, placement and scaling isolation, durable collaboration or replay state, secrets, cost, or failure-domain
+isolation. The first adapter must keep parser, transport, service state, command authority, and graph projection seams
+separate so TAK Server, CS API gateway, SAPIENT service, ADS-B receiver, or KLV media-pipeline work can be promoted
+later without rewriting governed graph ownership.
+
 The first SemStreams indexing-pressure question is whether entity boundaries are right. High-rate state should remain
 `signal`, durable operational state should be `control`, advisory text should be `content`, and replay/native decode
 detail should be `trace`. Do not request new framework profile semantics until SemOps proves that correct entity
