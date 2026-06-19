@@ -162,11 +162,14 @@ Compliance and simulator evidence:
 
 Local assets:
 
+- SemOps now has `pkg/adapters/cot`, a dependency-light XML CoT codec tested against SemLink-style seed shapes for
+  operator dots, markers, GeoChat, air-track marshal/unmarshal, and malformed input rejection.
 - SemLink has a TAK bridge and `scripts/demo-up.sh` seeds UDP CoT events for operators, markers, and chat.
 
 Mock or harness:
 
-- Start with SemLink-style UDP and TCP seed events.
+- Start with SemLink-style UDP and TCP seed events. The native parser gate is now SemOps-local; the next gate is
+  SemOps-owned UDP/TCP fixture replay, not runtime dependency on SemLink.
 - Add fixture replay for common event kinds: operator location, marker, GeoChat, hazard marker, and stale event.
 
 Indexing profile pressure:
@@ -180,6 +183,11 @@ First acceptance gate:
 
 - Given seeded ALPHA/BRAVO operator dots, a checkpoint marker, and a chat event, the COP shows positions, source,
   event freshness, and provenance without treating the native XML as embedded prose.
+
+Current parser gate:
+
+- `go test ./pkg/adapters/cot` passes for SemLink-style ALPHA/BRAVO seed shapes, North Gate marker, GeoChat remarks
+  fallback, air-track marshal/unmarshal, classifier checks, and malformed input rejection.
 
 ### CAP/EDXL
 

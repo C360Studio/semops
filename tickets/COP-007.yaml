@@ -10,11 +10,16 @@ openspec_change: revive-cop-product
 evidence_records:
   - openspec/changes/revive-cop-product/feed-evidence/mavlink.md
   - openspec/changes/revive-cop-product/feed-evidence/tak-cot.md
+  - pkg/adapters/cot/cot.go
+  - pkg/adapters/cot/cot_test.go
   - openspec/changes/revive-cop-product/feed-evidence/cap-edxl.md
   - openspec/changes/revive-cop-product/feed-evidence/semconnect-csapi-egress.md
   - openspec/changes/revive-cop-product/feed-evidence/adsb.md
   - openspec/changes/revive-cop-product/feed-evidence/sapient.md
   - openspec/changes/revive-cop-product/feed-evidence/klv-stanag4609.md
+
+review_records:
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-parser-gate-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT,
@@ -47,6 +52,8 @@ progress:
     mismatch, foreign-edge, and indexing-profile-default counters.
   - `bash scripts/cop-stack-smoke.sh` carries those counter-delta assertions through the Docker Compose graph
     scaffold with NATS, SemStreams graph backend, and SemOps runtime.
+  - TAK/CoT now has a SemOps-local native parser gate in `pkg/adapters/cot`, tested against SemLink-style operator,
+    marker, GeoChat, air-track, classifier, and malformed-input fixtures.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.

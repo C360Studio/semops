@@ -1,6 +1,6 @@
 # TAK/CoT Feed Evidence
 
-Status: candidate Phase 1 feed, blocked from implementation by `COP-002`, `COP-007`, and `COP-008`.
+Status: native parser gate started, still blocked from structural adapter status by `COP-007` and `COP-008`.
 
 ## Decision
 
@@ -10,6 +10,7 @@ compliance suite was verified. Treat TAK as fixture/replay/interoperability-test
 
 ## Local Evidence
 
+- `pkg/adapters/cot` now contains a SemOps-local dependency-light XML CoT codec for the first fixture/replay gate.
 - `/Users/coby/Code/c360/semlink/internal/cot/cot.go` contains a dependency-light XML CoT codec for air tracks,
   operator positions, markers, GeoChat, and alerts.
 - `/Users/coby/Code/c360/semlink/internal/tak/bridge.go` supports outbound multicast/TCP and inbound UDP/TCP paths,
@@ -32,14 +33,19 @@ compliance suite was verified. Treat TAK as fixture/replay/interoperability-test
 Target command in the SemOps port:
 
 ```bash
-go test ./internal/cot
+go test ./pkg/adapters/cot
 ```
 
 Acceptance:
 
-- Operator position, marker, GeoChat, alert, and malformed XML fixtures are decoded deterministically.
+- Operator position, marker, GeoChat, air-track, and malformed XML fixtures are decoded deterministically.
 - Missing UID or event type is rejected before projection.
 - `time`, `start`, and `stale` values are parsed and preserved for freshness behavior.
+
+Current evidence:
+
+- `go test ./pkg/adapters/cot` passes against SemLink-style ALPHA/BRAVO seed shapes, marker fixtures, GeoChat remarks
+  fallback, air-track marshal/unmarshal, classifier checks, and malformed input rejection.
 
 ### Mock Transport Gate
 
@@ -86,7 +92,7 @@ Acceptance:
 ## Known Gaps
 
 - No verified public TAK/CoT conformance suite.
-- No SemOps-local TAK package yet.
+- No SemOps-local TAK transport, replay store, projector, graph writer, or UI feed state yet.
 - Tasking remains out of scope until a dedicated operator-value and protocol review.
 - Cross-source identity resolution between TAK-reported UAVs and MAVLink UAVs is out of scope for Phase 1.
 
