@@ -91,6 +91,7 @@
 - [x] 6.24 Add CAP born-first graph writer path for hazard evidence plans
 - [x] 6.25 Add SemStreams prefix discovery for graph-backed COP readback
 - [x] 6.26 Add CAP live graph smoke to the one-command COP stack
+- [x] 6.27 Add in-process HADR scenario runner core for MAVLink, TAK/CoT, and CAP lifecycle replay
 
 ## 7. COP UI
 

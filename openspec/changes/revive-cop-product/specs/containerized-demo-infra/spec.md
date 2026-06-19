@@ -82,6 +82,15 @@ The first COP stack SHALL run locally with a single documented command after dep
 
 SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.
 
+#### Scenario: In-process runner proves feed playback before service packaging
+
+- **WHEN** the first HADR scenario fixture is replayed in tests
+- **THEN** the runner sends generated MAVLink frames through the MAVLink adapter harness
+- **AND** it sends deterministic TAK/CoT seed events through the CoT adapter harness
+- **AND** it sends CAP lifecycle XML records through the CAP projector and graph writer
+- **AND** it exposes a pollable run status with completed steps, failures, mutation counts, and last error
+- **AND** missing feed sinks fail the run before it can report a false-green scenario result
+
 #### Scenario: Flood and airspace vignette can replay
 
 - **WHEN** the operator starts the Phase 1 scenario
