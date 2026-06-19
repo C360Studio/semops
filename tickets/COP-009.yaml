@@ -3,7 +3,7 @@ title: Clear ADR-055/056 must-exist breaking-tag gate
 assigned: go-developer
 depends_on: [COP-002, COP-003, COP-004]
 blocks: [COP-005, COP-006]
-status: implementation
+status: review
 reviewer: go-reviewer
 openspec_change: revive-cop-product
 github_issue: https://github.com/C360Studio/semops/issues/1
@@ -74,8 +74,14 @@ progress:
     `https://github.com/C360Studio/semops/compare/main...codex/revive-cop-product?expand=1`.
   - Opened draft PR #2 and commented the current ADR-055/056 evidence on SemOps issue #1 after GitHub connector
     access was restored.
+  - Merged PR #11 with SemStreams `v1.0.0-beta.113`, prefix discovery, hosted MAVLink/TAK/CAP graph readback, and
+    the passing `bash scripts/cop-stack-smoke.sh` evidence.
+  - Merged PR #12 with the first mixed-feed scenario runner core so future evidence can replay MAVLink, TAK/CoT, and
+    CAP lifecycle fixtures through the same born-first adapter/projector seams.
+  - Posted the closeout note on SemOps issue #1 and closed it as completed on 2026-06-19.
 
 remaining:
-  - Add durable checkpoint/read-back reconciliation before calling restart/replay fully production-grade.
-  - Track whether append-evidence-only contributors should use a separate SemStreams declaration API once the
-    evidence-contribution/write-fence split graduates beyond the current warning behavior.
+  - Non-blocking: add durable checkpoint/read-back reconciliation before calling restart/replay fully
+    production-grade.
+  - Non-blocking: track whether append-evidence-only contributors should use a separate SemStreams declaration API
+    once the evidence-contribution/write-fence split graduates beyond the current warning behavior.
