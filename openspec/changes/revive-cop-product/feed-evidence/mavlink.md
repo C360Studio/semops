@@ -1,17 +1,18 @@
 # MAVLink Feed Evidence
 
 Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner, SemStreams graph writer boundary,
-structural wiring, typed owner-token wiring, restart create-conflict reconciliation, COP owner-registration smoke
-evidence, and generated-frame live graph smoke evidence. Live feed integration remains blocked by durable replay
-playback, transport hosting, and simulator fidelity work in `COP-004`.
+structural wiring, typed owner-token wiring, restart create-conflict reconciliation, opt-in UDP transport hosting, COP
+owner-registration smoke evidence, and generated-frame live graph smoke evidence. Live feed integration remains blocked
+by durable replay playback, TCP/serial transport work, and simulator fidelity work in `COP-004`.
 
 ## Decision
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
 coverage, current-state projection planner, tested graph request/reply writer boundary, retry-aware SemStreams NATS
-requester boundary, in-process adapter harness, hosted runtime wiring, and a one-command graph scaffold. Live feed work
-still needs scenario-runner replay wiring, SITL/PX4 evidence, transport hosting, and full product-stack expansion.
+requester boundary, in-process adapter harness, hosted runtime wiring, opt-in UDP datagram ingestion, and a one-command
+graph scaffold. Live feed work still needs scenario-runner replay wiring, SITL/PX4 evidence, TCP/serial transport, and
+full product-stack expansion.
 
 SemOps GitHub issue #1 added a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
 graph path against live SemStreams before PX4/SITL becomes the blocking milestone. The generated-frame smoke passed
@@ -52,6 +53,10 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - `internal/adapters/mavlink/adapter_test.go` proves valid telemetry writes graph plans, command ACK frames are
   captured without graph writes, corrupt frames stop before graph writes, writer failures are reflected in health, and
   strict `entity_already_exists` birth conflicts after restart are reconciled into update-only writes.
+- `internal/adapters/mavlink/udp_listener.go` hosts an opt-in UDP datagram loop that feeds real datagrams into the
+  adapter without letting corrupt frames terminate the listener.
+- `internal/adapters/mavlink/udp_listener_test.go` sends generated MAVLink frames over localhost UDP and proves invalid
+  datagrams are recorded in adapter health before later valid datagrams still write graph plans.
 - `internal/stack` wires the MAVLink parser, bounded raw lane, projector, retry-aware NATS requester, graph writer,
   adapter harness, and health state from config.
 - `internal/stack/mavlink_test.go` proves custom and default retry config propagation, write timeout propagation,
@@ -141,6 +146,8 @@ Latest evidence:
 - 2026-06-17: after SemStreams exposed typed `ownership.OwnerToken`, SemOps migrated runtime/projector wiring away
   from local token suffix composition and reran `go test ./...`, `go build ./cmd/semops`, and
   `bash scripts/cop-stack-smoke.sh`.
+- 2026-06-19: added opt-in hosted UDP datagram ingestion through `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`, covered by
+  `go test ./internal/adapters/mavlink ./internal/app`.
 - SemStreams health remained green after the run via `/health` and the dedicated `/healthz` endpoint.
 - SemStreams logged that `semops.feed.cap` has no enforceable owning or foreign-edge claim because CAP is currently
   append-evidence only; this is governance evidence, not write-fence protection.
@@ -190,7 +197,8 @@ Acceptance:
 - The active module path, Go toolchain, and MAVLink parser/generator are modernized.
 - The current-state projection planner, graph writer, COP ownership binding, and structural wiring now pass a
   generated-frame live graph smoke against SemStreams.
-- The in-process adapter harness is not a UDP/TCP listener and is not yet hosted as `semops-adapter-mavlink`.
+- The hosted runtime can opt into UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`. TCP, serial, and
+  dedicated `semops-adapter-mavlink` process packaging remain open.
 - Raw-lane capture and replay fixture storage are library boundaries; scenario-runner playback and stack retention
   policy are not implemented yet.
 - Explicit SemOps COP owner registration and heartbeat coverage are wired into `cmd/semops`, and the graph scaffold can

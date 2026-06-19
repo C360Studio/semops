@@ -63,8 +63,9 @@ SemOps started materially stale; the first revival slices are correcting that:
 
 - SemOps now declares Go `1.26.3` and imports current `github.com/c360studio/semstreams`.
 - `go test ./...` passes for the active product compile path.
-- `cmd/semops/main.go` now loads env config, starts the hosted SemStreams/COP ownership runtime, and still has TODOs
-  for the API server, monitoring services, and real feed transport listeners.
+- `cmd/semops/main.go` now loads env config, starts the hosted SemStreams/COP ownership runtime, and can opt into
+  MAVLink UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`. API server, monitoring services, TCP/serial
+  transport, and dedicated adapter-process packaging remain open.
 - `compose.cop.yml` starts NATS, SemStreams graph backend, and SemOps runtime for the current graph smoke scaffold.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
@@ -243,7 +244,7 @@ stack, then split edge/core only after the deployment metadata has real value.
 | `semops-api` | SemOps | COP snapshot API, SSE, commands, source/provenance views | Phase 1 |
 | `semops-ui` | SemOps | Svelte COP product surface; may be served by `semops-api` | Phase 1 |
 | `semops-scenario-runner` | SemOps | Scripted HA/DR feed playback, deterministic demo clock | Phase 1 |
-| `semops-adapter-mavlink` | SemOps | External UDP/TCP/SITL boundary and high-rate raw lane producer | Phase 1 |
+| `semops-adapter-mavlink` | SemOps | External UDP now; TCP/serial/SITL boundary and raw lane producer later | Phase 1 |
 | `semops-adapter-cot` | SemOps | TAK UDP/TCP/XML boundary and operator/marker/message projection | Phase 1 |
 | `semops-adapter-cap` | SemOps | Tolerant CAP/EDXL reader and hazard/advisory projection | Phase 1 |
 | `semops-adapter-sapient` | SemOps | Protobuf boundary and strict detection/track projection | Phase 2 |

@@ -25,8 +25,8 @@ Evidence:
 - Go reviewer: Startup cleanup is covered for adapter composition failure. Later restart work added narrow
   `entity_already_exists` create-conflict reconciliation for existing MAVLink asset/track births, but durable
   checkpoint/read-back seeding remains absent.
-- Go reviewer: The hosted MAVLink adapter is in-process only. It has no UDP/TCP/serial reader, so this is hosted
-  graph-writer composition, not a complete feed service.
+- Go reviewer: The hosted MAVLink adapter is in-process only. Later work added an opt-in UDP datagram listener, but
+  TCP/serial readers and dedicated adapter-process packaging remain open.
 - Technical writer: The env surface is intentionally small. Do not document this as a one-command demo stack until
   Compose exists and active health/metrics polling wraps the process.
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,10 +15,13 @@ import (
 )
 
 type App struct {
-	client          semstreamsClient
-	ownershipStop   func()
-	ownershipResult copownership.BindingResult
-	mavlinkAdapter  *mavadapter.Adapter
+	client           semstreamsClient
+	ownershipStop    func()
+	ownershipResult  copownership.BindingResult
+	mavlinkAdapter   *mavadapter.Adapter
+	mavlinkTransport mavlinkTransport
+	transportCancel  context.CancelFunc
+	transportDone    chan error
 }
 
 type semstreamsClient interface {
@@ -27,9 +31,15 @@ type semstreamsClient interface {
 }
 
 type dependencies struct {
-	newNATSClient     func(Config) (semstreamsClient, error)
-	registerOwners    func(context.Context, semstreamsClient, time.Duration) (copownership.BindingResult, func(), error)
-	newMAVLinkAdapter func(stack.MAVLinkAdapterConfig, stack.MAVLinkAdapterDeps) (*mavadapter.Adapter, error)
+	newNATSClient         func(Config) (semstreamsClient, error)
+	registerOwners        func(context.Context, semstreamsClient, time.Duration) (copownership.BindingResult, func(), error)
+	newMAVLinkAdapter     func(stack.MAVLinkAdapterConfig, stack.MAVLinkAdapterDeps) (*mavadapter.Adapter, error)
+	newMAVLinkUDPListener func(mavadapter.UDPListenerConfig, *mavadapter.Adapter) (mavlinkTransport, error)
+}
+
+type mavlinkTransport interface {
+	Run(context.Context) error
+	Close() error
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -40,13 +50,37 @@ func (a *App) Close(ctx context.Context) error {
 	if a == nil {
 		return nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var errs []error
+	if a.transportCancel != nil {
+		a.transportCancel()
+	}
+	if a.mavlinkTransport != nil {
+		if err := a.mavlinkTransport.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close MAVLink transport: %w", err))
+		}
+	}
+	if a.transportDone != nil {
+		select {
+		case err := <-a.transportDone:
+			if err != nil {
+				errs = append(errs, fmt.Errorf("run MAVLink transport: %w", err))
+			}
+		case <-ctx.Done():
+			errs = append(errs, fmt.Errorf("wait for MAVLink transport shutdown: %w", ctx.Err()))
+		}
+	}
 	if a.ownershipStop != nil {
 		a.ownershipStop()
 	}
 	if a.client != nil {
-		return a.client.Close(ctx)
+		if err := a.client.Close(ctx); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func (a *App) OwnershipBinding() copownership.BindingResult {
@@ -108,6 +142,11 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 			return nil, fmt.Errorf("compose MAVLink adapter: %w", err)
 		}
 		app.mavlinkAdapter = adapter
+		if cfg.MAVLink.UDP.ListenAddr != "" {
+			if err := app.startMAVLinkUDPTransport(cfg.MAVLink.UDP, deps, adapter); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	cleanup = false
@@ -116,9 +155,10 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 
 func defaultDependencies() dependencies {
 	return dependencies{
-		newNATSClient:     newNATSClient,
-		registerOwners:    registerOwners,
-		newMAVLinkAdapter: stack.NewMAVLinkAdapter,
+		newNATSClient:         newNATSClient,
+		registerOwners:        registerOwners,
+		newMAVLinkAdapter:     stack.NewMAVLinkAdapter,
+		newMAVLinkUDPListener: newMAVLinkUDPListener,
 	}
 }
 
@@ -133,7 +173,41 @@ func fillDependencies(deps dependencies) dependencies {
 	if deps.newMAVLinkAdapter == nil {
 		deps.newMAVLinkAdapter = defaults.newMAVLinkAdapter
 	}
+	if deps.newMAVLinkUDPListener == nil {
+		deps.newMAVLinkUDPListener = defaults.newMAVLinkUDPListener
+	}
 	return deps
+}
+
+func (a *App) startMAVLinkUDPTransport(
+	cfg MAVLinkUDPConfig,
+	deps dependencies,
+	adapter *mavadapter.Adapter,
+) error {
+	transport, err := deps.newMAVLinkUDPListener(mavadapter.UDPListenerConfig{
+		ListenAddr:       cfg.ListenAddr,
+		MaxDatagramBytes: cfg.MaxDatagramBytes,
+	}, adapter)
+	if err != nil {
+		return fmt.Errorf("start MAVLink UDP listener: %w", err)
+	}
+
+	transportCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	a.mavlinkTransport = transport
+	a.transportCancel = cancel
+	a.transportDone = done
+	go func() {
+		done <- transport.Run(transportCtx)
+	}()
+	return nil
+}
+
+func newMAVLinkUDPListener(
+	cfg mavadapter.UDPListenerConfig,
+	adapter *mavadapter.Adapter,
+) (mavlinkTransport, error) {
+	return mavadapter.ListenUDP(cfg, adapter)
 }
 
 func newNATSClient(cfg Config) (semstreamsClient, error) {

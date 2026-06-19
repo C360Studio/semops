@@ -49,9 +49,12 @@ progress:
     with typed owner tokens minted by SemStreams registry/bind results.
   - MAVLink projection is pure until graph write success; accepted create plans or strict `entity_already_exists`
     restart conflicts explicitly mark asset/track births before subsequent update-only projection.
+  - Added an opt-in UDP datagram listener for hosted MAVLink ingestion. Tests send generated MAVLink frames over
+    localhost UDP and prove corrupt datagrams do not kill the listener.
 
 current_evidence:
   - `go test ./pkg/adapters/mavlink`
+  - `go test ./internal/adapters/mavlink`
   - `go test ./internal/projectors/mavlink`
   - `go test ./internal/app`
   - `go build ./cmd/semops`
@@ -59,6 +62,7 @@ current_evidence:
 
 remaining:
   - Add durable checkpoint/read-back reconciliation so adapter birth caches are not the only restart evidence.
+  - Add TCP/serial transport variants or explicitly reject them after PX4/SITL/MAVSDK evidence selects the path.
   - Add a modern ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
   - Add PX4 SITL or MAVSDK smoke evidence before calling MAVLink Phase 1 complete.
 

@@ -30,8 +30,9 @@ Adversarial Findings:
 
 - Go reviewer: The ADR-055 must-exist graph path is cleared for generated MAVLink frames. This is enough to keep
   PX4/SITL from blocking born-first graph compliance.
-- Architect: The smoke proves graph mutation and readback behavior, not transport hosting. UDP/TCP listener work,
-  Compose wiring, and scenario-runner replay still belong to `COP-004`.
+- Architect: The smoke proves graph mutation and readback behavior, not transport fidelity. Later work added an
+  opt-in UDP listener; TCP/serial variants, Compose product expansion, and scenario-runner replay still belong to
+  `COP-004`.
 - Go reviewer: The smoke sends owner tokens but does not prove explicit SemOps COP owner registration or heartbeat
   lifecycle. Add a structural-stack smoke for owner registry presence before claiming production ownership behavior.
 - Update: the clean-stack follow-up now proves COP owner registration, heartbeat enrollment, owner lookup, and

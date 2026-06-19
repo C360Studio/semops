@@ -40,6 +40,7 @@
 - [x] 4.11 Add generated/replay MAVLink live graph smoke before PX4/SITL fidelity work
 - [x] 4.12 Add skipped-by-default MAVLink live graph smoke harness target
 - [x] 4.13 Add MAVLink restart create-conflict reconciliation for existing asset/track births
+- [x] 4.14 Add opt-in MAVLink UDP datagram transport reader for hosted runtime
 
 ## 5. Feed Validation And Indexing Ladder
 
@@ -73,7 +74,8 @@
 - [x] 6.15 Wire COP ownership registration into the hosted adapter or SemOps composition root
 - [x] 6.16 Carry live graph metrics URL into the one-command hosted stack smoke
 - [x] 6.17 Rerun one-command hosted stack smoke after typed-token migration and restart reconciliation
-- [ ] 6.18 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
+- [x] 6.18 Add hosted MAVLink UDP listener lifecycle wiring behind explicit runtime config
+- [ ] 6.19 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
 
 ## 7. COP UI
 

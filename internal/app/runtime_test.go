@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -176,6 +177,62 @@ func TestStartCanDisableHostedMAVLinkAdapter(t *testing.T) {
 	}
 }
 
+func TestStartHostsMAVLinkUDPTransportWhenConfigured(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.UDP.ListenAddr = "127.0.0.1:14550"
+	cfg.MAVLink.UDP.MaxDatagramBytes = 2048
+	transport := newFakeMAVLinkTransport()
+	var gotTransportCfg mavadapter.UDPListenerConfig
+	var gotTransportAdapter *mavadapter.Adapter
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+		newMAVLinkAdapter: func(
+			stack.MAVLinkAdapterConfig,
+			stack.MAVLinkAdapterDeps,
+		) (*mavadapter.Adapter, error) {
+			return testMAVLinkAdapter(t), nil
+		},
+		newMAVLinkUDPListener: func(
+			transportCfg mavadapter.UDPListenerConfig,
+			adapter *mavadapter.Adapter,
+		) (mavlinkTransport, error) {
+			gotTransportCfg = transportCfg
+			gotTransportAdapter = adapter
+			return transport, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	transport.waitStarted(t)
+	if gotTransportCfg.ListenAddr != "127.0.0.1:14550" ||
+		gotTransportCfg.MaxDatagramBytes != 2048 {
+		t.Fatalf("transport config = %+v", gotTransportCfg)
+	}
+	if gotTransportAdapter != app.MAVLinkAdapter() {
+		t.Fatal("transport must receive the hosted MAVLink adapter")
+	}
+
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatalf("close app: %v", err)
+	}
+	transport.waitClosed(t)
+	if !client.closed {
+		t.Fatal("close must close SemStreams client")
+	}
+}
+
 func TestConfigFromEnv(t *testing.T) {
 	env := map[string]string{
 		EnvNATSURL:                    "nats://semstreams:4222",
@@ -188,6 +245,8 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvPlatform:                   "edge-7",
 		EnvTraceID:                    "trace-7",
 		EnvMAVLinkWriteTimeout:        "900ms",
+		EnvMAVLinkUDPListenAddr:       "127.0.0.1:14550",
+		EnvMAVLinkUDPMaxDatagramBytes: "2048",
 	}
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
@@ -215,20 +274,50 @@ func TestConfigFromEnv(t *testing.T) {
 	if cfg.MAVLink.WriteTimeout != 900*time.Millisecond {
 		t.Fatalf("MAVLink write timeout = %s", cfg.MAVLink.WriteTimeout)
 	}
+	if cfg.MAVLink.UDP.ListenAddr != "127.0.0.1:14550" ||
+		cfg.MAVLink.UDP.MaxDatagramBytes != 2048 {
+		t.Fatalf("MAVLink UDP config = %+v", cfg.MAVLink.UDP)
+	}
 }
 
 func TestConfigFromEnvReportsBadValues(t *testing.T) {
-	_, err := ConfigFromEnv(func(name string) string {
-		if name == EnvMAVLinkWriteTimeout {
-			return "forever"
-		}
-		return ""
-	})
-	if err == nil {
-		t.Fatal("expected parse error")
+	tests := []struct {
+		name string
+		env  map[string]string
+		want string
+	}{
+		{
+			name: "bad write timeout",
+			env:  map[string]string{EnvMAVLinkWriteTimeout: "forever"},
+			want: EnvMAVLinkWriteTimeout,
+		},
+		{
+			name: "bad udp max datagram",
+			env:  map[string]string{EnvMAVLinkUDPMaxDatagramBytes: "huge"},
+			want: EnvMAVLinkUDPMaxDatagramBytes,
+		},
+		{
+			name: "zero udp max datagram",
+			env: map[string]string{
+				EnvMAVLinkUDPListenAddr:       "127.0.0.1:14550",
+				EnvMAVLinkUDPMaxDatagramBytes: "0",
+			},
+			want: EnvMAVLinkUDPMaxDatagramBytes,
+		},
 	}
-	if !strings.Contains(err.Error(), EnvMAVLinkWriteTimeout) {
-		t.Fatalf("error = %v, want env name", err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ConfigFromEnv(func(name string) string {
+				return tt.env[name]
+			})
+			if err == nil {
+				t.Fatal("expected config error")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want env name %s", err, tt.want)
+			}
+		})
 	}
 }
 
@@ -270,4 +359,48 @@ func testMAVLinkAdapter(t *testing.T) *mavadapter.Adapter {
 		t.Fatalf("new test adapter: %v", err)
 	}
 	return adapter
+}
+
+type fakeMAVLinkTransport struct {
+	started   chan struct{}
+	closed    chan struct{}
+	closeOnce sync.Once
+}
+
+func newFakeMAVLinkTransport() *fakeMAVLinkTransport {
+	return &fakeMAVLinkTransport{
+		started: make(chan struct{}),
+		closed:  make(chan struct{}),
+	}
+}
+
+func (t *fakeMAVLinkTransport) Run(ctx context.Context) error {
+	close(t.started)
+	<-ctx.Done()
+	return nil
+}
+
+func (t *fakeMAVLinkTransport) Close() error {
+	t.closeOnce.Do(func() {
+		close(t.closed)
+	})
+	return nil
+}
+
+func (t *fakeMAVLinkTransport) waitStarted(tb testing.TB) {
+	tb.Helper()
+	select {
+	case <-t.started:
+	case <-time.After(time.Second):
+		tb.Fatal("timed out waiting for transport start")
+	}
+}
+
+func (t *fakeMAVLinkTransport) waitClosed(tb testing.TB) {
+	tb.Helper()
+	select {
+	case <-t.closed:
+	case <-time.After(time.Second):
+		tb.Fatal("timed out waiting for transport close")
+	}
 }

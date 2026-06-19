@@ -61,6 +61,8 @@ progress:
     converted into a reprojected update path after process restart.
   - Migrated the hosted stack to SemStreams typed `ownership.OwnerToken` bind results and reran
     `bash scripts/cop-stack-smoke.sh` successfully on 2026-06-17.
+  - Added hosted MAVLink UDP listener lifecycle wiring behind `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`, with runtime cleanup
+    tests and localhost UDP adapter tests.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
@@ -75,7 +77,7 @@ current_evidence:
   - `bash scripts/cop-stack-smoke.sh`
 
 remaining:
-  - Add an actual MAVLink transport reader before calling the hosted adapter a full feed service.
+  - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
   - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.
   - Add graph-state polling smoke tests that exercise at least two feed types.

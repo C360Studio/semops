@@ -103,8 +103,8 @@ Local assets:
 - The active raw lane stores copied MAVLink frames under record and byte caps and annotates decoded packets with a
   `cop.provenance.source_ref` for current-state projections.
 - The active replay store persists raw-lane records as JSON Lines fixtures and loads them back into parseable frames.
-- The in-process adapter harness composes parser, raw lane, projector, graph plan writer, and health counters before
-  the container service boundary exists.
+- The adapter harness composes parser, raw lane, projector, graph plan writer, health counters, and an opt-in UDP
+  datagram listener before the dedicated adapter service boundary exists.
 - The old ignored parser/generator and SITL controller/scenario references were deleted after extraction or rejection.
 
 Mock or harness:

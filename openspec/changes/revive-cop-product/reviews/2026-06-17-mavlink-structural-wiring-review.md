@@ -34,7 +34,8 @@ Adversarial Findings:
 
 Accepted Risks:
 
-- The wiring package intentionally has no UDP/TCP listener. Protocol binding remains a service-hosting task.
+- Later update: hosted runtime now has an opt-in UDP datagram listener. TCP/serial variants and dedicated
+  adapter-process packaging remain service-hosting tasks.
 - The tests fake SemStreams graph responses and do not prove a live graph responder or ownership lease behavior.
 - Raw-lane replay records are still not connected to scenario-runner playback or retention policy.
 - Later update: MAVLink now has narrow restart create-conflict reconciliation for existing asset/track births, but no

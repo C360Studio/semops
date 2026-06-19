@@ -62,7 +62,15 @@ SEMOPS_NATS_URL=nats://127.0.0.1:4222 go run ./cmd/semops
 ```
 
 `cmd/semops` now connects to SemStreams, registers first-phase COP ownership, enrolls owners for heartbeat, and
-composes the hosted MAVLink adapter with the registry-derived owner-token incarnation.
+composes the hosted MAVLink adapter with typed owner tokens minted by SemStreams registry/bind results.
+
+Enable UDP MAVLink ingestion explicitly when you want the hosted runtime to listen for datagrams:
+
+```bash
+SEMOPS_NATS_URL=nats://127.0.0.1:4222 \
+SEMOPS_MAVLINK_UDP_LISTEN_ADDR=:14550 \
+go run ./cmd/semops
+```
 
 Run the current one-command graph smoke stack:
 

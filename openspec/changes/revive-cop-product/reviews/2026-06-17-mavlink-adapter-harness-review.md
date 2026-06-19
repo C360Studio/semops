@@ -5,8 +5,8 @@ Scope: `COP-004` in-process MAVLink adapter harness in `internal/adapters/mavlin
 
 ## Finding Summary
 
-- Severity: Medium. The harness proves parse, raw capture, projection, graph-plan write ordering, and health counters,
-  but it is not a UDP/TCP listener and is not hosted in Compose.
+- Severity: Medium. The harness proves parse, raw capture, projection, graph-plan write ordering, and health counters.
+  Later work added an opt-in UDP datagram listener; TCP/serial variants and Compose feed-transport wiring remain open.
 - Severity: Medium. The graph writer is still backed by a test double in harness tests. Live NATS/SemStreams
   request/reply wiring remains open.
 - Severity: Medium. Invalid frames are captured and stopped before graph writes, but durable replay storage and

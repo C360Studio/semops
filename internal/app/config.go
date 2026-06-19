@@ -22,6 +22,8 @@ const (
 	EnvPlatform                   = "SEMOPS_PLATFORM"
 	EnvTraceID                    = "SEMOPS_TRACE_ID"
 	EnvMAVLinkWriteTimeout        = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
+	EnvMAVLinkUDPListenAddr       = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
+	EnvMAVLinkUDPMaxDatagramBytes = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
 )
 
 type Config struct {
@@ -43,6 +45,12 @@ type MAVLinkConfig struct {
 	RawMaxBytes   int
 	WriteTimeout  time.Duration
 	Retry         natsclient.RetryConfig
+	UDP           MAVLinkUDPConfig
+}
+
+type MAVLinkUDPConfig struct {
+	ListenAddr       string
+	MaxDatagramBytes int
 }
 
 func DefaultConfig() Config {
@@ -59,6 +67,9 @@ func DefaultConfig() Config {
 			Platform:     "edge",
 			TraceID:      "semops-mavlink-hosted",
 			WriteTimeout: 2 * time.Second,
+			UDP: MAVLinkUDPConfig{
+				MaxDatagramBytes: 4096,
+			},
 			Retry: natsclient.RetryConfig{
 				MaxRetries:        5,
 				InitialBackoff:    50 * time.Millisecond,
@@ -81,6 +92,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
 	setString(getenv, EnvTraceID, &cfg.MAVLink.TraceID)
+	setString(getenv, EnvMAVLinkUDPListenAddr, &cfg.MAVLink.UDP.ListenAddr)
 
 	var err error
 	if cfg.NATSConnectTimeout, err = durationFromEnv(getenv, EnvNATSConnectTimeout, cfg.NATSConnectTimeout); err != nil {
@@ -101,6 +113,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.MAVLink.Enabled, err = boolFromEnv(getenv, EnvMAVLinkEnabled, cfg.MAVLink.Enabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
+		getenv,
+		EnvMAVLinkUDPMaxDatagramBytes,
+		cfg.MAVLink.UDP.MaxDatagramBytes,
+	); err != nil {
 		return Config{}, err
 	}
 
@@ -138,6 +157,9 @@ func (c Config) Validate() error {
 	if c.MAVLink.WriteTimeout <= 0 {
 		return fmt.Errorf("%s must be greater than zero when MAVLink is enabled", EnvMAVLinkWriteTimeout)
 	}
+	if strings.TrimSpace(c.MAVLink.UDP.ListenAddr) != "" && c.MAVLink.UDP.MaxDatagramBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when MAVLink UDP is enabled", EnvMAVLinkUDPMaxDatagramBytes)
+	}
 	return nil
 }
 
@@ -171,6 +193,18 @@ func boolFromEnv(getenv func(string) string, name string, fallback bool) (bool, 
 	parsed, err := strconv.ParseBool(value)
 	if err != nil {
 		return false, fmt.Errorf("parse %s: %w", name, err)
+	}
+	return parsed, nil
+}
+
+func intFromEnv(getenv func(string) string, name string, fallback int) (int, error) {
+	value := strings.TrimSpace(getenv(name))
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("parse %s: %w", name, err)
 	}
 	return parsed, nil
 }
