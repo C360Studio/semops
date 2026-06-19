@@ -310,19 +310,23 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		}
 	}
 
-	return p.snapshotFromGraph(assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID), nil
+	return p.snapshotFromGraph(assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID, discovered.diagnostics), nil
 }
 
 type graphDiscoveryTarget struct {
-	Prefix string
-	Kind   string
-	Family string
+	Prefix   string
+	Org      string
+	Platform string
+	Source   string
+	Kind     string
+	Family   string
 }
 
 type graphDiscoveryResult struct {
-	mavlink bool
-	cot     bool
-	cap     bool
+	mavlink     bool
+	cot         bool
+	cap         bool
+	diagnostics []DiscoveryDiagnostic
 }
 
 func (p *GraphProvider) discoverInto(
@@ -339,12 +343,15 @@ func (p *GraphProvider) discoverInto(
 		entities, err := p.queryPrefix(ctx, target.Prefix)
 		if err != nil {
 			firstErr = errors.Join(firstErr, err)
+			result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, 0, err))
 			continue
 		}
+		var count int
 		for _, entity := range entities {
 			if entity.ID == "" {
 				continue
 			}
+			count++
 			switch target.Family {
 			case "mavlink":
 				result.mavlink = true
@@ -366,6 +373,7 @@ func (p *GraphProvider) discoverInto(
 				hazardsByID[entity.ID] = entity
 			}
 		}
+		result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, count, nil))
 	}
 	return result, firstErr
 }
@@ -374,16 +382,45 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*7)
 	for _, scope := range p.discovery.Scopes {
 		targets = append(targets,
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "mavlink", copmodel.EntityAsset), Kind: copmodel.EntityAsset, Family: "mavlink"},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "mavlink", copmodel.EntityTrack), Kind: copmodel.EntityTrack, Family: "mavlink"},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityAsset), Kind: copmodel.EntityAsset, Family: "cot"},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityTrack), Kind: copmodel.EntityTrack, Family: "cot"},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityTask), Kind: copmodel.EntityTask, Family: "cot"},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "tak", copmodel.EntityAdvisory), Kind: copmodel.EntityAdvisory, Family: "cot"},
-			graphDiscoveryTarget{Prefix: graphEntityPrefix(scope.Org, scope.Platform, "cap", copmodel.EntityHazardArea), Kind: copmodel.EntityHazardArea, Family: "cap"},
+			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityAsset, "mavlink"),
+			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityTrack, "mavlink"),
+			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityAsset, "cot"),
+			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityTrack, "cot"),
+			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityTask, "cot"),
+			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityAdvisory, "cot"),
+			newGraphDiscoveryTarget(scope, "cap", copmodel.EntityHazardArea, "cap"),
 		)
 	}
 	return targets
+}
+
+func newGraphDiscoveryTarget(scope GraphDiscoveryScope, source string, entityType string, family string) graphDiscoveryTarget {
+	return graphDiscoveryTarget{
+		Prefix:   graphEntityPrefix(scope.Org, scope.Platform, source, entityType),
+		Org:      scope.Org,
+		Platform: scope.Platform,
+		Source:   source,
+		Kind:     entityType,
+		Family:   family,
+	}
+}
+
+func (t graphDiscoveryTarget) diagnostic(limit int, count int, err error) DiscoveryDiagnostic {
+	diagnostic := DiscoveryDiagnostic{
+		Org:        t.Org,
+		Platform:   t.Platform,
+		Source:     t.Source,
+		Family:     t.Family,
+		EntityType: t.Kind,
+		Prefix:     t.Prefix,
+		Count:      count,
+		Limit:      limit,
+		AtLimit:    limit > 0 && count >= limit,
+	}
+	if err != nil {
+		diagnostic.Error = err.Error()
+	}
+	return diagnostic
 }
 
 func (p *GraphProvider) queryPrefix(ctx context.Context, prefix string) ([]graph.EntityState, error) {
@@ -473,6 +510,7 @@ func (p *GraphProvider) snapshotFromGraph(
 	tasksByID map[string]graph.EntityState,
 	advisoriesByID map[string]graph.EntityState,
 	hazardsByID map[string]graph.EntityState,
+	discoveryDiagnostics []DiscoveryDiagnostic,
 ) Snapshot {
 	now := p.now().UTC()
 	trackSourcePositions := make(map[string]GeoPoint)
@@ -533,6 +571,9 @@ func (p *GraphProvider) snapshotFromGraph(
 			ActiveAlerts:     0,
 			StaleFeeds:       countFeeds(feeds, "stale"),
 		},
+		Diagnostics: SnapshotDiagnostics{
+			Discovery: normalizeDiscoveryDiagnostics(discoveryDiagnostics),
+		},
 		Feeds:      feeds,
 		Assets:     assets,
 		Tracks:     tracks,
@@ -541,6 +582,13 @@ func (p *GraphProvider) snapshotFromGraph(
 		Hazards:    hazards,
 		Alerts:     []Alert{},
 	}
+}
+
+func normalizeDiscoveryDiagnostics(diagnostics []DiscoveryDiagnostic) []DiscoveryDiagnostic {
+	if diagnostics == nil {
+		return []DiscoveryDiagnostic{}
+	}
+	return diagnostics
 }
 
 func firstPhaseFeedHealth(

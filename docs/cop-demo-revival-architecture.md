@@ -223,8 +223,8 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - CAP now has a local parser, raw XML lifecycle fixture replay, born-first append-evidence projection planner/writer,
   graph-backed COP hazard readback, and derived lifecycle status in the COP view model. It is still not a hosted
   CAP/NWS service and does not claim CAP consumer conformance.
-- Remaining compliance hardening requires source/type cardinality diagnostics, CAP schema/NWS validation expansion,
-  and durable checkpoint/read-back reconciliation.
+- Remaining compliance hardening requires source/type cardinality alerting and pagination guidance, CAP schema/NWS
+  validation expansion, and durable checkpoint/read-back reconciliation.
 
 ## CS API Positioning
 

@@ -38,5 +38,6 @@ product-grade discovery model.
 
 - SemStreams issue #302 tracks typed prefix-query request/response contracts, a client helper, and pagination
   guidance.
-- Add source/type counters to COP diagnostics once the API has a deliberate operator or technical evidence panel.
+- Closed by `2026-06-19-source-cardinality-diagnostics-review.md`: add source/type counters to COP diagnostics once
+  the API has a deliberate operator or technical evidence panel.
 - Revisit discovery scopes before multi-org or multi-platform federation enters the demo.

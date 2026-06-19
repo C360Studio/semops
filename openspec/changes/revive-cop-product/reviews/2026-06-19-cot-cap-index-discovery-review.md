@@ -35,7 +35,8 @@ required in the hosted COP demo path when graph discovery is enabled.
 
 ## Follow-Up Tasks
 
-- Add source/type cardinality diagnostics for prefix-discovered snapshot state.
+- Closed by `2026-06-19-source-cardinality-diagnostics-review.md`: add source/type cardinality diagnostics for
+  prefix-discovered snapshot state.
 - Revisit family-level versus kind-level fallback after the first large scenario replay.
 - Keep CAP ownership language append-evidence-only until a separate fusion or control projection owns authoritative
   hazard lifecycle state.

@@ -15,6 +15,9 @@ export const fixtureSnapshot: Snapshot = {
     active_alerts: 1,
     stale_feeds: 0
   },
+  diagnostics: {
+    discovery: []
+  },
   feeds: [
     {
       id: 'feed.mavlink',

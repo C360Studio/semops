@@ -536,6 +536,28 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
+	if len(snapshot.Diagnostics.Discovery) != 7 {
+		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
+	}
+	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)
+	if !ok {
+		t.Fatalf("missing TAK task discovery diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if taskDiagnostic.Org != "c360" ||
+		taskDiagnostic.Platform != platform ||
+		taskDiagnostic.Family != "cot" ||
+		taskDiagnostic.Count != 1 ||
+		taskDiagnostic.Limit != 25 ||
+		taskDiagnostic.AtLimit {
+		t.Fatalf("TAK task diagnostic = %+v", taskDiagnostic)
+	}
+	trackDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTrack)
+	if !ok {
+		t.Fatalf("missing TAK track discovery diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if trackDiagnostic.Count != 0 || trackDiagnostic.AtLimit {
+		t.Fatalf("TAK track diagnostic = %+v", trackDiagnostic)
+	}
 }
 
 func TestGraphProviderFallsBackPerFeedWhenDiscoveryIsPartial(t *testing.T) {
@@ -631,6 +653,81 @@ func TestGraphProviderFallsBackPerFeedWhenDiscoveryIsPartial(t *testing.T) {
 	}
 }
 
+func TestGraphProviderReportsDiscoveryLimitPressureAndErrors(t *testing.T) {
+	now := time.Date(2026, 6, 19, 18, 0, 0, 0, time.UTC)
+	observed := now.Add(-10 * time.Second)
+	platform := "edge-pressure"
+	firstTrackID := "c360.edge-pressure.cop.mavlink.track.system-41"
+	secondTrackID := "c360.edge-pressure.cop.mavlink.track.system-42"
+	trackPrefix := graphEntityPrefix("c360", platform, "mavlink", copmodel.EntityTrack)
+	takAdvisoryPrefix := graphEntityPrefix("c360", platform, "tak", copmodel.EntityAdvisory)
+	requester := &fakeGraphSnapshotRequester{
+		prefixEntities: map[string][]graph.EntityState{
+			trackPrefix: {
+				{
+					ID:        firstTrackID,
+					UpdatedAt: observed,
+					Triples: []message.Triple{
+						testTriple(firstTrackID, copmodel.TrackNativeID, "mavlink.system.41.component.1", observed),
+						testTriple(firstTrackID, copmodel.TrackStatus, "active.armed", observed),
+						testTriple(firstTrackID, copmodel.TrackPosition, "POINT(-77.0400000 38.9000000)", observed),
+						testTriple(firstTrackID, copmodel.TrackObservedAt, observed, observed),
+						testTriple(firstTrackID, copmodel.ProvenanceSource, "mavlink", observed),
+						testTriple(firstTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+					},
+				},
+				{
+					ID:        secondTrackID,
+					UpdatedAt: observed,
+					Triples: []message.Triple{
+						testTriple(secondTrackID, copmodel.TrackNativeID, "mavlink.system.42.component.1", observed),
+						testTriple(secondTrackID, copmodel.TrackStatus, "active.armed", observed),
+						testTriple(secondTrackID, copmodel.TrackPosition, "POINT(-77.0410000 38.9010000)", observed),
+						testTriple(secondTrackID, copmodel.TrackObservedAt, observed, observed),
+						testTriple(secondTrackID, copmodel.ProvenanceSource, "mavlink", observed),
+						testTriple(secondTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+					},
+				},
+			},
+		},
+		prefixErrors: map[string]error{
+			takAdvisoryPrefix: errors.New("temporary prefix index unavailable"),
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithGraphDiscoveryLimit(2),
+		WithGraphDiscoveryScopes([]GraphDiscoveryScope{{Org: "c360", Platform: platform}}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	trackDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "mavlink", copmodel.EntityTrack)
+	if !ok {
+		t.Fatalf("missing MAVLink track diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if trackDiagnostic.Count != 2 || trackDiagnostic.Limit != 2 || !trackDiagnostic.AtLimit {
+		t.Fatalf("MAVLink track diagnostic = %+v", trackDiagnostic)
+	}
+	advisoryDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityAdvisory)
+	if !ok {
+		t.Fatalf("missing TAK advisory diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if advisoryDiagnostic.Count != 0 ||
+		advisoryDiagnostic.Limit != 2 ||
+		advisoryDiagnostic.AtLimit ||
+		advisoryDiagnostic.Error == "" {
+		t.Fatalf("TAK advisory diagnostic = %+v", advisoryDiagnostic)
+	}
+}
+
 func TestGraphProviderDowngradesStaleTAKStateAtReadTime(t *testing.T) {
 	now := time.Date(2026, 6, 19, 15, 30, 0, 0, time.UTC)
 	observed := now.Add(-5 * time.Minute)
@@ -701,6 +798,7 @@ func TestGraphProviderFallsBackWhenNoGraphEntitiesExist(t *testing.T) {
 type fakeGraphSnapshotRequester struct {
 	entities       map[string]graph.EntityState
 	prefixEntities map[string][]graph.EntityState
+	prefixErrors   map[string]error
 	subjects       []string
 	prefixRequests []recordedPrefixRequest
 	entityRequests []string
@@ -745,6 +843,9 @@ func (r *fakeGraphSnapshotRequester) request(
 			return nil, err
 		}
 		r.prefixRequests = append(r.prefixRequests, recordedPrefixRequest{prefix: req.Prefix, limit: req.Limit})
+		if err := r.prefixErrors[req.Prefix]; err != nil {
+			return nil, err
+		}
 		entities := append([]graph.EntityState(nil), r.prefixEntities[req.Prefix]...)
 		if req.Limit > 0 && len(entities) > req.Limit {
 			entities = entities[:req.Limit]
@@ -849,4 +950,17 @@ func hasString(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func findDiscoveryDiagnostic(
+	diagnostics []DiscoveryDiagnostic,
+	source string,
+	entityType string,
+) (DiscoveryDiagnostic, bool) {
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Source == source && diagnostic.EntityType == entityType {
+			return diagnostic, true
+		}
+	}
+	return DiscoveryDiagnostic{}, false
 }

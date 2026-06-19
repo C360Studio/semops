@@ -2,6 +2,7 @@ export type Snapshot = {
   generated_at: string;
   scenario: string;
   summary: Summary;
+  diagnostics?: SnapshotDiagnostics;
   feeds: FeedHealth[];
   assets: Asset[];
   tracks: Track[];
@@ -17,6 +18,23 @@ export type Summary = {
   active_advisories: number;
   active_alerts: number;
   stale_feeds: number;
+};
+
+export type SnapshotDiagnostics = {
+  discovery: DiscoveryDiagnostic[];
+};
+
+export type DiscoveryDiagnostic = {
+  org: string;
+  platform: string;
+  source: string;
+  family: string;
+  entity_type: string;
+  prefix: string;
+  count: number;
+  limit: number;
+  at_limit: boolean;
+  error?: string;
 };
 
 export type FeedHealth = {

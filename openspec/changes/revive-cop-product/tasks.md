@@ -99,6 +99,7 @@
       on compose startup failure
 - [x] 6.31 Remove required CoT/CAP seed IDs from the COP snapshot path and rely on prefix discovery for hosted
       state
+- [x] 6.32 Add source/type cardinality diagnostics for prefix-discovered snapshot state
 
 ## 7. COP UI
 
@@ -120,6 +121,7 @@
 - [x] 7.16 Add CAP hazard evidence readback to the COP API contract
 - [x] 7.17 Record SemConnect/SemLink graph visualization prior art for future graph lenses
 - [x] 7.18 Surface derived CAP hazard lifecycle status in the COP view model
+- [x] 7.19 Surface compact prefix-discovery counts in source cards
 
 ## 8. Tier Escalation And Egress
 

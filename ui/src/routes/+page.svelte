@@ -4,7 +4,7 @@
   import { loadSnapshot, freshnessLabel } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, type SelectableEntity } from '$lib/cop/selection';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
-  import type { Advisory, Alert, Asset, EntityRef, Hazard, Snapshot, Task, Track } from '$lib/cop/types';
+  import type { Advisory, Alert, Asset, DiscoveryDiagnostic, EntityRef, Hazard, Snapshot, Task, Track } from '$lib/cop/types';
 
   let snapshot = $state<Snapshot | null>(null);
   let source = $state<'api' | 'fixture'>('fixture');
@@ -34,6 +34,21 @@
   function entityTitle(entity: SelectableEntity | undefined) {
     if (!entity) return 'No selection';
     return entity.label;
+  }
+
+  function discoveryDiagnosticsForFeed(snapshot: Snapshot, feedID: string): DiscoveryDiagnostic[] {
+    const sourceByFeed: Record<string, string> = {
+      'feed.mavlink': 'mavlink',
+      'feed.tak': 'tak',
+      'feed.cap': 'cap'
+    };
+    const source = sourceByFeed[feedID];
+    if (!source) return [];
+    return (snapshot.diagnostics?.discovery ?? []).filter((item) => item.source === source);
+  }
+
+  function entityTypeLabel(value: string) {
+    return value.replaceAll('_', ' ');
   }
 
 </script>
@@ -111,6 +126,15 @@
               <strong>{feed.name}</strong>
               <span>{feed.status}</span>
               <small>{feed.message}</small>
+              {#if discoveryDiagnosticsForFeed(snapshot, feed.id).length}
+                <div class="index-counts" aria-label={`${feed.name} discovery counts`}>
+                  {#each discoveryDiagnosticsForFeed(snapshot, feed.id) as item}
+                    <span class:at-limit={item.at_limit} title={item.prefix}>
+                      {entityTypeLabel(item.entity_type)} {item.count}{item.at_limit ? '+' : ''}
+                    </span>
+                  {/each}
+                </div>
+              {/if}
             </article>
           {/each}
         </div>

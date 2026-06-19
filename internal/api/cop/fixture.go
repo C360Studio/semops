@@ -25,6 +25,9 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 	snapshot := Snapshot{
 		GeneratedAt: now,
 		Scenario:    "phase-1-fixture",
+		Diagnostics: SnapshotDiagnostics{
+			Discovery: []DiscoveryDiagnostic{},
+		},
 		Feeds: []FeedHealth{
 			{
 				ID:          "feed.mavlink",
