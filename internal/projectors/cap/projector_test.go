@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	"github.com/c360studio/semops/pkg/cop"
@@ -112,6 +113,56 @@ func TestProjectorAppendsForKnownHazard(t *testing.T) {
 	}
 }
 
+func TestProjectorProjectsLifecycleReplayRecordsInBirthOrder(t *testing.T) {
+	records, err := capcodec.LifecycleFixtureRecords(testTime())
+	if err != nil {
+		t.Fatalf("lifecycle fixtures: %v", err)
+	}
+	alerts := make([]SourceAlert, 0, len(records))
+	for _, record := range records {
+		alert, err := record.Alert()
+		if err != nil {
+			t.Fatalf("parse replay record %q: %v", record.Ref, err)
+		}
+		alerts = append(alerts, SourceAlert{Alert: alert, SourceRef: record.Ref})
+	}
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test"), TraceID: "scenario-cap-lifecycle"})
+
+	plan, err := projector.ProjectAlerts(alerts)
+	if err != nil {
+		t.Fatalf("project alerts: %v", err)
+	}
+	if len(plan.Mutations) != 4 {
+		t.Fatalf("mutations = %d, want 4", len(plan.Mutations))
+	}
+
+	first := requireCreate(t, plan.Mutations[0])
+	second := requireUpdate(t, plan.Mutations[1])
+	third := requireUpdate(t, plan.Mutations[2])
+	fourth := requireCreate(t, plan.Mutations[3])
+
+	warningID := EntityID("c360", "edge", "nws-demo-flood-warning")
+	expiredID := EntityID("c360", "edge", "nws-demo-flood-expired")
+	if first.Entity.ID != warningID ||
+		second.Entity.ID != warningID ||
+		third.Entity.ID != warningID ||
+		fourth.Entity.ID != expiredID {
+		t.Fatalf("mutation ids = %q/%q/%q/%q", first.Entity.ID, second.Entity.ID, third.Entity.ID, fourth.Entity.ID)
+	}
+	requireTriple(t, first.Triples, cop.ProvenanceSourceRef, "cap://fixture/hadr-flood/0001-alert")
+	requireTriple(t, second.AddTriples, cop.ProvenanceSourceRef, "cap://fixture/hadr-flood/0002-update")
+	requireTriple(t, third.AddTriples, cop.ProvenanceSourceRef, "cap://fixture/hadr-flood/0003-cancel")
+	requireTriple(t, fourth.Triples, cop.ProvenanceSourceRef, "cap://fixture/hadr-flood/0004-expired")
+
+	var cancelEvidence cop.HazardEvidenceDocument
+	if err := json.Unmarshal([]byte(stringTriple(t, third.AddTriples, cop.HazardEvidence)), &cancelEvidence); err != nil {
+		t.Fatalf("decode cancel evidence: %v", err)
+	}
+	if cancelEvidence.MessageType != "Cancel" {
+		t.Fatalf("cancel evidence message type = %q", cancelEvidence.MessageType)
+	}
+}
+
 func TestProjectorRejectsInvalidAlert(t *testing.T) {
 	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
 	_, err := projector.ProjectAlert(capcodec.Alert{}, "cap://bad")
@@ -195,6 +246,10 @@ func testOwnerTokens(incarnation string) map[string]ownership.OwnerToken {
 	return map[string]ownership.OwnerToken{
 		cop.OwnerCAP: ownership.ExpectedOwnerToken(cop.OwnerCAP, incarnation),
 	}
+}
+
+func testTime() time.Time {
+	return time.Date(2026, 6, 19, 15, 0, 0, 0, time.UTC)
 }
 
 const sampleCAPAlert = `<?xml version="1.0" encoding="UTF-8"?>

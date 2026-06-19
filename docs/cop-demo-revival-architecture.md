@@ -59,7 +59,7 @@ immutable assets; sends generated MAVLink and CoT seed events over hosted UDP li
 COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink, CoT, and CAP live graph smokes.
 CAP is deliberately proved as append-only hazard evidence, not authoritative hazard state. The COP now derives CAP
 hazard lifecycle status from evidence for readback, while remaining structural evidence is scenario-runner expansion,
-hosted CAP polling or fixture replay, and durable checkpoint/read-back reconciliation.
+hosted CAP polling, and durable checkpoint/read-back reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -206,9 +206,9 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
   append-evidence-only. That matches the intended split between evidence-contribution declarations and write-fence
   ownership, but SemOps should keep watching the tag for any bind-result/token behavior change on append-only
   contributors.
-- CAP now has a local parser, born-first append-evidence projection planner/writer, graph-backed COP hazard readback,
-  and derived lifecycle status in the COP view model. It is still not a hosted CAP/NWS service and does not claim CAP
-  consumer conformance.
+- CAP now has a local parser, raw XML lifecycle fixture replay, born-first append-evidence projection planner/writer,
+  graph-backed COP hazard readback, and derived lifecycle status in the COP view model. It is still not a hosted
+  CAP/NWS service and does not claim CAP consumer conformance.
 - Remaining compliance hardening requires index-backed CoT discovery, CAP schema/NWS/lifecycle expansion, and durable
   checkpoint/read-back reconciliation.
 

@@ -219,8 +219,8 @@ Current graph-wiring gate:
 
 ### CAP/EDXL
 
-Status: third feed; parser, append-evidence projection, graph writer, COP readback, first lifecycle-status readback,
-and skipped-by-default live graph smoke exist.
+Status: third feed; parser, deterministic raw XML lifecycle fixture replay, append-evidence projection, graph writer,
+COP readback, first lifecycle-status readback, and skipped-by-default live graph smoke exist.
 
 Compliance and sample evidence:
 
@@ -230,6 +230,8 @@ Compliance and sample evidence:
 Local assets:
 
 - `pkg/adapters/cap` parses the CAP 1.2 subset needed for deterministic civilian-warning fixtures.
+- `pkg/adapters/cap` stores replayable raw XML CAP alert records and includes a HA/DR flood lifecycle fixture with
+  alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
   CAP evidence contract.
 - `internal/api/cop` maps CAP hazard evidence JSON into the COP hazard view model for the map overlay and derives
@@ -239,6 +241,7 @@ Local assets:
 Mock or harness:
 
 - Use local CAP fixtures for the parser gate.
+- Use the local HA/DR flood lifecycle fixture for deterministic replay without requiring live NWS calls.
 - Use NWS alert samples for realistic civilian-warning input.
 - Validate XML schema and CAP consumer rules before claiming CAP consumer conformance.
 
@@ -275,7 +278,7 @@ Remaining gates:
 
 - NWS samples captured as deterministic fixtures.
 - XML schema and CAP consumer-rule validation.
-- NWS-backed update/cancel/expire fixture replay and stale-data behavior.
+- NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
 - Hosted poller or webhook service boundary.
 
 ### CS API Bidirectional Interop

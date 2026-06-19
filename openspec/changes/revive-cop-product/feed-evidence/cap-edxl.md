@@ -1,8 +1,8 @@
 # CAP/EDXL Feed Evidence
 
-Status: initial Phase 1 parser/projection/readback slice exists, with derived lifecycle-status readback and a
-skipped-by-default live graph smoke for born-first append-evidence behavior. Hosted CAP polling, NWS fixture capture,
-XML schema validation, and consumer-rule coverage remain open.
+Status: initial Phase 1 parser/projection/readback slice exists, with deterministic raw XML lifecycle fixture replay,
+derived lifecycle-status readback, and a skipped-by-default live graph smoke for born-first append-evidence behavior.
+Hosted CAP polling, NWS fixture capture, XML schema validation, and consumer-rule coverage remain open.
 
 ## Decision
 
@@ -14,6 +14,8 @@ track or asset facts.
 
 - `pkg/adapters/cap` parses CAP alert, info, area, polygon, circle, resource, geocode, and parameter fields used by
   the first civilian-warning fixtures.
+- `pkg/adapters/cap` stores replayable raw XML CAP records and provides a HA/DR flood lifecycle fixture covering
+  alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
   `semops.cop.hazard.cap-evidence` contract.
 - `internal/api/cop` reads CAP hazard evidence JSON into the COP hazard overlay view model and derives
@@ -51,15 +53,16 @@ Acceptance:
 
 ### Sample Source Gate
 
-Target command after fixture tooling exists:
+Current target command:
 
 ```bash
-go test ./internal/feeds/cap
+go test ./pkg/adapters/cap
 ```
 
 Acceptance:
 
-- Local fixtures cover active alert, update, cancel/expire, polygon, circle, resource link, and multilingual info.
+- Local fixtures cover active alert, update, cancel, expired alert, polygon, circle, resource link, and parser
+  rejection cases.
 - NWS samples are captured into fixtures rather than required live for CI.
 - Optional live mode respects NWS User-Agent guidance, caching, and rate-limit behavior.
 
@@ -115,13 +118,17 @@ Acceptance:
 
 ### Replay Gate
 
-Target artifact:
+Current target command:
 
-- A fixture pack with alert, update, cancel, expire, polygon, circle, and malformed CAP messages.
+```bash
+go test ./pkg/adapters/cap ./internal/projectors/cap
+```
 
 Acceptance:
 
-- Replaying the fixture yields deterministic hazard/advisory state and visible stale/expiry transitions.
+- Replaying the raw XML lifecycle fixture yields deterministic alert/update/cancel/expired alert parse output.
+- Projecting the lifecycle fixture births the first hazard, appends update/cancel evidence to that hazard, and births
+  a separate expired hazard without relying on auto-vivify.
 
 ## Known Gaps
 
@@ -129,7 +136,7 @@ Acceptance:
 - NWS is a useful public source, but live NWS calls should not be required for deterministic CI.
 - CAP conformance should be stated as schema/consumer-rule evidence until we implement a proper consumer profile.
 - The current CAP slice does not host a poller/webhook service, fetch NWS alerts, or replay update/cancel/expire
-  sequences from captured fixtures.
+  sequences from captured NWS fixtures.
 - The current projector intentionally does not own `cop.hazard.geometry`, `cop.hazard.severity`, or
   `cop.hazard.status`.
 - The live graph smoke is SemStreams graph-contract evidence, not CAP consumer conformance evidence.

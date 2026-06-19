@@ -17,8 +17,8 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
 - Active MAVLink codec boundary: `pkg/adapters/mavlink`
 - Active TAK/CoT codec, replay, projection, and graph-wiring boundary: `pkg/adapters/cot`,
   `internal/adapters/cot`, `internal/projectors/cot`
-- Active CAP codec, append-evidence projection, graph-wiring, and COP readback boundary: `pkg/adapters/cap`,
-  `internal/projectors/cap`, `internal/smoke/cap`
+- Active CAP codec, replay fixture, append-evidence projection, graph-wiring, and COP readback boundary:
+  `pkg/adapters/cap`, `internal/projectors/cap`, `internal/smoke/cap`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
 StreamKit, EntityStore, ObjectStore, and BaseProcessor product paths have been removed or are outside the active build.
@@ -61,8 +61,8 @@ go test ./...
 ```
 
 The test suite validates the SemStreams contract gate, COP ownership model, active MAVLink codec, and TAK/CoT
-parser/replay/projection/graph-wiring gates, plus CAP parser/projection/readback behavior. SITL/PX4 simulator gates,
-hosted CAP polling, and CAP consumer conformance are still future evidence, not current product claims.
+parser/replay/projection/graph-wiring gates, plus CAP parser/replay/projection/readback behavior. SITL/PX4 simulator
+gates, hosted CAP polling, and CAP consumer conformance are still future evidence, not current product claims.
 
 Run the hosted runtime against a live SemStreams/NATS stack:
 

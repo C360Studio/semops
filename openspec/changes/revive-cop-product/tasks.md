@@ -61,6 +61,7 @@
 - [x] 5.15 Add CAP parser fixtures and append-evidence projection gate before hosted CAP service work
 - [x] 5.16 Add CAP live graph smoke for born-first append-evidence readback
 - [x] 5.17 Add CAP lifecycle-status readback without claiming authoritative hazard status
+- [x] 5.18 Add CAP raw XML lifecycle fixture replay for scenario-runner input
 
 ## 6. Structural COP Stack
 

@@ -84,7 +84,7 @@ conformance.
 ### CAP/EDXL
 
 Demo/MVP lane:
-CAP XML parser with OASIS examples and NWS samples, schema/consumer-rule validation, hazard/advisory evidence,
+CAP XML parser with local lifecycle fixtures, NWS samples, schema/consumer-rule validation, hazard/advisory evidence,
 expiry/staleness, and append-evidence ownership.
 
 Full product lane:
