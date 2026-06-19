@@ -219,7 +219,7 @@ Current graph-wiring gate:
 
 ### CAP/EDXL
 
-Status: third feed.
+Status: third feed; initial parser, append-evidence projection, graph writer, and COP readback slice exists.
 
 Compliance and sample evidence:
 
@@ -228,24 +228,42 @@ Compliance and sample evidence:
 
 Local assets:
 
-- None identified in SemOps yet.
+- `pkg/adapters/cap` parses the CAP 1.2 subset needed for deterministic civilian-warning fixtures.
+- `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
+  CAP evidence contract.
+- `internal/api/cop` maps CAP hazard evidence JSON into the COP hazard view model for the map overlay.
 
 Mock or harness:
 
-- Use OASIS CAP examples and local fixtures for the parser gate.
+- Use local CAP fixtures for the parser gate.
 - Use NWS alert samples for realistic civilian-warning input.
-- Validate XML schema and CAP consumer rules before graph writes.
+- Validate XML schema and CAP consumer rules before claiming CAP consumer conformance.
 
 Indexing profile pressure:
 
-- Hazard areas and alert lifecycle state are `control`.
-- Advisory text, instructions, and multilingual descriptions are `content`.
+- The current CAP slice uses `content` because it contributes append-only advisory and geometry evidence.
+- Future authoritative alert lifecycle state is `control`.
+- Advisory text, instructions, and multilingual descriptions remain `content`.
 - Poll history and raw alert fetch traces are `trace`.
 
 First acceptance gate:
 
-- Given a CAP alert with polygon or circle area data, the adapter writes a hazard area and advisory with provenance,
-  confidence, expiry/staleness behavior, and no overwrite of stricter source facts.
+- Given a CAP alert with polygon or circle area data, the parser preserves area evidence, the projector writes a
+  born-first hazard area with provenance and confidence, and `GET /api/cop/snapshot` renders the hazard without CAP
+  claiming authoritative hazard geometry, severity, or status predicates.
+
+Current commands:
+
+```bash
+go test ./pkg/adapters/cap ./internal/projectors/cap ./internal/api/cop
+```
+
+Remaining gates:
+
+- NWS samples captured as deterministic fixtures.
+- XML schema and CAP consumer-rule validation.
+- Update/cancel/expire lifecycle and stale-data behavior.
+- Hosted poller or webhook service boundary.
 
 ### CS API Bidirectional Interop
 

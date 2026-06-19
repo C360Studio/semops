@@ -89,6 +89,7 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 				copapi.WithGraphQueryTimeout(cfg.COP.GraphQueryTimeout),
 				copapi.WithMAVLinkSystems(cfg.MAVLink.Org, cfg.MAVLink.Platform, cfg.COP.MAVLinkSystemIDs),
 				copapi.WithCoTUIDs(cfg.CoT.Org, cfg.CoT.Platform, cfg.COP.CoTUIDs),
+				copapi.WithCAPAlertIDs(cfg.MAVLink.Org, cfg.MAVLink.Platform, cfg.COP.CAPAlertIDs),
 			)
 			if err != nil {
 				return nil, err

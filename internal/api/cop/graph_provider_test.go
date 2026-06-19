@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
@@ -89,7 +90,10 @@ func TestGraphProviderMapsMAVLinkEntities(t *testing.T) {
 	if snapshot.Feeds[0].Status != "live" {
 		t.Fatalf("MAVLink feed status = %q", snapshot.Feeds[0].Status)
 	}
-	if got := requester.subjects; len(got) != 2 || got[0] != SubjectGraphQueryEntity || got[1] != SubjectGraphQueryEntity {
+	if got := requester.subjects; len(got) != 3 ||
+		got[0] != SubjectGraphQueryEntity ||
+		got[1] != SubjectGraphQueryEntity ||
+		got[2] != SubjectGraphQueryEntity {
 		t.Fatalf("query subjects = %+v", got)
 	}
 }
@@ -194,6 +198,90 @@ func TestGraphProviderMapsTAKCoTEntities(t *testing.T) {
 	}
 	if snapshot.Feeds[1].ID != "feed.tak" || snapshot.Feeds[1].Status != "live" {
 		t.Fatalf("TAK feed = %+v", snapshot.Feeds[1])
+	}
+}
+
+func TestGraphProviderMapsCAPHazardEvidence(t *testing.T) {
+	now := time.Date(2026, 6, 19, 16, 0, 0, 0, time.UTC)
+	observed := now.Add(-30 * time.Second)
+	platform := "edge-cap"
+	identifier := "nws-demo-flood-warning"
+	hazardID := capprojector.EntityID("c360", platform, identifier)
+	evidence := copmodel.HazardEvidenceDocument{
+		Identifier:  identifier,
+		MessageType: "Alert",
+		Status:      "Actual",
+		Event:       "Flood Warning",
+		Urgency:     "Immediate",
+		Severity:    "Severe",
+		Certainty:   "Likely",
+		AreaDesc:    "River Corridor",
+		Sender:      "w-nws.webmaster@noaa.gov",
+		SenderName:  "NWS Demo",
+		Sent:        observed.Format(time.RFC3339Nano),
+		Polygons: [][]copmodel.HazardEvidencePoint{{
+			{Lat: 38.8900, Lon: -77.0500},
+			{Lat: 38.9050, Lon: -77.0440},
+			{Lat: 38.9030, Lon: -77.0200},
+			{Lat: 38.8860, Lon: -77.0280},
+		}},
+	}
+	evidenceJSON, err := json.Marshal(evidence)
+	if err != nil {
+		t.Fatalf("marshal evidence: %v", err)
+	}
+	requester := &fakeGraphSnapshotRequester{
+		entities: map[string]graph.EntityState{
+			hazardID: {
+				ID:        hazardID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(hazardID, copmodel.HazardAdvisoryText, "Flood Warning for River Corridor", observed),
+					testTriple(hazardID, copmodel.HazardEvidence, string(evidenceJSON), observed),
+					testTriple(hazardID, copmodel.HazardSource, "cap", observed),
+					testTriple(hazardID, copmodel.ProvenanceSource, "cap", observed),
+					testTriple(hazardID, copmodel.ProvenanceConfidence, 0.82, observed),
+					testTriple(hazardID, copmodel.ProvenanceObservedAt, observed, observed),
+					testTriple(hazardID, copmodel.ProvenanceSourceRef, "cap://nws/demo/flood-warning", observed),
+				},
+			},
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithCAPAlertIDs("c360", platform, []string{identifier}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if len(snapshot.Hazards) != 1 {
+		t.Fatalf("hazards = %+v", snapshot.Hazards)
+	}
+	hazard := snapshot.Hazards[0]
+	if hazard.ID != hazardID ||
+		hazard.Label != "Flood Warning: River Corridor" ||
+		hazard.Kind != "cap-flood-warning" ||
+		hazard.Severity != "severe" ||
+		hazard.Source != "cap" {
+		t.Fatalf("hazard = %+v", hazard)
+	}
+	if len(hazard.Geometry) != 4 || hazard.Geometry[0].Lat != 38.8900 || hazard.Geometry[0].Lon != -77.0500 {
+		t.Fatalf("hazard geometry = %+v", hazard.Geometry)
+	}
+	if hazard.Provenance.Owner != copmodel.OwnerCAP ||
+		hazard.Provenance.SourceRef != "cap://nws/demo/flood-warning" ||
+		hazard.Provenance.Observed != observed {
+		t.Fatalf("hazard provenance = %+v", hazard.Provenance)
+	}
+	if snapshot.Feeds[2].ID != "feed.cap" || snapshot.Feeds[2].Status != "live" {
+		t.Fatalf("CAP feed = %+v", snapshot.Feeds[2])
 	}
 }
 

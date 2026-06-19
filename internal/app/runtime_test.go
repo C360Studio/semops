@@ -480,6 +480,7 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvCOPGraphQueryTimeout:       "1500ms",
 		EnvCOPMAVLinkSystemIDs:        "42, 43",
 		EnvCOPCoTUIDs:                 "ANDROID-ALPHA, MARKER-NORTH-GATE",
+		EnvCOPCAPAlertIDs:             "nws-demo-flood-warning, nws-demo-flood-update",
 		EnvMAVLinkEnabled:             "false",
 		EnvMAVLinkSource:              "udp:14550",
 		EnvOrg:                        "lab",
@@ -521,6 +522,11 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if len(cfg.COP.CoTUIDs) != 2 || cfg.COP.CoTUIDs[0] != "ANDROID-ALPHA" || cfg.COP.CoTUIDs[1] != "MARKER-NORTH-GATE" {
 		t.Fatalf("COP CoT UIDs = %+v", cfg.COP.CoTUIDs)
+	}
+	if len(cfg.COP.CAPAlertIDs) != 2 ||
+		cfg.COP.CAPAlertIDs[0] != "nws-demo-flood-warning" ||
+		cfg.COP.CAPAlertIDs[1] != "nws-demo-flood-update" {
+		t.Fatalf("COP CAP alert IDs = %+v", cfg.COP.CAPAlertIDs)
 	}
 	if cfg.MAVLink.Enabled {
 		t.Fatal("MAVLink enabled = true, want false")
@@ -595,6 +601,11 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			name: "empty cot uids",
 			env:  map[string]string{EnvCOPCoTUIDs: ","},
 			want: EnvCOPCoTUIDs,
+		},
+		{
+			name: "empty cap alert ids",
+			env:  map[string]string{EnvCOPCAPAlertIDs: ","},
+			want: EnvCOPCAPAlertIDs,
 		},
 		{
 			name: "bad udp max datagram",

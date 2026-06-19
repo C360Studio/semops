@@ -88,6 +88,18 @@ requests before triples or foreign edges are added.
 - **AND** feed health reflects live or stale state from graph observation timestamps
 - **AND** the result remains a seed-UID readback gate, not a claim of TAK Server-equivalent behavior
 
+#### Scenario: CAP evidence readback stays append-only
+
+- **WHEN** a CAP alert fixture is parsed and projected into SemStreams graph state
+- **THEN** SemOps births a source-partitioned `hazard_area` entity before appending CAP advisory and geometry
+  evidence
+- **AND** the projection uses the CAP append-evidence contract without claiming authoritative
+  `cop.hazard.geometry`, `cop.hazard.severity`, or `cop.hazard.status`
+- **AND** the COP snapshot may render the evidence as a hazard overlay while preserving provenance and source
+  confidence
+- **AND** the result remains a parser/projection/readback gate, not a claim of hosted CAP polling, NWS integration,
+  or full CAP consumer conformance
+
 #### Scenario: CS API interop remains bidirectional and standards-facing
 
 - **WHEN** an external system can publish or consume OGC Connected Systems API resources

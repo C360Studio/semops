@@ -205,7 +205,9 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
   append-evidence-only. That matches the intended split between evidence-contribution declarations and write-fence
   ownership, but SemOps should keep watching the tag for any bind-result/token behavior change on append-only
   contributors.
-- Remaining compliance hardening requires index-backed CoT discovery, CAP stack expansion, and durable
+- CAP now has a local parser, born-first append-evidence projection planner/writer, and graph-backed COP hazard
+  readback. It is still not a hosted CAP/NWS service and does not claim CAP consumer conformance.
+- Remaining compliance hardening requires index-backed CoT discovery, CAP schema/NWS/lifecycle expansion, and durable
   checkpoint/read-back reconciliation.
 
 ## CS API Positioning

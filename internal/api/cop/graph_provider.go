@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
@@ -25,6 +27,7 @@ const (
 	DefaultCoTUIDAndroidBravo    = "ANDROID-BRAVO"
 	DefaultCoTUIDMarkerNorthGate = "MARKER-NORTH-GATE"
 	DefaultCoTUIDChatAlpha       = "CHAT-ALPHA-1"
+	DefaultCAPAlertID            = "nws-demo-flood-warning"
 )
 
 type GraphRequester interface {
@@ -43,6 +46,7 @@ type GraphProvider struct {
 	fallback       SnapshotProvider
 	mavlinkSystems []MAVLinkSystemRef
 	cotUIDs        []CoTUIDRef
+	capAlerts      []CAPAlertRef
 	freshness      time.Duration
 }
 
@@ -56,6 +60,12 @@ type CoTUIDRef struct {
 	Org      string
 	Platform string
 	UID      string
+}
+
+type CAPAlertRef struct {
+	Org        string
+	Platform   string
+	Identifier string
 }
 
 type GraphProviderOption func(*GraphProvider)
@@ -75,12 +85,18 @@ func NewGraphProvider(requester GraphRequester, opts ...GraphProviderOption) (*G
 			Platform: "edge",
 			SystemID: 42,
 		}},
+		capAlerts: []CAPAlertRef{{
+			Org:        "c360",
+			Platform:   "edge",
+			Identifier: DefaultCAPAlertID,
+		}},
 	}
 	for _, opt := range opts {
 		opt(provider)
 	}
 	provider.mavlinkSystems = normalizeMAVLinkSystems(provider.mavlinkSystems)
 	provider.cotUIDs = normalizeCoTUIDs(provider.cotUIDs)
+	provider.capAlerts = normalizeCAPAlerts(provider.capAlerts)
 	if provider.now == nil {
 		provider.now = time.Now
 	}
@@ -144,6 +160,19 @@ func WithCoTUIDs(org, platform string, uids []string) GraphProviderOption {
 	}
 }
 
+func WithCAPAlertIDs(org, platform string, identifiers []string) GraphProviderOption {
+	return func(provider *GraphProvider) {
+		provider.capAlerts = make([]CAPAlertRef, 0, len(identifiers))
+		for _, identifier := range identifiers {
+			provider.capAlerts = append(provider.capAlerts, CAPAlertRef{
+				Org:        org,
+				Platform:   platform,
+				Identifier: identifier,
+			})
+		}
+	}
+}
+
 func WithFeedFreshnessWindow(window time.Duration) GraphProviderOption {
 	return func(provider *GraphProvider) {
 		if window > 0 {
@@ -157,6 +186,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	tracksByID := make(map[string]graph.EntityState)
 	tasksByID := make(map[string]graph.EntityState)
 	advisoriesByID := make(map[string]graph.EntityState)
+	hazardsByID := make(map[string]graph.EntityState)
 	var firstErr error
 
 	for _, system := range p.mavlinkSystems {
@@ -195,7 +225,19 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		}
 	}
 
-	if len(assetsByID) == 0 && len(tracksByID) == 0 && len(tasksByID) == 0 && len(advisoriesByID) == 0 {
+	for _, alert := range p.capAlerts {
+		if hazard, ok, err := p.queryEntity(ctx, alert.hazardID()); err != nil {
+			firstErr = errors.Join(firstErr, err)
+		} else if ok {
+			hazardsByID[hazard.ID] = hazard
+		}
+	}
+
+	if len(assetsByID) == 0 &&
+		len(tracksByID) == 0 &&
+		len(tasksByID) == 0 &&
+		len(advisoriesByID) == 0 &&
+		len(hazardsByID) == 0 {
 		if p.fallback != nil {
 			return p.fallback.Snapshot(ctx)
 		}
@@ -204,7 +246,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		}
 	}
 
-	return p.snapshotFromGraph(assetsByID, tracksByID, tasksByID, advisoriesByID), nil
+	return p.snapshotFromGraph(assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID), nil
 }
 
 func (p *GraphProvider) queryEntity(ctx context.Context, entityID string) (graph.EntityState, bool, error) {
@@ -249,6 +291,7 @@ func (p *GraphProvider) snapshotFromGraph(
 	tracksByID map[string]graph.EntityState,
 	tasksByID map[string]graph.EntityState,
 	advisoriesByID map[string]graph.EntityState,
+	hazardsByID map[string]graph.EntityState,
 ) Snapshot {
 	now := p.now().UTC()
 	trackSourcePositions := make(map[string]GeoPoint)
@@ -290,7 +333,15 @@ func (p *GraphProvider) snapshotFromGraph(
 		}
 	}
 
-	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories)
+	hazards := make([]Hazard, 0, len(hazardsByID))
+	for _, entity := range sortedEntities(hazardsByID) {
+		hazard, ok := hazardFromEntity(entity)
+		if ok {
+			hazards = append(hazards, hazard)
+		}
+	}
+
+	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories, hazards)
 	return Snapshot{
 		GeneratedAt: now,
 		Scenario:    "phase-1-live-graph",
@@ -306,7 +357,7 @@ func (p *GraphProvider) snapshotFromGraph(
 		Tracks:     tracks,
 		Tasks:      tasks,
 		Advisories: advisories,
-		Hazards:    []Hazard{},
+		Hazards:    hazards,
 		Alerts:     []Alert{},
 	}
 }
@@ -317,6 +368,7 @@ func firstPhaseFeedHealth(
 	tracks []Track,
 	tasks []Task,
 	advisories []Advisory,
+	hazards []Hazard,
 ) []FeedHealth {
 	mavlink := feedHealthFromObservations(
 		now,
@@ -343,18 +395,21 @@ func firstPhaseFeedHealth(
 		"Graph-backed CoT tracks, tasks, and advisories",
 		takObservations,
 	)
-	return []FeedHealth{
-		mavlink,
-		tak,
-		{
-			ID:          "feed.cap",
-			Name:        "CAP",
-			Kind:        "advisory",
-			Status:      "planned",
-			LastEventAt: now.Add(-33 * time.Minute),
-			Message:     "Schema/sample gate pending",
-		},
+	cap := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.cap",
+		"CAP",
+		"advisory",
+		"Schema/sample gate pending",
+		"Graph-backed civilian alert evidence",
+		hazardObservationTimes(hazards),
+	)
+	if len(hazards) == 0 {
+		cap.Status = "planned"
+		cap.LastEventAt = now.Add(-33 * time.Minute)
 	}
+	return []FeedHealth{mavlink, tak, cap}
 }
 
 func feedHealthFromObservations(
@@ -419,6 +474,14 @@ func advisoryObservationTimes(advisories []Advisory) []time.Time {
 	times := make([]time.Time, 0, len(advisories))
 	for _, advisory := range advisories {
 		times = append(times, advisory.UpdatedAt)
+	}
+	return times
+}
+
+func hazardObservationTimes(hazards []Hazard) []time.Time {
+	times := make([]time.Time, 0, len(hazards))
+	for _, hazard := range hazards {
+		times = append(times, hazard.UpdatedAt)
 	}
 	return times
 }
@@ -535,6 +598,137 @@ func advisoryFromEntity(entity graph.EntityState, now time.Time, freshness time.
 	}, true
 }
 
+func hazardFromEntity(entity graph.EntityState) (Hazard, bool) {
+	evidence, ok := hazardEvidenceDocument(entity)
+	if !ok {
+		return Hazard{}, false
+	}
+	geometry := hazardGeometry(evidence)
+	if len(geometry) < 3 {
+		return Hazard{}, false
+	}
+	updatedAt := observedAt(entity, copmodel.ProvenanceObservedAt)
+	source := stringProperty(
+		entity,
+		copmodel.HazardSource,
+		stringProperty(entity, copmodel.ProvenanceSource, sourceFromEntityID(entity.ID)),
+	)
+	return Hazard{
+		ID:         entity.ID,
+		Label:      hazardLabel(entity, evidence),
+		Kind:       hazardKind(evidence),
+		Severity:   strings.ToLower(firstNonEmptyString(evidence.Severity, "unknown")),
+		Geometry:   geometry,
+		Source:     source,
+		Confidence: confidence(entity),
+		UpdatedAt:  updatedAt,
+		Provenance: Provenance{
+			Owner:     ownerForSource(source),
+			SourceRef: stringProperty(entity, copmodel.ProvenanceSourceRef, ""),
+			Observed:  updatedAt,
+		},
+	}, true
+}
+
+func hazardEvidenceDocument(entity graph.EntityState) (copmodel.HazardEvidenceDocument, bool) {
+	value, ok := propertyValue(entity, copmodel.HazardEvidence)
+	if !ok {
+		return copmodel.HazardEvidenceDocument{}, false
+	}
+	var doc copmodel.HazardEvidenceDocument
+	if text, ok := stringFromAny(value); ok {
+		if err := json.Unmarshal([]byte(text), &doc); err != nil {
+			return copmodel.HazardEvidenceDocument{}, false
+		}
+	} else {
+		data, err := json.Marshal(value)
+		if err != nil {
+			return copmodel.HazardEvidenceDocument{}, false
+		}
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return copmodel.HazardEvidenceDocument{}, false
+		}
+	}
+	if doc.Identifier == "" && doc.Event == "" && len(doc.Polygons) == 0 && len(doc.Circles) == 0 {
+		return copmodel.HazardEvidenceDocument{}, false
+	}
+	return doc, true
+}
+
+func hazardLabel(entity graph.EntityState, evidence copmodel.HazardEvidenceDocument) string {
+	label := firstNonEmptyString(evidence.Event, stringProperty(entity, copmodel.HazardAdvisoryText, ""), instanceLabel(entity.ID))
+	if evidence.AreaDesc == "" {
+		return label
+	}
+	if strings.Contains(strings.ToLower(label), strings.ToLower(evidence.AreaDesc)) {
+		return label
+	}
+	return label + ": " + evidence.AreaDesc
+}
+
+func hazardKind(evidence copmodel.HazardEvidenceDocument) string {
+	event := strings.TrimSpace(evidence.Event)
+	if event == "" {
+		return "cap-alert"
+	}
+	return "cap-" + strings.ReplaceAll(strings.ToLower(event), " ", "-")
+}
+
+func hazardGeometry(evidence copmodel.HazardEvidenceDocument) []GeoPoint {
+	for _, polygon := range evidence.Polygons {
+		points := make([]GeoPoint, 0, len(polygon))
+		for _, point := range polygon {
+			next, ok := hazardEvidencePoint(point)
+			if ok {
+				points = append(points, next)
+			}
+		}
+		if len(points) >= 3 {
+			return points
+		}
+	}
+	for _, circle := range evidence.Circles {
+		points := hazardCircleGeometry(circle, 24)
+		if len(points) >= 3 {
+			return points
+		}
+	}
+	return nil
+}
+
+func hazardEvidencePoint(point copmodel.HazardEvidencePoint) (GeoPoint, bool) {
+	if point.Lat < -90 || point.Lat > 90 || point.Lon < -180 || point.Lon > 180 {
+		return GeoPoint{}, false
+	}
+	return GeoPoint{Lat: point.Lat, Lon: point.Lon}, true
+}
+
+func hazardCircleGeometry(circle copmodel.HazardEvidenceCircle, segments int) []GeoPoint {
+	if circle.RadiusKM <= 0 || segments < 3 {
+		return nil
+	}
+	center, ok := hazardEvidencePoint(circle.Center)
+	if !ok {
+		return nil
+	}
+	const kmPerLatDegree = 111.32
+	latDelta := circle.RadiusKM / kmPerLatDegree
+	lonScale := kmPerLatDegree * math.Cos(center.Lat*math.Pi/180)
+	if math.Abs(lonScale) < 0.001 {
+		return nil
+	}
+	lonDelta := circle.RadiusKM / lonScale
+	points := make([]GeoPoint, 0, segments)
+	for i := 0; i < segments; i++ {
+		radians := 2 * math.Pi * float64(i) / float64(segments)
+		points = append(points, GeoPoint{
+			Lat: center.Lat + latDelta*math.Sin(radians),
+			Lon: center.Lon + lonDelta*math.Cos(radians),
+		})
+	}
+	return points
+}
+
 func optionalPoint(entity graph.EntityState, predicate string) *GeoPoint {
 	value, ok := propertyValue(entity, predicate)
 	if !ok {
@@ -566,6 +760,9 @@ func sourceFromEntityID(entityID string) string {
 	}
 	if strings.Contains(entityID, ".cop.mavlink.") {
 		return "mavlink"
+	}
+	if strings.Contains(entityID, ".cop.cap.") {
+		return "cap"
 	}
 	return "graph"
 }
@@ -809,6 +1006,24 @@ func normalizeCoTUIDs(uids []CoTUIDRef) []CoTUIDRef {
 	return out
 }
 
+func normalizeCAPAlerts(alerts []CAPAlertRef) []CAPAlertRef {
+	out := make([]CAPAlertRef, 0, len(alerts))
+	for _, alert := range alerts {
+		alert.Identifier = strings.TrimSpace(alert.Identifier)
+		if alert.Identifier == "" {
+			continue
+		}
+		if alert.Org == "" {
+			alert.Org = "c360"
+		}
+		if alert.Platform == "" {
+			alert.Platform = "edge"
+		}
+		out = append(out, alert)
+	}
+	return out
+}
+
 func (s MAVLinkSystemRef) assetID() string {
 	return mavlinkEntityID(s.Org, s.Platform, copmodel.EntityAsset, s.SystemID)
 }
@@ -842,4 +1057,18 @@ func (s CoTUIDRef) taskID() string {
 
 func (s CoTUIDRef) advisoryID() string {
 	return cotprojector.EntityID(s.Org, s.Platform, copmodel.EntityAdvisory, s.UID)
+}
+
+func (s CAPAlertRef) hazardID() string {
+	return capprojector.EntityID(s.Org, s.Platform, s.Identifier)
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

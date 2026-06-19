@@ -35,6 +35,7 @@ const (
 	EnvCOPGraphQueryTimeout       = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
 	EnvCOPMAVLinkSystemIDs        = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
 	EnvCOPCoTUIDs                 = "SEMOPS_COP_COT_UIDS"
+	EnvCOPCAPAlertIDs             = "SEMOPS_COP_CAP_ALERT_IDS"
 )
 
 type Config struct {
@@ -95,6 +96,7 @@ type COPConfig struct {
 	GraphQueryTimeout time.Duration
 	MAVLinkSystemIDs  []int
 	CoTUIDs           []string
+	CAPAlertIDs       []string
 }
 
 func DefaultConfig() Config {
@@ -150,6 +152,9 @@ func DefaultConfig() Config {
 				"ANDROID-BRAVO",
 				"MARKER-NORTH-GATE",
 				"CHAT-ALPHA-1",
+			},
+			CAPAlertIDs: []string{
+				"nws-demo-flood-warning",
 			},
 		},
 	}
@@ -241,6 +246,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	if cfg.COP.CoTUIDs, err = stringListFromEnv(getenv, EnvCOPCoTUIDs, cfg.COP.CoTUIDs); err != nil {
 		return Config{}, err
 	}
+	if cfg.COP.CAPAlertIDs, err = stringListFromEnv(getenv, EnvCOPCAPAlertIDs, cfg.COP.CAPAlertIDs); err != nil {
+		return Config{}, err
+	}
 
 	return cfg, cfg.Validate()
 }
@@ -271,6 +279,9 @@ func (c Config) Validate() error {
 	}
 	if len(c.COP.CoTUIDs) == 0 {
 		return fmt.Errorf("%s must include at least one UID", EnvCOPCoTUIDs)
+	}
+	if len(c.COP.CAPAlertIDs) == 0 {
+		return fmt.Errorf("%s must include at least one alert identifier", EnvCOPCAPAlertIDs)
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("shutdown timeout must be greater than zero")

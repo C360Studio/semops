@@ -12,6 +12,7 @@ ENV/
 dist/
 build/
 .svelte-kit/
+/semops
 *.egg-info/
 .eggs/
 
