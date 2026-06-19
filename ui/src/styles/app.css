@@ -136,6 +136,13 @@ h3 {
   background: #f4fbf8;
 }
 
+.icon-button:focus-visible,
+.map-selector-button:focus-visible,
+.alert-row:focus-visible {
+  outline: 3px solid rgba(29, 120, 150, 0.38);
+  outline-offset: 2px;
+}
+
 .workspace {
   min-height: 0;
   display: grid;

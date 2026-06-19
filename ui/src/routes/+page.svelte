@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { Activity, AlertTriangle, Database, RefreshCcw } from '@lucide/svelte';
   import { loadSnapshot, freshnessLabel } from '$lib/cop/client';
+  import { reconcileSelection, resolveEntity, type SelectableEntity } from '$lib/cop/selection';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
   import type { Alert, Asset, EntityRef, Hazard, Snapshot, Track } from '$lib/cop/types';
 
@@ -11,16 +12,14 @@
   let selected = $state<EntityRef>({ kind: 'track', id: 'c360.edge.cop.mavlink.track.system-42' });
   let loading = $state(true);
 
-  const selectedEntity = $derived(resolveSelected(snapshot, selected));
+  const selectedEntity = $derived(resolveEntity(snapshot, selected));
   async function refresh() {
     loading = true;
     const result = await loadSnapshot();
     snapshot = result.snapshot;
     source = result.source;
     error = result.error;
-    if (!resolveSelected(snapshot, selected) && snapshot.tracks[0]) {
-      selected = { kind: 'track', id: snapshot.tracks[0].id };
-    }
+    selected = reconcileSelection(snapshot, selected);
     loading = false;
   }
 
@@ -32,17 +31,9 @@
     selected = { kind, id } as EntityRef;
   }
 
-  function entityTitle(entity: Track | Asset | Hazard | Alert | undefined) {
+  function entityTitle(entity: SelectableEntity | undefined) {
     if (!entity) return 'No selection';
     return entity.label;
-  }
-
-  function resolveSelected(snapshot: Snapshot | null, selected: EntityRef): Track | Asset | Hazard | Alert | undefined {
-    if (!snapshot) return undefined;
-    if (selected.kind === 'track') return snapshot.tracks.find((track) => track.id === selected.id);
-    if (selected.kind === 'asset') return snapshot.assets.find((asset) => asset.id === selected.id);
-    if (selected.kind === 'hazard') return snapshot.hazards.find((hazard) => hazard.id === selected.id);
-    return snapshot.alerts.find((alert) => alert.id === selected.id);
   }
 
 </script>
@@ -128,6 +119,7 @@
             class:selected={selected.kind === 'alert' && selected.id === alert.id}
             class="alert-row"
             type="button"
+            aria-pressed={selected.kind === 'alert' && selected.id === alert.id}
             onclick={() => selectEntity('alert', alert.id)}
           >
             <AlertTriangle size={16} />

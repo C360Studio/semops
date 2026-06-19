@@ -93,6 +93,7 @@
 - [x] 7.10 Run adversarial review on the API/UI/Caddy spine before claiming graph-backed COP completeness
 - [x] 7.11 Replace the static-only API provider with a graph-backed MAVLink snapshot provider and fixture fallback
 - [x] 7.12 Add first MapLibre/deck.gl tactical layer for tracks, assets, hazards, labels, and picking
+- [x] 7.13 Add tested selection reconciliation and pressed-state affordances for map/alert controls
 
 ## 8. Tier Escalation And Egress
 
