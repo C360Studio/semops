@@ -23,6 +23,8 @@ evidence_records:
   - internal/adapters/cot/tcp_listener.go
   - internal/adapters/cot/fixture_replay.go
   - internal/adapters/cot/transport_test.go
+  - internal/scenario/runner.go
+  - internal/scenario/runner_test.go
   - internal/projectors/cot/projector.go
   - internal/projectors/cot/projector_test.go
   - internal/projectors/cot/writer.go
@@ -95,6 +97,8 @@ progress:
   - Recorded the native core plus standards bridge positioning for CS API: native adapters remain first-class, while
     CS API ingress/egress is a bidirectional standards edge that preserves SemOps ownership, provenance, freshness,
     command authority, and indexing decisions.
+  - Added the first `internal/scenario` runner core so generated MAVLink, deterministic TAK/CoT seed events, and CAP
+    lifecycle XML records replay through real adapter/projector seams with pollable status and false-green guardrails.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.

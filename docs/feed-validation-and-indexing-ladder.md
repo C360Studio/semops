@@ -56,6 +56,10 @@ absence must be explicit.
 Before a feed enters the structural stack, run an adversarial review against the evidence, indexing profile,
 cardinality risk, stale-data behavior, and claim language.
 
+The first scenario-runner core lives in `internal/scenario`. It replays generated MAVLink, deterministic TAK/CoT seed
+events, and CAP lifecycle XML records through the real adapter/projector seams and exposes a pollable run status. This
+is replay infrastructure evidence, not a hosted scenario-runner service or full shared-airspace vignette.
+
 ## Indexing Pressure
 
 This demo will stress-test SemStreams indexing profiles as much as feed decoding.
@@ -262,6 +266,7 @@ Current commands:
 
 ```bash
 go test ./pkg/adapters/cap ./internal/projectors/cap ./internal/api/cop ./internal/smoke/cap
+go test ./internal/scenario
 ```
 
 Live graph gate:
