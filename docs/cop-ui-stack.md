@@ -14,10 +14,11 @@ The current implementation is intentionally narrow:
 - `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider for configured MAVLink systems,
   with the fixture provider retained only as a development fallback before live graph state exists.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
-- The UI renders a tactical placeholder map surface with tracks, assets, hazards, alerts, feed state, and provenance.
+- The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, hazards, labels, and
+  picking, plus alert, feed state, and provenance panels.
 
-This is the first full-stack spine, not the final map implementation. Bounded deltas, MapLibre/deck.gl rendering,
-footprints, tasks, second-feed state, and scenario playback remain next gates.
+This is the first full-stack spine, not the final map implementation. Bounded deltas, real basemap/terrain sources,
+footprints, alert/task geometry, second-feed state, and scenario playback remain next gates.
 
 ## Direction
 
@@ -45,6 +46,13 @@ feed, predicate, service, and inference tier at once.
 
 MapLibre plus deck.gl is the default COP map path. Threlte is not the default tactical map renderer; use it only when a
 selected entity needs a richer 3D inspection surface than a map symbol, footprint, or trail can provide.
+
+The first implemented map layer uses a local empty MapLibre style so the demo does not depend on external tiles while
+the API and graph spine are still moving. deck.gl currently owns point, polygon, label, and picking overlays for the
+snapshot's tracks, assets, and hazard areas. That proves the rendering integration and selection path, not a finished
+cartographic basemap, temporal trail layer, or task/alert geometry model. Vite pins deck/luma/math/probe packages into a
+single renderer chunk to avoid luma's circular re-export warning in production builds; the remaining large renderer
+chunks are accepted while the first screen is inherently map-first.
 
 ## Browser Contract
 

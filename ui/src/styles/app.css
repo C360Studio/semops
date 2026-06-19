@@ -1,3 +1,5 @@
+@import "maplibre-gl/dist/maplibre-gl.css";
+
 :root {
   color-scheme: light;
   font-family:
@@ -113,8 +115,7 @@ h3 {
   line-height: 1.2;
 }
 
-.icon-button,
-.map-marker {
+.icon-button {
   display: inline-grid;
   place-items: center;
   border: 1px solid #b8c7bf;
@@ -130,7 +131,6 @@ h3 {
 }
 
 .icon-button:hover,
-.map-marker:hover,
 .alert-row:hover {
   border-color: #5d8f7d;
   background: #f4fbf8;
@@ -200,87 +200,77 @@ h3 {
   position: relative;
   min-height: 380px;
   overflow: hidden;
-  background:
-    linear-gradient(90deg, rgba(30, 94, 87, 0.12) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(30, 94, 87, 0.1) 1px, transparent 1px),
-    linear-gradient(135deg, rgba(118, 153, 80, 0.15), rgba(62, 126, 139, 0.08)),
-    #dce6e1;
-  background-size:
-    54px 54px,
-    54px 54px,
-    100% 100%,
-    100% 100%;
+  background: #dbe7e0;
 }
 
-.map-surface::before,
-.map-surface::after {
-  position: absolute;
-  inset: auto auto 16% -8%;
-  width: 72%;
-  height: 20px;
-  content: "";
-  border-top: 3px solid rgba(120, 105, 78, 0.34);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-  transform: rotate(-18deg);
-}
-
-.map-surface::after {
-  inset: 18% -6% auto auto;
-  width: 58%;
-  border-top-color: rgba(45, 99, 110, 0.28);
-  transform: rotate(22deg);
-}
-
-.hazard-layer {
+.map-canvas {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
 }
 
-.hazard-layer polygon {
-  fill: rgba(206, 111, 43, 0.22);
-  stroke: #bd5a28;
-  stroke-dasharray: 3 2;
-  stroke-width: 0.8;
+.map-canvas .maplibregl-canvas {
+  outline: none;
 }
 
-.hazard-layer polygon.selected {
-  fill: rgba(213, 86, 53, 0.3);
-  stroke: #9d3327;
-  stroke-width: 1.3;
-}
-
-.map-marker {
+.map-loading,
+.map-error {
   position: absolute;
-  z-index: 2;
-  width: 38px;
-  height: 38px;
-  color: #ffffff;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 6px 16px rgba(19, 34, 28, 0.2);
+  inset: 12px auto auto 12px;
+  z-index: 3;
+  border: 1px solid #c7d4ce;
+  border-radius: 8px;
+  background: rgba(248, 251, 249, 0.92);
+  color: #4d5c55;
+  padding: 6px 9px;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
-.map-marker svg {
+.map-error {
+  border-color: #d7a08d;
+  background: rgba(255, 247, 242, 0.95);
+  color: #7b3b24;
+}
+
+.map-selector {
+  position: absolute;
+  inset: auto 12px 12px 12px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   pointer-events: none;
 }
 
-.map-marker.track {
+.map-selector-button {
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #b8c7bf;
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 6px 16px rgba(19, 34, 28, 0.22);
+}
+
+.map-selector-button.track {
   border-color: #175a77;
   background: #1d7896;
 }
 
-.map-marker.asset {
+.map-selector-button.asset {
   border-color: #246642;
   background: #2c7a4b;
 }
 
-.map-marker.hazard {
+.map-selector-button.hazard {
   border-color: #a64a2a;
   background: #c35c34;
 }
 
-.map-marker.selected {
+.map-selector-button.selected {
   outline: 3px solid rgba(255, 255, 255, 0.9);
   box-shadow:
     0 0 0 5px rgba(22, 91, 72, 0.38),
@@ -515,6 +505,10 @@ h3 {
   .map-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .map-selector {
+    inset: 12px 56px auto 12px;
   }
 
   .inspector-grid {

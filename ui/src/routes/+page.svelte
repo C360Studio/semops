@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Activity, AlertTriangle, Crosshair, Database, MapPinned, RefreshCcw, ShieldCheck } from '@lucide/svelte';
+  import { Activity, AlertTriangle, Database, RefreshCcw } from '@lucide/svelte';
   import { loadSnapshot, freshnessLabel } from '$lib/cop/client';
-  import type { Alert, Asset, EntityRef, GeoPoint, Hazard, Snapshot, Track } from '$lib/cop/types';
+  import TacticalMap from '$lib/cop/TacticalMap.svelte';
+  import type { Alert, Asset, EntityRef, Hazard, Snapshot, Track } from '$lib/cop/types';
 
   let snapshot = $state<Snapshot | null>(null);
   let source = $state<'api' | 'fixture'>('fixture');
@@ -11,8 +12,6 @@
   let loading = $state(true);
 
   const selectedEntity = $derived(resolveSelected(snapshot, selected));
-  const mapBounds = $derived(boundsFor(snapshot));
-
   async function refresh() {
     loading = true;
     const result = await loadSnapshot();
@@ -33,35 +32,6 @@
     selected = { kind, id } as EntityRef;
   }
 
-  function pointStyle(point: GeoPoint) {
-    const bounds = mapBounds;
-    const x = ((point.lon - bounds.minLon) / Math.max(0.0001, bounds.maxLon - bounds.minLon)) * 100;
-    const y = (1 - (point.lat - bounds.minLat) / Math.max(0.0001, bounds.maxLat - bounds.minLat)) * 100;
-    return `left:${Math.min(94, Math.max(6, x))}%;top:${Math.min(92, Math.max(8, y))}%`;
-  }
-
-  function polygonPoints(hazard: Hazard) {
-    return hazard.geometry
-      .map((point) => {
-        const bounds = mapBounds;
-        const x = ((point.lon - bounds.minLon) / Math.max(0.0001, bounds.maxLon - bounds.minLon)) * 100;
-        const y = (1 - (point.lat - bounds.minLat) / Math.max(0.0001, bounds.maxLat - bounds.minLat)) * 100;
-        return `${Math.min(96, Math.max(4, x))},${Math.min(94, Math.max(6, y))}`;
-      })
-      .join(' ');
-  }
-
-  function hazardCentroid(hazard: Hazard): GeoPoint {
-    if (hazard.geometry.length === 0) {
-      return { lat: 0, lon: 0 };
-    }
-    const sum = hazard.geometry.reduce(
-      (next, point) => ({ lat: next.lat + point.lat, lon: next.lon + point.lon }),
-      { lat: 0, lon: 0 }
-    );
-    return { lat: sum.lat / hazard.geometry.length, lon: sum.lon / hazard.geometry.length };
-  }
-
   function entityTitle(entity: Track | Asset | Hazard | Alert | undefined) {
     if (!entity) return 'No selection';
     return entity.label;
@@ -75,28 +45,6 @@
     return snapshot.alerts.find((alert) => alert.id === selected.id);
   }
 
-  function boundsFor(snapshot: Snapshot | null) {
-    const points = [
-      ...(snapshot?.tracks.map((track) => track.position) ?? []),
-      ...(snapshot?.assets.map((asset) => asset.position).filter(isGeoPoint) ?? []),
-      ...(snapshot?.hazards.flatMap((hazard) => hazard.geometry) ?? [])
-    ];
-    if (points.length === 0) {
-      return { minLat: 38.88, maxLat: 38.92, minLon: -77.03, maxLon: -76.98 };
-    }
-    const lats = points.map((point) => point.lat);
-    const lons = points.map((point) => point.lon);
-    return {
-      minLat: Math.min(...lats) - 0.006,
-      maxLat: Math.max(...lats) + 0.006,
-      minLon: Math.min(...lons) - 0.008,
-      maxLon: Math.max(...lons) + 0.008
-    };
-  }
-
-  function isGeoPoint(point: GeoPoint | undefined): point is GeoPoint {
-    return point !== undefined;
-  }
 </script>
 
 <svelte:head>
@@ -145,60 +93,7 @@
           {/if}
         </div>
 
-        <div class="map-surface">
-          <svg class="hazard-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {#each snapshot.hazards as hazard}
-              <polygon
-                class:selected={selected.kind === 'hazard' && selected.id === hazard.id}
-                points={polygonPoints(hazard)}
-              />
-            {/each}
-          </svg>
-
-          {#each snapshot.hazards as hazard}
-            <button
-              class:selected={selected.kind === 'hazard' && selected.id === hazard.id}
-              class="map-marker hazard"
-              style={pointStyle(hazardCentroid(hazard))}
-              type="button"
-              aria-label={`Select ${hazard.label}`}
-              title={hazard.label}
-              onclick={() => selectEntity('hazard', hazard.id)}
-            >
-              <MapPinned size={16} />
-            </button>
-          {/each}
-
-          {#each snapshot.assets as asset}
-            {#if asset.position}
-              <button
-                class:selected={selected.kind === 'asset' && selected.id === asset.id}
-                class="map-marker asset"
-                style={pointStyle(asset.position)}
-                type="button"
-                aria-label={`Select ${asset.label}`}
-                title={asset.label}
-                onclick={() => selectEntity('asset', asset.id)}
-              >
-                <ShieldCheck size={16} />
-              </button>
-            {/if}
-          {/each}
-
-          {#each snapshot.tracks as track}
-            <button
-              class:selected={selected.kind === 'track' && selected.id === track.id}
-              class="map-marker track"
-              style={pointStyle(track.position)}
-              type="button"
-              aria-label={`Select ${track.label}`}
-              title={track.label}
-              onclick={() => selectEntity('track', track.id)}
-            >
-              <Crosshair size={18} />
-            </button>
-          {/each}
-        </div>
+        <TacticalMap {snapshot} {selected} onSelect={(next) => selectEntity(next.kind, next.id)} />
       </section>
 
       <aside class="side-panel" aria-label="Entity inspector">

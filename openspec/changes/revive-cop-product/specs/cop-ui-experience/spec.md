@@ -17,6 +17,14 @@ deck.gl for high-rate tactical overlays.
 - **THEN** MapLibre owns the basemap/camera/terrain/label surface and deck.gl owns high-rate overlays, picking,
   filtering, trails, polygons, footprints, and temporal visualization
 
+#### Scenario: First tactical map layer is bounded
+
+- **WHEN** the first MapLibre/deck.gl implementation is present
+- **THEN** it renders snapshot tracks, assets, and hazard areas through deck.gl point, polygon, label, and picking
+  overlays
+- **AND** it does not claim finished basemap tiles, terrain, track trails, footprints, alert geometry, task geometry, or
+  temporal scrubbing until those layers have their own evidence
+
 ### Requirement: Browser state comes through SemOps API
 
 The browser SHALL consume curated SemOps COP view models instead of connecting directly to NATS or raw feed subjects in
