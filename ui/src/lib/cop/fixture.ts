@@ -132,6 +132,7 @@ export const fixtureSnapshot: Snapshot = {
       label: 'Flood watch sector',
       kind: 'flood',
       severity: 'watch',
+      status: 'active',
       geometry: [
         { lat: 38.895, lon: -77.012 },
         { lat: 38.907, lon: -77.011 },

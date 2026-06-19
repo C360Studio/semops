@@ -142,6 +142,7 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 				Label:    "Flood watch sector",
 				Kind:     "flood",
 				Severity: "watch",
+				Status:   "active",
 				Geometry: []GeoPoint{
 					{Lat: 38.895, Lon: -77.012},
 					{Lat: 38.907, Lon: -77.011},

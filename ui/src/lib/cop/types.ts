@@ -83,6 +83,7 @@ export type Hazard = {
   label: string;
   kind: string;
   severity: string;
+  status: string;
   geometry: GeoPoint[];
   source: string;
   confidence: number;

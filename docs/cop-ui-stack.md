@@ -72,7 +72,9 @@ The first live snapshot provider prefers SemStreams `graph.query.prefix` over se
 MAVLink, TAK/CoT, and CAP entities by their 5-part COP prefixes, maps owned triples into the COP view model, and keeps
 seeded `graph.query.entity` reads as compatibility fallback when prefix discovery is unavailable or empty. That makes
 SemStreams responsible for graph discovery while SemOps owns the curated operator view. The fixture snapshot remains a
-fallback for local development and cold-start demos; it is not graph-compliance evidence.
+fallback for local development and cold-start demos; it is not graph-compliance evidence. CAP hazard lifecycle status
+is derived in the view model from advisory evidence and freshness; distinct expired/cancelled/stale map symbology is a
+future UX gate.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for

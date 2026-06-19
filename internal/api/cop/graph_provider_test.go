@@ -272,6 +272,7 @@ func TestGraphProviderMapsCAPHazardEvidence(t *testing.T) {
 		hazard.Label != "Flood Warning: River Corridor" ||
 		hazard.Kind != "cap-flood-warning" ||
 		hazard.Severity != "severe" ||
+		hazard.Status != "active" ||
 		hazard.Source != "cap" {
 		t.Fatalf("hazard = %+v", hazard)
 	}
@@ -285,6 +286,124 @@ func TestGraphProviderMapsCAPHazardEvidence(t *testing.T) {
 	}
 	if snapshot.Feeds[2].ID != "feed.cap" || snapshot.Feeds[2].Status != "live" {
 		t.Fatalf("CAP feed = %+v", snapshot.Feeds[2])
+	}
+}
+
+func TestGraphProviderMapsCAPHazardLifecycleStatus(t *testing.T) {
+	now := time.Date(2026, 6, 19, 16, 0, 0, 0, time.UTC)
+	hazardID := capprojector.EntityID("c360", "edge-cap", "nws-demo-flood-warning")
+	tests := []struct {
+		name      string
+		evidence  copmodel.HazardEvidenceDocument
+		observed  time.Time
+		freshness time.Duration
+		want      string
+	}{
+		{
+			name: "update",
+			evidence: capLifecycleEvidence(copmodel.HazardEvidenceDocument{
+				MessageType: "Update",
+				Status:      "Actual",
+			}),
+			observed:  now.Add(-30 * time.Second),
+			freshness: 2 * time.Minute,
+			want:      "active.update",
+		},
+		{
+			name: "cancel",
+			evidence: capLifecycleEvidence(copmodel.HazardEvidenceDocument{
+				MessageType: "Cancel",
+				Status:      "Actual",
+			}),
+			observed:  now.Add(-30 * time.Second),
+			freshness: 2 * time.Minute,
+			want:      "cancelled",
+		},
+		{
+			name: "expired",
+			evidence: capLifecycleEvidence(copmodel.HazardEvidenceDocument{
+				MessageType: "Alert",
+				Status:      "Actual",
+				Expires:     now.Add(-1 * time.Minute).Format(time.RFC3339Nano),
+			}),
+			observed:  now.Add(-30 * time.Second),
+			freshness: 2 * time.Minute,
+			want:      "expired",
+		},
+		{
+			name: "stale",
+			evidence: capLifecycleEvidence(copmodel.HazardEvidenceDocument{
+				MessageType: "Alert",
+				Status:      "Actual",
+			}),
+			observed:  now.Add(-5 * time.Minute),
+			freshness: 2 * time.Minute,
+			want:      "stale",
+		},
+		{
+			name: "test status",
+			evidence: capLifecycleEvidence(copmodel.HazardEvidenceDocument{
+				MessageType: "Alert",
+				Status:      "Test",
+			}),
+			observed:  now.Add(-30 * time.Second),
+			freshness: 2 * time.Minute,
+			want:      "nonoperational.test",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hazard, ok := hazardFromEntity(capHazardEntity(t, hazardID, tt.observed, tt.evidence), now, tt.freshness)
+			if !ok {
+				t.Fatalf("hazard did not map")
+			}
+			if hazard.Status != tt.want {
+				t.Fatalf("status = %q, want %q", hazard.Status, tt.want)
+			}
+		})
+	}
+}
+
+func TestGraphProviderUsesLatestCAPHazardEvidence(t *testing.T) {
+	now := time.Date(2026, 6, 19, 16, 0, 0, 0, time.UTC)
+	older := now.Add(-90 * time.Second)
+	newer := now.Add(-30 * time.Second)
+	hazardID := capprojector.EntityID("c360", "edge-cap", "nws-demo-flood-warning")
+	entity := capHazardEntity(
+		t,
+		hazardID,
+		older,
+		capLifecycleEvidence(copmodel.HazardEvidenceDocument{
+			MessageType: "Alert",
+			Status:      "Actual",
+			Severity:    "Moderate",
+		}),
+	)
+	newerEvidence := capLifecycleEvidence(copmodel.HazardEvidenceDocument{
+		MessageType: "Update",
+		Status:      "Actual",
+		Severity:    "Severe",
+	})
+	newerJSON, err := json.Marshal(newerEvidence)
+	if err != nil {
+		t.Fatalf("marshal newer evidence: %v", err)
+	}
+	entity.Triples = append(entity.Triples,
+		testTriple(hazardID, copmodel.HazardEvidence, string(newerJSON), newer),
+		testTriple(hazardID, copmodel.ProvenanceObservedAt, newer, newer),
+		testTriple(hazardID, copmodel.ProvenanceSourceRef, "cap://nws/demo/flood-update", newer),
+	)
+
+	hazard, ok := hazardFromEntity(entity, now, 2*time.Minute)
+	if !ok {
+		t.Fatalf("hazard did not map")
+	}
+	if hazard.Status != "active.update" ||
+		hazard.Severity != "severe" ||
+		hazard.UpdatedAt != newer ||
+		hazard.Provenance.SourceRef != "cap://nws/demo/flood-update" {
+		t.Fatalf("hazard = %+v", hazard)
 	}
 }
 
@@ -577,4 +696,52 @@ func testTriple(subject, predicate string, object any, observed time.Time) messa
 		Timestamp:  observed,
 		Confidence: 0.98,
 	}
+}
+
+func capHazardEntity(
+	t *testing.T,
+	hazardID string,
+	observed time.Time,
+	evidence copmodel.HazardEvidenceDocument,
+) graph.EntityState {
+	t.Helper()
+	evidenceJSON, err := json.Marshal(evidence)
+	if err != nil {
+		t.Fatalf("marshal evidence: %v", err)
+	}
+	return graph.EntityState{
+		ID:        hazardID,
+		UpdatedAt: observed,
+		Triples: []message.Triple{
+			testTriple(hazardID, copmodel.HazardEvidence, string(evidenceJSON), observed),
+			testTriple(hazardID, copmodel.HazardSource, "cap", observed),
+			testTriple(hazardID, copmodel.ProvenanceSource, "cap", observed),
+			testTriple(hazardID, copmodel.ProvenanceObservedAt, observed, observed),
+			testTriple(hazardID, copmodel.ProvenanceSourceRef, "cap://nws/demo/flood-warning", observed),
+		},
+	}
+}
+
+func capLifecycleEvidence(base copmodel.HazardEvidenceDocument) copmodel.HazardEvidenceDocument {
+	if base.Identifier == "" {
+		base.Identifier = "nws-demo-flood-warning"
+	}
+	if base.Event == "" {
+		base.Event = "Flood Warning"
+	}
+	if base.Severity == "" {
+		base.Severity = "Severe"
+	}
+	if base.AreaDesc == "" {
+		base.AreaDesc = "River Corridor"
+	}
+	if len(base.Polygons) == 0 {
+		base.Polygons = [][]copmodel.HazardEvidencePoint{{
+			{Lat: 38.8900, Lon: -77.0500},
+			{Lat: 38.9050, Lon: -77.0440},
+			{Lat: 38.9030, Lon: -77.0200},
+			{Lat: 38.8860, Lon: -77.0280},
+		}}
+	}
+	return base
 }

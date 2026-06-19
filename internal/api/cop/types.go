@@ -87,6 +87,7 @@ type Hazard struct {
 	Label      string     `json:"label"`
 	Kind       string     `json:"kind"`
 	Severity   string     `json:"severity"`
+	Status     string     `json:"status"`
 	Geometry   []GeoPoint `json:"geometry"`
 	Source     string     `json:"source"`
 	Confidence float64    `json:"confidence"`

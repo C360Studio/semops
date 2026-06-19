@@ -1,8 +1,8 @@
 # CAP/EDXL Feed Evidence
 
-Status: initial Phase 1 parser/projection/readback slice exists, with a skipped-by-default live graph smoke for
-born-first append-evidence behavior. Hosted CAP polling, NWS fixture capture, XML schema validation, and
-consumer-rule coverage remain open.
+Status: initial Phase 1 parser/projection/readback slice exists, with derived lifecycle-status readback and a
+skipped-by-default live graph smoke for born-first append-evidence behavior. Hosted CAP polling, NWS fixture capture,
+XML schema validation, and consumer-rule coverage remain open.
 
 ## Decision
 
@@ -16,7 +16,8 @@ track or asset facts.
   the first civilian-warning fixtures.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
   `semops.cop.hazard.cap-evidence` contract.
-- `internal/api/cop` reads CAP hazard evidence JSON into the COP hazard overlay view model.
+- `internal/api/cop` reads CAP hazard evidence JSON into the COP hazard overlay view model and derives
+  operator-facing status from CAP `msgType`, `status`, `expires`, and read-time freshness.
 - `internal/smoke/cap` writes CAP create and update plans through a live SemStreams graph stack, polls
   `graph.query.prefix`, and checks that CAP evidence did not claim authoritative hazard predicates.
 - The COP model reserves `hazard_area`, `alert`, and `advisory` as first-slice entities.
@@ -89,6 +90,9 @@ go test ./internal/api/cop
 Acceptance:
 
 - A graph-backed CAP `hazard_area` with `cop.hazard.evidence` renders as a COP hazard overlay.
+- CAP alert, update, cancel, expire, stale, and non-operational test evidence maps to explicit hazard view-model
+  status without writing `cop.hazard.status`.
+- When multiple CAP evidence triples exist on one hazard, the newest evidence and source reference drive readback.
 - CAP feed health is live or stale based on graph observation timestamps.
 - Provenance identifies `semops.feed.cap` and the source reference.
 - Missing CAP graph state is treated as cold-start or fallback state, not as a successful empty decode.
@@ -124,8 +128,8 @@ Acceptance:
 - EDXL beyond CAP is not scoped for Phase 1.
 - NWS is a useful public source, but live NWS calls should not be required for deterministic CI.
 - CAP conformance should be stated as schema/consumer-rule evidence until we implement a proper consumer profile.
-- The current CAP slice does not host a poller/webhook service, fetch NWS alerts, or model update/cancel/expire
-  lifecycle beyond the parsed evidence document.
+- The current CAP slice does not host a poller/webhook service, fetch NWS alerts, or replay update/cancel/expire
+  sequences from captured fixtures.
 - The current projector intentionally does not own `cop.hazard.geometry`, `cop.hazard.severity`, or
   `cop.hazard.status`.
 - The live graph smoke is SemStreams graph-contract evidence, not CAP consumer conformance evidence.

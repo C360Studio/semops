@@ -498,7 +498,7 @@ func (p *GraphProvider) snapshotFromGraph(
 
 	hazards := make([]Hazard, 0, len(hazardsByID))
 	for _, entity := range sortedEntities(hazardsByID) {
-		hazard, ok := hazardFromEntity(entity)
+		hazard, ok := hazardFromEntity(entity, now, p.freshness)
 		if ok {
 			hazards = append(hazards, hazard)
 		}
@@ -761,7 +761,7 @@ func advisoryFromEntity(entity graph.EntityState, now time.Time, freshness time.
 	}, true
 }
 
-func hazardFromEntity(entity graph.EntityState) (Hazard, bool) {
+func hazardFromEntity(entity graph.EntityState, now time.Time, freshness time.Duration) (Hazard, bool) {
 	evidence, ok := hazardEvidenceDocument(entity)
 	if !ok {
 		return Hazard{}, false
@@ -770,7 +770,7 @@ func hazardFromEntity(entity graph.EntityState) (Hazard, bool) {
 	if len(geometry) < 3 {
 		return Hazard{}, false
 	}
-	updatedAt := observedAt(entity, copmodel.ProvenanceObservedAt)
+	updatedAt := latestObservedAt(entity, copmodel.ProvenanceObservedAt)
 	source := stringProperty(
 		entity,
 		copmodel.HazardSource,
@@ -781,20 +781,21 @@ func hazardFromEntity(entity graph.EntityState) (Hazard, bool) {
 		Label:      hazardLabel(entity, evidence),
 		Kind:       hazardKind(evidence),
 		Severity:   strings.ToLower(firstNonEmptyString(evidence.Severity, "unknown")),
+		Status:     hazardStatus(evidence, now, updatedAt, freshness),
 		Geometry:   geometry,
 		Source:     source,
 		Confidence: confidence(entity),
 		UpdatedAt:  updatedAt,
 		Provenance: Provenance{
 			Owner:     ownerForSource(source),
-			SourceRef: stringProperty(entity, copmodel.ProvenanceSourceRef, ""),
+			SourceRef: latestStringProperty(entity, copmodel.ProvenanceSourceRef, ""),
 			Observed:  updatedAt,
 		},
 	}, true
 }
 
 func hazardEvidenceDocument(entity graph.EntityState) (copmodel.HazardEvidenceDocument, bool) {
-	value, ok := propertyValue(entity, copmodel.HazardEvidence)
+	value, ok := latestPropertyValue(entity, copmodel.HazardEvidence)
 	if !ok {
 		return copmodel.HazardEvidenceDocument{}, false
 	}
@@ -816,6 +817,49 @@ func hazardEvidenceDocument(entity graph.EntityState) (copmodel.HazardEvidenceDo
 		return copmodel.HazardEvidenceDocument{}, false
 	}
 	return doc, true
+}
+
+func hazardStatus(
+	evidence copmodel.HazardEvidenceDocument,
+	now time.Time,
+	updatedAt time.Time,
+	freshness time.Duration,
+) string {
+	capStatus := strings.ToLower(strings.TrimSpace(evidence.Status))
+	if capStatus != "" && capStatus != "actual" {
+		return "nonoperational." + capStatus
+	}
+
+	switch strings.ToLower(strings.TrimSpace(evidence.MessageType)) {
+	case "cancel":
+		return "cancelled"
+	case "error":
+		return "error"
+	case "ack":
+		return "acknowledged"
+	}
+
+	if expires, ok := evidenceTimestamp(evidence.Expires); ok && !now.IsZero() && !expires.After(now.UTC()) {
+		return "expired"
+	}
+
+	status := "active"
+	if strings.EqualFold(strings.TrimSpace(evidence.MessageType), "update") {
+		status = "active.update"
+	}
+	return freshnessStatus(status, now, updatedAt, freshness)
+}
+
+func evidenceTimestamp(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsed.UTC(), true
 }
 
 func hazardLabel(entity graph.EntityState, evidence copmodel.HazardEvidenceDocument) string {
@@ -960,8 +1004,44 @@ func propertyValue(entity graph.EntityState, predicate string) (any, bool) {
 	return (&entity).GetPropertyValue(predicate)
 }
 
+func latestPropertyValue(entity graph.EntityState, predicate string) (any, bool) {
+	var (
+		value         any
+		latest        time.Time
+		selectedIndex int
+		seen          bool
+	)
+	for index, triple := range entity.Triples {
+		if triple.Predicate != predicate {
+			continue
+		}
+		if !seen || triple.Timestamp.After(latest) || (triple.Timestamp.Equal(latest) && index > selectedIndex) {
+			value = triple.Object
+			latest = triple.Timestamp
+			selectedIndex = index
+			seen = true
+		}
+	}
+	if seen {
+		return value, true
+	}
+	return propertyValue(entity, predicate)
+}
+
 func stringProperty(entity graph.EntityState, predicate string, fallback string) string {
 	value, ok := propertyValue(entity, predicate)
+	if !ok {
+		return fallback
+	}
+	text, ok := stringFromAny(value)
+	if !ok || text == "" {
+		return fallback
+	}
+	return text
+}
+
+func latestStringProperty(entity graph.EntityState, predicate string, fallback string) string {
+	value, ok := latestPropertyValue(entity, predicate)
 	if !ok {
 		return fallback
 	}
@@ -984,6 +1064,17 @@ func confidence(entity graph.EntityState) float64 {
 		}
 	}
 	return 1
+}
+
+func latestObservedAt(entity graph.EntityState, predicates ...string) time.Time {
+	for _, predicate := range predicates {
+		if value, ok := latestPropertyValue(entity, predicate); ok {
+			if parsed, ok := timeFromAny(value); ok {
+				return parsed.UTC()
+			}
+		}
+	}
+	return observedAt(entity, predicates...)
 }
 
 func observedAt(entity graph.EntityState, predicates ...string) time.Time {

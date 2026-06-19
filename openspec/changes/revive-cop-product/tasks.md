@@ -60,6 +60,7 @@
 - [x] 5.14 Add TAK/CoT projection planner for born-first tracks, marker control state, and GeoChat content state
 - [x] 5.15 Add CAP parser fixtures and append-evidence projection gate before hosted CAP service work
 - [x] 5.16 Add CAP live graph smoke for born-first append-evidence readback
+- [x] 5.17 Add CAP lifecycle-status readback without claiming authoritative hazard status
 
 ## 6. Structural COP Stack
 
@@ -109,6 +110,7 @@
 - [ ] 7.15 Add sensor footprints and alert geometry after their graph contracts have evidence
 - [x] 7.16 Add CAP hazard evidence readback to the COP API contract
 - [x] 7.17 Record SemConnect/SemLink graph visualization prior art for future graph lenses
+- [x] 7.18 Surface derived CAP hazard lifecycle status in the COP view model
 
 ## 8. Tier Escalation And Egress
 

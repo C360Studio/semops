@@ -219,8 +219,8 @@ Current graph-wiring gate:
 
 ### CAP/EDXL
 
-Status: third feed; parser, append-evidence projection, graph writer, COP readback, and skipped-by-default live graph
-smoke exist.
+Status: third feed; parser, append-evidence projection, graph writer, COP readback, first lifecycle-status readback,
+and skipped-by-default live graph smoke exist.
 
 Compliance and sample evidence:
 
@@ -232,7 +232,9 @@ Local assets:
 - `pkg/adapters/cap` parses the CAP 1.2 subset needed for deterministic civilian-warning fixtures.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
   CAP evidence contract.
-- `internal/api/cop` maps CAP hazard evidence JSON into the COP hazard view model for the map overlay.
+- `internal/api/cop` maps CAP hazard evidence JSON into the COP hazard view model for the map overlay and derives
+  operator-facing status from CAP `msgType`, `status`, `expires`, and freshness without writing authoritative hazard
+  status predicates.
 
 Mock or harness:
 
@@ -250,8 +252,8 @@ Indexing profile pressure:
 First acceptance gate:
 
 - Given a CAP alert with polygon or circle area data, the parser preserves area evidence, the projector writes a
-  born-first hazard area with provenance and confidence, and `GET /api/cop/snapshot` renders the hazard without CAP
-  claiming authoritative hazard geometry, severity, or status predicates.
+  born-first hazard area with provenance and confidence, and `GET /api/cop/snapshot` renders the hazard and derived
+  lifecycle status without CAP claiming authoritative hazard geometry, severity, or status predicates.
 
 Current commands:
 
@@ -273,7 +275,7 @@ Remaining gates:
 
 - NWS samples captured as deterministic fixtures.
 - XML schema and CAP consumer-rule validation.
-- Update/cancel/expire lifecycle and stale-data behavior.
+- NWS-backed update/cancel/expire fixture replay and stale-data behavior.
 - Hosted poller or webhook service boundary.
 
 ### CS API Bidirectional Interop
