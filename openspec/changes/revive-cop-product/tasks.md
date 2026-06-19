@@ -93,6 +93,9 @@
 - [x] 6.26 Add CAP live graph smoke to the one-command COP stack
 - [x] 6.27 Add in-process HADR scenario runner core for MAVLink, TAK/CoT, and CAP lifecycle replay
 - [x] 6.28 Add hosted scenario-runner service with active status polling to the one-command stack smoke
+- [x] 6.29 Assert hosted scenario-runner graph writes are visible through the COP snapshot
+- [x] 6.30 Move SemStreams dedicated health to a non-conflicting container port and print NATS/SemStreams diagnostics
+      on compose startup failure
 
 ## 7. COP UI
 

@@ -23,6 +23,8 @@ The first COP stack SHALL run locally with a single documented command after dep
 
 - **WHEN** the structural stack starts
 - **THEN** NATS, SemStreams, SemOps API, SemOps UI, scenario runner, and Phase 1 adapters expose health state
+- **AND** SemStreams health probes use a dedicated non-conflicting listener port rather than racing the service-manager
+  HTTP port
 
 #### Scenario: Hosted scenario runner reports concrete playback state
 
@@ -32,6 +34,14 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **AND** `/scenario/status` reports the scenario id, state, completed steps, failed steps, mutation count, and last
   error
 - **AND** the one-command smoke polls the status endpoint rather than inferring scenario success from logs
+
+#### Scenario: Hosted scenario playback is product-visible
+
+- **WHEN** `semops-scenario-runner` reports succeeded in the local Compose stack
+- **THEN** the Caddy-routed COP snapshot contains the scenario MAVLink track
+- **AND** the snapshot contains the scenario TAK/CoT task and advisory
+- **AND** the snapshot contains the scenario CAP hazard with geometry and provenance
+- **AND** this check runs before direct feed-specific live graph smokes so product visibility fails fast
 
 #### Scenario: Browser ingress is same-origin in development
 
@@ -43,6 +53,8 @@ The first COP stack SHALL run locally with a single documented command after dep
 
 - **WHEN** a long-running demo or paid operation is supervised
 - **THEN** SemOps polls authoritative health, graph, and scenario state instead of relying only on passive logs
+- **AND** compose startup failures print NATS and SemStreams diagnostics so local Docker storage exhaustion is visible
+  without a separate log hunt
 
 #### Scenario: Feed adapter exposes active health state
 
@@ -82,6 +94,7 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **THEN** the smoke sends generated MAVLink over the hosted SemOps UDP listener
 - **AND** it sends CoT seed events over the hosted SemOps UDP listener
 - **AND** it waits for the hosted scenario runner to report a succeeded HADR replay
+- **AND** it waits for the Caddy-routed COP snapshot to expose the scenario runner's MAVLink, TAK/CoT, and CAP state
 - **AND** it waits for the same-origin Caddy COP snapshot path to expose graph-backed MAVLink track state and
   TAK/CoT task/advisory state
 - **AND** it runs direct live graph smokes for MAVLink, TAK/CoT, and CAP evidence through SemStreams

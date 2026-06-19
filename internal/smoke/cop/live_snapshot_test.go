@@ -17,16 +17,19 @@ import (
 
 const (
 	liveSnapshotURLEnv      = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
+	liveScenarioStatusEnv   = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
 	liveSnapshotUDPAddrEnv  = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
 	liveSnapshotCoTAddrEnv  = "SEMOPS_COP_SMOKE_COT_UDP_ADDR"
 	liveSnapshotTrackIDEnv  = "SEMOPS_COP_SMOKE_EXPECTED_TRACK_ID"
 	liveSnapshotCoTTrackEnv = "SEMOPS_COP_SMOKE_EXPECTED_COT_TRACK_ID"
 	liveSnapshotCoTTaskEnv  = "SEMOPS_COP_SMOKE_EXPECTED_COT_TASK_ID"
 	liveSnapshotCoTChatEnv  = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
+	liveSnapshotHazardEnv   = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
 	defaultExpectedTrackID  = "c360.edge-compose.cop.mavlink.track.system-42"
 	defaultExpectedCoTTrack = "c360.edge-compose.cop.tak.track.android-alpha"
 	defaultExpectedCoTTask  = "c360.edge-compose.cop.tak.task.marker-north-gate"
 	defaultExpectedCoTChat  = "c360.edge-compose.cop.tak.advisory.chat-alpha-1"
+	defaultExpectedHazard   = "c360.edge-compose.cop.cap.hazard_area.nws-demo-flood-warning"
 	liveSnapshotPollTimeout = 30 * time.Second
 )
 
@@ -118,6 +121,54 @@ func TestHostedCOPSnapshotReflectsCoTUDP(t *testing.T) {
 	}
 }
 
+func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
+	snapshotURL := os.Getenv(liveSnapshotURLEnv)
+	statusURL := os.Getenv(liveScenarioStatusEnv)
+	if snapshotURL == "" || statusURL == "" {
+		t.Skipf("set %s and %s to run the hosted COP scenario runner smoke",
+			liveSnapshotURLEnv, liveScenarioStatusEnv)
+	}
+	expectedTrackID := firstNonEmpty(os.Getenv(liveSnapshotTrackIDEnv), defaultExpectedTrackID)
+	expectedTaskID := firstNonEmpty(os.Getenv(liveSnapshotCoTTaskEnv), defaultExpectedCoTTask)
+	expectedAdvisoryID := firstNonEmpty(os.Getenv(liveSnapshotCoTChatEnv), defaultExpectedCoTChat)
+	expectedHazardID := firstNonEmpty(os.Getenv(liveSnapshotHazardEnv), defaultExpectedHazard)
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		status, err := fetchScenarioStatus(ctx, client, statusURL)
+		if err != nil {
+			lastErr = err
+		} else if status.State != "succeeded" {
+			lastErr = fmt.Errorf("scenario runner state = %q, completed=%d failed=%d last_error=%q",
+				status.State, status.CompletedSteps, status.FailedSteps, status.LastError)
+		} else {
+			snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
+			if err != nil {
+				lastErr = err
+			} else if snapshotHasScenarioRunnerState(snapshot, expectedTrackID, expectedTaskID, expectedAdvisoryID, expectedHazardID) {
+				return
+			} else {
+				lastErr = fmt.Errorf("snapshot missing scenario runner state: scenario=%s tracks=%d tasks=%d advisories=%d hazards=%d",
+					snapshot.Scenario, len(snapshot.Tracks), len(snapshot.Tasks), len(snapshot.Advisories), len(snapshot.Hazards))
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted COP snapshot did not reflect scenario runner before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
 func generatedMAVLinkFrames(t *testing.T) [][]byte {
 	t.Helper()
 
@@ -202,6 +253,34 @@ func fetchSnapshot(ctx context.Context, client *http.Client, snapshotURL string)
 	return snapshot, nil
 }
 
+func fetchScenarioStatus(ctx context.Context, client *http.Client, statusURL string) (scenarioStatus, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
+	if err != nil {
+		return scenarioStatus{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return scenarioStatus{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return scenarioStatus{}, fmt.Errorf("scenario status = %d", resp.StatusCode)
+	}
+	var status scenarioStatus
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return scenarioStatus{}, fmt.Errorf("decode scenario status: %w", err)
+	}
+	return status, nil
+}
+
+type scenarioStatus struct {
+	State          string `json:"state"`
+	CompletedSteps int    `json:"completed_steps"`
+	FailedSteps    int    `json:"failed_steps"`
+	LastError      string `json:"last_error"`
+}
+
 func snapshotHasTrack(snapshot copapi.Snapshot, expectedTrackID string) bool {
 	if snapshot.Scenario != "phase-1-live-graph" {
 		return false
@@ -219,6 +298,19 @@ func snapshotHasTrack(snapshot copapi.Snapshot, expectedTrackID string) bool {
 		return true
 	}
 	return false
+}
+
+func snapshotHasScenarioRunnerState(
+	snapshot copapi.Snapshot,
+	expectedTrackID string,
+	expectedTaskID string,
+	expectedAdvisoryID string,
+	expectedHazardID string,
+) bool {
+	if !snapshotHasCoT(snapshot, expectedTrackID, expectedTaskID, expectedAdvisoryID) {
+		return false
+	}
+	return snapshotHasHazard(snapshot, expectedHazardID)
 }
 
 func snapshotHasCoT(snapshot copapi.Snapshot, expectedTrackID, expectedTaskID, expectedAdvisoryID string) bool {
@@ -242,6 +334,25 @@ func snapshotHasCoT(snapshot copapi.Snapshot, expectedTrackID, expectedTaskID, e
 		if advisory.ID == expectedAdvisoryID && advisory.Text != "" && advisory.Provenance.Owner != "" {
 			return true
 		}
+	}
+	return false
+}
+
+func snapshotHasHazard(snapshot copapi.Snapshot, expectedHazardID string) bool {
+	if snapshot.Scenario != "phase-1-live-graph" {
+		return false
+	}
+	for _, hazard := range snapshot.Hazards {
+		if hazard.ID != expectedHazardID {
+			continue
+		}
+		if len(hazard.Geometry) == 0 || hazard.Label == "" {
+			return false
+		}
+		if hazard.Provenance.Owner == "" {
+			return false
+		}
+		return true
 	}
 	return false
 }
