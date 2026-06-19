@@ -17,8 +17,10 @@ compliance suite was verified. Treat TAK as fixture/replay/interoperability-test
   decodes inbound CoT, translates to COP state, updates the store, and writes graph projections.
 - `/Users/coby/Code/c360/semlink/scripts/demo-up.sh` opens inbound TAK UDP by default and seeds ALPHA/BRAVO operator
   dots, a North Gate marker, and GeoChat messages.
-- `/Users/coby/Code/c360/semlink/docs/adr/002-tak-cot-bridge.md` records the limited Tier 0/Phase 1 scope and warns
-  against building a full TAK Server.
+- `/Users/coby/Code/c360/semlink/docs/adr/002-tak-cot-bridge.md` records SemLink's limited Tier 0/Phase 1 scope and
+  warns against building a full TAK Server inside that demo bridge.
+- `docs/feed-product-roadmap.md` records the SemOps correction: future TAK Server-equivalent capability is product
+  roadmap scope as a SemStreams-backed SemOps service, but not MVP scope.
 
 ## External Evidence
 
@@ -98,7 +100,8 @@ Acceptance:
 
 ## Adversarial Feed-Entry Questions
 
-- Are we accidentally building a TAK Server instead of a limited CoT bridge?
+- Are we accidentally building TAK Server behavior inside the MVP CoT bridge instead of preserving a later service
+  boundary?
 - Is "compliance" language avoided unless a real suite or official schema is found?
 - Does chat text get the right `content` treatment, or is it buried in a position event?
 - Are stale events visible to operators rather than silently retained as fresh state?

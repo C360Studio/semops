@@ -17,6 +17,9 @@ Inputs:
 Add feeds one at a time. Each feed earns its way into the demo with a reproducible mock, simulator, replay,
 conformance suite, or public sample source. A feed is not a product claim until it has a repeatable acceptance gate.
 
+Use `docs/feed-product-roadmap.md` alongside this ladder. The ladder answers "what evidence lets the feed enter the
+demo?" The roadmap answers "how does the narrow demo path avoid blocking the full product path?"
+
 Recommended order:
 
 1. MAVLink.
