@@ -92,6 +92,7 @@
 - [x] 7.9 Add snapshot client tests and fixture fallback for the first SemOps API/UI contract
 - [x] 7.10 Run adversarial review on the API/UI/Caddy spine before claiming graph-backed COP completeness
 - [x] 7.11 Replace the static-only API provider with a graph-backed MAVLink snapshot provider and fixture fallback
+- [x] 7.12 Add first MapLibre/deck.gl tactical layer for tracks, assets, hazards, labels, and picking
 
 ## 8. Tier Escalation And Egress
 
