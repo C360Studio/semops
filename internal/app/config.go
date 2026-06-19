@@ -25,6 +25,13 @@ const (
 	EnvMAVLinkWriteTimeout        = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
 	EnvMAVLinkUDPListenAddr       = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
 	EnvMAVLinkUDPMaxDatagramBytes = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
+	EnvCoTEnabled                 = "SEMOPS_COT_ENABLED"
+	EnvCoTSource                  = "SEMOPS_COT_SOURCE"
+	EnvCoTWriteTimeout            = "SEMOPS_COT_WRITE_TIMEOUT"
+	EnvCoTUDPListenAddr           = "SEMOPS_COT_UDP_LISTEN_ADDR"
+	EnvCoTUDPMaxDatagramBytes     = "SEMOPS_COT_UDP_MAX_DATAGRAM_BYTES"
+	EnvCoTTCPListenAddr           = "SEMOPS_COT_TCP_LISTEN_ADDR"
+	EnvCoTTCPMaxEventBytes        = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
 	EnvCOPGraphQueryTimeout       = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
 	EnvCOPMAVLinkSystemIDs        = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
 )
@@ -37,6 +44,7 @@ type Config struct {
 	APIAddr                    string
 	OwnershipHeartbeatInterval time.Duration
 	MAVLink                    MAVLinkConfig
+	CoT                        CoTConfig
 	COP                        COPConfig
 }
 
@@ -56,6 +64,30 @@ type MAVLinkConfig struct {
 type MAVLinkUDPConfig struct {
 	ListenAddr       string
 	MaxDatagramBytes int
+}
+
+type CoTConfig struct {
+	Enabled       bool
+	Source        string
+	Org           string
+	Platform      string
+	TraceID       string
+	RawMaxRecords int
+	RawMaxBytes   int
+	WriteTimeout  time.Duration
+	Retry         natsclient.RetryConfig
+	UDP           CoTUDPConfig
+	TCP           CoTTCPConfig
+}
+
+type CoTUDPConfig struct {
+	ListenAddr       string
+	MaxDatagramBytes int
+}
+
+type CoTTCPConfig struct {
+	ListenAddr    string
+	MaxEventBytes int
 }
 
 type COPConfig struct {
@@ -88,6 +120,26 @@ func DefaultConfig() Config {
 				BackoffMultiplier: 2,
 			},
 		},
+		CoT: CoTConfig{
+			Enabled:      false,
+			Source:       "tak-cot:inprocess",
+			Org:          "c360",
+			Platform:     "edge",
+			TraceID:      "semops-cot-hosted",
+			WriteTimeout: 2 * time.Second,
+			UDP: CoTUDPConfig{
+				MaxDatagramBytes: 64 * 1024,
+			},
+			TCP: CoTTCPConfig{
+				MaxEventBytes: 1024 * 1024,
+			},
+			Retry: natsclient.RetryConfig{
+				MaxRetries:        5,
+				InitialBackoff:    50 * time.Millisecond,
+				MaxBackoff:        500 * time.Millisecond,
+				BackoffMultiplier: 2,
+			},
+		},
 		COP: COPConfig{
 			GraphQueryTimeout: 2 * time.Second,
 			MAVLinkSystemIDs:  []int{42},
@@ -105,10 +157,16 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvNATSName, &cfg.NATSName)
 	setString(getenv, EnvAPIAddr, &cfg.APIAddr)
 	setString(getenv, EnvMAVLinkSource, &cfg.MAVLink.Source)
+	setString(getenv, EnvCoTSource, &cfg.CoT.Source)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
+	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
+	setString(getenv, EnvPlatform, &cfg.CoT.Platform)
 	setString(getenv, EnvTraceID, &cfg.MAVLink.TraceID)
+	setString(getenv, EnvTraceID, &cfg.CoT.TraceID)
 	setString(getenv, EnvMAVLinkUDPListenAddr, &cfg.MAVLink.UDP.ListenAddr)
+	setString(getenv, EnvCoTUDPListenAddr, &cfg.CoT.UDP.ListenAddr)
+	setString(getenv, EnvCoTTCPListenAddr, &cfg.CoT.TCP.ListenAddr)
 
 	var err error
 	if cfg.NATSConnectTimeout, err = durationFromEnv(getenv, EnvNATSConnectTimeout, cfg.NATSConnectTimeout); err != nil {
@@ -128,6 +186,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.CoT.WriteTimeout, err = durationFromEnv(
+		getenv,
+		EnvCoTWriteTimeout,
+		cfg.CoT.WriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.COP.GraphQueryTimeout, err = durationFromEnv(
 		getenv,
 		EnvCOPGraphQueryTimeout,
@@ -138,10 +203,27 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	if cfg.MAVLink.Enabled, err = boolFromEnv(getenv, EnvMAVLinkEnabled, cfg.MAVLink.Enabled); err != nil {
 		return Config{}, err
 	}
+	if cfg.CoT.Enabled, err = boolFromEnv(getenv, EnvCoTEnabled, cfg.CoT.Enabled); err != nil {
+		return Config{}, err
+	}
 	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
 		getenv,
 		EnvMAVLinkUDPMaxDatagramBytes,
 		cfg.MAVLink.UDP.MaxDatagramBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.CoT.UDP.MaxDatagramBytes, err = intFromEnv(
+		getenv,
+		EnvCoTUDPMaxDatagramBytes,
+		cfg.CoT.UDP.MaxDatagramBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.CoT.TCP.MaxEventBytes, err = intFromEnv(
+		getenv,
+		EnvCoTTCPMaxEventBytes,
+		cfg.CoT.TCP.MaxEventBytes,
 	); err != nil {
 		return Config{}, err
 	}
@@ -182,6 +264,9 @@ func (c Config) Validate() error {
 	if c.OwnershipHeartbeatInterval <= 0 {
 		return fmt.Errorf("%s must be greater than zero", EnvOwnershipHeartbeatInterval)
 	}
+	if err := c.CoT.Validate(); err != nil {
+		return err
+	}
 	if !c.MAVLink.Enabled {
 		return nil
 	}
@@ -199,6 +284,31 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.MAVLink.UDP.ListenAddr) != "" && c.MAVLink.UDP.MaxDatagramBytes <= 0 {
 		return fmt.Errorf("%s must be greater than zero when MAVLink UDP is enabled", EnvMAVLinkUDPMaxDatagramBytes)
+	}
+	return nil
+}
+
+func (c CoTConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(c.Source) == "" {
+		return fmt.Errorf("%s is required when CoT is enabled", EnvCoTSource)
+	}
+	if strings.TrimSpace(c.Org) == "" {
+		return fmt.Errorf("%s is required when CoT is enabled", EnvOrg)
+	}
+	if strings.TrimSpace(c.Platform) == "" {
+		return fmt.Errorf("%s is required when CoT is enabled", EnvPlatform)
+	}
+	if c.WriteTimeout <= 0 {
+		return fmt.Errorf("%s must be greater than zero when CoT is enabled", EnvCoTWriteTimeout)
+	}
+	if strings.TrimSpace(c.UDP.ListenAddr) != "" && c.UDP.MaxDatagramBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when CoT UDP is enabled", EnvCoTUDPMaxDatagramBytes)
+	}
+	if strings.TrimSpace(c.TCP.ListenAddr) != "" && c.TCP.MaxEventBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when CoT TCP is enabled", EnvCoTTCPMaxEventBytes)
 	}
 	return nil
 }

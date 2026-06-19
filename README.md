@@ -15,7 +15,8 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
 - COP model baseline: `docs/cop-model-and-governance.md`
 - COP UI baseline: `docs/cop-ui-stack.md`
 - Active MAVLink codec boundary: `pkg/adapters/mavlink`
-- Active TAK/CoT codec and replay boundary: `pkg/adapters/cot`, `internal/adapters/cot`
+- Active TAK/CoT codec, replay, projection, and graph-wiring boundary: `pkg/adapters/cot`,
+  `internal/adapters/cot`, `internal/projectors/cot`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
 StreamKit, EntityStore, ObjectStore, and BaseProcessor product paths have been removed or are outside the active build.
@@ -58,7 +59,8 @@ go test ./...
 ```
 
 The test suite validates the SemStreams contract gate, COP ownership model, active MAVLink codec, and TAK/CoT
-parser/replay/projection gates. SITL/PX4 simulator gates are still future evidence, not current product claims.
+parser/replay/projection/graph-wiring gates. SITL/PX4 simulator gates are still future evidence, not current product
+claims.
 
 Run the hosted runtime against a live SemStreams/NATS stack:
 
@@ -67,13 +69,23 @@ SEMOPS_NATS_URL=nats://127.0.0.1:4222 go run ./cmd/semops
 ```
 
 `cmd/semops` now connects to SemStreams, registers first-phase COP ownership, enrolls owners for heartbeat, and
-composes the hosted MAVLink adapter with typed owner tokens minted by SemStreams registry/bind results.
+composes hosted MAVLink and opt-in TAK/CoT adapters with typed owner tokens minted by SemStreams registry/bind results.
 
 Enable UDP MAVLink ingestion explicitly when you want the hosted runtime to listen for datagrams:
 
 ```bash
 SEMOPS_NATS_URL=nats://127.0.0.1:4222 \
 SEMOPS_MAVLINK_UDP_LISTEN_ADDR=:14550 \
+go run ./cmd/semops
+```
+
+Enable TAK/CoT ingestion explicitly when you want the hosted runtime to listen for CoT XML. This writes governed graph
+state but is not yet surfaced through the COP snapshot API/UI:
+
+```bash
+SEMOPS_NATS_URL=nats://127.0.0.1:4222 \
+SEMOPS_COT_ENABLED=true \
+SEMOPS_COT_UDP_LISTEN_ADDR=:8087 \
 go run ./cmd/semops
 ```
 
@@ -95,4 +107,5 @@ http://localhost:8080
 
 Caddy proxies `/api/*` and `/healthz` to SemOps API so the UI uses the same-origin path operators will expect from
 real infrastructure. The direct API remains available on `http://localhost:8088` for diagnostics. The current UI/API
-snapshot is fixture-backed while the live graph snapshot provider and scenario runner are still being built.
+snapshot has a fixture fallback plus MAVLink graph-backed readback; CoT graph state, stale policy, and the scenario
+runner are still being built.

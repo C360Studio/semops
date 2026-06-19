@@ -65,8 +65,9 @@ SemOps started materially stale; the first revival slices are correcting that:
 - SemOps now declares Go `1.26.3` and imports current `github.com/c360studio/semstreams`.
 - `go test ./...` passes for the active product compile path.
 - `cmd/semops/main.go` now loads env config, starts the hosted SemStreams/COP ownership runtime, and can opt into
-  MAVLink UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`. API server, monitoring services, TCP/serial
-  transport, and dedicated adapter-process packaging remain open.
+  MAVLink UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`; it can also opt into TAK/CoT UDP/TCP graph
+  writes with `SEMOPS_COT_ENABLED`. API/UI readback for CoT state, monitoring services, TCP/serial MAVLink transport,
+  and dedicated adapter-process packaging remain open.
 - `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy for the current
   graph smoke scaffold plus first browser-facing COP path.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
@@ -92,6 +93,17 @@ SemOps has salvageable MAVLink depth:
   framework's mutation retry rule for transient responder startup races.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
+
+SemOps now has TAK/CoT depth beyond prior-art replay:
+
+- A dependency-light CoT codec, bounded raw lane, JSON Lines replay store, and UDP/TCP fixture harness live in the
+  active SemOps tree.
+- A CoT projection planner maps operator/air tracks to `signal`, markers to `control` tasks, and GeoChat to
+  `content` advisories while preserving raw source refs.
+- A CoT graph writer and adapter graph path now follow the same born-first and restart reconciliation discipline as
+  MAVLink.
+- The hosted runtime can compose CoT behind explicit `SEMOPS_COT_ENABLED` and UDP/TCP listener settings, but the
+  COP API/UI and live graph smoke still need CoT-specific readback before structural promotion.
 
 SemLink has the more current product pattern:
 
@@ -287,10 +299,13 @@ These belong inside the SemOps codebase even when a container hosts them.
 | Component | Role | Notes |
 | --- | --- | --- |
 | `pkg/adapters/mavlink` | MAVLink codec, raw lane, replay, commands | Active parser/generator extracted |
+| `pkg/adapters/cot` | TAK/CoT codec, raw lane, replay fixtures | Active parser/replay subset |
 | `pkg/cop` | COP model, predicates, projection contracts | Track, alert, asset, hazard, footprint, task, advisory |
 | `internal/adapters/mavlink` | MAVLink adapter harness | Parse, raw capture, project, write, health |
+| `internal/adapters/cot` | TAK/CoT adapter harness | Decode, raw capture, project, write, health |
 | `internal/graphrequest` | SemStreams request/reply adapters | Retry-aware mutation request boundary |
 | `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
+| `internal/projectors/cot` | Decoded CoT events to graph mutation plans | Track, task, advisory planner |
 | `internal/stack` | Testable service composition factories | Wires SemStreams clients, writers, adapters |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
