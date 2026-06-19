@@ -36,10 +36,19 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
       -X main.commit=${COMMIT_SHA} \
       -X main.buildDate=${BUILD_DATE}" \
       -o /out/semops ./cmd/semops
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux \
+    go build -trimpath -ldflags="-s -w \
+      -X main.version=${VERSION} \
+      -X main.commit=${COMMIT_SHA} \
+      -X main.buildDate=${BUILD_DATE}" \
+      -o /out/semops-scenario-runner ./cmd/semops-scenario-runner
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /out/semops /usr/local/bin/semops
+COPY --from=builder /out/semops-scenario-runner /usr/local/bin/semops-scenario-runner
 
 USER nonroot:nonroot
 

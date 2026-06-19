@@ -99,6 +99,28 @@ services:
       PORT: 3000
       ORIGIN: "${SEMOPS_COP_ORIGIN:-http://localhost:8080}"
 
+  semops-scenario-runner:
+    image: c360studio/semops:cop-local
+    entrypoint: ["/usr/local/bin/semops-scenario-runner"]
+    depends_on:
+      semstreams:
+        condition: service_healthy
+    environment:
+      SEMOPS_NATS_URL: nats://semops-nats:4222
+      SEMOPS_NATS_NAME: semops-scenario-runner
+      SEMOPS_SCENARIO_ADDR: :8090
+      SEMOPS_MAVLINK_ENABLED: "true"
+      SEMOPS_MAVLINK_SOURCE: mavlink:scenario
+      SEMOPS_COT_ENABLED: "true"
+      SEMOPS_COT_SOURCE: tak-cot:scenario
+      SEMOPS_ORG: c360
+      SEMOPS_PLATFORM: edge-compose
+      SEMOPS_TRACE_ID: semops-scenario
+      SEMOPS_MAVLINK_WRITE_TIMEOUT: 2s
+      SEMOPS_COT_WRITE_TIMEOUT: 2s
+    ports:
+      - "${SEMOPS_SCENARIO_HOST_PORT:-8090}:8090"
+
   caddy:
     image: caddy:2-alpine
     depends_on:

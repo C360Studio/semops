@@ -69,6 +69,13 @@ progress:
     `/api/*` plus `/healthz` to SemOps API on the same origin.
   - Extended `scripts/cop-stack-smoke.sh` to poll the direct API and the Caddy-routed UI/API path before running the
     MAVLink live graph smoke.
+  - Added `cmd/semops-scenario-runner`, built it into the SemOps image, and added a `semops-scenario-runner` Compose
+    service that runs the HADR replay once on startup and exposes `/healthz` plus `/scenario/status`.
+  - Extended `scripts/cop-stack-smoke.sh` to poll the hosted scenario runner and assert the replay reached
+    `state=succeeded` before running the hosted snapshot and direct live graph checks.
+  - Ran `bash scripts/cop-stack-smoke.sh` successfully after adding the scenario runner service; the stack built the
+    second binary, started the new container, waited for scenario success, ran hosted MAVLink/CoT snapshot checks, ran
+    direct MAVLink/CoT/CAP live graph smokes, and tore down cleanly.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
@@ -83,12 +90,13 @@ current_evidence:
   - `(cd ui && npm run test)`
   - `(cd ui && npm run build)`
   - `go build ./cmd/semops`
+  - `go build ./cmd/semops-scenario-runner`
   - `docker compose -f compose.cop.yml config`
   - `bash scripts/cop-stack-smoke.sh`
 
 remaining:
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
-  - Replace the fixture API provider with a live graph-backed COP snapshot query.
-  - Add scenario runner and Phase 1 TAK/CoT and CAP feed transports to the one-command stack.
-  - Add graph-state polling smoke tests that exercise at least two feed types.
+  - Add hosted CAP polling/webhook transport if CAP needs to move beyond scenario replay for Phase 1.
+  - Add operator/API controls for scenario start, reset, pause/resume, and expected-state checkpoints.
+  - Add shared-airspace playback once ADS-B/SAPIENT feed boundaries exist.

@@ -24,6 +24,15 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **WHEN** the structural stack starts
 - **THEN** NATS, SemStreams, SemOps API, SemOps UI, scenario runner, and Phase 1 adapters expose health state
 
+#### Scenario: Hosted scenario runner reports concrete playback state
+
+- **WHEN** the local Compose stack starts `semops-scenario-runner`
+- **THEN** the service replays the first HADR scenario into the live SemStreams graph on startup
+- **AND** `/healthz` remains unavailable until playback succeeds
+- **AND** `/scenario/status` reports the scenario id, state, completed steps, failed steps, mutation count, and last
+  error
+- **AND** the one-command smoke polls the status endpoint rather than inferring scenario success from logs
+
 #### Scenario: Browser ingress is same-origin in development
 
 - **WHEN** the local COP stack exposes the operator UI
@@ -72,6 +81,7 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **WHEN** the local Compose stack is used as the Phase 1 demo harness
 - **THEN** the smoke sends generated MAVLink over the hosted SemOps UDP listener
 - **AND** it sends CoT seed events over the hosted SemOps UDP listener
+- **AND** it waits for the hosted scenario runner to report a succeeded HADR replay
 - **AND** it waits for the same-origin Caddy COP snapshot path to expose graph-backed MAVLink track state and
   TAK/CoT task/advisory state
 - **AND** it runs direct live graph smokes for MAVLink, TAK/CoT, and CAP evidence through SemStreams

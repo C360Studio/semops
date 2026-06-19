@@ -93,44 +93,44 @@ type CAPAlert struct {
 }
 
 type Status struct {
-	ScenarioID     string
-	State          State
-	CurrentStep    string
-	StartedAt      time.Time
-	UpdatedAt      time.Time
-	FinishedAt     time.Time
-	CompletedSteps int
-	FailedSteps    int
-	LastError      string
-	Summary        Summary
+	ScenarioID     string    `json:"scenario_id"`
+	State          State     `json:"state"`
+	CurrentStep    string    `json:"current_step,omitempty"`
+	StartedAt      time.Time `json:"started_at,omitempty"`
+	UpdatedAt      time.Time `json:"updated_at,omitempty"`
+	FinishedAt     time.Time `json:"finished_at,omitempty"`
+	CompletedSteps int       `json:"completed_steps"`
+	FailedSteps    int       `json:"failed_steps"`
+	LastError      string    `json:"last_error,omitempty"`
+	Summary        Summary   `json:"summary"`
 }
 
 type Report struct {
-	ScenarioID string
-	State      State
-	StartedAt  time.Time
-	FinishedAt time.Time
-	Steps      []StepReport
-	Summary    Summary
-	LastError  string
+	ScenarioID string       `json:"scenario_id"`
+	State      State        `json:"state"`
+	StartedAt  time.Time    `json:"started_at,omitempty"`
+	FinishedAt time.Time    `json:"finished_at,omitempty"`
+	Steps      []StepReport `json:"steps"`
+	Summary    Summary      `json:"summary"`
+	LastError  string       `json:"last_error,omitempty"`
 }
 
 type Summary struct {
-	MAVLinkFrames int
-	CoTEvents     int
-	CAPAlerts     int
-	Mutations     int
-	Errors        int
+	MAVLinkFrames int `json:"mavlink_frames"`
+	CoTEvents     int `json:"cot_events"`
+	CAPAlerts     int `json:"cap_alerts"`
+	Mutations     int `json:"mutations"`
+	Errors        int `json:"errors"`
 }
 
 type StepReport struct {
-	Feed       string
-	Name       string
-	RawRef     string
-	StartedAt  time.Time
-	FinishedAt time.Time
-	Mutations  int
-	Error      string
+	Feed       string    `json:"feed"`
+	Name       string    `json:"name"`
+	RawRef     string    `json:"raw_ref,omitempty"`
+	StartedAt  time.Time `json:"started_at,omitempty"`
+	FinishedAt time.Time `json:"finished_at,omitempty"`
+	Mutations  int       `json:"mutations"`
+	Error      string    `json:"error,omitempty"`
 }
 
 func NewRunner(cfg Config) (*Runner, error) {
