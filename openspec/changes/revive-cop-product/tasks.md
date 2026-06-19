@@ -54,6 +54,7 @@
 - [ ] 5.8 Run a KLV/SemSource binary proof spike before claiming streaming-binary support
 - [ ] 5.9 Run adversarial review for each feed before it enters the structural stack
 - [x] 5.10 Treat ADR-055/056 live graph smoke as a MAVLink gate before simulator fidelity claims
+- [x] 5.11 Add SemOps-local TAK/CoT native parser gate before UDP/TCP replay or graph projection
 
 ## 6. Structural COP Stack
 
