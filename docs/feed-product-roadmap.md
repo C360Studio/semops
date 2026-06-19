@@ -47,8 +47,8 @@ Full GCS/autopilot management, hardware certification, or complete mission-comma
 ### TAK/CoT
 
 Demo/MVP lane:
-SemOps-local CoT parser, deterministic UDP/TCP fixture replay, operator dots, markers, GeoChat, freshness,
-provenance, and source-aware COP display.
+SemOps-local CoT parser, deterministic UDP/TCP fixture replay, born-first governed projection for operator dots,
+markers, and GeoChat, freshness, provenance, and source-aware COP display.
 
 Full product lane:
 A SemStreams-backed SemOps TAK service when product need justifies it: CoT ingest/egress, certificate/auth
