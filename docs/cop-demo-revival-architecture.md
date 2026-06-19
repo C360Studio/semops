@@ -56,9 +56,10 @@ and used typed owner tokens minted by SemStreams registry/bind results. The host
 registers COP owners before composing the MAVLink and TAK/CoT adapters. The Docker Compose smoke now starts NATS,
 SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy; polls health, metrics, API, UI, and Svelte
 immutable assets; sends generated MAVLink and CoT seed events over hosted UDP listeners; waits for the Caddy-routed
-COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink and CoT live graph smokes.
-Remaining structural evidence is scenario-runner expansion, index-backed CoT discovery, CAP graph-state smoke
-coverage, and durable checkpoint/read-back reconciliation.
+COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink, CoT, and CAP live graph smokes.
+CAP is deliberately proved as append-only hazard evidence, not authoritative hazard state. Remaining structural
+evidence is scenario-runner expansion, stale/lifecycle behavior, hosted CAP polling or fixture replay, and durable
+checkpoint/read-back reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection

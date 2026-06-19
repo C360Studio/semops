@@ -17,6 +17,8 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
 - Active MAVLink codec boundary: `pkg/adapters/mavlink`
 - Active TAK/CoT codec, replay, projection, and graph-wiring boundary: `pkg/adapters/cot`,
   `internal/adapters/cot`, `internal/projectors/cot`
+- Active CAP codec, append-evidence projection, graph-wiring, and COP readback boundary: `pkg/adapters/cap`,
+  `internal/projectors/cap`, `internal/smoke/cap`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
 StreamKit, EntityStore, ObjectStore, and BaseProcessor product paths have been removed or are outside the active build.
@@ -59,8 +61,8 @@ go test ./...
 ```
 
 The test suite validates the SemStreams contract gate, COP ownership model, active MAVLink codec, and TAK/CoT
-parser/replay/projection/graph-wiring gates. SITL/PX4 simulator gates are still future evidence, not current product
-claims.
+parser/replay/projection/graph-wiring gates, plus CAP parser/projection/readback behavior. SITL/PX4 simulator gates,
+hosted CAP polling, and CAP consumer conformance are still future evidence, not current product claims.
 
 Run the hosted runtime against a live SemStreams/NATS stack:
 
@@ -97,7 +99,7 @@ bash scripts/cop-stack-smoke.sh
 
 This starts NATS, the SemStreams graph backend, the SemOps runtime/API, the Svelte COP UI, and Caddy with Docker
 Compose. The smoke polls SemStreams health and metrics, the direct SemOps API, and the Caddy-routed browser path before
-running the MAVLink live graph smoke with both NATS and metrics URLs wired in.
+running hosted MAVLink/CoT UDP snapshot checks and direct MAVLink, CoT, and CAP live graph smokes.
 
 The local browser entrypoint is:
 
@@ -107,5 +109,5 @@ http://localhost:8080
 
 Caddy proxies `/api/*` and `/healthz` to SemOps API so the UI uses the same-origin path operators will expect from
 real infrastructure. The direct API remains available on `http://localhost:8088` for diagnostics. The current UI/API
-snapshot has a fixture fallback plus MAVLink graph-backed readback; CoT graph state, stale policy, and the scenario
-runner are still being built.
+snapshot has a fixture fallback plus graph-backed MAVLink, CoT, and CAP readback. Stale/lifecycle policy, hosted CAP
+polling, and the scenario runner are still being built.

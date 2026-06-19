@@ -219,7 +219,8 @@ Current graph-wiring gate:
 
 ### CAP/EDXL
 
-Status: third feed; initial parser, append-evidence projection, graph writer, and COP readback slice exists.
+Status: third feed; parser, append-evidence projection, graph writer, COP readback, and skipped-by-default live graph
+smoke exist.
 
 Compliance and sample evidence:
 
@@ -255,8 +256,18 @@ First acceptance gate:
 Current commands:
 
 ```bash
-go test ./pkg/adapters/cap ./internal/projectors/cap ./internal/api/cop
+go test ./pkg/adapters/cap ./internal/projectors/cap ./internal/api/cop ./internal/smoke/cap
 ```
+
+Live graph gate:
+
+```bash
+SEMOPS_CAP_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/cap -run TestLiveGraphCAPBornFirstSmoke -v
+```
+
+This test skips unless `SEMOPS_CAP_LIVE_GRAPH_NATS_URL` points at a live SemStreams graph stack. It creates a CAP
+hazard entity before appending update evidence, polls `graph.query.prefix`, and asserts CAP did not write
+authoritative hazard geometry, severity, or status predicates.
 
 Remaining gates:
 

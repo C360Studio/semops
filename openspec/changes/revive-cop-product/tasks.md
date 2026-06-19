@@ -59,6 +59,7 @@
 - [x] 5.13 Add SemOps-owned TAK/CoT UDP/TCP fixture replay harness before graph projection
 - [x] 5.14 Add TAK/CoT projection planner for born-first tracks, marker control state, and GeoChat content state
 - [x] 5.15 Add CAP parser fixtures and append-evidence projection gate before hosted CAP service work
+- [x] 5.16 Add CAP live graph smoke for born-first append-evidence readback
 
 ## 6. Structural COP Stack
 
@@ -87,6 +88,7 @@
 - [x] 6.23 Add TAK/CoT live graph smoke and hosted UDP-to-Caddy-snapshot readback
 - [x] 6.24 Add CAP born-first graph writer path for hazard evidence plans
 - [x] 6.25 Add SemStreams prefix discovery for graph-backed COP readback
+- [x] 6.26 Add CAP live graph smoke to the one-command COP stack
 
 ## 7. COP UI
 

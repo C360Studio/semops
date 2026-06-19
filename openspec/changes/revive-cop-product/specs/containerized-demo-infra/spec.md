@@ -71,7 +71,10 @@ The first COP stack SHALL run locally with a single documented command after dep
 
 - **WHEN** the local Compose stack is used as the Phase 1 demo harness
 - **THEN** the smoke sends generated MAVLink over the hosted SemOps UDP listener
-- **AND** it waits for the same-origin Caddy COP snapshot path to expose graph-backed MAVLink track state
+- **AND** it sends CoT seed events over the hosted SemOps UDP listener
+- **AND** it waits for the same-origin Caddy COP snapshot path to expose graph-backed MAVLink track state and
+  TAK/CoT task/advisory state
+- **AND** it runs direct live graph smokes for MAVLink, TAK/CoT, and CAP evidence through SemStreams
 - **AND** it keeps the Svelte immutable asset cache check in place so Caddy remains a reverse proxy rather than a
   replacement static server
 

@@ -1,7 +1,8 @@
 # CAP/EDXL Feed Evidence
 
-Status: initial Phase 1 parser/projection/readback slice exists. Hosted CAP polling, NWS fixture capture, XML schema
-validation, and consumer-rule coverage remain open.
+Status: initial Phase 1 parser/projection/readback slice exists, with a skipped-by-default live graph smoke for
+born-first append-evidence behavior. Hosted CAP polling, NWS fixture capture, XML schema validation, and
+consumer-rule coverage remain open.
 
 ## Decision
 
@@ -16,6 +17,8 @@ track or asset facts.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
   `semops.cop.hazard.cap-evidence` contract.
 - `internal/api/cop` reads CAP hazard evidence JSON into the COP hazard overlay view model.
+- `internal/smoke/cap` writes CAP create and update plans through a live SemStreams graph stack, polls
+  `graph.query.prefix`, and checks that CAP evidence did not claim authoritative hazard predicates.
 - The COP model reserves `hazard_area`, `alert`, and `advisory` as first-slice entities.
 - The feed ladder assigns current CAP evidence to `content`, future authoritative alert lifecycle to `control`, and
   fetch/replay detail to `trace`.
@@ -90,6 +93,22 @@ Acceptance:
 - Provenance identifies `semops.feed.cap` and the source reference.
 - Missing CAP graph state is treated as cold-start or fallback state, not as a successful empty decode.
 
+### Live Graph Gate
+
+Current target command:
+
+```bash
+SEMOPS_CAP_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/cap -run TestLiveGraphCAPBornFirstSmoke -v
+```
+
+Acceptance:
+
+- CAP creates a `hazard_area` entity before appending update evidence.
+- The update path does not fail with `entity_not_found` or `foreign_edge_dropped`.
+- Prefix discovery can read the CAP hazard entity through `graph.query.prefix`.
+- CAP evidence includes update provenance while leaving `cop.hazard.geometry`, `cop.hazard.severity`, and
+  `cop.hazard.status` unowned.
+
 ### Replay Gate
 
 Target artifact:
@@ -109,6 +128,7 @@ Acceptance:
   lifecycle beyond the parsed evidence document.
 - The current projector intentionally does not own `cop.hazard.geometry`, `cop.hazard.severity`, or
   `cop.hazard.status`.
+- The live graph smoke is SemStreams graph-contract evidence, not CAP consumer conformance evidence.
 
 ## Adversarial Feed-Entry Questions
 
