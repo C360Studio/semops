@@ -55,7 +55,7 @@ func main() {
 	}
 	defer closeRuntime(runtime, cfg.ShutdownTimeout)
 
-	apiServer, err := startAPIServer(cfg.APIAddr)
+	apiServer, err := startAPIServer(cfg, runtime)
 	if err != nil {
 		log.Fatalf("Start SemOps API: %v", err)
 	}
@@ -78,17 +78,32 @@ func main() {
 	log.Println("SemOps shutdown complete")
 }
 
-func startAPIServer(addr string) (*http.Server, error) {
-	handler, err := copapi.NewHandler(copapi.NewFixtureProvider(nil))
+func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server, error) {
+	provider := copapi.SnapshotProvider(copapi.NewFixtureProvider(nil))
+	if runtime != nil {
+		if requester := runtime.GraphRequester(); requester != nil {
+			graphProvider, err := copapi.NewGraphProvider(
+				requester,
+				copapi.WithGraphFallback(provider),
+				copapi.WithGraphQueryTimeout(cfg.COP.GraphQueryTimeout),
+				copapi.WithMAVLinkSystems(cfg.MAVLink.Org, cfg.MAVLink.Platform, cfg.COP.MAVLinkSystemIDs),
+			)
+			if err != nil {
+				return nil, err
+			}
+			provider = graphProvider
+		}
+	}
+	handler, err := copapi.NewHandler(provider)
 	if err != nil {
 		return nil, err
 	}
-	listener, err := net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", cfg.APIAddr)
 	if err != nil {
-		return nil, fmt.Errorf("listen %s: %w", addr, err)
+		return nil, fmt.Errorf("listen %s: %w", cfg.APIAddr, err)
 	}
 	server := &http.Server{
-		Addr:              addr,
+		Addr:              cfg.APIAddr,
 		Handler:           handler.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

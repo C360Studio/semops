@@ -47,10 +47,11 @@ generated or replay MAVLink frames against the live SemStreams graph path before
 expansion. PX4/SITL remains feed-fidelity evidence; it is not the prerequisite for born-first graph compliance.
 The first generated-frame smoke passed on 2026-06-17. Follow-up clean-stack runs also registered SemOps COP owners
 and used typed owner tokens minted by SemStreams registry/bind results. The hosted `cmd/semops` composition root now
-registers COP owners before composing the MAVLink adapter. The first Docker Compose graph smoke now starts NATS,
-SemStreams graph backend, and SemOps runtime, polls health and metrics, and runs the MAVLink live graph smoke with the
-metrics URL wired in. Remaining structural evidence is full API/UI/scenario-runner stack expansion and durable
-checkpoint/read-back reconciliation.
+registers COP owners before composing the MAVLink adapter. The Docker Compose smoke now starts NATS, SemStreams graph
+backend, SemOps runtime/API, Svelte UI, and Caddy; polls health, metrics, API, UI, and Svelte immutable assets; sends
+generated MAVLink over the hosted UDP listener; waits for the Caddy-routed COP snapshot to show graph-backed track
+state; then runs the direct MAVLink live graph smoke with metrics. Remaining structural evidence is scenario-runner
+expansion, second-feed graph-state smoke coverage, and durable checkpoint/read-back reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -121,7 +122,9 @@ operator or diagnostic lens exposes them.
 
 The first implemented browser path runs through Caddy in local Compose. Caddy serves the Svelte COP and proxies
 `/api/*` plus `/healthz` to SemOps API so local development sees the same-origin shape the deployed product should
-use. The first snapshot endpoint is fixture-backed until the live graph snapshot provider is added.
+use. The first snapshot endpoint now queries configured MAVLink source asset and track entities through SemStreams
+`graph.query.entity`, maps graph triples into a curated COP view model, and falls back to fixtures only while no live
+graph state is available.
 
 Dynamic UI is scoped narrowly:
 
@@ -173,8 +176,17 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
   and to split append-evidence declarations from enforceable ownership/write-fence claims. SemOps now consumes that
   typed token path for MAVLink.
 - The first one-command graph smoke passes through `scripts/cop-stack-smoke.sh`; it starts the graph scaffold, polls
-  health and metrics, runs the MAVLink live graph smoke, and tears the stack down.
-- Remaining compliance hardening requires full stack expansion and durable checkpoint/read-back reconciliation.
+  health, metrics, API, UI, Svelte immutable asset caching, the hosted MAVLink UDP-to-snapshot path, and the direct
+  MAVLink live graph smoke before tearing the stack down.
+- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.112`, the
+  shipped ADR-055 must-exist flip tag.
+- The 2026-06-19 post-tag smoke passed against `v1.0.0-beta.112`: focused graph snapshot tests, `go test ./...`,
+  `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
+- SemStreams currently warns that `semops.feed.cap` has no enforceable ownership claim because it is
+  append-evidence-only. That matches the intended split between evidence-contribution declarations and write-fence
+  ownership, but SemOps should keep watching the tag for any bind-result/token behavior change on append-only
+  contributors.
+- Remaining compliance hardening requires second-feed stack expansion and durable checkpoint/read-back reconciliation.
 
 ## Adversarial Review Gates
 

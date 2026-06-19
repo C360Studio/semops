@@ -34,6 +34,14 @@ Phase 1.
 - **THEN** it renders the fixture snapshot and marks the source as fixture rather than presenting an empty COP
 - **AND** the fixture path remains a development fallback, not evidence that the graph-backed COP contract is complete
 
+#### Scenario: First live snapshot path reads governed graph state
+
+- **WHEN** configured MAVLink source asset and track entities exist in SemStreams
+- **THEN** `GET /api/cop/snapshot` maps their governed triples into the COP track, asset, feed-health, freshness,
+  confidence, and provenance view model
+- **AND** graph query not-found responses are handled as cold-start state rather than silently decoded as successful
+  entity data
+
 #### Scenario: Native trace stays behind the API
 
 - **WHEN** a feed emits native packets, raw frames, graph mutations, or replay trace events

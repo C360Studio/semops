@@ -67,6 +67,14 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **AND** the smoke asserts graph-ingest counter deltas for foreign-edge drops, owner-token mismatches, and
   indexing-profile defaults when a SemStreams metrics URL is provided
 
+#### Scenario: Hosted product path proves live graph visibility
+
+- **WHEN** the local Compose stack is used as the Phase 1 demo harness
+- **THEN** the smoke sends generated MAVLink over the hosted SemOps UDP listener
+- **AND** it waits for the same-origin Caddy COP snapshot path to expose graph-backed MAVLink track state
+- **AND** it keeps the Svelte immutable asset cache check in place so Caddy remains a reverse proxy rather than a
+  replacement static server
+
 ### Requirement: Scenario runner makes demos repeatable
 
 SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.

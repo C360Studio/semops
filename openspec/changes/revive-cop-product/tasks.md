@@ -77,6 +77,7 @@
 - [x] 6.18 Add hosted MAVLink UDP listener lifecycle wiring behind explicit runtime config
 - [ ] 6.19 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
 - [x] 6.20 Add fixture-backed SemOps COP API, Svelte UI container, and Caddy same-origin ingress to the stack smoke
+- [x] 6.21 Add hosted MAVLink UDP-to-Caddy-snapshot smoke for the first product-visible live graph path
 
 ## 7. COP UI
 
@@ -90,6 +91,7 @@
 - [x] 7.8 Record MapLibre/deck.gl starting stack and dynamic ontology UI scope gate
 - [x] 7.9 Add snapshot client tests and fixture fallback for the first SemOps API/UI contract
 - [x] 7.10 Run adversarial review on the API/UI/Caddy spine before claiming graph-backed COP completeness
+- [x] 7.11 Replace the static-only API provider with a graph-backed MAVLink snapshot provider and fixture fallback
 
 ## 8. Tier Escalation And Egress
 

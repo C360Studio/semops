@@ -58,6 +58,18 @@ progress:
     MAVLink live graph smoke against Docker-hosted NATS, SemStreams graph backend, and SemOps runtime.
   - Reran `go test ./... -count=1`, `go build -o /private/tmp/semops-build ./cmd/semops`, and
     `bash scripts/cop-stack-smoke.sh` after the typed-token and restart-reconciliation changes.
+  - Added graph-backed COP snapshots for configured MAVLink source asset/track IDs and a hosted UDP-to-Caddy-snapshot
+    smoke. The 2026-06-19 stack smoke passed against local SemStreams `adr-055-must-exist-flip`, including Svelte
+    immutable asset cache checks, hosted MAVLink UDP ingestion, graph-backed Caddy snapshot readback, and the direct
+    metrics-enabled MAVLink live graph smoke.
+  - SemStreams published `v1.0.0-beta.112` with the ADR-055 must-exist flip. SemOps removed the local module replace,
+    pinned `github.com/c360studio/semstreams v1.0.0-beta.112`, and passed:
+    `go test ./internal/api/cop ./internal/app ./internal/smoke/cop -count=1`,
+    `go test ./... -count=1`, `go build -o /private/tmp/semops-build ./cmd/semops`, and
+    `bash scripts/cop-stack-smoke.sh`.
+  - Observed SemStreams warning that `semops.feed.cap` has no enforceable ownership claim because CAP is
+    append-evidence-only. This matches the announced evidence-declaration/write-fence split, but remains a tag-watch
+    item in case append-only bind results stop minting owner tokens.
   - Pushed evidence branch `codex/revive-cop-product` to origin:
     `https://github.com/C360Studio/semops/compare/main...codex/revive-cop-product?expand=1`.
   - Opened draft PR #2 and commented the current ADR-055/056 evidence on SemOps issue #1 after GitHub connector
@@ -65,3 +77,5 @@ progress:
 
 remaining:
   - Add durable checkpoint/read-back reconciliation before calling restart/replay fully production-grade.
+  - Track whether append-evidence-only contributors should use a separate SemStreams declaration API once the
+    evidence-contribution/write-fence split graduates beyond the current warning behavior.

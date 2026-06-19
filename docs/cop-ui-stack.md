@@ -11,12 +11,13 @@ ideas that are promising but risky for a Phase 1 demo.
 The current implementation is intentionally narrow:
 
 - `ui` contains the clean-sheet Svelte 5/SvelteKit COP surface.
-- `internal/api/cop` exposes the first `GET /api/cop/snapshot` contract from a fixture provider.
+- `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider for configured MAVLink systems,
+  with the fixture provider retained only as a development fallback before live graph state exists.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
 - The UI renders a tactical placeholder map surface with tracks, assets, hazards, alerts, feed state, and provenance.
 
-This is the first full-stack spine, not the final map implementation. Live graph snapshot queries, bounded deltas,
-MapLibre/deck.gl rendering, footprints, tasks, and scenario playback remain next gates.
+This is the first full-stack spine, not the final map implementation. Bounded deltas, MapLibre/deck.gl rendering,
+footprints, tasks, second-feed state, and scenario playback remain next gates.
 
 ## Direction
 
@@ -56,6 +57,11 @@ The browser should not connect directly to NATS in Phase 1. SemOps API owns the 
 
 The UI consumes curated COP view models. Native packets, raw frames, SemStreams graph mutation details, and high-rate
 trace events stay behind the SemOps API unless an operator workflow proves they need a visible diagnostic lens.
+
+The first live snapshot provider queries SemStreams `graph.query.entity` for configured MAVLink source asset and track
+IDs. It maps owned triples into the COP view model and uses SemStreams classified query errors when available so
+not-found graph state is handled deliberately instead of being mis-decoded as success. The fixture snapshot remains a
+fallback for local development and cold-start demos; it is not graph-compliance evidence.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
