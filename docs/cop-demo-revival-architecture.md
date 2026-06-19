@@ -66,12 +66,13 @@ SemOps started materially stale; the first revival slices are correcting that:
 - `cmd/semops/main.go` now loads env config, starts the hosted SemStreams/COP ownership runtime, and can opt into
   MAVLink UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`. API server, monitoring services, TCP/serial
   transport, and dedicated adapter-process packaging remain open.
-- `compose.cop.yml` starts NATS, SemStreams graph backend, and SemOps runtime for the current graph smoke scaffold.
+- `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy for the current
+  graph smoke scaffold plus first browser-facing COP path.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
-- The current checkout and reachable Git history contain no frontend tree. The old flow-runtime UI idea should be
-  treated as historical context, not a surface to restore.
+- The active frontend tree is a clean-sheet Svelte 5 COP in `ui`; the old flow-runtime UI idea should be treated as
+  historical context, not a surface to restore.
 
 SemOps has salvageable MAVLink depth:
 
@@ -117,6 +118,10 @@ The product direction is:
 The browser should consume SemOps API snapshots and bounded deltas, not connect directly to NATS in Phase 1. Native
 packets, raw frames, graph mutation detail, and replay trace events stay behind SemOps API unless a deliberate
 operator or diagnostic lens exposes them.
+
+The first implemented browser path runs through Caddy in local Compose. Caddy serves the Svelte COP and proxies
+`/api/*` plus `/healthz` to SemOps API so local development sees the same-origin shape the deployed product should
+use. The first snapshot endpoint is fixture-backed until the live graph snapshot provider is added.
 
 Dynamic UI is scoped narrowly:
 
@@ -203,7 +208,9 @@ flowchart LR
         ASSOC["Track association evidence"]
         SEM["Semantic translation evidence"]
         API["SemOps COP API"]
+        INGRESS["Caddy ingress"]
         UI["SemOps Svelte COP"]
+        BROWSER["Operator browser"]
         CS["SemConnect CS API egress"]
     end
 
@@ -220,7 +227,9 @@ flowchart LR
     PROJ --> SS
     RULES --> SS
     SS --> API
-    API --> UI
+    BROWSER --> INGRESS
+    INGRESS --> API
+    INGRESS --> UI
     SS --> CS
     MAN --> API
     POL --> API
@@ -241,6 +250,7 @@ stack, then split edge/core only after the deployment metadata has real value.
 | --- | --- | --- | --- |
 | `nats` | Infra | Durable streams, KV buckets, request/reply, observability port | Phase 0 |
 | `semstreams-structural` | SemStreams | Graph ingest, graph query, rule processor, structural indexes | Phase 0 |
+| `caddy` | Infra | Same-origin browser ingress for SemOps UI and API paths in dev/demo stacks | Phase 1 |
 | `semops-api` | SemOps | COP snapshot API, SSE, commands, source/provenance views | Phase 1 |
 | `semops-ui` | SemOps | Svelte COP product surface; may be served by `semops-api` | Phase 1 |
 | `semops-scenario-runner` | SemOps | Scripted HA/DR feed playback, deterministic demo clock | Phase 1 |

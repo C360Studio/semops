@@ -238,6 +238,7 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvNATSURL:                    "nats://semstreams:4222",
 		EnvNATSName:                   "semops-test",
 		EnvNATSConnectTimeout:         "3s",
+		EnvAPIAddr:                    ":18088",
 		EnvOwnershipHeartbeatInterval: "4s",
 		EnvMAVLinkEnabled:             "false",
 		EnvMAVLinkSource:              "udp:14550",
@@ -258,6 +259,9 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if cfg.NATSConnectTimeout != 3*time.Second {
 		t.Fatalf("connect timeout = %s", cfg.NATSConnectTimeout)
+	}
+	if cfg.APIAddr != ":18088" {
+		t.Fatalf("api addr = %q", cfg.APIAddr)
 	}
 	if cfg.OwnershipHeartbeatInterval != 4*time.Second {
 		t.Fatalf("heartbeat interval = %s", cfg.OwnershipHeartbeatInterval)

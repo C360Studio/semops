@@ -2,10 +2,21 @@
 
 ## Status
 
-Starting point for the SemOps COP UI, recorded on 2026-06-17.
+Starting point for the SemOps COP UI, recorded on 2026-06-17. First UI/API/Caddy implementation slice added on
+2026-06-19.
 
 This is a product baseline, not a final design. It captures the first implementation direction and the scope gates for
 ideas that are promising but risky for a Phase 1 demo.
+
+The current implementation is intentionally narrow:
+
+- `ui` contains the clean-sheet Svelte 5/SvelteKit COP surface.
+- `internal/api/cop` exposes the first `GET /api/cop/snapshot` contract from a fixture provider.
+- `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
+- The UI renders a tactical placeholder map surface with tracks, assets, hazards, alerts, feed state, and provenance.
+
+This is the first full-stack spine, not the final map implementation. Live graph snapshot queries, bounded deltas,
+MapLibre/deck.gl rendering, footprints, tasks, and scenario playback remain next gates.
 
 ## Direction
 
@@ -45,6 +56,10 @@ The browser should not connect directly to NATS in Phase 1. SemOps API owns the 
 
 The UI consumes curated COP view models. Native packets, raw frames, SemStreams graph mutation details, and high-rate
 trace events stay behind the SemOps API unless an operator workflow proves they need a visible diagnostic lens.
+
+In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
+`/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
+diagnostics and smoke tests.
 
 ## Dynamic UI Scope Gate
 

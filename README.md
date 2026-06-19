@@ -12,6 +12,7 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
 - Architecture baseline: `docs/cop-demo-revival-architecture.md`
 - Feed evidence ladder: `docs/feed-validation-and-indexing-ladder.md`
 - COP model baseline: `docs/cop-model-and-governance.md`
+- COP UI baseline: `docs/cop-ui-stack.md`
 - Active MAVLink codec boundary: `pkg/adapters/mavlink`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
@@ -78,6 +79,16 @@ Run the current one-command graph smoke stack:
 bash scripts/cop-stack-smoke.sh
 ```
 
-This starts NATS, the SemStreams graph backend, and the SemOps runtime with Docker Compose, polls health and metrics,
-then runs the MAVLink live graph smoke with both NATS and metrics URLs wired in. It is a substrate/runtime smoke, not
-yet the full COP API, UI, scenario runner, or feed transport stack.
+This starts NATS, the SemStreams graph backend, the SemOps runtime/API, the Svelte COP UI, and Caddy with Docker
+Compose. The smoke polls SemStreams health and metrics, the direct SemOps API, and the Caddy-routed browser path before
+running the MAVLink live graph smoke with both NATS and metrics URLs wired in.
+
+The local browser entrypoint is:
+
+```text
+http://localhost:8080
+```
+
+Caddy proxies `/api/*` and `/healthz` to SemOps API so the UI uses the same-origin path operators will expect from
+real infrastructure. The direct API remains available on `http://localhost:8088` for diagnostics. The current UI/API
+snapshot is fixture-backed while the live graph snapshot provider and scenario runner are still being built.

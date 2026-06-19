@@ -1,0 +1,87 @@
+export type Snapshot = {
+  generated_at: string;
+  scenario: string;
+  summary: Summary;
+  feeds: FeedHealth[];
+  assets: Asset[];
+  tracks: Track[];
+  hazards: Hazard[];
+  alerts: Alert[];
+};
+
+export type Summary = {
+  active_tracks: number;
+  active_alerts: number;
+  stale_feeds: number;
+};
+
+export type FeedHealth = {
+  id: string;
+  name: string;
+  kind: string;
+  status: 'live' | 'planned' | 'stale' | 'down' | string;
+  last_event_at: string;
+  message: string;
+};
+
+export type Asset = {
+  id: string;
+  label: string;
+  kind: string;
+  source: string;
+  position?: GeoPoint;
+  confidence: number;
+  updated_at: string;
+  provenance: Provenance;
+};
+
+export type Track = {
+  id: string;
+  label: string;
+  source: string;
+  status: string;
+  position: GeoPoint;
+  velocity: string;
+  confidence: number;
+  updated_at: string;
+  provenance: Provenance;
+};
+
+export type Hazard = {
+  id: string;
+  label: string;
+  kind: string;
+  severity: string;
+  geometry: GeoPoint[];
+  source: string;
+  confidence: number;
+  updated_at: string;
+  provenance: Provenance;
+};
+
+export type Alert = {
+  id: string;
+  label: string;
+  severity: string;
+  status: string;
+  entity_id: string;
+  reason: string;
+  updated_at: string;
+};
+
+export type GeoPoint = {
+  lat: number;
+  lon: number;
+};
+
+export type Provenance = {
+  owner: string;
+  source_ref: string;
+  observed_at: string;
+};
+
+export type EntityRef =
+  | { kind: 'track'; id: string }
+  | { kind: 'asset'; id: string }
+  | { kind: 'hazard'; id: string }
+  | { kind: 'alert'; id: string };

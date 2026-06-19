@@ -15,6 +15,7 @@ const (
 	EnvNATSURL                    = "SEMOPS_NATS_URL"
 	EnvNATSName                   = "SEMOPS_NATS_NAME"
 	EnvNATSConnectTimeout         = "SEMOPS_NATS_CONNECT_TIMEOUT"
+	EnvAPIAddr                    = "SEMOPS_API_ADDR"
 	EnvOwnershipHeartbeatInterval = "SEMOPS_OWNERSHIP_HEARTBEAT_INTERVAL"
 	EnvMAVLinkEnabled             = "SEMOPS_MAVLINK_ENABLED"
 	EnvMAVLinkSource              = "SEMOPS_MAVLINK_SOURCE"
@@ -31,6 +32,7 @@ type Config struct {
 	NATSName                   string
 	NATSConnectTimeout         time.Duration
 	ShutdownTimeout            time.Duration
+	APIAddr                    string
 	OwnershipHeartbeatInterval time.Duration
 	MAVLink                    MAVLinkConfig
 }
@@ -59,6 +61,7 @@ func DefaultConfig() Config {
 		NATSName:                   "semops",
 		NATSConnectTimeout:         5 * time.Second,
 		ShutdownTimeout:            2 * time.Second,
+		APIAddr:                    ":8088",
 		OwnershipHeartbeatInterval: ownership.HeartbeatInterval,
 		MAVLink: MAVLinkConfig{
 			Enabled:      true,
@@ -88,6 +91,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 
 	setString(getenv, EnvNATSURL, &cfg.NATSURL)
 	setString(getenv, EnvNATSName, &cfg.NATSName)
+	setString(getenv, EnvAPIAddr, &cfg.APIAddr)
 	setString(getenv, EnvMAVLinkSource, &cfg.MAVLink.Source)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
@@ -135,6 +139,9 @@ func (c Config) Validate() error {
 	}
 	if c.NATSConnectTimeout <= 0 {
 		return fmt.Errorf("%s must be greater than zero", EnvNATSConnectTimeout)
+	}
+	if strings.TrimSpace(c.APIAddr) == "" {
+		return fmt.Errorf("%s is required", EnvAPIAddr)
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("shutdown timeout must be greater than zero")

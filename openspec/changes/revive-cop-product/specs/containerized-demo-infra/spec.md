@@ -24,6 +24,12 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **WHEN** the structural stack starts
 - **THEN** NATS, SemStreams, SemOps API, SemOps UI, scenario runner, and Phase 1 adapters expose health state
 
+#### Scenario: Browser ingress is same-origin in development
+
+- **WHEN** the local COP stack exposes the operator UI
+- **THEN** Caddy routes browser traffic to the Svelte UI and proxies SemOps API paths on the same origin
+- **AND** the direct SemOps API port remains available for diagnostics and smoke checks
+
 #### Scenario: Health checks use active polling
 
 - **WHEN** a long-running demo or paid operation is supervised

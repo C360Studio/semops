@@ -4,8 +4,14 @@
 
 semops
 dist
+build
+.svelte-kit
 node_modules
 coverage
+
+ui/build
+ui/.svelte-kit
+ui/node_modules
 
 tmp
 *.log

@@ -63,15 +63,25 @@ progress:
     `bash scripts/cop-stack-smoke.sh` successfully on 2026-06-17.
   - Added hosted MAVLink UDP listener lifecycle wiring behind `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`, with runtime cleanup
     tests and localhost UDP adapter tests.
+  - Added `internal/api/cop` with a fixture-backed `GET /api/cop/snapshot` and `/healthz` handler for the first
+    browser/API contract.
+  - Added `semops-ui` and `caddy` services to `compose.cop.yml`; Caddy exposes the local COP on port 8080 and proxies
+    `/api/*` plus `/healthz` to SemOps API on the same origin.
+  - Extended `scripts/cop-stack-smoke.sh` to poll the direct API and the Caddy-routed UI/API path before running the
+    MAVLink live graph smoke.
 
 current_evidence:
   - `go test ./internal/adapters/mavlink`
   - `go test ./internal/graphrequest`
   - `go test ./internal/app`
+  - `go test ./internal/api/cop`
   - `go test ./internal/smoke/mavlink`
   - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
   - `go test ./internal/stack`
   - `go test ./pkg/adapters/mavlink`
+  - `(cd ui && npm run check)`
+  - `(cd ui && npm run test)`
+  - `(cd ui && npm run build)`
   - `go build ./cmd/semops`
   - `docker compose -f compose.cop.yml config`
   - `bash scripts/cop-stack-smoke.sh`
@@ -79,5 +89,6 @@ current_evidence:
 remaining:
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
-  - Add one-command Compose for NATS, SemStreams, SemOps API, UI, scenario runner, and Phase 1 adapters.
+  - Replace the fixture API provider with a live graph-backed COP snapshot query.
+  - Add scenario runner and Phase 1 TAK/CoT and CAP feed transports to the one-command stack.
   - Add graph-state polling smoke tests that exercise at least two feed types.

@@ -76,10 +76,11 @@
 - [x] 6.17 Rerun one-command hosted stack smoke after typed-token migration and restart reconciliation
 - [x] 6.18 Add hosted MAVLink UDP listener lifecycle wiring behind explicit runtime config
 - [ ] 6.19 Expand Compose from graph scaffold to API, UI, scenario runner, and feed transports
+- [x] 6.20 Add fixture-backed SemOps COP API, Svelte UI container, and Caddy same-origin ingress to the stack smoke
 
 ## 7. COP UI
 
-- [ ] 7.1 Build Svelte 5 first screen as the usable COP, not a landing page
+- [x] 7.1 Build Svelte 5 first screen as the usable COP, not a landing page
 - [ ] 7.2 Add map layer for tracks, assets, hazard areas, footprints, alerts, and tasks
 - [ ] 7.3 Add source and provenance lenses for selected entities
 - [ ] 7.4 Validate whether topology/tier UI answers a real operator question before building it
@@ -87,6 +88,8 @@
 - [ ] 7.6 Run adversarial UX review before promoting topology, tier, or orchestration UI
 - [x] 7.7 Inventory current UI state and decide clean-sheet COP UI over flow-runtime restoration
 - [x] 7.8 Record MapLibre/deck.gl starting stack and dynamic ontology UI scope gate
+- [x] 7.9 Add snapshot client tests and fixture fallback for the first SemOps API/UI contract
+- [x] 7.10 Run adversarial review on the API/UI/Caddy spine before claiming graph-backed COP completeness
 
 ## 8. Tier Escalation And Egress
 

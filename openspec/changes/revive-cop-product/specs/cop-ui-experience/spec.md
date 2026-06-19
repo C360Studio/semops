@@ -28,6 +28,12 @@ Phase 1.
 - **THEN** it reads a SemOps API snapshot plus a bounded delta stream for tracks, assets, hazards, footprints, alerts,
   tasks, advisories, feed health, provenance, source evidence, and timeline state
 
+#### Scenario: First snapshot path tolerates backend absence
+
+- **WHEN** the first Svelte COP surface cannot reach the SemOps snapshot API during local development
+- **THEN** it renders the fixture snapshot and marks the source as fixture rather than presenting an empty COP
+- **AND** the fixture path remains a development fallback, not evidence that the graph-backed COP contract is complete
+
 #### Scenario: Native trace stays behind the API
 
 - **WHEN** a feed emits native packets, raw frames, graph mutations, or replay trace events

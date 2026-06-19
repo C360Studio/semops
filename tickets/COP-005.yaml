@@ -3,16 +3,20 @@ title: Build the first Svelte COP surface with source and provenance lenses
 assigned: svelte-developer
 depends_on: [COP-002, COP-004, COP-008, COP-009]
 blocks: [COP-006]
-status: ready
+status: in-progress
 reviewer: svelte-reviewer
 openspec_change: revive-cop-product
 
 review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-17-ui-inventory.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-ui-api-caddy-spine-review.md
 
 evidence_records:
   - docs/cop-ui-stack.md
   - openspec/changes/revive-cop-product/specs/cop-ui-experience/spec.md
+  - ui/src/routes/+page.svelte
+  - ui/src/lib/cop/client.test.ts
+  - deploy/caddy/Caddyfile
 
 scope:
   - Build the first SemOps Svelte 5 COP surface with map, source lens, provenance lens, and alert state.
@@ -41,3 +45,21 @@ acceptance:
 tdd:
   - Start with component tests against fixture snapshots from the SemOps API.
   - Add accessibility checks for interactive map/list/source controls.
+
+progress:
+  - Added a clean-sheet Svelte 5/SvelteKit COP first screen with tactical map surface, selectable track/asset/hazard
+    markers, alert rows, feed health, freshness, confidence, and provenance fields.
+  - Added a fixture-backed SemOps API snapshot client with fallback behavior so local UI work remains useful when the
+    API is unavailable.
+  - Added Caddy same-origin ingress in Compose so `/api/*` reaches SemOps API without browser CORS drift.
+
+current_evidence:
+  - `(cd ui && npm run check)`
+  - `(cd ui && npm run test)`
+  - `(cd ui && npm run build)`
+
+remaining:
+  - Replace the fixture snapshot provider with live graph-backed COP snapshots and graph revisions.
+  - Replace the tactical placeholder surface with MapLibre/deck.gl layers for tracks, assets, hazards, footprints,
+    alerts, and tasks.
+  - Add accessibility/e2e checks for selection, inspector, source, and provenance flows.
