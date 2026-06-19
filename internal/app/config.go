@@ -34,6 +34,7 @@ const (
 	EnvCoTTCPMaxEventBytes        = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
 	EnvCOPGraphQueryTimeout       = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
 	EnvCOPMAVLinkSystemIDs        = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
+	EnvCOPCoTUIDs                 = "SEMOPS_COP_COT_UIDS"
 )
 
 type Config struct {
@@ -93,6 +94,7 @@ type CoTTCPConfig struct {
 type COPConfig struct {
 	GraphQueryTimeout time.Duration
 	MAVLinkSystemIDs  []int
+	CoTUIDs           []string
 }
 
 func DefaultConfig() Config {
@@ -143,6 +145,12 @@ func DefaultConfig() Config {
 		COP: COPConfig{
 			GraphQueryTimeout: 2 * time.Second,
 			MAVLinkSystemIDs:  []int{42},
+			CoTUIDs: []string{
+				"ANDROID-ALPHA",
+				"ANDROID-BRAVO",
+				"MARKER-NORTH-GATE",
+				"CHAT-ALPHA-1",
+			},
 		},
 	}
 }
@@ -230,6 +238,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	if cfg.COP.MAVLinkSystemIDs, err = intListFromEnv(getenv, EnvCOPMAVLinkSystemIDs, cfg.COP.MAVLinkSystemIDs); err != nil {
 		return Config{}, err
 	}
+	if cfg.COP.CoTUIDs, err = stringListFromEnv(getenv, EnvCOPCoTUIDs, cfg.COP.CoTUIDs); err != nil {
+		return Config{}, err
+	}
 
 	return cfg, cfg.Validate()
 }
@@ -257,6 +268,9 @@ func (c Config) Validate() error {
 		if systemID < 0 || systemID > 255 {
 			return fmt.Errorf("%s contains invalid MAVLink system id %d", EnvCOPMAVLinkSystemIDs, systemID)
 		}
+	}
+	if len(c.COP.CoTUIDs) == 0 {
+		return fmt.Errorf("%s must include at least one UID", EnvCOPCoTUIDs)
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("shutdown timeout must be greater than zero")
@@ -376,6 +390,26 @@ func intListFromEnv(getenv func(string) string, name string, fallback []int) ([]
 			return nil, fmt.Errorf("parse %s: %w", name, err)
 		}
 		values = append(values, parsed)
+	}
+	return values, nil
+}
+
+func stringListFromEnv(getenv func(string) string, name string, fallback []string) ([]string, error) {
+	value := strings.TrimSpace(getenv(name))
+	if value == "" {
+		return append([]string(nil), fallback...), nil
+	}
+	parts := strings.Split(value, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		values = append(values, part)
+	}
+	if len(values) == 0 {
+		return nil, fmt.Errorf("parse %s: empty list", name)
 	}
 	return values, nil
 }

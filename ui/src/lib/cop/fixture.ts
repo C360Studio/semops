@@ -2,13 +2,16 @@ import type { Snapshot } from './types';
 
 const now = '2026-06-19T12:00:00Z';
 const observed = '2026-06-19T11:59:42Z';
+const takObserved = '2026-06-19T11:59:14Z';
 const advisoryObserved = '2026-06-19T11:58:00Z';
 
 export const fixtureSnapshot: Snapshot = {
   generated_at: now,
   scenario: 'phase-1-fixture',
   summary: {
-    active_tracks: 1,
+    active_tracks: 2,
+    active_tasks: 1,
+    active_advisories: 1,
     active_alerts: 1,
     stale_feeds: 0
   },
@@ -25,9 +28,9 @@ export const fixtureSnapshot: Snapshot = {
       id: 'feed.tak',
       name: 'TAK/CoT',
       kind: 'operators',
-      status: 'planned',
-      last_event_at: '2026-06-19T11:42:00Z',
-      message: 'Seed replay gate pending'
+      status: 'live',
+      last_event_at: takObserved,
+      message: 'Seed replay track, task, and GeoChat smoke path'
     },
     {
       id: 'feed.cap',
@@ -68,6 +71,58 @@ export const fixtureSnapshot: Snapshot = {
         owner: 'semops.feed.mavlink',
         source_ref: 'raw:mavlink:fixture:0002',
         observed_at: observed
+      }
+    },
+    {
+      id: 'c360.edge.cop.tak.track.android-alpha',
+      label: 'ANDROID-ALPHA',
+      source: 'tak-cot',
+      status: 'active.operator',
+      position: { lat: 38.892, lon: -77.035 },
+      velocity: '',
+      confidence: 1,
+      updated_at: takObserved,
+      provenance: {
+        owner: 'semops.feed.tak',
+        source_ref: 'cot://fixture/0001',
+        observed_at: takObserved
+      }
+    }
+  ],
+  tasks: [
+    {
+      id: 'c360.edge.cop.tak.task.marker-north-gate',
+      label: 'North Gate',
+      kind: 'marker',
+      source: 'tak-cot',
+      status: 'active.marker',
+      position: { lat: 38.894, lon: -77.038 },
+      description: 'checkpoint',
+      confidence: 1,
+      updated_at: takObserved,
+      provenance: {
+        owner: 'semops.feed.tak',
+        source_ref: 'cot://fixture/0003',
+        observed_at: takObserved
+      }
+    }
+  ],
+  advisories: [
+    {
+      id: 'c360.edge.cop.tak.advisory.chat-alpha-1',
+      label: 'GeoChat ANDROID-ALPHA',
+      kind: 'geochat',
+      source: 'tak-cot',
+      status: 'active.geochat',
+      text: 'hold at checkpoint',
+      sender: 'ANDROID-ALPHA',
+      position: { lat: 38.892, lon: -77.035 },
+      confidence: 1,
+      updated_at: takObserved,
+      provenance: {
+        owner: 'semops.feed.tak',
+        source_ref: 'cot://fixture/0004',
+        observed_at: takObserved
       }
     }
   ],

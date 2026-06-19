@@ -479,6 +479,7 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvOwnershipHeartbeatInterval: "4s",
 		EnvCOPGraphQueryTimeout:       "1500ms",
 		EnvCOPMAVLinkSystemIDs:        "42, 43",
+		EnvCOPCoTUIDs:                 "ANDROID-ALPHA, MARKER-NORTH-GATE",
 		EnvMAVLinkEnabled:             "false",
 		EnvMAVLinkSource:              "udp:14550",
 		EnvOrg:                        "lab",
@@ -517,6 +518,9 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if len(cfg.COP.MAVLinkSystemIDs) != 2 || cfg.COP.MAVLinkSystemIDs[0] != 42 || cfg.COP.MAVLinkSystemIDs[1] != 43 {
 		t.Fatalf("COP MAVLink systems = %+v", cfg.COP.MAVLinkSystemIDs)
+	}
+	if len(cfg.COP.CoTUIDs) != 2 || cfg.COP.CoTUIDs[0] != "ANDROID-ALPHA" || cfg.COP.CoTUIDs[1] != "MARKER-NORTH-GATE" {
+		t.Fatalf("COP CoT UIDs = %+v", cfg.COP.CoTUIDs)
 	}
 	if cfg.MAVLink.Enabled {
 		t.Fatal("MAVLink enabled = true, want false")
@@ -586,6 +590,11 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			name: "out of range mavlink system ids",
 			env:  map[string]string{EnvCOPMAVLinkSystemIDs: "300"},
 			want: EnvCOPMAVLinkSystemIDs,
+		},
+		{
+			name: "empty cot uids",
+			env:  map[string]string{EnvCOPCoTUIDs: ","},
+			want: EnvCOPCoTUIDs,
 		},
 		{
 			name: "bad udp max datagram",

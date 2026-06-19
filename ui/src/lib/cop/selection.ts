@@ -1,6 +1,6 @@
-import type { Alert, Asset, EntityRef, Hazard, Snapshot, Track } from './types';
+import type { Advisory, Alert, Asset, EntityRef, Hazard, Snapshot, Task, Track } from './types';
 
-export type SelectableEntity = Track | Asset | Hazard | Alert;
+export type SelectableEntity = Track | Asset | Task | Advisory | Hazard | Alert;
 
 export function resolveEntity(snapshot: Snapshot | null, selected: EntityRef): SelectableEntity | undefined {
   if (!snapshot) {
@@ -11,6 +11,12 @@ export function resolveEntity(snapshot: Snapshot | null, selected: EntityRef): S
   }
   if (selected.kind === 'asset') {
     return snapshot.assets.find((asset) => asset.id === selected.id);
+  }
+  if (selected.kind === 'task') {
+    return snapshot.tasks.find((task) => task.id === selected.id);
+  }
+  if (selected.kind === 'advisory') {
+    return snapshot.advisories.find((advisory) => advisory.id === selected.id);
   }
   if (selected.kind === 'hazard') {
     return snapshot.hazards.find((hazard) => hazard.id === selected.id);
@@ -27,6 +33,12 @@ export function reconcileSelection(snapshot: Snapshot | null, selected: EntityRe
   }
   if (snapshot.assets[0]) {
     return { kind: 'asset', id: snapshot.assets[0].id };
+  }
+  if (snapshot.tasks[0]) {
+    return { kind: 'task', id: snapshot.tasks[0].id };
+  }
+  if (snapshot.advisories[0]) {
+    return { kind: 'advisory', id: snapshot.advisories[0].id };
   }
   if (snapshot.hazards[0]) {
     return { kind: 'hazard', id: snapshot.hazards[0].id };

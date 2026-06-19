@@ -20,7 +20,8 @@ product going forward.
 - Add a SemOps OpenSpec baseline for the COP revival.
 - Establish SemOps as the product owner for the complete COP while treating SemLink as a reusable pattern source.
 - Define the first canonical COP entity set and ownership model.
-- Require governed feed adapters for MAVLink, TAK/CoT, CAP/EDXL, SAPIENT, ADS-B, KLV, and CS API egress.
+- Require governed feed adapters for MAVLink, TAK/CoT, CAP/EDXL, SAPIENT, ADS-B, KLV, and bidirectional CS API
+  interop at the standards edge.
 - Pin SemOps to SemStreams ADR-055/056: born-first entity creation, no auto-vivify, and explicit
   `ForeignEdgeClaim`-derived relationship writes.
 - Add a feed validation and indexing ladder so every feed has explicit mock, simulator, replay, compliance, and

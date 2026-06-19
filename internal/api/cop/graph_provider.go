@@ -11,14 +11,20 @@ import (
 	"strings"
 	"time"
 
+	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 )
 
 const (
-	SubjectGraphQueryEntity  = "graph.query.entity"
-	DefaultGraphQueryTimeout = 2 * time.Second
+	SubjectGraphQueryEntity      = "graph.query.entity"
+	DefaultGraphQueryTimeout     = 2 * time.Second
+	DefaultFeedFreshnessWindow   = 2 * time.Minute
+	DefaultCoTUIDAndroidAlpha    = "ANDROID-ALPHA"
+	DefaultCoTUIDAndroidBravo    = "ANDROID-BRAVO"
+	DefaultCoTUIDMarkerNorthGate = "MARKER-NORTH-GATE"
+	DefaultCoTUIDChatAlpha       = "CHAT-ALPHA-1"
 )
 
 type GraphRequester interface {
@@ -36,12 +42,20 @@ type GraphProvider struct {
 	now            func() time.Time
 	fallback       SnapshotProvider
 	mavlinkSystems []MAVLinkSystemRef
+	cotUIDs        []CoTUIDRef
+	freshness      time.Duration
 }
 
 type MAVLinkSystemRef struct {
 	Org      string
 	Platform string
 	SystemID int
+}
+
+type CoTUIDRef struct {
+	Org      string
+	Platform string
+	UID      string
 }
 
 type GraphProviderOption func(*GraphProvider)
@@ -55,6 +69,7 @@ func NewGraphProvider(requester GraphRequester, opts ...GraphProviderOption) (*G
 		querySubject: SubjectGraphQueryEntity,
 		queryTimeout: DefaultGraphQueryTimeout,
 		now:          time.Now,
+		freshness:    DefaultFeedFreshnessWindow,
 		mavlinkSystems: []MAVLinkSystemRef{{
 			Org:      "c360",
 			Platform: "edge",
@@ -65,11 +80,15 @@ func NewGraphProvider(requester GraphRequester, opts ...GraphProviderOption) (*G
 		opt(provider)
 	}
 	provider.mavlinkSystems = normalizeMAVLinkSystems(provider.mavlinkSystems)
+	provider.cotUIDs = normalizeCoTUIDs(provider.cotUIDs)
 	if provider.now == nil {
 		provider.now = time.Now
 	}
 	if provider.queryTimeout <= 0 {
 		provider.queryTimeout = DefaultGraphQueryTimeout
+	}
+	if provider.freshness <= 0 {
+		provider.freshness = DefaultFeedFreshnessWindow
 	}
 	if provider.querySubject == "" {
 		provider.querySubject = SubjectGraphQueryEntity
@@ -112,9 +131,32 @@ func WithMAVLinkSystems(org, platform string, systemIDs []int) GraphProviderOpti
 	}
 }
 
+func WithCoTUIDs(org, platform string, uids []string) GraphProviderOption {
+	return func(provider *GraphProvider) {
+		provider.cotUIDs = make([]CoTUIDRef, 0, len(uids))
+		for _, uid := range uids {
+			provider.cotUIDs = append(provider.cotUIDs, CoTUIDRef{
+				Org:      org,
+				Platform: platform,
+				UID:      uid,
+			})
+		}
+	}
+}
+
+func WithFeedFreshnessWindow(window time.Duration) GraphProviderOption {
+	return func(provider *GraphProvider) {
+		if window > 0 {
+			provider.freshness = window
+		}
+	}
+}
+
 func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	assetsByID := make(map[string]graph.EntityState)
 	tracksByID := make(map[string]graph.EntityState)
+	tasksByID := make(map[string]graph.EntityState)
+	advisoriesByID := make(map[string]graph.EntityState)
 	var firstErr error
 
 	for _, system := range p.mavlinkSystems {
@@ -130,7 +172,30 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		}
 	}
 
-	if len(assetsByID) == 0 && len(tracksByID) == 0 {
+	for _, uid := range p.cotUIDs {
+		if asset, ok, err := p.queryEntity(ctx, uid.assetID()); err != nil {
+			firstErr = errors.Join(firstErr, err)
+		} else if ok {
+			assetsByID[asset.ID] = asset
+		}
+		if track, ok, err := p.queryEntity(ctx, uid.trackID()); err != nil {
+			firstErr = errors.Join(firstErr, err)
+		} else if ok {
+			tracksByID[track.ID] = track
+		}
+		if task, ok, err := p.queryEntity(ctx, uid.taskID()); err != nil {
+			firstErr = errors.Join(firstErr, err)
+		} else if ok {
+			tasksByID[task.ID] = task
+		}
+		if advisory, ok, err := p.queryEntity(ctx, uid.advisoryID()); err != nil {
+			firstErr = errors.Join(firstErr, err)
+		} else if ok {
+			advisoriesByID[advisory.ID] = advisory
+		}
+	}
+
+	if len(assetsByID) == 0 && len(tracksByID) == 0 && len(tasksByID) == 0 && len(advisoriesByID) == 0 {
 		if p.fallback != nil {
 			return p.fallback.Snapshot(ctx)
 		}
@@ -139,7 +204,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		}
 	}
 
-	return p.snapshotFromGraph(assetsByID, tracksByID), nil
+	return p.snapshotFromGraph(assetsByID, tracksByID, tasksByID, advisoriesByID), nil
 }
 
 func (p *GraphProvider) queryEntity(ctx context.Context, entityID string) (graph.EntityState, bool, error) {
@@ -182,12 +247,14 @@ func (p *GraphProvider) requestEntity(ctx context.Context, body []byte) ([]byte,
 func (p *GraphProvider) snapshotFromGraph(
 	assetsByID map[string]graph.EntityState,
 	tracksByID map[string]graph.EntityState,
+	tasksByID map[string]graph.EntityState,
+	advisoriesByID map[string]graph.EntityState,
 ) Snapshot {
 	now := p.now().UTC()
 	trackSourcePositions := make(map[string]GeoPoint)
 	tracks := make([]Track, 0, len(tracksByID))
 	for _, entity := range sortedEntities(tracksByID) {
-		track, sourceID, ok := trackFromEntity(entity)
+		track, sourceID, ok := trackFromEntity(entity, now, p.freshness)
 		if !ok {
 			continue
 		}
@@ -207,47 +274,78 @@ func (p *GraphProvider) snapshotFromGraph(
 		assets = append(assets, assetFromEntity(entity, point))
 	}
 
-	feeds := firstPhaseFeedHealth(now, tracks)
+	tasks := make([]Task, 0, len(tasksByID))
+	for _, entity := range sortedEntities(tasksByID) {
+		task, ok := taskFromEntity(entity, now, p.freshness)
+		if ok {
+			tasks = append(tasks, task)
+		}
+	}
+
+	advisories := make([]Advisory, 0, len(advisoriesByID))
+	for _, entity := range sortedEntities(advisoriesByID) {
+		advisory, ok := advisoryFromEntity(entity, now, p.freshness)
+		if ok {
+			advisories = append(advisories, advisory)
+		}
+	}
+
+	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories)
 	return Snapshot{
 		GeneratedAt: now,
 		Scenario:    "phase-1-live-graph",
 		Summary: Summary{
-			ActiveTracks: len(tracks),
-			ActiveAlerts: 0,
-			StaleFeeds:   countFeeds(feeds, "stale"),
+			ActiveTracks:     len(tracks),
+			ActiveTasks:      len(tasks),
+			ActiveAdvisories: len(advisories),
+			ActiveAlerts:     0,
+			StaleFeeds:       countFeeds(feeds, "stale"),
 		},
-		Feeds:   feeds,
-		Assets:  assets,
-		Tracks:  tracks,
-		Hazards: []Hazard{},
-		Alerts:  []Alert{},
+		Feeds:      feeds,
+		Assets:     assets,
+		Tracks:     tracks,
+		Tasks:      tasks,
+		Advisories: advisories,
+		Hazards:    []Hazard{},
+		Alerts:     []Alert{},
 	}
 }
 
-func firstPhaseFeedHealth(now time.Time, tracks []Track) []FeedHealth {
-	mavlink := FeedHealth{
-		ID:          "feed.mavlink",
-		Name:        "MAVLink",
-		Kind:        "telemetry",
-		Status:      "stale",
-		LastEventAt: now,
-		Message:     "Waiting for graph-backed MAVLink state",
-	}
-	if len(tracks) > 0 {
-		mavlink.Status = "live"
-		mavlink.LastEventAt = latestTrackUpdate(tracks)
-		mavlink.Message = "Graph-backed source asset and track state"
-	}
+func firstPhaseFeedHealth(
+	now time.Time,
+	freshness time.Duration,
+	tracks []Track,
+	tasks []Task,
+	advisories []Advisory,
+) []FeedHealth {
+	mavlink := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.mavlink",
+		"MAVLink",
+		"telemetry",
+		"Waiting for graph-backed MAVLink state",
+		"Graph-backed source asset and track state",
+		trackObservationTimes(filterTracksBySource(tracks, "mavlink")),
+	)
+	takObservations := append(
+		trackObservationTimes(filterTracksBySource(tracks, "tak-cot")),
+		taskObservationTimes(tasks)...,
+	)
+	takObservations = append(takObservations, advisoryObservationTimes(advisories)...)
+	tak := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.tak",
+		"TAK/CoT",
+		"operators",
+		"Waiting for graph-backed TAK/CoT state",
+		"Graph-backed CoT tracks, tasks, and advisories",
+		takObservations,
+	)
 	return []FeedHealth{
 		mavlink,
-		{
-			ID:          "feed.tak",
-			Name:        "TAK/CoT",
-			Kind:        "operators",
-			Status:      "planned",
-			LastEventAt: now.Add(-18 * time.Minute),
-			Message:     "Seed replay gate pending",
-		},
+		tak,
 		{
 			ID:          "feed.cap",
 			Name:        "CAP",
@@ -259,11 +357,77 @@ func firstPhaseFeedHealth(now time.Time, tracks []Track) []FeedHealth {
 	}
 }
 
-func latestTrackUpdate(tracks []Track) time.Time {
-	var latest time.Time
+func feedHealthFromObservations(
+	now time.Time,
+	freshness time.Duration,
+	id string,
+	name string,
+	kind string,
+	waitingMessage string,
+	liveMessage string,
+	observedAt []time.Time,
+) FeedHealth {
+	feed := FeedHealth{
+		ID:          id,
+		Name:        name,
+		Kind:        kind,
+		Status:      "stale",
+		LastEventAt: now,
+		Message:     waitingMessage,
+	}
+	latest := latestTime(observedAt)
+	if latest.IsZero() {
+		return feed
+	}
+	feed.LastEventAt = latest
+	if now.Sub(latest) > freshness {
+		feed.Message = "Last graph-backed state is outside freshness window"
+		return feed
+	}
+	feed.Status = "live"
+	feed.Message = liveMessage
+	return feed
+}
+
+func filterTracksBySource(tracks []Track, source string) []Track {
+	filtered := make([]Track, 0, len(tracks))
 	for _, track := range tracks {
-		if track.UpdatedAt.After(latest) {
-			latest = track.UpdatedAt
+		if track.Source == source {
+			filtered = append(filtered, track)
+		}
+	}
+	return filtered
+}
+
+func trackObservationTimes(tracks []Track) []time.Time {
+	times := make([]time.Time, 0, len(tracks))
+	for _, track := range tracks {
+		times = append(times, track.UpdatedAt)
+	}
+	return times
+}
+
+func taskObservationTimes(tasks []Task) []time.Time {
+	times := make([]time.Time, 0, len(tasks))
+	for _, task := range tasks {
+		times = append(times, task.UpdatedAt)
+	}
+	return times
+}
+
+func advisoryObservationTimes(advisories []Advisory) []time.Time {
+	times := make([]time.Time, 0, len(advisories))
+	for _, advisory := range advisories {
+		times = append(times, advisory.UpdatedAt)
+	}
+	return times
+}
+
+func latestTime(times []time.Time) time.Time {
+	var latest time.Time
+	for _, next := range times {
+		if next.After(latest) {
+			latest = next
 		}
 	}
 	return latest
@@ -287,7 +451,7 @@ func assetFromEntity(entity graph.EntityState, position *GeoPoint) Asset {
 	}
 }
 
-func trackFromEntity(entity graph.EntityState) (Track, string, bool) {
+func trackFromEntity(entity graph.EntityState, now time.Time, freshness time.Duration) (Track, string, bool) {
 	positionValue, ok := propertyValue(entity, copmodel.TrackPosition)
 	if !ok {
 		return Track{}, "", false
@@ -299,21 +463,124 @@ func trackFromEntity(entity graph.EntityState) (Track, string, bool) {
 
 	sourceID := stringProperty(entity, copmodel.TrackSource, "")
 	updatedAt := observedAt(entity, copmodel.TrackObservedAt, copmodel.ProvenanceObservedAt)
+	source := stringProperty(entity, copmodel.ProvenanceSource, sourceFromEntityID(entity.ID))
 	return Track{
 		ID:         entity.ID,
 		Label:      trackLabel(entity),
-		Source:     stringProperty(entity, copmodel.ProvenanceSource, "mavlink"),
-		Status:     stringProperty(entity, copmodel.TrackStatus, "unknown"),
+		Source:     source,
+		Status:     freshnessStatus(stringProperty(entity, copmodel.TrackStatus, "unknown"), now, updatedAt, freshness),
 		Position:   position,
 		Velocity:   stringProperty(entity, copmodel.TrackVelocity, ""),
 		Confidence: confidence(entity),
 		UpdatedAt:  updatedAt,
 		Provenance: Provenance{
-			Owner:     copmodel.OwnerMAVLink,
+			Owner:     ownerForSource(source),
 			SourceRef: stringProperty(entity, copmodel.ProvenanceSourceRef, ""),
 			Observed:  updatedAt,
 		},
 	}, sourceID, true
+}
+
+func taskFromEntity(entity graph.EntityState, now time.Time, freshness time.Duration) (Task, bool) {
+	updatedAt := observedAt(entity, copmodel.ProvenanceObservedAt)
+	position := optionalPoint(entity, copmodel.TaskPosition)
+	source := stringProperty(entity, copmodel.ProvenanceSource, sourceFromEntityID(entity.ID))
+	return Task{
+		ID:          entity.ID,
+		Label:       stringProperty(entity, copmodel.TaskName, nativeOrInstanceLabel(entity, copmodel.TaskNativeID)),
+		Kind:        stringProperty(entity, copmodel.TaskKind, "task"),
+		Source:      source,
+		Status:      freshnessStatus(stringProperty(entity, copmodel.TaskStatus, "unknown"), now, updatedAt, freshness),
+		Position:    position,
+		Description: stringProperty(entity, copmodel.TaskDescription, ""),
+		Confidence:  confidence(entity),
+		UpdatedAt:   updatedAt,
+		Provenance: Provenance{
+			Owner:     ownerForSource(source),
+			SourceRef: stringProperty(entity, copmodel.ProvenanceSourceRef, ""),
+			Observed:  updatedAt,
+		},
+	}, true
+}
+
+func advisoryFromEntity(entity graph.EntityState, now time.Time, freshness time.Duration) (Advisory, bool) {
+	text := stringProperty(entity, copmodel.AdvisoryText, "")
+	if text == "" {
+		return Advisory{}, false
+	}
+	updatedAt := observedAt(entity, copmodel.ProvenanceObservedAt)
+	position := optionalPoint(entity, copmodel.AdvisoryPosition)
+	source := stringProperty(entity, copmodel.ProvenanceSource, sourceFromEntityID(entity.ID))
+	sender := stringProperty(entity, copmodel.AdvisorySender, "")
+	label := text
+	if sender != "" {
+		label = "GeoChat " + sender
+	}
+	return Advisory{
+		ID:         entity.ID,
+		Label:      label,
+		Kind:       stringProperty(entity, copmodel.AdvisoryKind, "advisory"),
+		Source:     source,
+		Status:     freshnessStatus(stringProperty(entity, copmodel.AdvisoryStatus, "unknown"), now, updatedAt, freshness),
+		Text:       text,
+		Sender:     sender,
+		Position:   position,
+		Confidence: confidence(entity),
+		UpdatedAt:  updatedAt,
+		Provenance: Provenance{
+			Owner:     ownerForSource(source),
+			SourceRef: stringProperty(entity, copmodel.ProvenanceSourceRef, ""),
+			Observed:  updatedAt,
+		},
+	}, true
+}
+
+func optionalPoint(entity graph.EntityState, predicate string) *GeoPoint {
+	value, ok := propertyValue(entity, predicate)
+	if !ok {
+		return nil
+	}
+	point, ok := geoPointFromWKT(value)
+	if !ok {
+		return nil
+	}
+	return &point
+}
+
+func freshnessStatus(status string, now time.Time, updatedAt time.Time, freshness time.Duration) string {
+	if status == "" {
+		status = "unknown"
+	}
+	if freshness <= 0 || updatedAt.IsZero() || now.Sub(updatedAt) <= freshness || strings.HasPrefix(status, "stale") {
+		return status
+	}
+	if _, suffix, ok := strings.Cut(status, "."); ok && suffix != "" {
+		return "stale." + suffix
+	}
+	return "stale"
+}
+
+func sourceFromEntityID(entityID string) string {
+	if strings.Contains(entityID, ".cop.tak.") {
+		return "tak-cot"
+	}
+	if strings.Contains(entityID, ".cop.mavlink.") {
+		return "mavlink"
+	}
+	return "graph"
+}
+
+func ownerForSource(source string) string {
+	switch source {
+	case "tak-cot":
+		return copmodel.OwnerTAK
+	case "mavlink":
+		return copmodel.OwnerMAVLink
+	case "cap":
+		return copmodel.OwnerCAP
+	default:
+		return copmodel.OwnerFusion
+	}
 }
 
 func sortedEntities(entities map[string]graph.EntityState) []graph.EntityState {
@@ -443,6 +710,9 @@ func timeFromAny(value any) (time.Time, bool) {
 
 func trackLabel(entity graph.EntityState) string {
 	nativeID := stringProperty(entity, copmodel.TrackNativeID, "")
+	if uid := cotUIDFromNativeID(nativeID); uid != "" {
+		return uid
+	}
 	if systemID := systemIDFromNativeID(nativeID); systemID != "" {
 		return "UAS " + systemID
 	}
@@ -450,6 +720,21 @@ func trackLabel(entity graph.EntityState) string {
 		return "UAS " + systemID
 	}
 	return instanceLabel(entity.ID)
+}
+
+func nativeOrInstanceLabel(entity graph.EntityState, predicate string) string {
+	if uid := cotUIDFromNativeID(stringProperty(entity, predicate, "")); uid != "" {
+		return uid
+	}
+	return instanceLabel(entity.ID)
+}
+
+func cotUIDFromNativeID(nativeID string) string {
+	nativeID = strings.TrimSpace(nativeID)
+	if !strings.HasPrefix(nativeID, "cot.uid.") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(nativeID, "cot.uid."))
 }
 
 func systemIDFromNativeID(nativeID string) string {
@@ -506,6 +791,24 @@ func normalizeMAVLinkSystems(systems []MAVLinkSystemRef) []MAVLinkSystemRef {
 	return out
 }
 
+func normalizeCoTUIDs(uids []CoTUIDRef) []CoTUIDRef {
+	out := make([]CoTUIDRef, 0, len(uids))
+	for _, uid := range uids {
+		uid.UID = strings.TrimSpace(uid.UID)
+		if uid.UID == "" {
+			continue
+		}
+		if uid.Org == "" {
+			uid.Org = "c360"
+		}
+		if uid.Platform == "" {
+			uid.Platform = "edge"
+		}
+		out = append(out, uid)
+	}
+	return out
+}
+
 func (s MAVLinkSystemRef) assetID() string {
 	return mavlinkEntityID(s.Org, s.Platform, copmodel.EntityAsset, s.SystemID)
 }
@@ -523,4 +826,20 @@ func mavlinkEntityID(org, platform, entityType string, systemID int) string {
 		Type:     entityType,
 		Instance: fmt.Sprintf("system-%d", systemID),
 	}.Key()
+}
+
+func (s CoTUIDRef) assetID() string {
+	return cotprojector.EntityID(s.Org, s.Platform, copmodel.EntityAsset, s.UID)
+}
+
+func (s CoTUIDRef) trackID() string {
+	return cotprojector.EntityID(s.Org, s.Platform, copmodel.EntityTrack, s.UID)
+}
+
+func (s CoTUIDRef) taskID() string {
+	return cotprojector.EntityID(s.Org, s.Platform, copmodel.EntityTask, s.UID)
+}
+
+func (s CoTUIDRef) advisoryID() string {
+	return cotprojector.EntityID(s.Org, s.Platform, copmodel.EntityAdvisory, s.UID)
 }

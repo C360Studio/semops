@@ -11,14 +11,15 @@ ideas that are promising but risky for a Phase 1 demo.
 The current implementation is intentionally narrow:
 
 - `ui` contains the clean-sheet Svelte 5/SvelteKit COP surface.
-- `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider for configured MAVLink systems,
-  with the fixture provider retained only as a development fallback before live graph state exists.
+- `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider for configured MAVLink systems
+  and TAK/CoT seed UIDs, with the fixture provider retained only as a development fallback before live graph state
+  exists.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
-- The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, hazards, labels, and
-  picking, plus alert, feed state, and provenance panels.
+- The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, TAK/CoT tasks,
+  TAK/CoT advisories, hazards, labels, and picking, plus alert, feed state, and provenance panels.
 
 This is the first full-stack spine, not the final map implementation. Bounded deltas, real basemap/terrain sources,
-footprints, alert/task geometry, second-feed state, and scenario playback remain next gates.
+footprints, alert geometry, index-backed CoT discovery, and scenario playback remain next gates.
 
 ## Direction
 
@@ -49,10 +50,11 @@ selected entity needs a richer 3D inspection surface than a map symbol, footprin
 
 The first implemented map layer uses a local empty MapLibre style so the demo does not depend on external tiles while
 the API and graph spine are still moving. deck.gl currently owns point, polygon, label, and picking overlays for the
-snapshot's tracks, assets, and hazard areas. That proves the rendering integration and selection path, not a finished
-cartographic basemap, temporal trail layer, or task/alert geometry model. Vite pins deck/luma/math/probe packages into a
-single renderer chunk to avoid luma's circular re-export warning in production builds; the remaining large renderer
-chunks are accepted while the first screen is inherently map-first.
+snapshot's tracks, assets, TAK/CoT tasks, TAK/CoT advisories, and hazard areas. That proves the rendering integration
+and selection path, not a finished cartographic basemap, temporal trail layer, alert geometry model, or full tasking
+workflow. Vite pins deck/luma/math/probe packages into a single renderer chunk to avoid luma's circular re-export
+warning in production builds; the remaining large renderer chunks are accepted while the first screen is inherently
+map-first.
 
 ## Browser Contract
 
@@ -66,10 +68,11 @@ The browser should not connect directly to NATS in Phase 1. SemOps API owns the 
 The UI consumes curated COP view models. Native packets, raw frames, SemStreams graph mutation details, and high-rate
 trace events stay behind the SemOps API unless an operator workflow proves they need a visible diagnostic lens.
 
-The first live snapshot provider queries SemStreams `graph.query.entity` for configured MAVLink source asset and track
-IDs. It maps owned triples into the COP view model and uses SemStreams classified query errors when available so
-not-found graph state is handled deliberately instead of being mis-decoded as success. The fixture snapshot remains a
-fallback for local development and cold-start demos; it is not graph-compliance evidence.
+The first live snapshot provider queries SemStreams `graph.query.entity` for configured MAVLink source asset/track IDs
+and known TAK/CoT seed UIDs. It maps owned triples into the COP view model and uses SemStreams classified query errors
+when available so not-found graph state is handled deliberately instead of being mis-decoded as success. The fixture
+snapshot remains a fallback for local development and cold-start demos; it is not graph-compliance evidence. Seed UID
+readback is the current proof path; index-backed discovery is a product-grade follow-up.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for

@@ -7,6 +7,10 @@ describe('COP selection helpers', () => {
   it('resolves the selected entity across supported COP collections', () => {
     expect(resolveEntity(fixtureSnapshot, { kind: 'track', id: fixtureSnapshot.tracks[0].id })?.label).toBe('UAS 42');
     expect(resolveEntity(fixtureSnapshot, { kind: 'asset', id: fixtureSnapshot.assets[0].id })?.label).toBe('MAVLink system 42');
+    expect(resolveEntity(fixtureSnapshot, { kind: 'task', id: fixtureSnapshot.tasks[0].id })?.label).toBe('North Gate');
+    expect(resolveEntity(fixtureSnapshot, { kind: 'advisory', id: fixtureSnapshot.advisories[0].id })?.label).toBe(
+      'GeoChat ANDROID-ALPHA'
+    );
     expect(resolveEntity(fixtureSnapshot, { kind: 'hazard', id: fixtureSnapshot.hazards[0].id })?.label).toBe(
       'Flood watch sector'
     );
@@ -33,11 +37,32 @@ describe('COP selection helpers', () => {
       id: fixtureSnapshot.assets[0].id
     });
     expect(reconcileSelection(without(without(fixtureSnapshot, 'tracks'), 'assets'), stale)).toEqual({
+      kind: 'task',
+      id: fixtureSnapshot.tasks[0].id
+    });
+    expect(
+      reconcileSelection(without(without(without(fixtureSnapshot, 'tracks'), 'assets'), 'tasks'), stale)
+    ).toEqual({
+      kind: 'advisory',
+      id: fixtureSnapshot.advisories[0].id
+    });
+    expect(
+      reconcileSelection(
+        without(without(without(without(fixtureSnapshot, 'tracks'), 'assets'), 'tasks'), 'advisories'),
+        stale
+      )
+    ).toEqual({
       kind: 'hazard',
       id: fixtureSnapshot.hazards[0].id
     });
     expect(
-      reconcileSelection(without(without(without(fixtureSnapshot, 'tracks'), 'assets'), 'hazards'), stale)
+      reconcileSelection(
+        without(
+          without(without(without(without(fixtureSnapshot, 'tracks'), 'assets'), 'tasks'), 'advisories'),
+          'hazards'
+        ),
+        stale
+      )
     ).toEqual({
       kind: 'alert',
       id: fixtureSnapshot.alerts[0].id
@@ -45,7 +70,7 @@ describe('COP selection helpers', () => {
   });
 });
 
-function without<K extends keyof Pick<Snapshot, 'tracks' | 'assets' | 'hazards' | 'alerts'>>(
+function without<K extends keyof Pick<Snapshot, 'tracks' | 'assets' | 'tasks' | 'advisories' | 'hazards' | 'alerts'>>(
   snapshot: Snapshot,
   key: K
 ): Snapshot {

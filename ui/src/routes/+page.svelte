@@ -4,7 +4,7 @@
   import { loadSnapshot, freshnessLabel } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, type SelectableEntity } from '$lib/cop/selection';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
-  import type { Alert, Asset, EntityRef, Hazard, Snapshot, Track } from '$lib/cop/types';
+  import type { Advisory, Alert, Asset, EntityRef, Hazard, Snapshot, Task, Track } from '$lib/cop/types';
 
   let snapshot = $state<Snapshot | null>(null);
   let source = $state<'api' | 'fixture'>('fixture');
@@ -55,8 +55,12 @@
           <dd>{snapshot.summary.active_tracks}</dd>
         </div>
         <div>
-          <dt>Alerts</dt>
-          <dd>{snapshot.summary.active_alerts}</dd>
+          <dt>Tasks</dt>
+          <dd>{snapshot.summary.active_tasks}</dd>
+        </div>
+        <div>
+          <dt>Msgs</dt>
+          <dd>{snapshot.summary.active_advisories}</dd>
         </div>
         <div>
           <dt>Feeds</dt>
@@ -140,7 +144,7 @@
   {/if}
 </main>
 
-{#snippet entityInspector(entity: Track | Asset | Hazard | Alert)}
+{#snippet entityInspector(entity: Track | Asset | Task | Advisory | Hazard | Alert)}
   <div class="inspector-grid">
     {#if 'source' in entity}
       <div>
@@ -195,6 +199,14 @@
         </div>
       </dl>
     </section>
+  {/if}
+
+  {#if 'description' in entity && entity.description}
+    <p class="reason">{entity.description}</p>
+  {/if}
+
+  {#if 'text' in entity}
+    <p class="reason">{entity.text}</p>
   {/if}
 
   {#if 'reason' in entity}

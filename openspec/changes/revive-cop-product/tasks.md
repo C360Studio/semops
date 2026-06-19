@@ -65,7 +65,7 @@
 - [ ] 6.2 Add MAVLink, TAK/CoT, and CAP/EDXL structural adapters
 - [ ] 6.3 Add service health and active state polling for long-running demo runs
 - [ ] 6.4 Add scenario playback for a flood/evacuation and shared-airspace vignette
-- [ ] 6.5 Add smoke test that verifies graph state from at least two feed types
+- [x] 6.5 Add smoke test that verifies graph state from at least two feed types
 - [ ] 6.6 Run adversarial review on demo credibility, monitoring, and graph/index cardinality before Phase 1 signoff
 - [x] 6.7 Add an in-process MAVLink adapter harness with pollable health before Compose wiring
 - [x] 6.8 Add durable MAVLink replay fixture storage behind the bounded raw lane
@@ -83,12 +83,13 @@
 - [x] 6.20 Add fixture-backed SemOps COP API, Svelte UI container, and Caddy same-origin ingress to the stack smoke
 - [x] 6.21 Add hosted MAVLink UDP-to-Caddy-snapshot smoke for the first product-visible live graph path
 - [x] 6.22 Add TAK/CoT graph writer, adapter graph path, stack constructor, and opt-in hosted listener wiring
+- [x] 6.23 Add TAK/CoT live graph smoke and hosted UDP-to-Caddy-snapshot readback
 
 ## 7. COP UI
 
 - [x] 7.1 Build Svelte 5 first screen as the usable COP, not a landing page
-- [ ] 7.2 Add map layer for tracks, assets, hazard areas, footprints, alerts, and tasks
-- [ ] 7.3 Add source and provenance lenses for selected entities
+- [x] 7.2 Add map layer for tracks, assets, TAK tasks/advisories, and hazard areas
+- [x] 7.3 Add source and provenance lenses for selected entities
 - [ ] 7.4 Validate whether topology/tier UI answers a real operator question before building it
 - [ ] 7.5 Add component tests and accessibility checks for core operator flows
 - [ ] 7.6 Run adversarial UX review before promoting topology, tier, or orchestration UI
@@ -99,13 +100,15 @@
 - [x] 7.11 Replace the static-only API provider with a graph-backed MAVLink snapshot provider and fixture fallback
 - [x] 7.12 Add first MapLibre/deck.gl tactical layer for tracks, assets, hazards, labels, and picking
 - [x] 7.13 Add tested selection reconciliation and pressed-state affordances for map/alert controls
+- [x] 7.14 Add TAK/CoT task and advisory readback to the COP API/UI contract
+- [ ] 7.15 Add sensor footprints and alert geometry after their graph contracts have evidence
 
 ## 8. Tier Escalation And Egress
 
 - [ ] 8.1 Add ADS-B and SAPIENT feed boundaries
 - [ ] 8.2 Add statistical track association for ambiguous air tracks
 - [ ] 8.3 Add KLV footprint extraction
-- [ ] 8.4 Add SemConnect CS API egress as a standards-facing projection
+- [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge
 - [ ] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory
 - [ ] 8.6 Run adversarial review before SAPIENT, KLV, semantic, or standards-conformance claims are demoed
 

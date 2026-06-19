@@ -25,7 +25,7 @@ Recommended order:
 1. MAVLink.
 2. TAK/CoT.
 3. CAP/EDXL.
-4. SemConnect CS API egress.
+4. CS API bidirectional interop.
 5. ADS-B.
 6. SAPIENT.
 7. KLV/STANAG 4609.
@@ -247,9 +247,9 @@ First acceptance gate:
 - Given a CAP alert with polygon or circle area data, the adapter writes a hazard area and advisory with provenance,
   confidence, expiry/staleness behavior, and no overwrite of stricter source facts.
 
-### SemConnect CS API Egress
+### CS API Bidirectional Interop
 
-Status: egress after structural graph is stable.
+Status: interop after structural graph is stable.
 
 Compliance evidence:
 
@@ -263,18 +263,21 @@ Local assets:
 
 Mock or harness:
 
-- Use SemOps graph state as input and SemConnect as a standards-facing projection.
+- Use SemOps graph state as input and SemConnect as a standards-facing projection for egress.
+- Use a later SemOps CS API ingress adapter only for systems that already speak CS API.
 - Run the SemConnect harness when SemOps exposes enough system, deployment, datastream, and observation state.
 
 Indexing profile pressure:
 
 - CS API projection targets should not drive indexing directly. The SemOps graph owner decides profile at entity
-  birth; egress is a view.
+  birth; the bridge is an interface.
 
 First acceptance gate:
 
 - A SemOps asset, sensor, datastream, and observation can be projected through SemConnect and checked by the
   conformance harness without weakening SemOps ownership rules.
+- A CS API source fixture can be mapped into SemOps canonical COP state without bypassing born-first writes,
+  provenance, freshness, or command authority.
 
 ### ADS-B
 

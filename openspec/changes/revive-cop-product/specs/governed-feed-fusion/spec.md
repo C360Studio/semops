@@ -81,6 +81,23 @@ requests before triples or foreign edges are added.
 - **AND** GeoChat text becomes `content` advisory state
 - **AND** native CoT XML remains on bounded raw or replay lanes referenced by provenance source refs
 
+#### Scenario: TAK readback proves graph state before broader feed expansion
+
+- **WHEN** the hosted SemOps stack receives seed CoT events over the configured UDP listener
+- **THEN** the live COP snapshot reads TAK/CoT track, task, and advisory entities back from SemStreams graph state
+- **AND** feed health reflects live or stale state from graph observation timestamps
+- **AND** the result remains a seed-UID readback gate, not a claim of TAK Server-equivalent behavior
+
+#### Scenario: CS API interop remains bidirectional and standards-facing
+
+- **WHEN** an external system can publish or consume OGC Connected Systems API resources
+- **THEN** SemOps SHALL preserve a path to map that state into or out of the governed COP model through a CS API
+  gateway or projection boundary
+- **AND** native adapters for MAVLink, TAK/CoT, CAP/EDXL, ADS-B, SAPIENT, and KLV remain first-class paths when their
+  native protocols carry product-critical semantics
+- **AND** CS API interop MUST preserve SemStreams ownership, provenance, freshness, and indexing-profile decisions
+  rather than becoming a bypass around governed feed fusion
+
 #### Scenario: Must-exist compliance is proven before feed-fidelity expansion
 
 - **WHEN** SemOps prepares for a SemStreams ADR-055/056 must-exist breaking tag

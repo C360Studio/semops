@@ -20,10 +20,10 @@ deck.gl for high-rate tactical overlays.
 #### Scenario: First tactical map layer is bounded
 
 - **WHEN** the first MapLibre/deck.gl implementation is present
-- **THEN** it renders snapshot tracks, assets, and hazard areas through deck.gl point, polygon, label, and picking
-  overlays
-- **AND** it does not claim finished basemap tiles, terrain, track trails, footprints, alert geometry, task geometry, or
-  temporal scrubbing until those layers have their own evidence
+- **THEN** it renders snapshot tracks, assets, TAK/CoT tasks, TAK/CoT advisories, and hazard areas through deck.gl
+  point, polygon, label, and picking overlays
+- **AND** it does not claim finished basemap tiles, terrain, track trails, footprints, alert geometry, full task
+  workflow geometry, or temporal scrubbing until those layers have their own evidence
 
 ### Requirement: Browser state comes through SemOps API
 
@@ -44,9 +44,9 @@ Phase 1.
 
 #### Scenario: First live snapshot path reads governed graph state
 
-- **WHEN** configured MAVLink source asset and track entities exist in SemStreams
-- **THEN** `GET /api/cop/snapshot` maps their governed triples into the COP track, asset, feed-health, freshness,
-  confidence, and provenance view model
+- **WHEN** configured MAVLink source asset/track entities or TAK/CoT seed UID entities exist in SemStreams
+- **THEN** `GET /api/cop/snapshot` maps their governed triples into the COP track, asset, task, advisory, feed-health,
+  freshness, confidence, and provenance view model
 - **AND** graph query not-found responses are handled as cold-start state rather than silently decoded as successful
   entity data
 

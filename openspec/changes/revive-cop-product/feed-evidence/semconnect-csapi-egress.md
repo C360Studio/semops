@@ -1,11 +1,40 @@
-# SemConnect CS API Egress Evidence
+# SemConnect CS API Interop Evidence
 
-Status: standards-facing egress candidate after structural graph state exists.
+Status: standards-facing bidirectional interop candidate after structural graph state exists.
+
+## Positioning
+
+SemOps should treat OGC Connected Systems API as an interface, not as the internal COP architecture.
+
+The product core should ingest native formats close to their operational source, project them into SemStreams governed
+graph state, and preserve source-specific semantics, provenance, freshness, and ownership. A CS API bridge belongs at
+the standards edge: useful for systems that already publish CS API, for consumers that need CS API, and for formal
+conformance evidence once SemOps has meaningful Systems, Datastreams, Observations, Deployments, and Events to expose.
+
+This "native core plus standards bridge" posture gives SemOps three advantages:
+
+- **Velocity:** MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, and KLV capabilities can be adopted without waiting for every
+  native detail to fit a standards schema first.
+- **Semantic flexibility:** SemStreams graph state can model multi-feed fusion, ownership, confidence, provenance, and
+  agent-facing evidence without being constrained to a standards exchange shape.
+- **Risk isolation:** If CS API mappings or versions move, the bridge changes. The COP core and native adapters do not
+  become coupled to an external standards lifecycle.
+
+CS API still matters. It buys decoupling for standards-aware clients, a possible plug-and-play ecosystem for vendors
+that already expose CS API, and a unified tasking/actuation vocabulary. SemOps should use those benefits at the edge
+without forcing disaster-response feed ingestion through a standards driver before the operator can see the data.
 
 ## Decision
 
-SemConnect CS API is not a Phase 1 input feed. It should be used as a standards-facing egress path once SemOps has
-governed systems, sensors, datastreams, observations, deployments, and events worth projecting.
+- Native adapters remain first-class for feeds whose native protocols carry product-critical semantics.
+- CS API ingress is allowed for systems that already speak CS API, but it maps into the governed COP model through the
+  same ownership, provenance, freshness, and indexing discipline as any native feed.
+- CS API egress is the standards-facing view over SemOps-owned graph state; ingress is the standards-facing input
+  adapter for systems that already speak CS API.
+- CS API tasking or actuation must route through SemOps command authority and governance rather than bypassing native
+  command safety.
+- SemConnect remains the conformance anchor unless the organization explicitly recharters SemOps to own a CS API
+  gateway product.
 
 ## Local Evidence
 
@@ -23,7 +52,22 @@ governed systems, sensors, datastreams, observations, deployments, and events wo
 
 ## Gates
 
-### Projection Readiness Gate
+### Ingress Gate
+
+Target command after SemOps has a CS API ingress adapter boundary:
+
+```bash
+go test ./internal/adapters/csapi
+```
+
+Acceptance:
+
+- SemOps can map CS API System, Datastream, Observation, Deployment, and SystemEvent inputs into canonical COP state.
+- CS API ingress does not auto-vivify graph entities outside SemStreams born-first mutation contracts.
+- Source provenance records that the data arrived through CS API without erasing the upstream system identity.
+- Indexing profiles are selected by SemOps entity semantics, not by the fact that the transport was CS API.
+
+### Egress Gate
 
 Target command after SemOps exposes structural graph state:
 
@@ -50,7 +94,7 @@ Acceptance:
 
 - The harness runs end to end and archives TestNG XML.
 - Any pass/fail count is read from TestNG output, not inferred from `go test`.
-- If SemOps-specific egress changes SemConnect mappings, the conformance delta is recorded.
+- If SemOps-specific ingress or egress changes SemConnect mappings, the conformance delta is recorded.
 
 ### Replay Gate
 
@@ -66,16 +110,18 @@ Acceptance:
 
 ## Known Gaps
 
-- SemOps does not yet expose the canonical graph state needed for meaningful CS API egress.
-- CS API egress should not block Phase 1 structural COP.
-- Egress can be fully conformant while SemOps feed ingestion is still incomplete; keep those claims separate.
+- SemOps does not yet expose the canonical graph state needed for meaningful CS API ingress or egress.
+- CS API interop should not block Phase 1 structural COP.
+- Native adapter support can be strong while CS API projection is still incomplete; keep those claims separate.
+- CS API conformance can be green while a native feed remains only fixture/replay-tested; keep those claims separate.
 
 ## Adversarial Feed-Entry Questions
 
-- Are we using SemConnect as egress rather than moving COP product ownership into SemConnect?
-- Does the SemOps graph own indexing/provenance before CS API projection?
+- Are we using CS API as an interface instead of making it the core SemOps architecture?
+- Does native ingestion preserve operational velocity for HADR-style data arriving in the format agencies brought?
+- Does the bridge preserve ownership, provenance, freshness, and indexing decisions made by SemOps graph contracts?
+- Does tasking through CS API route through command authority rather than bypassing native safety controls?
 - Does the conformance result come from the actual harness output?
-- Are SemOps workflows driving egress requirements, or are we chasing standards coverage too early?
 
 ## Source Links
 

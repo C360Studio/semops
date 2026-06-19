@@ -9,14 +9,18 @@ type Snapshot struct {
 	Feeds       []FeedHealth `json:"feeds"`
 	Assets      []Asset      `json:"assets"`
 	Tracks      []Track      `json:"tracks"`
+	Tasks       []Task       `json:"tasks"`
+	Advisories  []Advisory   `json:"advisories"`
 	Hazards     []Hazard     `json:"hazards"`
 	Alerts      []Alert      `json:"alerts"`
 }
 
 type Summary struct {
-	ActiveTracks int `json:"active_tracks"`
-	ActiveAlerts int `json:"active_alerts"`
-	StaleFeeds   int `json:"stale_feeds"`
+	ActiveTracks     int `json:"active_tracks"`
+	ActiveTasks      int `json:"active_tasks"`
+	ActiveAdvisories int `json:"active_advisories"`
+	ActiveAlerts     int `json:"active_alerts"`
+	StaleFeeds       int `json:"stale_feeds"`
 }
 
 type FeedHealth struct {
@@ -46,6 +50,33 @@ type Track struct {
 	Status     string     `json:"status"`
 	Position   GeoPoint   `json:"position"`
 	Velocity   string     `json:"velocity"`
+	Confidence float64    `json:"confidence"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+	Provenance Provenance `json:"provenance"`
+}
+
+type Task struct {
+	ID          string     `json:"id"`
+	Label       string     `json:"label"`
+	Kind        string     `json:"kind"`
+	Source      string     `json:"source"`
+	Status      string     `json:"status"`
+	Position    *GeoPoint  `json:"position,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Confidence  float64    `json:"confidence"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	Provenance  Provenance `json:"provenance"`
+}
+
+type Advisory struct {
+	ID         string     `json:"id"`
+	Label      string     `json:"label"`
+	Kind       string     `json:"kind"`
+	Source     string     `json:"source"`
+	Status     string     `json:"status"`
+	Text       string     `json:"text"`
+	Sender     string     `json:"sender,omitempty"`
+	Position   *GeoPoint  `json:"position,omitempty"`
 	Confidence float64    `json:"confidence"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 	Provenance Provenance `json:"provenance"`

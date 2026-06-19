@@ -25,6 +25,24 @@ Every feed entry MUST answer four questions before it enters implementation:
 3. What abstraction or boundary prevents the demo path from blocking the full product?
 4. What are we explicitly not claiming yet?
 
+## Standards Positioning
+
+SemOps uses a native core plus standards bridge strategy.
+
+Native adapters are tactical necessities for HADR-style operations: agencies bring MAVLink, CoT, CAP, ADS-B, video,
+and vendor-specific feeds as they are. SemOps should ingest those formats directly, keep native semantics where they
+matter, and project governed COP state into SemStreams without waiting for every source capability to be represented
+first as a standards driver.
+
+CS API is still important, but as an interface rather than the internal architecture. It buys decoupling for
+standards-aware clients, a possible vendor plug-and-play path when systems already expose CS API, and a unified
+standards-facing vocabulary for tasking/actuation. The bridge should be bidirectional: SemOps can consume CS API from
+systems that speak it and publish CS API for consumers that require it. The bridge must preserve SemOps ownership,
+provenance, freshness, command authority, and indexing decisions.
+
+The positioning statement is: SemOps moves fast natively, interoperates through standards, and isolates standards
+change at the bridge instead of coupling the COP core to an external schema lifecycle.
+
 ## Feed Roadmaps
 
 ### MAVLink
@@ -80,22 +98,26 @@ source facts.
 Not claimed yet:
 Full EDXL suite, authoritative hazard truth, or emergency-alerting authority.
 
-### SemConnect CS API Egress
+### CS API Bidirectional Interop
 
 Demo/MVP lane:
 Curated SemOps graph state projected through SemConnect once structural graph state is stable and conformance harness
-inputs exist.
+inputs exist. CS API ingress remains a later adapter boundary for systems that already publish Systems, Datastreams,
+Observations, Deployments, or Events through CS API.
 
 Full product lane:
 Production standards gateway with auth, pagination, deployment/system/datastream/observation coverage, subscriptions
-or delta export, schema evolution, and conformance evidence per release.
+or delta export, schema evolution, bidirectional mapping, command/tasking governance, and conformance evidence per
+release.
 
 Boundary to preserve now:
-Keep CS API as egress/view over SemOps-owned graph state; do not route raw feed ingestion through CS API to make the
-demo look standards-shaped.
+Keep CS API as a bridge over SemOps-owned graph state; do not route native feed ingestion through CS API just to make
+the demo look standards-shaped. CS API ingress is acceptable when a source already speaks CS API, but it must enter the
+same governed projection path as native adapters.
 
 Not claimed yet:
-Full OGC Connected Systems API product inside SemOps or replacing SemConnect.
+Full OGC Connected Systems API product inside SemOps, replacing SemConnect, or automatic support for every new sensor
+because a CS API schema exists.
 
 ### ADS-B
 
@@ -170,4 +192,4 @@ needs prove the value.
   product path.
 - Before claiming compliance, link the exact harness, schema, official test, or documented interoperability run.
 - Before broadening a feed, verify whether the new capability belongs in SemOps product space, SemStreams framework
-  space, SemConnect egress, SemSource media handling, or an external system integration.
+  space, SemConnect CS API interop, SemSource media handling, or an external system integration.

@@ -42,9 +42,10 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-transport-replay-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-projection-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-graph-wiring-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-readback-csapi-interop-review.md
 
 scope:
-  - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API egress, ADS-B, SAPIENT,
+  - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
     and KLV/STANAG 4609.
   - Track the demo/MVP lane and full product lane for each feed so narrow fixtures do not create dead-end
     architecture.
@@ -86,12 +87,17 @@ progress:
     born-state reconciliation.
   - TAK/CoT now has a graph writer, adapter write path, NATS-backed stack constructor, and opt-in hosted runtime
     composition with UDP/TCP listener lifecycle behind `SEMOPS_COT_ENABLED`.
+  - TAK/CoT now has an opt-in live graph smoke for track/task/advisory readback and a hosted UDP-to-Caddy-snapshot
+    smoke path in the Compose stack.
   - Added `docs/feed-product-roadmap.md` so every feed carries an explicit demo/MVP lane, full product lane,
     preserved boundary, and not-claimed-yet list; TAK Server is tracked as future SemOps/SemStreams-backed service
     scope, with external TAK interoperability as part of the migration path.
+  - Recorded the native core plus standards bridge positioning for CS API: native adapters remain first-class, while
+    CS API ingress/egress is a bidirectional standards edge that preserves SemOps ownership, provenance, freshness,
+    command authority, and indexing decisions.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
-  - Add TAK live graph smoke, COP UI feed state, and stale-data downgrade policy before TAK enters the structural
-    stack.
+  - Add index-backed discovery for CoT entities so seed UID readback is not the long-term COP snapshot discovery
+    model.

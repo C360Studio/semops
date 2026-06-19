@@ -12,7 +12,7 @@ Each feed SHALL pass documented validation gates before it is treated as a SemOp
 #### Scenario: Feed order is explicit
 
 - **WHEN** the revival plan sequences feed work
-- **THEN** it starts with MAVLink, then TAK/CoT, then CAP/EDXL before ADS-B, SAPIENT, KLV, or CS API egress
+- **THEN** it starts with MAVLink, then TAK/CoT, then CAP/EDXL before ADS-B, SAPIENT, KLV, or CS API interop
 
 ### Requirement: Feed roadmaps distinguish demo scope from full product scope
 
@@ -72,7 +72,7 @@ canonical graph state.
 
 #### Scenario: Durable operational state stays control shaped
 
-- **WHEN** tasks, alerts, commands, feed health, scenario state, or egress lifecycle state are projected
+- **WHEN** tasks, alerts, commands, feed health, scenario state, or standards bridge lifecycle state are projected
 - **THEN** those entities use `control` unless their storage shape proves they are high-cardinality trace data
 
 ### Requirement: KLV remains a binary proof spike until proven
