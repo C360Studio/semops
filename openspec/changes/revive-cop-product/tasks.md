@@ -57,6 +57,7 @@
 - [x] 5.11 Add SemOps-local TAK/CoT native parser gate before UDP/TCP replay or graph projection
 - [x] 5.12 Track demo/MVP versus full-product roadmap boundaries for every feed
 - [x] 5.13 Add SemOps-owned TAK/CoT UDP/TCP fixture replay harness before graph projection
+- [x] 5.14 Add TAK/CoT projection planner for born-first tracks, marker control state, and GeoChat content state
 
 ## 6. Structural COP Stack
 

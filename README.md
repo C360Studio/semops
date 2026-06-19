@@ -36,6 +36,8 @@ The initial ownership-contract matrix lives in `pkg/cop` and covers:
 
 - MAVLink current track state as strict `signal`
 - TAK/CoT current track state as strict `signal`
+- TAK/CoT marker/task control state as strict `control`
+- TAK/CoT GeoChat/advisory text as strict `content`
 - CAP hazard/advisory evidence as append-only `content`
 - deterministic fusion alerts as derived `control`
 
@@ -55,8 +57,8 @@ Run the current active test gate:
 go test ./...
 ```
 
-The test suite validates the SemStreams contract gate, COP ownership model, and active MAVLink codec. SITL/PX4
-simulator gates are still future evidence, not current product claims.
+The test suite validates the SemStreams contract gate, COP ownership model, active MAVLink codec, and TAK/CoT
+parser/replay/projection gates. SITL/PX4 simulator gates are still future evidence, not current product claims.
 
 Run the hosted runtime against a live SemStreams/NATS stack:
 

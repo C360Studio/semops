@@ -55,6 +55,20 @@ const (
 	AlertAffectedEntity = "cop.alert.affected_entity"
 	AlertSource         = "cop.alert.source"
 
+	TaskName        = "cop.task.name"
+	TaskKind        = "cop.task.kind"
+	TaskStatus      = "cop.task.status"
+	TaskPosition    = "cop.task.position"
+	TaskDescription = "cop.task.description"
+	TaskNativeID    = "cop.task.native_id"
+
+	AdvisoryText     = "cop.advisory.text"
+	AdvisoryKind     = "cop.advisory.kind"
+	AdvisoryStatus   = "cop.advisory.status"
+	AdvisorySender   = "cop.advisory.sender"
+	AdvisoryPosition = "cop.advisory.position"
+	AdvisoryNativeID = "cop.advisory.native_id"
+
 	ProvenanceSource     = "cop.provenance.source"
 	ProvenanceConfidence = "cop.provenance.confidence"
 	ProvenanceObservedAt = "cop.provenance.observed_at"
@@ -177,6 +191,57 @@ func TAKTrackContract() projection.Contract {
 	}
 }
 
+// TAKTaskContract owns durable TAK/CoT control state such as map markers and
+// operator intent points.
+func TAKTaskContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.task.tak-current-state",
+		MessageType:     "semops.tak.task.v1",
+		EntityPattern:   SourceEntityPattern("tak", EntityTask),
+		IndexingProfile: "control",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				TaskName,
+				TaskKind,
+				TaskStatus,
+				TaskPosition,
+				TaskDescription,
+				TaskNativeID,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+	}
+}
+
+// TAKAdvisoryContract owns TAK/CoT textual content such as GeoChat messages.
+func TAKAdvisoryContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.advisory.tak-content",
+		MessageType:     "semops.tak.advisory.v1",
+		EntityPattern:   SourceEntityPattern("tak", EntityAdvisory),
+		IndexingProfile: "content",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				AdvisoryText,
+				AdvisoryKind,
+				AdvisoryStatus,
+				AdvisorySender,
+				AdvisoryPosition,
+				AdvisoryNativeID,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+	}
+}
+
 // CAPHazardEvidenceContract appends loose civil-alert evidence without taking
 // ownership of current hazard geometry or status.
 func CAPHazardEvidenceContract() projection.Contract {
@@ -230,6 +295,8 @@ func FirstPhaseOwnedContracts() []OwnedContract {
 		{Owner: OwnerAsset, Contract: SourceAssetContract()},
 		{Owner: OwnerMAVLink, Contract: MAVLinkTrackContract()},
 		{Owner: OwnerTAK, Contract: TAKTrackContract()},
+		{Owner: OwnerTAK, Contract: TAKTaskContract()},
+		{Owner: OwnerTAK, Contract: TAKAdvisoryContract()},
 		{Owner: OwnerCAP, Contract: CAPHazardEvidenceContract()},
 		{Owner: OwnerFusion, Contract: FusionAlertContract()},
 	}

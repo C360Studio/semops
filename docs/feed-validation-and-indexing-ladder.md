@@ -169,6 +169,9 @@ Local assets:
   operator dots, markers, GeoChat, air-track marshal/unmarshal, and malformed input rejection.
 - SemOps also has a CoT bounded raw lane, JSON Lines replay store, deterministic seed fixture pack, graph-free adapter
   harness, and UDP/TCP fixture replay tests.
+- SemOps now has `internal/projectors/cot`, a pure projection planner that births TAK source assets before strict
+  track source edges, maps markers to `control` tasks, maps GeoChat to `content` advisories, and carries raw source
+  references without embedding native XML in graph entities.
 - SemLink has a TAK bridge and `scripts/demo-up.sh` seeds UDP CoT events for operators, markers, and chat.
 
 Mock or harness:
@@ -180,8 +183,8 @@ Mock or harness:
 Indexing profile pressure:
 
 - Position events project to `signal`.
-- Markers, tasks, and chat-visible operator state project to `control` unless the payload is primarily text.
-- Remarks and chat text may need separate `content` entities or evidence fields.
+- Markers and task-like map control state project to `control`.
+- GeoChat text projects to separate `content` advisory entities.
 - Native event references and replay steps are `trace`.
 
 First acceptance gate:
@@ -199,6 +202,12 @@ Current transport/replay gate:
 - `go test ./internal/adapters/cot` passes for direct ingest, malformed capture, replay append error handling, UDP
   fixture replay, TCP fixture replay, and listener/replay config guardrails.
 - `go test ./pkg/adapters/cot` also proves raw CoT JSON Lines replay append/load and parse-after-load stability.
+
+Current projection gate:
+
+- `go test ./internal/projectors/cot` passes for source-asset-before-track birth ordering, TAK owner tokens, strict
+  track source edges, marker-to-task `control` projection, GeoChat-to-advisory `content` projection, source refs,
+  unsupported alert no-ops, and restart born-state seeding.
 
 ### CAP/EDXL
 

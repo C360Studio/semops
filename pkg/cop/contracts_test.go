@@ -2,6 +2,7 @@ package cop
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/c360studio/semstreams/pkg/ownership"
@@ -29,26 +30,24 @@ func TestFirstCanonicalEntitySet(t *testing.T) {
 }
 
 func TestFirstPhaseContractsValidateAndDerive(t *testing.T) {
-	seenOwners := map[string]struct{}{}
+	grouped := make(map[string][]projection.Contract)
 	for _, owned := range FirstPhaseOwnedContracts() {
-		if _, ok := seenOwners[owned.Owner]; ok {
-			t.Fatalf("owner %q appears more than once", owned.Owner)
-		}
-		seenOwners[owned.Owner] = struct{}{}
-
 		if err := owned.Contract.Validate(); err != nil {
 			t.Fatalf("%s should validate: %v", owned.Contract.Name, err)
 		}
+		grouped[owned.Owner] = append(grouped[owned.Owner], owned.Contract)
+	}
 
-		registration, err := projection.Derive(owned.Owner, owned.Contract)
+	for owner, contracts := range grouped {
+		registration, err := projection.Derive(owner, contracts...)
 		if err != nil {
-			t.Fatalf("%s should derive ownership: %v", owned.Contract.Name, err)
+			t.Fatalf("%s should derive grouped ownership: %v", owner, err)
 		}
-		if registration.Owner != owned.Owner {
-			t.Fatalf("registration owner = %q, want %q", registration.Owner, owned.Owner)
+		if registration.Owner != owner {
+			t.Fatalf("registration owner = %q, want %q", registration.Owner, owner)
 		}
 		if len(registration.Claims) == 0 && len(registration.ForeignEdges) == 0 {
-			t.Fatalf("%s derived no claims", owned.Contract.Name)
+			t.Fatalf("%s derived no claims", owner)
 		}
 	}
 }
@@ -81,6 +80,22 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 		t.Fatalf("TAK and MAVLink strict track contracts must be source-partitioned")
 	}
 
+	takTask := TAKTaskContract()
+	if got := takTask.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("TAK task mode = %q, want replace-owned", got)
+	}
+	if takTask.IndexingProfile != "control" {
+		t.Fatalf("TAK task indexing profile = %q, want control", takTask.IndexingProfile)
+	}
+
+	takAdvisory := TAKAdvisoryContract()
+	if got := takAdvisory.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("TAK advisory mode = %q, want replace-owned", got)
+	}
+	if takAdvisory.IndexingProfile != "content" {
+		t.Fatalf("TAK advisory indexing profile = %q, want content", takAdvisory.IndexingProfile)
+	}
+
 	cap := CAPHazardEvidenceContract()
 	for _, group := range cap.Groups {
 		if group.Mode != ownership.ModeAppendEvidence {
@@ -97,6 +112,37 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 	}
 	if fusion.IndexingProfile != "control" {
 		t.Fatalf("fusion indexing profile = %q, want control", fusion.IndexingProfile)
+	}
+}
+
+func TestTAKOwnerBindsTrackControlAndContentContracts(t *testing.T) {
+	owners := make([]string, 0)
+	for _, owned := range FirstPhaseOwnedContracts() {
+		if owned.Owner == OwnerTAK {
+			owners = append(owners, owned.Contract.MessageType)
+		}
+	}
+
+	want := []string{
+		TAKTrackContract().MessageType,
+		TAKTaskContract().MessageType,
+		TAKAdvisoryContract().MessageType,
+	}
+	if !reflect.DeepEqual(owners, want) {
+		t.Fatalf("TAK contracts = %#v, want %#v", owners, want)
+	}
+
+	registration, err := projection.Derive(
+		OwnerTAK,
+		TAKTrackContract(),
+		TAKTaskContract(),
+		TAKAdvisoryContract(),
+	)
+	if err != nil {
+		t.Fatalf("derive TAK grouped contracts: %v", err)
+	}
+	if len(registration.ForeignEdges) != 1 {
+		t.Fatalf("TAK foreign edges = %d, want strict track source only", len(registration.ForeignEdges))
 	}
 }
 

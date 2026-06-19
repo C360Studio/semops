@@ -23,11 +23,17 @@ Code source: `pkg/cop/contracts.go`
 | `semops.feed.asset` | Source asset identity | `c360.*.cop.*.asset.*` | `replace-owned` | `control` |
 | `semops.feed.mavlink` | MAVLink current track state | `c360.*.cop.mavlink.track.*` | `replace-owned` | `signal` |
 | `semops.feed.tak` | TAK/CoT current track state | `c360.*.cop.tak.track.*` | `replace-owned` | `signal` |
+| `semops.feed.tak` | TAK/CoT marker and task control state | `c360.*.cop.tak.task.*` | `replace-owned` | `control` |
+| `semops.feed.tak` | TAK/CoT GeoChat and advisory text | `c360.*.cop.tak.advisory.*` | `replace-owned` | `content` |
 | `semops.feed.cap` | CAP hazard/advisory evidence | `c360.*.cop.cap.hazard_area.*` | `append-evidence` | `content` |
 | `semops.fusion.structural` | Fusion alert state | `c360.*.cop.fusion.alert.*` | `replace-owned` | `control` |
 
 Strict feed owners are source-partitioned by the SemStreams entity `system` segment. This prevents MAVLink and TAK from
 claiming the same `cop.track.position` cell over a wildcard `track` pattern.
+
+TAK/CoT is intentionally one feed owner with multiple contracts. Operator and air-track positions stay in `signal`;
+durable markers and task-like map control state stay in `control`; GeoChat text becomes `content`. Only TAK track
+state declares the strict `cop.track.source` edge to a born source asset.
 
 Loose CAP evidence does not own authoritative hazard geometry, severity, or status. It appends advisory text, source
 references, evidence, observed time, and confidence until a deterministic hazard projector earns stricter ownership.
@@ -60,7 +66,7 @@ registry/bind results, and lets projectors serialize `OwnerToken.Wire()` only at
 
 SemStreams accepted the SemOps feedback to add typed, opaque owner-token minting through the registry/bind-result path
 and to split append-evidence declarations from enforceable ownership/write-fence claims. SemOps now consumes the typed
-token path for MAVLink.
+token path for MAVLink writes and TAK/CoT projection-plan tests.
 
 ## Predicate Conventions
 
@@ -69,6 +75,8 @@ Predicate names are product-local until a reusable SemStreams need is proven.
 | Family | Examples | Notes |
 | --- | --- | --- |
 | Track current state | `cop.track.position`, `cop.track.velocity`, `cop.track.status` | Strict source-owned state |
+| Task/control state | `cop.task.name`, `cop.task.position`, `cop.task.status` | TAK markers and later assignments |
+| Advisory content | `cop.advisory.text`, `cop.advisory.sender` | GeoChat, notes, and advisory text |
 | Hazard evidence | `cop.hazard.advisory_text`, `cop.hazard.evidence`, `cop.hazard.source` | CAP starts append-only |
 | Alert derived state | `cop.alert.severity`, `cop.alert.status`, `cop.alert.reason` | Fusion-owned derived facts |
 | Provenance | source, confidence, observed-at, source-ref predicates | Candidate upstream convention |
@@ -93,6 +101,8 @@ failing SemOps tests or awkward duplicated code:
 - First-phase contracts validate and derive SemStreams ownership claims.
 - Strict, tolerant, and fusion owners use the expected write modes and indexing profiles.
 - MAVLink and TAK strict track contracts are source-partitioned.
+- TAK binds track, task/control, and advisory/content contracts under the same feed owner without overlapping
+  replace-owned predicates.
 - Track foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with producer and target pattern.
 - Overlapping `replace-owned` predicates are rejected.
 - CAP evidence does not claim authoritative hazard state.

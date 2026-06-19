@@ -73,6 +73,14 @@ requests before triples or foreign edges are added.
 - **WHEN** MAVLink or TAK projects a `cop.track.source` edge to an asset
 - **THEN** the source asset is born first, and the edge contract uses `EdgeStrict` rather than implicit target creation
 
+#### Scenario: TAK projection separates signal, control, and content state
+
+- **WHEN** TAK/CoT operator dots, air tracks, markers, and GeoChat messages are projected
+- **THEN** operator dots and air tracks become `signal` track state
+- **AND** markers and task-like map control state become `control` task state
+- **AND** GeoChat text becomes `content` advisory state
+- **AND** native CoT XML remains on bounded raw or replay lanes referenced by provenance source refs
+
 #### Scenario: Must-exist compliance is proven before feed-fidelity expansion
 
 - **WHEN** SemOps prepares for a SemStreams ADR-055/056 must-exist breaking tag

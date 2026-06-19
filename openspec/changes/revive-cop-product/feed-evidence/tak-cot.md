@@ -1,7 +1,7 @@
 # TAK/CoT Feed Evidence
 
-Status: native parser and UDP/TCP fixture replay gates started, still blocked from structural adapter status by
-`COP-008` and the projection/graph gates.
+Status: native parser, UDP/TCP fixture replay, and pure projection-planner gates started, still blocked from
+structural adapter status by `COP-008`, graph smoke, UI feed state, and stale-data policy.
 
 ## Decision
 
@@ -15,6 +15,9 @@ compliance suite was verified. Treat TAK as fixture/replay/interoperability-test
   store, and deterministic seed fixture pack for the first fixture/replay gates.
 - `internal/adapters/cot` hosts a graph-free CoT adapter harness with UDP and newline-delimited TCP listeners plus
   reusable fixture replay senders.
+- `internal/projectors/cot` maps decoded CoT events into SemStreams graph mutation plans with born-first source
+  assets for strict track source edges, signal-profiled tracks, control-profiled marker tasks, content-profiled
+  GeoChat advisories, and raw source references.
 - `/Users/coby/Code/c360/semlink/internal/cot/cot.go` contains a dependency-light XML CoT codec for air tracks,
   operator positions, markers, GeoChat, and alerts.
 - `/Users/coby/Code/c360/semlink/internal/tak/bridge.go` supports outbound multicast/TCP and inbound UDP/TCP paths,
@@ -75,19 +78,26 @@ Current evidence:
 
 ### Projection Gate
 
-Target command after SemOps graph contracts exist:
+Target command:
 
 ```bash
-go test ./internal/projectors/tak
+go test ./internal/projectors/cot
 ```
 
 Acceptance:
 
 - Operator positions project as current-state `signal` entities.
 - Markers and task-like state project as `control`.
-- GeoChat text projects as `content` or separate content evidence, not hidden in a high-rate position entity.
+- GeoChat text projects as separate `content` advisory entities, not hidden in a high-rate position entity.
 - Native CoT event references and replay steps are `trace`.
 - CoT UIDs are preserved for audit and collision-safe SemOps entity IDs are derived.
+
+Current evidence:
+
+- `go test ./internal/projectors/cot` passes for ALPHA operator source asset birth before TAK track birth, strict
+  `cop.track.source` edge emission only on create, TAK owner-token use, air-track updates, marker-to-task `control`
+  projection, GeoChat-to-advisory `content` projection, source refs, unsupported alert no-ops, and restart born-state
+  seeding.
 
 ### Replay Gate
 
@@ -107,7 +117,7 @@ Current evidence:
 ## Known Gaps
 
 - No verified public TAK/CoT conformance suite.
-- No SemOps-local TAK projector, graph writer, COP UI feed state, or stale-data downgrade policy yet.
+- No TAK graph writer/smoke, COP UI feed state, or stale-data downgrade policy yet.
 - Tasking remains out of scope until a dedicated operator-value and protocol review.
 - Cross-source identity resolution between TAK-reported UAVs and MAVLink UAVs is out of scope for Phase 1.
 - TAK Server-equivalent behavior remains future SemOps/SemStreams-backed service scope, not MVP adapter scope.
