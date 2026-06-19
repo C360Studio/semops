@@ -427,6 +427,31 @@ h3 {
   line-height: 1.35;
 }
 
+.index-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.index-counts span {
+  border: 1px solid #cfdad4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #394a43;
+  padding: 3px 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.index-counts span.at-limit {
+  border-color: #c06a3a;
+  background: #fff4ec;
+  color: #7c3d1f;
+}
+
 .alert-strip {
   align-content: start;
 }

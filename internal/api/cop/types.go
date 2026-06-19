@@ -3,16 +3,17 @@ package cop
 import "time"
 
 type Snapshot struct {
-	GeneratedAt time.Time    `json:"generated_at"`
-	Scenario    string       `json:"scenario"`
-	Summary     Summary      `json:"summary"`
-	Feeds       []FeedHealth `json:"feeds"`
-	Assets      []Asset      `json:"assets"`
-	Tracks      []Track      `json:"tracks"`
-	Tasks       []Task       `json:"tasks"`
-	Advisories  []Advisory   `json:"advisories"`
-	Hazards     []Hazard     `json:"hazards"`
-	Alerts      []Alert      `json:"alerts"`
+	GeneratedAt time.Time           `json:"generated_at"`
+	Scenario    string              `json:"scenario"`
+	Summary     Summary             `json:"summary"`
+	Diagnostics SnapshotDiagnostics `json:"diagnostics"`
+	Feeds       []FeedHealth        `json:"feeds"`
+	Assets      []Asset             `json:"assets"`
+	Tracks      []Track             `json:"tracks"`
+	Tasks       []Task              `json:"tasks"`
+	Advisories  []Advisory          `json:"advisories"`
+	Hazards     []Hazard            `json:"hazards"`
+	Alerts      []Alert             `json:"alerts"`
 }
 
 type Summary struct {
@@ -21,6 +22,23 @@ type Summary struct {
 	ActiveAdvisories int `json:"active_advisories"`
 	ActiveAlerts     int `json:"active_alerts"`
 	StaleFeeds       int `json:"stale_feeds"`
+}
+
+type SnapshotDiagnostics struct {
+	Discovery []DiscoveryDiagnostic `json:"discovery"`
+}
+
+type DiscoveryDiagnostic struct {
+	Org        string `json:"org"`
+	Platform   string `json:"platform"`
+	Source     string `json:"source"`
+	Family     string `json:"family"`
+	EntityType string `json:"entity_type"`
+	Prefix     string `json:"prefix"`
+	Count      int    `json:"count"`
+	Limit      int    `json:"limit"`
+	AtLimit    bool   `json:"at_limit"`
+	Error      string `json:"error,omitempty"`
 }
 
 type FeedHealth struct {

@@ -14,6 +14,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-maplibre-layer-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-prefix-discovery-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-cot-cap-index-discovery-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-19-source-cardinality-diagnostics-review.md
 
 evidence_records:
   - docs/cop-ui-stack.md
@@ -73,6 +74,8 @@ progress:
   - Added pure map-layer projection tests and production chunking control for deck/luma renderer dependencies.
   - Moved entity selection resolution/reconciliation into tested helpers and added selected-state ARIA affordances to
     map and alert controls.
+  - Added compact prefix-discovery count chips to source cards so source/type cardinality pressure is visible without
+    turning the first screen into a graph console.
 
 current_evidence:
   - `go test ./internal/api/cop ./internal/app ./internal/smoke/cop -count=1`

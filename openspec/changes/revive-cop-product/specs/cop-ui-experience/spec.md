@@ -51,6 +51,8 @@ Phase 1.
 - **AND** the primary read path uses SemStreams prefix discovery before falling back to configured seed entity IDs only
   for feed families with disabled, unavailable, or empty discovery
 - **AND** CoT/CAP snapshot state does not require configured seed UID or alert-ID lists when graph discovery is enabled
+- **AND** the snapshot exposes source/type discovery diagnostics with returned count, query limit, at-limit pressure,
+  and partial prefix-read error state
 - **AND** graph query not-found responses are handled as cold-start state rather than silently decoded as successful
   entity data
 
@@ -75,6 +77,12 @@ SemOps MUST NOT treat dynamic ontology-generated UI as a Phase 1 feature.
 - **WHEN** feeds, scenarios, filters, or time windows change
 - **THEN** existing product-owned layer types may dynamically populate, hide, style, or animate data according to the
   curated COP view model
+
+#### Scenario: Source cards show bounded discovery evidence
+
+- **WHEN** SemOps renders source health for graph-backed snapshot state
+- **THEN** the source cards may show compact prefix-discovery counts by source/type
+- **AND** those cards highlight at-limit pressure without exposing raw graph triples or native packet payloads
 
 #### Scenario: Dynamic UI requires a future review
 
