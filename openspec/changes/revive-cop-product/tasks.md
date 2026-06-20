@@ -23,6 +23,7 @@
       and ports
 - [x] 2.10 Add the first concrete TAK/CoT input/decoder/projector component package using SemStreams payload registry
       and ports
+- [x] 2.11 Bump SemOps to SemStreams `v1.0.0-beta.114` and add the `HTTPClientPort` contract guard
 
 ## 3. COP Model And Governance
 
@@ -139,7 +140,7 @@
 - [x] 6.43 Rewire hosted TAK/CoT UDP/TCP ingestion onto the SemStreams input -> decoder processor -> projector
       processor flow
 - [x] 6.44 Record that ADS-B scenario replay remains an adapter harness until live ingress forces a component package
-- [x] 6.45 Record SAPIENT hosted component gate and SemStreams HTTP polling/client issue #310
+- [x] 6.45 Record SAPIENT hosted component gate and SemStreams `HTTPClientPort` adoption
 
 ## 7. COP UI
 
@@ -187,3 +188,4 @@
 - [x] 9.9 Reconcile SemStreams prefix-discovery issue #302 and adopt typed cursor pagination locally
 - [x] 9.10 File SemStreams component backpressure telemetry issue #309 from hosted feed migration pressure
 - [x] 9.11 File SemStreams external HTTP polling/client port metadata issue #310
+- [x] 9.12 Adopt SemStreams `HTTPClientPort` from `v1.0.0-beta.114` for external polling/client feed boundaries

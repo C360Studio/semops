@@ -82,8 +82,8 @@ CAP/EDXL:
 - Promotion trigger: continuous public-alert ingestion, webhook exposure, vendor feed integration, or alert audit
   obligations.
 - Guardrail: CAP evidence does not become authoritative hazard truth. Do not create a component package around
-  deterministic fixtures; create it when hosted CAP feed behavior exists. SemStreams issue #310 tracks reusable
-  external HTTP polling/client metadata.
+  deterministic fixtures; create it when hosted CAP feed behavior exists. Hosted CAP pollers use SemStreams
+  `HTTPClientPort` plus a sibling `TimerPort` when cadence-driven.
 
 CS API:
 
@@ -175,9 +175,8 @@ info/resources, geocode/circle/polygon handling, EDXL variants, retention, and a
 Boundary to preserve now:
 Keep tolerant ingest separate from strict hazard/advisory projection and never let CAP overwrite stricter tactical
 source facts. CAP remains parser/projector/scenario evidence until hosted polling, webhook, watched-file, or vendor
-feed input creates a real service boundary. A future poller can be modeled with `TimerPort` cadence plus endpoint,
-auth, cache, retry, and raw-output config until SemStreams issue #310 produces first-class HTTP polling/client port
-metadata.
+feed input creates a real service boundary. A future HTTP poller should declare an `HTTPClientPort` for method,
+endpoint pattern, auth reference, contact policy, and interface, plus a sibling `TimerPort` for cadence.
 
 Not claimed yet:
 Full EDXL suite, authoritative hazard truth, or emergency-alerting authority.

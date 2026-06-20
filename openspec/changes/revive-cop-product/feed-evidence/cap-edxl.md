@@ -14,8 +14,8 @@ The current CAP slice is not a SemStreams component package. It remains parser, 
 graph smoke evidence until SemOps promotes hosted polling, webhook ingestion, NWS/IPAWS/vendor integration, or
 continuous alert-source health into product scope. That promotion requires SemStreams input and processor components,
 registered raw/decoded payloads, declared ports, config schema, health, flow metrics, and telemetry-driven
-backpressure. SemStreams issue #310 tracks the external HTTP polling/client port metadata gap exposed by CAP/NWS and
-similar feeds; SemStreams issue #309 tracks richer component backpressure telemetry.
+backpressure. SemStreams `v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP pollers, while
+SemStreams issue #309 tracks richer component backpressure telemetry.
 
 ## Local Evidence
 

@@ -35,8 +35,8 @@ declared graph request ports.
 - `cmd/semops-scenario-runner` opts into ADS-B with `SEMOPS_SCENARIO_ADSB_FIXTURE=true` and registers
   `semops.feed.adsb` only for that scenario path.
 - `openspec/changes/revive-cop-product/feed-evidence/adsb.md` keeps live mode explicitly future-scoped.
-- SemStreams `v1.0.0-beta.113` component ports include `NetworkPort`, `NATSPort`, `NATSRequestPort`, and `FilePort`,
-  which are enough to describe likely live ADS-B ingress options once SemOps chooses one.
+- SemStreams `v1.0.0-beta.114` component ports include `HTTPClientPort` for future OpenSky-style outbound polling,
+  plus `NetworkPort`, `NATSPort`, `NATSRequestPort`, and `FilePort`.
 
 ## Follow-Up Tasks
 

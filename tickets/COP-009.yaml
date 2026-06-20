@@ -76,6 +76,8 @@ progress:
     access was restored.
   - Merged PR #11 with SemStreams `v1.0.0-beta.113`, prefix discovery, hosted MAVLink/TAK/CAP graph readback, and
     the passing `bash scripts/cop-stack-smoke.sh` evidence.
+  - Adopted SemStreams `v1.0.0-beta.114`, adding a SemOps contract test for `component.HTTPClientPort` so future
+    CAP/NWS, OpenSky ADS-B, and SAPIENT/Apex pollers use the framework port shape instead of local HTTP metadata.
   - Merged PR #12 with the first mixed-feed scenario runner core so future evidence can replay MAVLink, TAK/CoT, and
     CAP lifecycle fixtures through the same born-first adapter/projector seams.
   - Posted the closeout note on SemOps issue #1 and closed it as completed on 2026-06-19.

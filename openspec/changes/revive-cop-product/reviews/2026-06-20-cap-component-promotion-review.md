@@ -19,11 +19,10 @@ When promoted, the CAP boundary must follow SemStreams lifecycle rules:
 - Component health, `DataFlow()`, Prometheus telemetry, lag, drop, retry, redelivery, and stale-source signals drive
   backpressure choices before SemOps adds local buffers, caches, or JetStream durability.
 
-SemStreams currently has `TimerPort`, `FilePort`, `NetworkPort`, NATS, JetStream, KV, and request ports, but no
-first-class external HTTP client or polling port metadata. SemOps filed SemStreams issue #310 to track reusable
-HTTP polling/client port metadata for CAP/NWS, OpenSky ADS-B, SAPIENT/Apex, and similar feeds. Until that exists, a
-CAP poller can be modeled as `TimerPort` cadence plus endpoint/auth/cache/retry config and raw CAP stream output.
-Webhook ingestion can use a network/request-facing input component, and captured alert fixtures can use file input.
+SemStreams `v1.0.0-beta.114` delivered `component.HTTPClientPort` for reusable external HTTP client and polling
+metadata. A hosted CAP poller should use `HTTPClientPort` for method, URL pattern, auth reference, contact policy, and
+interface metadata, plus a sibling `TimerPort` referenced by `TriggerPort` when cadence is timer-driven. Webhook
+ingestion can use a network/request-facing input component, and captured alert fixtures can use file input.
 
 ## Objections Raised
 
@@ -42,10 +41,10 @@ Webhook ingestion can use a network/request-facing input component, and captured
 - `internal/projectors/cap` born-first hazard append-evidence projection.
 - `internal/smoke/cap` skipped live graph smoke for born-first append-evidence behavior.
 - `internal/scenario` CAP lifecycle replay through the current projector and graph writer.
-- SemStreams `component` port inventory in `v1.0.0-beta.113`, including `TimerPort`, `FilePort`, `NetworkPort`,
-  `NATSPort`, `NATSRequestPort`, `JetStreamPort`, and KV ports.
+- SemStreams `component` port inventory in `v1.0.0-beta.114`, including `HTTPClientPort`, `TimerPort`, `FilePort`,
+  `NetworkPort`, `NATSPort`, `NATSRequestPort`, `JetStreamPort`, and KV ports.
 - SemStreams issue #309 for component backpressure telemetry.
-- SemStreams issue #310 for external HTTP polling/client port metadata.
+- SemStreams issue #310, now closed by the `HTTPClientPort` contract.
 
 ## Accepted Risks
 
@@ -53,13 +52,13 @@ Webhook ingestion can use a network/request-facing input component, and captured
   than through a hosted CAP feed service.
 - If Phase 1 chooses live public-alert ingestion, a CAP component package becomes mandatory before SemOps claims
   hosted CAP service support.
-- The interim `TimerPort` plus config-schema modeling is less expressive than a true SemStreams HTTP polling/client
-  port, but it keeps cadence, config, health, and raw output visible.
+- The first hosted CAP poller still needs runtime implementation, but the external HTTP dependency now has a
+  framework-visible port descriptor instead of living only in config schema.
 
 ## Follow-Up Tasks
 
 - Keep CAP parser/projector/readback gates independent of hosted ingress.
 - Add `internal/components/cap` only when hosted polling, webhook, watched-file, or vendor feed input is in scope.
-- Comment back on SemStreams issue #310 after CAP, ADS-B, or SAPIENT produces a concrete component design that proves
-  the reusable port metadata shape.
+- Use `HTTPClientPort` plus `TimerPort` for hosted HTTP polling components and comment upstream only if the first
+  concrete CAP, ADS-B, or SAPIENT design exposes a remaining framework gap.
 - Keep CAP schema and consumer-rule validation separate from hosted service claims.
