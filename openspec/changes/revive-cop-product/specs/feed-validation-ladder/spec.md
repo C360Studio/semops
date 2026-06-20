@@ -88,6 +88,7 @@ canonical graph state.
   receiver IDs, squawk, position source, and category fields remain explicit
 - **AND** aircraft current state projects to source-partitioned ADS-B `track` entities with `signal` indexing,
   provenance, confidence, and source references
+- **AND** deterministic OpenSky snapshot records can replay through the scenario runner without live network access
 - **AND** COP API prefix discovery can read those aircraft tracks back from the graph
 - **AND** live OpenSky polling, ASTERIX, raw receiver protocols, and cross-source aircraft association remain out of
   scope until separate gates approve them

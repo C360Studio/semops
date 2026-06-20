@@ -9,7 +9,9 @@ import (
 
 	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
 	mavadapter "github.com/c360studio/semops/internal/adapters/mavlink"
+	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
+	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
@@ -45,22 +47,35 @@ type CAPPlanWriter interface {
 	Apply(context.Context, capprojector.Plan) error
 }
 
+type ADSBProjector interface {
+	ProjectStates([]adsbprojector.SourceState) (adsbprojector.Plan, error)
+	MarkBornForPlan(adsbprojector.Plan) int
+}
+
+type ADSBPlanWriter interface {
+	Apply(context.Context, adsbprojector.Plan) error
+}
+
 type Config struct {
-	Fixture      Fixture
-	MAVLink      MAVLinkSink
-	CoT          CoTSink
-	CAPProjector CAPProjector
-	CAPWriter    CAPPlanWriter
-	Clock        func() time.Time
+	Fixture       Fixture
+	MAVLink       MAVLinkSink
+	CoT           CoTSink
+	CAPProjector  CAPProjector
+	CAPWriter     CAPPlanWriter
+	ADSBProjector ADSBProjector
+	ADSBWriter    ADSBPlanWriter
+	Clock         func() time.Time
 }
 
 type Runner struct {
-	fixture      Fixture
-	mavlink      MAVLinkSink
-	cot          CoTSink
-	capProjector CAPProjector
-	capWriter    CAPPlanWriter
-	clock        func() time.Time
+	fixture       Fixture
+	mavlink       MAVLinkSink
+	cot           CoTSink
+	capProjector  CAPProjector
+	capWriter     CAPPlanWriter
+	adsbProjector ADSBProjector
+	adsbWriter    ADSBPlanWriter
+	clock         func() time.Time
 
 	mu     sync.RWMutex
 	status Status
@@ -72,6 +87,7 @@ type Fixture struct {
 	MAVLinkFrames []MAVLinkFrame
 	CoTEvents     []CoTEvent
 	CAPAlerts     []CAPAlert
+	ADSBSnapshots []ADSBSnapshot
 }
 
 type MAVLinkFrame struct {
@@ -90,6 +106,12 @@ type CAPAlert struct {
 	Name   string
 	Offset time.Duration
 	Record capcodec.RawAlertRecord
+}
+
+type ADSBSnapshot struct {
+	Name   string
+	Offset time.Duration
+	Record adsbcodec.RawSnapshotRecord
 }
 
 type Status struct {
@@ -119,6 +141,7 @@ type Summary struct {
 	MAVLinkFrames int `json:"mavlink_frames"`
 	CoTEvents     int `json:"cot_events"`
 	CAPAlerts     int `json:"cap_alerts"`
+	ADSBSnapshots int `json:"adsb_snapshots"`
 	Mutations     int `json:"mutations"`
 	Errors        int `json:"errors"`
 }
@@ -149,12 +172,14 @@ func NewRunner(cfg Config) (*Runner, error) {
 		return nil, err
 	}
 	runner := &Runner{
-		fixture:      fixture,
-		mavlink:      cfg.MAVLink,
-		cot:          cfg.CoT,
-		capProjector: cfg.CAPProjector,
-		capWriter:    cfg.CAPWriter,
-		clock:        cfg.Clock,
+		fixture:       fixture,
+		mavlink:       cfg.MAVLink,
+		cot:           cfg.CoT,
+		capProjector:  cfg.CAPProjector,
+		capWriter:     cfg.CAPWriter,
+		adsbProjector: cfg.ADSBProjector,
+		adsbWriter:    cfg.ADSBWriter,
+		clock:         cfg.Clock,
 		status: Status{
 			ScenarioID: fixture.ID,
 			State:      StateIdle,
@@ -265,6 +290,17 @@ func (f Fixture) Validate() error {
 			return fmt.Errorf("cap alert %q is empty", alert.Name)
 		}
 	}
+	for i, snapshot := range f.ADSBSnapshots {
+		if snapshot.Name == "" {
+			return fmt.Errorf("adsb snapshot %d requires a name", i+1)
+		}
+		if snapshot.Record.Ref == "" {
+			return fmt.Errorf("adsb snapshot %q requires a source ref", snapshot.Name)
+		}
+		if len(snapshot.Record.RawJSON) == 0 {
+			return fmt.Errorf("adsb snapshot %q is empty", snapshot.Name)
+		}
+	}
 	return nil
 }
 
@@ -325,6 +361,14 @@ func (r *Runner) Run(ctx context.Context) (Report, error) {
 			return r.failReport(report, err)
 		}
 	}
+	for _, snapshot := range r.fixture.ADSBSnapshots {
+		step, err := r.runADSBStep(ctx, snapshot)
+		report = appendStep(report, step)
+		r.updateAfterStep(report, step, err)
+		if err != nil {
+			return r.failReport(report, err)
+		}
+	}
 
 	finished := r.now()
 	report.State = StateSucceeded
@@ -354,6 +398,14 @@ func (r *Runner) requireSinks() error {
 		}
 		if r.capWriter == nil {
 			return fmt.Errorf("scenario %s includes CAP alerts but no CAP graph writer", r.fixture.ID)
+		}
+	}
+	if len(r.fixture.ADSBSnapshots) > 0 {
+		if r.adsbProjector == nil {
+			return fmt.Errorf("scenario %s includes ADS-B snapshots but no ADS-B projector", r.fixture.ID)
+		}
+		if r.adsbWriter == nil {
+			return fmt.Errorf("scenario %s includes ADS-B snapshots but no ADS-B graph writer", r.fixture.ID)
 		}
 	}
 	return nil
@@ -398,6 +450,36 @@ func (r *Runner) runCAPStep(ctx context.Context, alert CAPAlert) (StepReport, er
 	}
 	r.capProjector.MarkBornForPlan(plan)
 	return r.finishStep(step, len(plan.Mutations), alert.Record.Ref, nil), nil
+}
+
+func (r *Runner) runADSBStep(ctx context.Context, snapshot ADSBSnapshot) (StepReport, error) {
+	step := r.startStep("adsb", snapshot.Name)
+	if err := ctx.Err(); err != nil {
+		return r.finishStep(step, 0, snapshot.Record.Ref, err), err
+	}
+	parsed, err := snapshot.Record.Snapshot()
+	if err != nil {
+		err = fmt.Errorf("parse ADS-B scenario snapshot %q: %w", snapshot.Name, err)
+		return r.finishStep(step, 0, snapshot.Record.Ref, err), err
+	}
+	states := make([]adsbprojector.SourceState, 0, len(parsed.States))
+	for _, state := range parsed.States {
+		states = append(states, adsbprojector.SourceState{
+			State:     state,
+			SourceRef: snapshot.Record.Ref,
+		})
+	}
+	plan, err := r.adsbProjector.ProjectStates(states)
+	if err != nil {
+		err = fmt.Errorf("project ADS-B scenario snapshot %q: %w", snapshot.Name, err)
+		return r.finishStep(step, 0, snapshot.Record.Ref, err), err
+	}
+	if err := r.adsbWriter.Apply(ctx, plan); err != nil {
+		err = fmt.Errorf("write ADS-B scenario snapshot %q: %w", snapshot.Name, err)
+		return r.finishStep(step, len(plan.Mutations), snapshot.Record.Ref, err), err
+	}
+	r.adsbProjector.MarkBornForPlan(plan)
+	return r.finishStep(step, len(plan.Mutations), snapshot.Record.Ref, nil), nil
 }
 
 func (r *Runner) startStep(feed, name string) StepReport {
@@ -476,6 +558,8 @@ func appendStep(report Report, step StepReport) Report {
 		report.Summary.CoTEvents++
 	case "cap-edxl":
 		report.Summary.CAPAlerts++
+	case "adsb":
+		report.Summary.ADSBSnapshots++
 	}
 	report.Summary.Mutations += step.Mutations
 	if step.Error != "" {

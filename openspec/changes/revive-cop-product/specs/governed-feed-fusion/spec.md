@@ -95,6 +95,7 @@ requests before triples or foreign edges are added.
 - **AND** nullable position data stays partial evidence instead of fake coordinates
 - **AND** position-source quality contributes provenance/confidence evidence
 - **AND** the ADS-B adapter does not emit `cop.track.source` or cross-source aircraft association edges
+- **AND** deterministic snapshot replay can drive parse, projection, graph-plan writing, and born-state marking
 - **AND** the COP snapshot may read ADS-B aircraft tracks by prefix discovery while hosted polling, receiver
   protocols, ASTERIX, and statistical association remain separate gates
 

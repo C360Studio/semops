@@ -123,13 +123,15 @@ progress:
   - Added ADS-B current-state projection/readback evidence: `internal/projectors/adsb` emits source-partitioned
     signal-profile aircraft tracks with provenance/confidence/source refs, and the COP API discovers those tracks by
     graph prefix into `feed.adsb` health.
+  - Added deterministic ADS-B replay evidence: `pkg/adapters/adsb` now emits OpenSky snapshot fixture records and
+    JSONL replay records, while `internal/scenario` can replay ADS-B snapshots through parse, projection, graph-plan
+    writing, and born-state marking.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
   - Revisit SemStreams total-count metadata only after large mixed-feed demos prove cursor paging plus truncation
     alerts are insufficient for operator/source-health decisions.
-  - Add ADS-B deterministic replay and hosted-adapter seams without making live OpenSky or receiver protocols part of
-    the default demo path.
+  - Add an ADS-B hosted-adapter seam without making live OpenSky or receiver protocols part of the default demo path.
   - Implement the CS API bridge only after SemOps has enough stable structural graph state for meaningful ingress,
     egress, replay, and SemConnect conformance checks.
