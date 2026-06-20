@@ -17,8 +17,8 @@
 - [x] 2.6 Migrate SemOps runtime/projector wiring to SemStreams typed `ownership.OwnerToken` bind results
 - [x] 2.7 Add SemStreams flowgraph, lifecycle, port, payload-registry, and config-schema contract guard for feed
       components
-- [ ] 2.8 Wrap hosted ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and processor
-      components
+- [ ] 2.8 Wrap live ADS-B ingress, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and
+      processor components
 - [x] 2.9 Add the first concrete MAVLink input/decoder/projector component package using SemStreams payload registry
       and ports
 - [x] 2.10 Add the first concrete TAK/CoT input/decoder/projector component package using SemStreams payload registry
@@ -76,14 +76,15 @@
 - [x] 5.22 Add deterministic ADS-B OpenSky fixture replay through the scenario-runner seam
 - [x] 5.23 Add hosted ADS-B adapter seam without claiming live ADS-B service
 - [x] 5.24 Add opt-in ADS-B structural scenario replay through the hosted adapter seam
-- [x] 5.25 Record official SAPIENT GOV.UK, BSI Flex 335 v2, Dstl protobuf, test-harness, and Apex middleware anchors
-- [ ] 5.26 Run or qualify the Dstl BSI Flex 335 v2 Test Harness before SAPIENT compliance claims
-- [x] 5.27 Add parser-only SAPIENT BSI Flex 335 v2 JSON preflight fixture gate before graph projection
-- [ ] 5.28 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
-- [x] 5.29 Add SAPIENT BSI Flex 335 v2 descriptor-based binary payload decode gate
-- [ ] 5.30 Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptors
-- [x] 5.31 Add bounded SAPIENT raw lane and replay for JSON/binary preflight payloads
-- [ ] 5.32 Run SAPIENT projection ownership/indexing review before graph writes
+- [x] 5.25 Record ADS-B component-promotion gate so scenario replay is not mistaken for a hosted feed service
+- [x] 5.26 Record official SAPIENT GOV.UK, BSI Flex 335 v2, Dstl protobuf, test-harness, and Apex middleware anchors
+- [ ] 5.27 Run or qualify the Dstl BSI Flex 335 v2 Test Harness before SAPIENT compliance claims
+- [x] 5.28 Add parser-only SAPIENT BSI Flex 335 v2 JSON preflight fixture gate before graph projection
+- [ ] 5.29 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
+- [x] 5.30 Add SAPIENT BSI Flex 335 v2 descriptor-based binary payload decode gate
+- [ ] 5.31 Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptors
+- [x] 5.32 Add bounded SAPIENT raw lane and replay for JSON/binary preflight payloads
+- [ ] 5.33 Run SAPIENT projection ownership/indexing review before graph writes
 
 ## 6. Structural COP Stack
 
@@ -136,6 +137,7 @@
 - [x] 6.42 Add concrete TAK/CoT UDP input, TCP input, decoder processor, and projector processor components
 - [x] 6.43 Rewire hosted TAK/CoT UDP/TCP ingestion onto the SemStreams input -> decoder processor -> projector
       processor flow
+- [x] 6.44 Record that ADS-B scenario replay remains an adapter harness until live ingress forces a component package
 
 ## 7. COP UI
 

@@ -56,17 +56,17 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
 
 ## Accepted Risks
 
-- MAVLink and TAK/CoT runtime ingress now use concrete SemStreams input and processor components; ADS-B, hosted CAP if
-  promoted, and SAPIENT still need the same treatment before SemOps can claim hosted feed services are fully
-  component-managed.
+- MAVLink and TAK/CoT runtime ingress now use concrete SemStreams input and processor components. ADS-B scenario replay
+  remains an in-process harness by design; live ADS-B ingress, hosted CAP if promoted, and SAPIENT still need the same
+  treatment before SemOps can claim those hosted feed services are component-managed.
 - The graph writer code still names SemStreams graph mutation subjects directly. That is acceptable as the graph API
   wire boundary, but component ports must describe those resources when services are promoted.
-- CAP and scenario-runner paths need the same lifecycle review as MAVLink, TAK/CoT, ADS-B, and SAPIENT before Phase 1
-  signoff.
+- CAP, future live ADS-B, and SAPIENT paths need lifecycle review before they become hosted feed services.
 
 ## Follow-Up Tasks
 
-- Wrap ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and processor components.
+- Wrap live ADS-B ingress, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and processor
+  components.
 - Audit feed-runtime helpers against SemStreams utilities (`natsclient`, `pkg/errs`, `pkg/cache`, `pkg/buffer`) before
   adding or expanding SemOps-local equivalents.
 - Wire hosted component metrics into Prometheus and use lag/drop/retry evidence before adding local buffers, caches,

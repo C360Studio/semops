@@ -153,6 +153,9 @@ progress:
   - Added opt-in ADS-B structural scenario replay: `SEMOPS_SCENARIO_ADSB_FIXTURE=true` appends deterministic
     OpenSky-shaped snapshots to the hosted scenario runner, routes them through `internal/adapters/adsb`, and binds
     `semops.feed.adsb` only for that scenario path so graph writes use minted SemStreams owner tokens.
+  - Recorded the ADS-B component-promotion decision: the current scenario replay seam remains an in-process adapter
+    harness, while live OpenSky polling, receiver file tailing, receiver TCP/UDP, or ASTERIX ingress must become
+    SemStreams input/processor components with registered payloads and telemetry-driven backpressure.
   - Corrected SAPIENT artifact discovery: GOV.UK, BSI Flex 335 v2, Dstl protobufs, the Dstl BSI Flex 335 v2 Test
     Harness, and Apex middleware are now recorded as official planning anchors. SemOps has not run the harness or
     implemented SAPIENT parsing yet.
@@ -180,5 +183,7 @@ remaining:
     alerts are insufficient for operator/source-health decisions.
   - Decide whether ADS-B live mode starts with optional OpenSky, local receiver/readsb/dump1090 files, or a dedicated
     adapter service without making live network access the default path.
+  - Once that ADS-B live ingress path is chosen, add the SemStreams component package instead of extending the
+    scenario-runner harness into a service loop.
   - Implement the CS API bridge only after SemOps has enough stable structural graph state for meaningful ingress,
     egress, replay, and SemConnect conformance checks.

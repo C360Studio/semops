@@ -8,6 +8,13 @@ replay, projection, ownership registration, and COP readback evidence.
 ADS-B should enter after MAVLink, TAK/CoT, CAP, and the structural COP are stable. Start with OpenSky-shaped JSON
 fixtures and deterministic replay. Treat ASTERIX, raw receiver protocols, and live OpenSky access as later expansion.
 
+The current ADS-B scenario replay seam is intentionally not a SemStreams component package. It is an in-process,
+deterministic harness for replaying snapshots through parser, projection, ownership, and graph-write contracts. When
+SemOps adds live ADS-B ingress, that live boundary must be promoted into SemStreams input and processor components
+with declared network, file, or request ports, registered payloads, health, flow metrics, and telemetry-driven
+backpressure decisions. See
+`openspec/changes/revive-cop-product/reviews/2026-06-20-adsb-component-promotion-review.md`.
+
 ## Local Evidence
 
 - `pkg/adapters/adsb` parses OpenSky state-vector snapshots from bounded JSON fixtures.
@@ -30,6 +37,8 @@ fixtures and deterministic replay. Treat ASTERIX, raw receiver protocols, and li
   service passes the flag through but defaults it off.
 - The scenario runner appends `semops.feed.adsb` ownership only for the opt-in ADS-B path; this is not a live OpenSky
   or receiver service claim.
+- No `internal/components/adsb` package exists yet by design; component promotion waits for a real hosted ingress
+  decision rather than wrapping deterministic fixtures.
 - COP graph prefix discovery reads `c360.<platform>.cop.adsb.track.*` entities back into aircraft tracks and feed
   health without requiring a live ADS-B service.
 
@@ -154,10 +163,13 @@ Acceptance:
 - Test is opt-in and skips without credentials/network.
 - Rate-limit and authentication behavior is explicit.
 - Live mode never replaces fixture replay as the deterministic acceptance gate.
+- Live mode uses SemStreams input and processor components rather than calling `internal/adapters/adsb` directly from a
+  service loop.
 
 ## Known Gaps
 
 - No ADS-B live client yet.
+- No ADS-B component package yet; this is blocked on the live ingress choice.
 - OpenSky is useful for samples but should not become a critical-path dependency.
 - ASTERIX is not in the first ADS-B slice.
 - Raw receiver/readsb/dump1090 paths are not implemented.

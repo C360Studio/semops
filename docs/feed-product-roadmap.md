@@ -210,11 +210,13 @@ association with MAVLink/SAPIENT/fusion tracks, and airspace filters.
 
 Boundary to preserve now:
 Keep raw receiver rows off the graph and project current aircraft state plus association evidence separately. ADS-B
-owner registration is valid for token-backed structural replay; it is not a live feed or receiver-service claim.
+owner registration is valid for token-backed structural replay; it is not a live feed or receiver-service claim. Do
+not create `internal/components/adsb` around deterministic fixtures; create it when live OpenSky polling,
+readsb/dump1090 file tailing, receiver TCP/UDP, or ASTERIX ingress becomes product scope.
 
 Not claimed yet:
-Live air-traffic feed reliability, ASTERIX support, cross-source aircraft association, or complete
-surveillance/radar processing.
+Live air-traffic feed reliability, ADS-B SemStreams component hosting, ASTERIX support, cross-source aircraft
+association, or complete surveillance/radar processing.
 
 ### SAPIENT
 
