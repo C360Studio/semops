@@ -75,11 +75,15 @@ TAK/CoT:
 
 CAP/EDXL:
 
-- Demo/MVP boundary: parser, lifecycle fixtures, NWS samples, and append-evidence hazard/advisory projection.
-- Full product path: alert feed service with polling/webhook ingestion, update/cancel/expire lifecycle, geocodes,
-  multilingual info, resources, retention, and audit.
-- Promotion trigger: continuous public-alert ingestion or alert audit obligations.
-- Guardrail: CAP evidence does not become authoritative hazard truth.
+- Demo/MVP boundary: parser, lifecycle fixtures, scenario replay, NWS samples, and append-evidence hazard/advisory
+  projection.
+- Full product path: SemStreams input/processor component service with polling/webhook ingestion,
+  update/cancel/expire lifecycle, geocodes, multilingual info, resources, retention, and audit.
+- Promotion trigger: continuous public-alert ingestion, webhook exposure, vendor feed integration, or alert audit
+  obligations.
+- Guardrail: CAP evidence does not become authoritative hazard truth. Do not create a component package around
+  deterministic fixtures; create it when hosted CAP feed behavior exists. SemStreams issue #310 tracks reusable
+  external HTTP polling/client metadata.
 
 CS API:
 
@@ -105,10 +109,12 @@ SAPIENT:
 - Full product path: SAPIENT-facing service with versioned protobuf, sensor identity, detection lifecycle, tasking,
   fusion, deployment profiles, Apex/middleware interop, and eventual SemOps-owned SAPIENT service capability if
   product demand requires it.
-- Promotion trigger: parser fixture success plus a documented Dstl BSI Flex 335 v2 Test Harness run or explicit
-  decision that the current phase is non-compliance demo evidence only.
+- Promotion trigger: parser fixture success, projection ownership/indexing review, service-mode decision, plus a
+  documented Dstl BSI Flex 335 v2 Test Harness run or explicit decision that the current phase is non-compliance demo
+  evidence only.
 - Guardrail: no guessed schema support and no SAPIENT compliance language without harness scope and result. Treat a
-  future portable Linux/CI preflight suite as developer evidence until an accepted authority recognizes it.
+  future portable Linux/CI preflight suite as developer evidence until an accepted authority recognizes it. Do not add
+  `OwnerSAPIENT`, projection writes, or hosted components before entity semantics and service mode are reviewed.
 
 KLV/STANAG 4609:
 
@@ -168,7 +174,10 @@ info/resources, geocode/circle/polygon handling, EDXL variants, retention, and a
 
 Boundary to preserve now:
 Keep tolerant ingest separate from strict hazard/advisory projection and never let CAP overwrite stricter tactical
-source facts.
+source facts. CAP remains parser/projector/scenario evidence until hosted polling, webhook, watched-file, or vendor
+feed input creates a real service boundary. A future poller can be modeled with `TimerPort` cadence plus endpoint,
+auth, cache, retry, and raw-output config until SemStreams issue #310 produces first-class HTTP polling/client port
+metadata.
 
 Not claimed yet:
 Full EDXL suite, authoritative hazard truth, or emergency-alerting authority.
@@ -235,7 +244,10 @@ portable SAPIENT preflight suite for Linux CI.
 Boundary to preserve now:
 Do not guess schemas; put official BSI Flex 335 v2 artifacts behind parser, session, and service boundaries before
 graph projection. Treat Apex as an interop reference, while SemOps owns product semantics, graph ownership,
-provenance, freshness, replay, and command authority.
+provenance, freshness, replay, and command authority. First graph projection should start with absolute-location
+reports only unless source sensor pose, reference frame, and uncertainty make range/bearing conversion honest.
+Associated detections and cross-source links belong to fusion or evidence contracts rather than the SAPIENT source
+owner.
 
 Not claimed yet:
 SAPIENT conformance, product support, local test-harness success, portable-suite authority, full-message coverage, or

@@ -66,8 +66,10 @@ flood/evacuation fixture against the live SemStreams graph in Compose, exposes `
 and the stack smoke asserts the Caddy-routed COP snapshot contains the scenario MAVLink track, TAK/CoT task/advisory,
 and CAP hazard. The runner can also opt into deterministic ADS-B fixture replay with
 `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, using the hosted ADS-B adapter and `semops.feed.adsb` owner token; the default
-stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence is hosted CAP
-polling, shared-airspace playback, operator scenario controls, and durable checkpoint/read-back reconciliation.
+stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence is shared-airspace
+playback, operator scenario controls, durable checkpoint/read-back reconciliation, and hosted CAP polling only if
+Phase 1 chooses live public-alert ingestion. SemStreams issue #310 tracks the reusable HTTP polling/client port
+metadata that CAP/NWS, OpenSky ADS-B, and possible SAPIENT/Apex integrations expose.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -127,8 +129,8 @@ SemOps has salvageable MAVLink depth:
   framework's mutation retry rule for transient responder startup races.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
-- The next hosted-feed hardening step is to repeat the same input/processor treatment for ADS-B, hosted CAP if
-  promoted, and SAPIENT.
+- The next hosted-feed hardening step is to repeat the same input/processor treatment for live ADS-B, hosted CAP only
+  if promoted, and SAPIENT after projection ownership, harness, and service-mode review.
 
 SemOps now has TAK/CoT depth beyond prior-art replay:
 
@@ -380,9 +382,9 @@ These belong inside the SemOps codebase even when a container hosts them.
 | `internal/graphrequest` | SemStreams request/reply adapters | Retry-aware mutation request boundary |
 | `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
 | `internal/projectors/cot` | Decoded CoT events to graph mutation plans | Track, task, advisory planner |
-| `internal/scenario` | Deterministic HA/DR scenario runner core | Replays MAVLink, TAK/CoT, CAP, and opt-in ADS-B fixtures through real seams |
-| `cmd/semops-scenario-runner` | Hosted one-shot scenario service | Runs HADR replay and exposes status/health for active polling |
-| `internal/adapters/adsb` | ADS-B adapter harness | OpenSky-shaped snapshot capture, replay append, projection, write, health |
+| `internal/scenario` | Deterministic HA/DR scenario runner core | Replays native fixtures through real seams |
+| `cmd/semops-scenario-runner` | Hosted one-shot scenario service | Runs HADR replay with active status polling |
+| `internal/adapters/adsb` | ADS-B adapter harness | OpenSky snapshot capture, replay, projection, health |
 | `internal/stack` | Testable service composition factories | Wires SemStreams clients, writers, adapters |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |

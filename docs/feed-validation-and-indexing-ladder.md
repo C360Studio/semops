@@ -250,6 +250,8 @@ Local assets:
 - `internal/api/cop` maps CAP hazard evidence JSON into the COP hazard view model for the map overlay and derives
   operator-facing status from CAP `msgType`, `status`, `expires`, and freshness without writing authoritative hazard
   status predicates.
+- CAP intentionally has no `internal/components/cap` package yet. The current evidence is parser, projection,
+  scenario replay, COP readback, and graph-contract smoke proof rather than hosted poller/webhook service proof.
 
 Mock or harness:
 
@@ -293,7 +295,9 @@ Remaining gates:
 - NWS samples captured as deterministic fixtures.
 - XML schema and CAP consumer-rule validation.
 - NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
-- Hosted poller or webhook service boundary.
+- Hosted poller, webhook, watched-file, or vendor feed service boundary. Once promoted, CAP must use SemStreams input
+  and processor components with registered raw/decoded payloads, declared ports, config schema, health, flow metrics,
+  and telemetry-driven backpressure. SemStreams issue #310 tracks reusable external HTTP polling/client port metadata.
 
 ### CS API Bidirectional Interop
 
@@ -428,6 +432,8 @@ Local assets:
   decodes through the same preflight boundary rather than treating captured bytes as normalized graph state.
 - `go test ./pkg/adapters/sapient` rejects malformed JSON and binary required-field cases before graph writes.
 - No local SAPIENT harness run, generated Go bindings, hosted adapter, or graph projector exists.
+- No `OwnerSAPIENT`, SAPIENT projection contract, graph writer, or `internal/components/sapient` package exists yet.
+  This is intentional until projection ownership, indexing, and service mode are reviewed.
 
 Mock or harness:
 
@@ -444,17 +450,22 @@ Indexing profile pressure:
 - Detections and tracks are usually `signal`.
 - Sensor tasking, collection plans, and alert state are `control`.
 - Native decode traces are `trace`.
+- Absolute-location reports are the first safe projection candidate. Range/bearing detections require source sensor
+  pose, reference frame, and uncertainty before they can become global coordinates.
+- Associated detections and derived links are fusion or evidence outputs, not source-owned SAPIENT adapter truth.
 
 First acceptance gate:
 
 - Given BSI Flex 335 v2-aligned fixtures, malformed messages are rejected before graph writes and valid detections
-  become governed tracks or observations with clear source ownership.
+  remain parser evidence until the projection ownership review approves a narrow graph entity model.
 - Given binary BSI Flex 335 v2 payloads, the embedded descriptor toolchain decodes `SapientMessage` before SemOps
   claims protobuf preflight support.
 - Given captured JSON or protobuf SAPIENT payloads, SemOps can replay exact native bytes through the parser boundary
   without writing graph state or claiming hosted SAPIENT support.
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
+- Given a future hosted SAPIENT feed, SemOps uses SemStreams input and processor components once service mode is
+  chosen, and revisits SemStreams issue #310 if Apex or HTTP polling/client integration needs framework metadata.
 
 ### KLV/STANAG 4609
 

@@ -64,6 +64,8 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-parser-preflight-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-binary-descriptor-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-raw-replay-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-20-cap-component-promotion-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-projection-ownership-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
@@ -169,13 +171,21 @@ progress:
     same preflight model.
   - Added bounded SAPIENT JSON/protobuf raw replay: payload bytes are captured with source/encoding/content metadata,
     persisted as JSON Lines, and decoded back through the parser boundary without graph writes.
+  - Recorded the CAP component-promotion gate: current CAP evidence remains parser/projection/scenario replay and
+    live graph smoke proof until hosted polling, webhook, watched-file, or vendor feed input creates a real service
+    boundary.
+  - Ran the SAPIENT projection ownership/indexing review and kept graph writes blocked: no `OwnerSAPIENT`, projection
+    contract, graph writer, or component package until entity semantics, indexing, service mode, and harness scope are
+    reviewed.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
   - Run or qualify the Dstl SAPIENT test harness before any SAPIENT compliance language.
-  - Keep SAPIENT graph writes blocked until ownership/indexing projection review exists.
-  - Add hosted SAPIENT raw ingress and source-health only after the parser/replay boundary has a service design.
+  - Keep SAPIENT graph writes blocked until the accepted ownership/indexing review is converted into a narrow,
+    tested entity model.
+  - Add hosted SAPIENT raw ingress and source-health only after the parser/replay boundary has a service design and
+    can be expressed as SemStreams input/processor components.
   - Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptor decode.
   - Evaluate whether SemOps should create or contribute a portable SAPIENT preflight suite while preserving Dstl
     harness results as the official compliance anchor.

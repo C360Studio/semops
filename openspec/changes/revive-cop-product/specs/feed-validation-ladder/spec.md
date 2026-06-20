@@ -46,6 +46,13 @@ become dead-end architecture.
 - **AND** the promotion preserves the existing governed projection contract rather than moving ownership decisions
   into transport glue
 
+#### Scenario: CAP replay is not hosted CAP service evidence
+
+- **WHEN** CAP lifecycle fixtures replay through parser, projector, scenario runner, or direct graph smoke paths
+- **THEN** SemOps treats the result as parser/projection/readback evidence
+- **AND** SemOps does not claim hosted CAP polling, webhook, NWS/IPAWS integration, or alert feed service support until
+  hosted input and processor components exist for that boundary
+
 ### Requirement: Compliance claims require reproducible evidence
 
 SemOps SHALL NOT claim protocol or standards conformance unless a reproducible local harness, official schema,
@@ -76,6 +83,8 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** SemOps may add descriptor-based binary protobuf preflight from official proto source without claiming
   full-message coverage, portable-suite authority, product support, or SAPIENT compliance
 - **AND** SemOps does not claim compliance until scoped Dstl harness evidence exists
+- **AND** SemOps does not add SAPIENT owner claims, graph projection, or hosted components until projection ownership,
+  indexing, service mode, and harness scope have been reviewed
 
 #### Scenario: CS API conformance is standards-edge evidence
 
@@ -94,6 +103,16 @@ canonical graph state.
 - **WHEN** MAVLink, ADS-B, TAK position, SAPIENT detection, or KLV sensor-position data is projected
 - **THEN** current-state graph entities use `signal` and raw packet or replay detail uses bounded lanes or `trace`
   references
+
+#### Scenario: SAPIENT projection starts narrow
+
+- **WHEN** SemOps adds a SAPIENT graph projector
+- **THEN** the first projection uses an accepted SAPIENT source identity, entity model, ownership contract, and
+  indexing profile
+- **AND** absolute-location reports are handled before range/bearing detections unless sensor pose, reference frame,
+  and uncertainty are available
+- **AND** associated detections and cross-source links are expressed by fusion or evidence contracts rather than the
+  SAPIENT adapter's source-owner contract
 
 #### Scenario: ADS-B starts with OpenSky fixture parsing and source-partitioned projection
 

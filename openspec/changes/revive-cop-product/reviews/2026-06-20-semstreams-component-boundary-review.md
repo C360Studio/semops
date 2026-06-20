@@ -25,6 +25,10 @@ only when component `Health()`, `DataFlow()`, Prometheus metrics, queue depth, d
 or replay requirements prove the need. SemStreams issue #309 now tracks the reusable framework gap for richer
 backpressure metrics across component flow ports.
 
+External polling/client feeds expose a second reusable framework gap. CAP/NWS, OpenSky ADS-B, and possible
+SAPIENT/Apex integration can be modeled today with `TimerPort` cadence plus endpoint config and stream output, but
+SemStreams has no first-class HTTP polling/client port metadata yet. SemStreams issue #310 tracks that ask.
+
 This review also deletes the stale `configs/robotics-flow.json` file because it preserved raw subject topology from an
 old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgraph and component story.
 
@@ -61,7 +65,9 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
   treatment before SemOps can claim those hosted feed services are component-managed.
 - The graph writer code still names SemStreams graph mutation subjects directly. That is acceptable as the graph API
   wire boundary, but component ports must describe those resources when services are promoted.
-- CAP, future live ADS-B, and SAPIENT paths need lifecycle review before they become hosted feed services.
+- CAP, future live ADS-B, and SAPIENT paths need lifecycle review before they become hosted feed services. CAP now has
+  a component-promotion review that keeps scenario replay distinct from hosted polling/webhook scope, and SAPIENT has
+  a projection ownership review that blocks graph writes until entity semantics and service mode are clearer.
 
 ## Follow-Up Tasks
 
@@ -71,6 +77,8 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
   adding or expanding SemOps-local equivalents.
 - Wire hosted component metrics into Prometheus and use lag/drop/retry evidence before adding local buffers, caches,
   or JetStream durability to a flow edge; reconcile the resulting needs with SemStreams issue #309.
+- Reconcile external polling/client components with SemStreams issue #310 before SemOps grows local HTTP polling
+  metadata that should be framework-owned.
 - Register raw and decoded feed payload types in SemStreams payload registries and emit `message.BaseMessage`
   envelopes on stream output ports.
 - Compose feed topology through SemStreams flowgraph edges so every declared output port remains tappable by another
