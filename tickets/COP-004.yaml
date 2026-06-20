@@ -124,7 +124,7 @@ current_evidence:
   - `bash scripts/cop-stack-smoke.sh`
 
 remaining:
-  - Wrap hosted ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams
+  - Wrap live ADS-B ingress, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams
     input and processor components with flowgraph edges, registered payloads, declared ports, and config schemas.
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.

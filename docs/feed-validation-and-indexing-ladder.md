@@ -363,6 +363,9 @@ Local assets:
   passes that flag through but defaults it to false.
 - The scenario runner appends `semops.feed.adsb` ownership only for that opt-in path so structural ADS-B graph writes
   use SemStreams minted owner tokens.
+- The current ADS-B path intentionally has no SemStreams component package. Live OpenSky polling, readsb/dump1090 file
+  tailing, receiver TCP/UDP, or ASTERIX ingress must add input and processor components with registered payloads,
+  declared ports, health, flow metrics, and telemetry-driven backpressure.
 - The COP API discovers ADS-B aircraft tracks from `c360.<platform>.cop.adsb.track.*` prefixes and exposes
   `feed.adsb` health when fresh tracks exist.
 
@@ -393,6 +396,8 @@ First acceptance gate:
   cross-source association edges and reads it back through prefix discovery.
 - Next gate: decide whether live mode should start with optional OpenSky, local receiver/readsb/dump1090 files, or a
   dedicated adapter service, without making live network access the default path.
+- Component gate: after that live ingress choice, build `internal/components/adsb`; do not wrap deterministic scenario
+  replay just to satisfy the component checklist.
 
 ### SAPIENT
 
