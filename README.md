@@ -4,7 +4,8 @@ SemOps is the SemStreams-backed data-fusion common operating picture product.
 
 The current revival is intentionally greenfield. SemOps owns the operator COP, feed adapters, canonical COP model,
 scenario runner, product governance, and UI. SemStreams owns the substrate: projection contracts, ownership rules,
-graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives, and reusable framework behavior.
+graph mutation/query APIs, indexing profiles, component lifecycle, flowgraph topology, payload registry, port/config
+schema, NATS/JetStream runtime primitives, and reusable framework behavior.
 
 ## Current State
 
@@ -21,7 +22,13 @@ graph mutation/query APIs, indexing profiles, NATS/JetStream runtime primitives,
   `pkg/adapters/cap`, `internal/projectors/cap`, `internal/smoke/cap`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
-StreamKit, EntityStore, ObjectStore, and BaseProcessor product paths have been removed or are outside the active build.
+StreamKit, EntityStore, ObjectStore, BaseProcessor, and raw-subject flow product paths have been removed or are outside
+the active build.
+
+Hosted feed work should follow SemStreams' flow model: UDP/TCP/file/polling listeners are input components that emit
+registered `message.BaseMessage` payloads on declared output ports, and parser/projector/fusion work runs as processor
+components that subscribe to those ports. Raw NATS subjects remain port configuration so any output port can be tapped
+by another component.
 
 ## First Product Model
 

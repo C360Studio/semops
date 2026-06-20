@@ -15,6 +15,10 @@
 - [x] 2.4 Add a compile-time contract test importing current projection and graph mutation packages
 - [x] 2.5 Run adversarial review on framework ownership and migration blast radius before broad rewiring
 - [x] 2.6 Migrate SemOps runtime/projector wiring to SemStreams typed `ownership.OwnerToken` bind results
+- [x] 2.7 Add SemStreams flowgraph, lifecycle, port, payload-registry, and config-schema contract guard for feed
+      components
+- [ ] 2.8 Wrap hosted MAVLink, TAK/CoT, ADS-B, and future SAPIENT feed boundaries as SemStreams input and processor
+      components
 
 ## 3. COP Model And Governance
 
@@ -116,6 +120,9 @@
 - [x] 6.33 Promote prefix discovery pressure into source-health warning alerts
 - [x] 6.34 Adopt SemStreams typed prefix-query cursor pagination for graph-backed COP discovery
 - [x] 6.35 Bind ADS-B ownership for structural replay while keeping live ADS-B service out of the MVP default
+- [x] 6.36 Delete stale StreamKit-era robotics flow config so raw-subject topology does not pollute current context
+- [ ] 6.37 Move hosted feed service composition onto SemStreams input/processor component metadata, flowgraph,
+      registered-payload, and port/config surfaces
 
 ## 7. COP UI
 

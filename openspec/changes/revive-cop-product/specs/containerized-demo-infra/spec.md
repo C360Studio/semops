@@ -15,6 +15,62 @@ failure domain justify a service boundary.
 - **WHEN** a mapper only transforms decoded data into canonical projections
 - **THEN** it remains a library component unless placement, scaling, or failure isolation requires a service
 
+### Requirement: Hosted feed services use SemStreams flow-based lifecycle
+
+SemOps SHALL use SemStreams component lifecycle, flowgraph, port, payload-registry, and config-schema patterns for
+hosted feed services instead of inventing a SemOps-local lifecycle or flow framework.
+
+#### Scenario: Network servers are input components
+
+- **WHEN** SemOps listens for native UDP, TCP, serial, file, webhook, or polling feed input
+- **THEN** the listener is modeled as a SemStreams input component with declared network, file, or request ingress
+  ports
+- **AND** the input component emits registered raw-feed messages to declared SemStreams stream output ports
+- **AND** the input component does not parse, project, or write graph state except for minimal envelope validation and
+  transport health
+
+#### Scenario: Feed adapters are processor components
+
+- **WHEN** SemOps decodes, validates, replays, maps, fuses, or projects native feed data
+- **THEN** that behavior runs inside SemStreams processor components that subscribe to declared input ports and publish
+  declared output ports
+- **AND** parser or decoder processors emit decoded feed messages that other components can tap
+- **AND** projection processors write governed graph mutations only through declared SemStreams NATS request ports
+
+#### Scenario: Flowgraph defines feed topology
+
+- **WHEN** SemOps composes hosted feed behavior
+- **THEN** component connections are described through SemStreams `component/flowgraph` nodes, ports, and edges
+- **AND** raw NATS subjects are port configuration, not hidden coupling between SemOps packages
+
+#### Scenario: Flow payloads use SemStreams payload registry
+
+- **WHEN** an input or processor component emits raw, decoded, or projected feed payloads on a stream port
+- **THEN** the payload is wrapped in `message.BaseMessage`
+- **AND** the payload type is registered in `payloadregistry.Registry`
+- **AND** consumers decode through SemStreams message/payload-registry APIs rather than ad hoc JSON or subject naming
+
+#### Scenario: Component config is schema-driven
+
+- **WHEN** a hosted feed component accepts runtime configuration
+- **THEN** SemOps exposes that configuration through SemStreams `component.ConfigSchema`
+- **AND** the component config schema includes ownership, payload type, stream port, raw-lane bounds, transport, retry,
+  and timeout settings that materially affect runtime behavior
+
+#### Scenario: Codecs remain pure libraries
+
+- **WHEN** a package only decodes, validates, replays, or maps native feed bytes
+- **THEN** it remains a pure library and is not required to implement SemStreams lifecycle interfaces
+- **AND** service lifecycle, ports, payload registry, flowgraph topology, config, health, and SemStreams client
+  ownership stay in hosted input or processor components
+
+#### Scenario: Legacy flow configs are not retained
+
+- **WHEN** old StreamKit, BaseProcessor, or raw-subject flow files no longer describe the active runtime
+- **THEN** they are deleted or quarantined outside the active repo context
+- **AND** new flow/config artifacts derive from current SemStreams component metadata, flowgraph topology, registered
+  payload types, ports, and config schemas
+
 ### Requirement: Structural demo stack starts with one command
 
 The first COP stack SHALL run locally with a single documented command after dependencies are installed.
@@ -72,8 +128,9 @@ The first COP stack SHALL run locally with a single documented command after dep
 #### Scenario: Feed service wiring is testable before Compose hosting
 
 - **WHEN** SemOps builds a feed adapter service boundary
-- **THEN** the structural wiring composes SemStreams requester, graph writer, raw lane, projector, adapter harness,
-  and health state from config
+- **THEN** the structural wiring composes SemStreams input and processor component metadata, flowgraph edges, ports,
+  payload registrations, config schema, requester, graph writer, raw lane, projector, adapter harness, and health
+  state from config
 - **AND** the same wiring is covered by tests without requiring the full container stack
 - **AND** the hosted composition root registers COP ownership and passes registry-derived owner-token state into
   adapter wiring before any governed graph writes occur

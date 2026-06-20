@@ -9,6 +9,7 @@ openspec_change: revive-cop-product
 
 review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-17-framework-modernization-impact.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-20-semstreams-component-boundary-review.md
 
 evidence_records:
   - docs/legacy-quarantine.md
@@ -20,12 +21,25 @@ scope:
   - Remove old StreamKit/BaseProcessor assumptions that no longer match SemStreams.
   - Retain only MAVLink references with clear extraction value.
   - Add a minimal compile gate before deeper feature work starts.
+  - Treat SemStreams component lifecycle, flowgraph, payload registry, ports, config schema, health, and flow metrics
+    as framework contracts for hosted feed services, not just graph ingest.
 
 acceptance:
   - go test ./... reaches SemOps code compilation instead of failing on Go version or module path.
   - Remaining package failures are documented as concrete migration tickets.
   - No product architecture is built on deprecated SemStreams interfaces.
+  - Hosted feed services use SemStreams input/processor component lifecycle, flowgraph, payload registry, and
+    port/config schema patterns instead of a SemOps-local framework.
 
 tdd:
   - Start with the failing compile as the red state.
   - Add the smallest contract test that imports current SemStreams projection and graph mutation packages.
+  - Keep the contract test broad enough to catch lifecycle, flowgraph, payload-registry, port, and config-schema drift
+    as hosted feeds mature.
+
+progress:
+  - Strengthened `internal/contracts/semstreams_contract_test.go` to cover SemStreams input components, processor
+    components, flowgraph edges, registered `message.BaseMessage` payloads, network ingress ports, tappable stream
+    output ports, graph mutation request ports, config schema, health, and flow metrics.
+  - Deleted stale `configs/robotics-flow.json` so old raw-subject flow topology cannot be mistaken for the current
+    SemStreams component contract.

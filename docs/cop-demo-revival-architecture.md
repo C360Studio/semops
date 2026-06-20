@@ -22,7 +22,8 @@ Product boundary:
 - SemOps owns the COP product, HA/DR scenario, feed adapters, domain vocabulary, fusion behavior, operator UI,
   scenario playback, and product-scoped governance.
 - SemStreams owns the substrate: NATS/JetStream, graph mutation/query contracts, projection contracts,
-  ownership claims, indexing profiles, rule processing, and tiered structural/statistical/semantic services.
+  ownership claims, indexing profiles, component lifecycle, flowgraph topology, payload registry, port/config schema,
+  rule processing, and tiered structural/statistical/semantic services.
 - SemConnect owns the standards-facing OGC Connected Systems API bridge and conformance evidence while SemOps keeps
   native feed ingestion and governed COP state as the product core.
 - SemLink remains useful prior art for the modern GCS UI pattern, source-aware graph lens, TAK bridge, CS API bridge,
@@ -91,8 +92,9 @@ SemOps started materially stale; the first revival slices are correcting that:
   `cmd/semops-scenario-runner`; an operator/API control surface and the shared-airspace vignette remain open. The
   one-command stack smoke now verifies the runner's graph writes are product-visible through the same-origin COP
   snapshot.
-- `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
-  and projection contract surface.
+- The old `configs/robotics-flow.json` StreamKit-style flow was deleted because it taught raw subject topology and did
+  not describe the current SemStreams component lifecycle, flowgraph, payload-registry, port/config, graph ingest, or
+  projection surface.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
 - The active frontend tree is a clean-sheet Svelte 5 COP in `ui`; the old flow-runtime UI idea should be treated as
   historical context, not a surface to restore.
@@ -114,6 +116,10 @@ SemOps has salvageable MAVLink depth:
   framework's mutation retry rule for transient responder startup races.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
+- The next hosted-feed hardening step is to split hosted boundaries into SemStreams input and processor components:
+  transport inputs publish registered raw `message.BaseMessage` payloads on declared stream output ports; parser,
+  decoder, projector, and fusion processors consume declared ports, publish tappable decoded outputs, and write graph
+  mutations only through declared NATS request ports.
 
 SemOps now has TAK/CoT depth beyond prior-art replay:
 
@@ -183,8 +189,11 @@ The short rule is: ontology hydrates the inspector; SemOps owns the view.
    secrets, expensive inference, or different failure domains.
 6. Library/component boundaries follow code reuse concerns: codecs, canonical mappers, entity models, vocabulary,
    projection contracts, and deterministic fusion rules.
-7. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
-8. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
+7. Hosted feed boundaries use SemStreams input/processor component lifecycle, flowgraph, payload-registry, port,
+   config-schema, health, and flow-metric patterns rather than a SemOps-local framework. Raw NATS subjects are port
+   configuration; every output port should be tappable by another component.
+8. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
+9. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
    architect, reviewer, and technical-writer roles have tried to break the assumptions and recorded the result.
 
 ## Born-First Graph Discipline
