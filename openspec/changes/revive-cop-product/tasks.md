@@ -72,7 +72,8 @@
 - [ ] 5.26 Run or qualify the Dstl BSI Flex 335 v2 Test Harness before SAPIENT compliance claims
 - [x] 5.27 Add parser-only SAPIENT BSI Flex 335 v2 JSON preflight fixture gate before graph projection
 - [ ] 5.28 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
-- [ ] 5.29 Add generated SAPIENT BSI Flex 335 v2 protobuf bindings and binary payload decode gate
+- [x] 5.29 Add SAPIENT BSI Flex 335 v2 descriptor-based binary payload decode gate
+- [ ] 5.30 Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptors
 
 ## 6. Structural COP Stack
 

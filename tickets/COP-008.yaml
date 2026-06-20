@@ -22,6 +22,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-20-adsb-sapient-boundary-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-artifact-discovery-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-parser-preflight-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-binary-descriptor-review.md
 
 scope:
   - Run adversarial reviews at framework modernization, COP model, feed-entry, Phase 1 signoff, high-risk claim,

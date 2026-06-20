@@ -220,8 +220,8 @@ surveillance/radar processing.
 
 Demo/MVP lane:
 Official artifacts now exist: GOV.UK points to BSI Flex 335, Dstl protobufs, a BSI Flex 335 v2 Test Harness, and Apex
-middleware. The first SemOps lane is parser-only: a JSON preflight now validates representative Dstl-harness-shaped
-messages, while generated v2 protobuf bindings and binary payload fixtures remain the next gate before graph writes.
+middleware. The first SemOps lane is parser-only: JSON preflight and descriptor-based binary protobuf preflight now
+validate representative Dstl-harness-shaped messages before graph writes.
 
 Full product lane:
 SemOps-hosted SAPIENT-facing service if needed, with sensor/detection/tasking integration, versioned protobuf
@@ -235,7 +235,7 @@ graph projection. Treat Apex as an interop reference, while SemOps owns product 
 provenance, freshness, and command authority.
 
 Not claimed yet:
-SAPIENT conformance, product support, binary protobuf decode, local test-harness success, portable-suite authority, or
+SAPIENT conformance, product support, local test-harness success, portable-suite authority, full-message coverage, or
 inferred schema compatibility.
 
 ### KLV/STANAG 4609
