@@ -40,6 +40,15 @@ SemOps MUST consume SemStreams substrate contracts rather than reimplementing fr
 - **WHEN** a SemOps feature needs reusable deployment metadata, inference evidence, provenance, or query helpers
 - **THEN** SemOps records the product need and routes the reusable primitive to SemStreams for review
 
+#### Scenario: Runtime utilities come from SemStreams first
+
+- **WHEN** SemOps needs NATS access, request/reply, KV access, retry behavior, error classification, in-memory caches,
+  or bounded concurrent buffers
+- **THEN** SemOps evaluates SemStreams utility packages such as `natsclient`, `pkg/errs`, `pkg/cache`, and
+  `pkg/buffer` before adding SemOps-local helper packages
+- **AND** SemOps records concrete upstream issues when those utilities are missing feed-runtime capabilities needed by
+  the COP product
+
 ### Requirement: SemConnect owns standards bridge evidence
 
 SemOps SHALL use SemConnect for OGC Connected Systems API bridge behavior and conformance claims unless SemOps is

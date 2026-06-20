@@ -127,6 +127,9 @@
       registered-payload, and port/config surfaces
 - [x] 6.38 Add concrete MAVLink UDP input, decoder processor, and projector processor components before app runtime
       rewiring
+- [x] 6.39 Rewire hosted MAVLink UDP ingestion onto the SemStreams input -> decoder processor -> projector processor
+      flow
+- [x] 6.40 Record SemStreams utility package reuse as a SemOps framework-compliance expectation
 
 ## 7. COP UI
 

@@ -2,24 +2,29 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
-	mavadapter "github.com/c360studio/semops/internal/adapters/mavlink"
+	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
+	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 	"github.com/c360studio/semops/pkg/cop"
+	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/pkg/ownership"
+	"github.com/nats-io/nats.go"
 )
 
-func TestStartRegistersOwnershipBeforeComposingMAVLink(t *testing.T) {
+func TestStartRegistersOwnershipBeforeComposingMAVLinkFlow(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -29,8 +34,8 @@ func TestStartRegistersOwnershipBeforeComposingMAVLink(t *testing.T) {
 	cfg.MAVLink.WriteTimeout = 750 * time.Millisecond
 
 	var stoppedOwners bool
-	var gotAdapterCfg stack.MAVLinkAdapterConfig
-	var gotAdapterDeps stack.MAVLinkAdapterDeps
+	var gotWriterCfg stack.MAVLinkAdapterConfig
+	var gotWriterDeps stack.MAVLinkAdapterDeps
 
 	app, err := start(ctx, cfg, dependencies{
 		newNATSClient: func(got Config) (semstreamsClient, error) {
@@ -64,13 +69,13 @@ func TestStartRegistersOwnershipBeforeComposingMAVLink(t *testing.T) {
 					stoppedOwners = true
 				}, nil
 		},
-		newMAVLinkAdapter: func(
-			adapterCfg stack.MAVLinkAdapterConfig,
-			adapterDeps stack.MAVLinkAdapterDeps,
-		) (*mavadapter.Adapter, error) {
-			gotAdapterCfg = adapterCfg
-			gotAdapterDeps = adapterDeps
-			return testMAVLinkAdapter(t), nil
+		newMAVLinkPlanWriter: func(
+			writerCfg stack.MAVLinkAdapterConfig,
+			writerDeps stack.MAVLinkAdapterDeps,
+		) (mavcomponent.PlanWriter, error) {
+			gotWriterCfg = writerCfg
+			gotWriterDeps = writerDeps
+			return &recordingAppPlanWriter{}, nil
 		},
 	})
 	if err != nil {
@@ -79,20 +84,23 @@ func TestStartRegistersOwnershipBeforeComposingMAVLink(t *testing.T) {
 	if app.OwnershipBinding().Incarnation != "lease-123" {
 		t.Fatalf("ownership incarnation = %q", app.OwnershipBinding().Incarnation)
 	}
-	if app.MAVLinkAdapter() == nil {
-		t.Fatal("expected hosted MAVLink adapter")
+	if app.MAVLinkDecoder() == nil || app.MAVLinkProjector() == nil {
+		t.Fatal("expected hosted MAVLink decoder and projector components")
 	}
-	if got, want := gotAdapterCfg.OwnerTokens[cop.OwnerMAVLink].Wire(), "semops.feed.mavlink#lease-123"; got != want {
-		t.Fatalf("adapter MAVLink owner token = %q, want %q", got, want)
+	if got, want := gotWriterCfg.OwnerTokens[cop.OwnerMAVLink].Wire(), "semops.feed.mavlink#lease-123"; got != want {
+		t.Fatalf("writer MAVLink owner token = %q, want %q", got, want)
 	}
-	if gotAdapterCfg.Platform != "edge-alpha" || gotAdapterCfg.Source != "udp:14550" {
-		t.Fatalf("adapter config = %+v", gotAdapterCfg)
+	if gotWriterCfg.Platform != "edge-alpha" || gotWriterCfg.Source != "udp:14550" {
+		t.Fatalf("writer config = %+v", gotWriterCfg)
 	}
-	if gotAdapterCfg.WriteTimeout != 750*time.Millisecond {
-		t.Fatalf("adapter write timeout = %s", gotAdapterCfg.WriteTimeout)
+	if gotWriterCfg.WriteTimeout != 750*time.Millisecond {
+		t.Fatalf("writer timeout = %s", gotWriterCfg.WriteTimeout)
 	}
-	if gotAdapterDeps.NATS != client {
-		t.Fatal("MAVLink adapter must reuse the connected SemStreams client")
+	if gotWriterDeps.NATS != client {
+		t.Fatal("MAVLink writer must reuse the connected SemStreams client")
+	}
+	if !client.hasSubscription(mavcomponent.DefaultDecodedSubject) || !client.hasSubscription(mavcomponent.DefaultRawSubject) {
+		t.Fatalf("MAVLink flow subscriptions = %+v", client.subscriptionSubjects())
 	}
 
 	if err := app.Close(context.Background()); err != nil {
@@ -125,10 +133,10 @@ func TestStartCleansUpWhenMAVLinkCompositionFails(t *testing.T) {
 				stoppedOwners = true
 			}, nil
 		},
-		newMAVLinkAdapter: func(
+		newMAVLinkPlanWriter: func(
 			stack.MAVLinkAdapterConfig,
 			stack.MAVLinkAdapterDeps,
-		) (*mavadapter.Adapter, error) {
+		) (mavcomponent.PlanWriter, error) {
 			return nil, adapterErr
 		},
 	})
@@ -264,7 +272,7 @@ func TestStartCleansUpWhenCoTCompositionFails(t *testing.T) {
 	}
 }
 
-func TestStartCanDisableHostedMAVLinkAdapter(t *testing.T) {
+func TestStartCanDisableHostedMAVLinkFlow(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
 	cfg.MAVLink.Enabled = false
@@ -281,22 +289,22 @@ func TestStartCanDisableHostedMAVLinkAdapter(t *testing.T) {
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
-		newMAVLinkAdapter: func(
+		newMAVLinkPlanWriter: func(
 			stack.MAVLinkAdapterConfig,
 			stack.MAVLinkAdapterDeps,
-		) (*mavadapter.Adapter, error) {
+		) (mavcomponent.PlanWriter, error) {
 			composed = true
-			return testMAVLinkAdapter(t), nil
+			return &recordingAppPlanWriter{}, nil
 		},
 	})
 	if err != nil {
 		t.Fatalf("start app: %v", err)
 	}
 	if composed {
-		t.Fatal("MAVLink adapter should not be composed when disabled")
+		t.Fatal("MAVLink flow should not be composed when disabled")
 	}
-	if app.MAVLinkAdapter() != nil {
-		t.Fatal("MAVLink adapter should be nil when disabled")
+	if app.MAVLinkDecoder() != nil || app.MAVLinkProjector() != nil || app.MAVLinkInput() != nil {
+		t.Fatal("MAVLink components should be nil when disabled")
 	}
 }
 
@@ -337,14 +345,11 @@ func TestStartCanDisableHostedCoTAdapter(t *testing.T) {
 	}
 }
 
-func TestStartHostsMAVLinkUDPTransportWhenConfigured(t *testing.T) {
+func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
-	cfg.MAVLink.UDP.ListenAddr = "127.0.0.1:14550"
+	cfg.MAVLink.UDP.ListenAddr = "127.0.0.1:0"
 	cfg.MAVLink.UDP.MaxDatagramBytes = 2048
-	transport := newFakeMAVLinkTransport()
-	var gotTransportCfg mavadapter.UDPListenerConfig
-	var gotTransportAdapter *mavadapter.Adapter
 
 	app, err := start(context.Background(), cfg, dependencies{
 		newNATSClient: func(Config) (semstreamsClient, error) {
@@ -357,37 +362,33 @@ func TestStartHostsMAVLinkUDPTransportWhenConfigured(t *testing.T) {
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
-		newMAVLinkAdapter: func(
-			stack.MAVLinkAdapterConfig,
-			stack.MAVLinkAdapterDeps,
-		) (*mavadapter.Adapter, error) {
-			return testMAVLinkAdapter(t), nil
-		},
-		newMAVLinkUDPListener: func(
-			transportCfg mavadapter.UDPListenerConfig,
-			adapter *mavadapter.Adapter,
-		) (mavlinkTransport, error) {
-			gotTransportCfg = transportCfg
-			gotTransportAdapter = adapter
-			return transport, nil
-		},
 	})
 	if err != nil {
 		t.Fatalf("start app: %v", err)
 	}
-	transport.waitStarted(t)
-	if gotTransportCfg.ListenAddr != "127.0.0.1:14550" ||
-		gotTransportCfg.MaxDatagramBytes != 2048 {
-		t.Fatalf("transport config = %+v", gotTransportCfg)
+	if app.MAVLinkInput() == nil {
+		t.Fatal("expected hosted MAVLink UDP input component")
 	}
-	if gotTransportAdapter != app.MAVLinkAdapter() {
-		t.Fatal("transport must receive the hosted MAVLink adapter")
+	if app.MAVLinkInput().Addr() == nil {
+		t.Fatal("expected hosted MAVLink UDP input address")
 	}
+	if !client.hasSubscription(mavcomponent.DefaultRawSubject) || !client.hasSubscription(mavcomponent.DefaultDecodedSubject) {
+		t.Fatalf("subscriptions = %+v", client.subscriptionSubjects())
+	}
+
+	conn, err := net.Dial("udp", app.MAVLinkInput().Addr().String())
+	if err != nil {
+		t.Fatalf("dial MAVLink UDP input: %v", err)
+	}
+	defer conn.Close()
+	if _, err := conn.Write(mustRuntimeHeartbeatFrame(t)); err != nil {
+		t.Fatalf("write MAVLink UDP frame: %v", err)
+	}
+	waitFor(t, time.Second, func() bool { return client.requestCount() >= 2 })
 
 	if err := app.Close(context.Background()); err != nil {
 		t.Fatalf("close app: %v", err)
 	}
-	transport.waitClosed(t)
 	if !client.closed {
 		t.Fatal("close must close SemStreams client")
 	}
@@ -728,41 +729,135 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 }
 
 type fakeSemStreamsClient struct {
-	connected bool
-	closed    bool
+	mu            sync.Mutex
+	connected     bool
+	closed        bool
+	subscriptions map[string][]func(context.Context, *nats.Msg)
+	published     []publishedRuntimeMessage
+	requests      []runtimeGraphRequest
 }
 
 func (c *fakeSemStreamsClient) Connect(context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.connected = true
 	return nil
 }
 
 func (c *fakeSemStreamsClient) Close(context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.closed = true
 	return nil
 }
 
 func (c *fakeSemStreamsClient) RequestWithRetry(
-	context.Context,
-	string,
-	[]byte,
-	time.Duration,
-	natsclient.RetryConfig,
+	_ context.Context,
+	subject string,
+	data []byte,
+	timeout time.Duration,
+	retry natsclient.RetryConfig,
 ) ([]byte, error) {
-	return nil, errors.New("not used")
+	c.mu.Lock()
+	c.requests = append(c.requests, runtimeGraphRequest{
+		subject: subject,
+		data:    append([]byte(nil), data...),
+		timeout: timeout,
+		retry:   retry,
+	})
+	c.mu.Unlock()
+
+	switch subject {
+	case mavprojector.SubjectEntityCreateWithTriples:
+		return mustRuntimeJSON(graph.CreateEntityWithTriplesResponse{
+			MutationResponse: graph.MutationResponse{Success: true},
+		}), nil
+	case mavprojector.SubjectEntityUpdateWithTriples:
+		return mustRuntimeJSON(graph.UpdateEntityWithTriplesResponse{
+			MutationResponse: graph.MutationResponse{Success: true},
+		}), nil
+	default:
+		return nil, errors.New("unexpected request subject: " + subject)
+	}
 }
 
-func (c *fakeSemStreamsClient) Request(context.Context, string, []byte, time.Duration) ([]byte, error) {
-	return nil, errors.New("not used")
+func (c *fakeSemStreamsClient) Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error) {
+	return c.RequestWithRetry(ctx, subject, data, timeout, natsclient.DefaultRetryConfig())
 }
 
 func (c *fakeSemStreamsClient) RequestClassified(context.Context, string, []byte, time.Duration) ([]byte, error) {
 	return nil, errors.New("not used")
 }
 
-type noopPlanWriter struct{}
+func (c *fakeSemStreamsClient) Publish(ctx context.Context, subject string, data []byte) error {
+	c.mu.Lock()
+	c.published = append(c.published, publishedRuntimeMessage{
+		subject: subject,
+		data:    append([]byte(nil), data...),
+	})
+	handlers := append([]func(context.Context, *nats.Msg){}, c.subscriptions[subject]...)
+	c.mu.Unlock()
 
-func (noopPlanWriter) Apply(context.Context, mavprojector.Plan) error {
+	for _, handler := range handlers {
+		handler(ctx, &nats.Msg{Subject: subject, Data: append([]byte(nil), data...)})
+	}
+	return nil
+}
+
+func (c *fakeSemStreamsClient) Subscribe(
+	_ context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (*natsclient.Subscription, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.subscriptions == nil {
+		c.subscriptions = make(map[string][]func(context.Context, *nats.Msg))
+	}
+	c.subscriptions[subject] = append(c.subscriptions[subject], handler)
+	return nil, nil
+}
+
+func (c *fakeSemStreamsClient) hasSubscription(subject string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.subscriptions[subject]) > 0
+}
+
+func (c *fakeSemStreamsClient) subscriptionSubjects() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	subjects := make([]string, 0, len(c.subscriptions))
+	for subject := range c.subscriptions {
+		subjects = append(subjects, subject)
+	}
+	return subjects
+}
+
+func (c *fakeSemStreamsClient) requestCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.requests)
+}
+
+type publishedRuntimeMessage struct {
+	subject string
+	data    []byte
+}
+
+type runtimeGraphRequest struct {
+	subject string
+	data    []byte
+	timeout time.Duration
+	retry   natsclient.RetryConfig
+}
+
+type recordingAppPlanWriter struct {
+	plans []mavprojector.Plan
+}
+
+func (w *recordingAppPlanWriter) Apply(_ context.Context, plan mavprojector.Plan) error {
+	w.plans = append(w.plans, plan)
 	return nil
 }
 
@@ -770,15 +865,6 @@ type noopCoTPlanWriter struct{}
 
 func (noopCoTPlanWriter) Apply(context.Context, cotprojector.Plan) error {
 	return nil
-}
-
-func testMAVLinkAdapter(t *testing.T) *mavadapter.Adapter {
-	t.Helper()
-	adapter, err := mavadapter.NewAdapter(mavadapter.Config{Writer: noopPlanWriter{}})
-	if err != nil {
-		t.Fatalf("new test adapter: %v", err)
-	}
-	return adapter
 }
 
 func testCoTAdapter(t *testing.T) *cotadapter.Adapter {
@@ -835,4 +921,37 @@ func (t *fakeMAVLinkTransport) waitClosed(tb testing.TB) {
 	case <-time.After(time.Second):
 		tb.Fatal("timed out waiting for transport close")
 	}
+}
+
+func mustRuntimeHeartbeatFrame(t *testing.T) []byte {
+	t.Helper()
+	frame, err := mavcodec.NewGenerator(42, 7).GenerateHeartbeat(mavcodec.HeartbeatMessage{
+		BaseMode:       mavcodec.ModeFlagSafetyArmed,
+		SystemStatus:   mavcodec.StateActive,
+		MavlinkVersion: mavcodec.Version2,
+	})
+	if err != nil {
+		t.Fatalf("generate heartbeat: %v", err)
+	}
+	return frame
+}
+
+func mustRuntimeJSON(value any) []byte {
+	data, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+func waitFor(t *testing.T, timeout time.Duration, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if condition() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("condition was not met before timeout")
 }
