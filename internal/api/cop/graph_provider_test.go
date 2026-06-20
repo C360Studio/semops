@@ -561,6 +561,88 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	}
 }
 
+func TestGraphProviderPagesPrefixDiscoveryWithCursor(t *testing.T) {
+	now := time.Date(2026, 6, 19, 17, 15, 0, 0, time.UTC)
+	observed := now.Add(-15 * time.Second)
+	platform := "edge-paged"
+	firstTrackID := "c360.edge-paged.cop.mavlink.track.system-81"
+	secondTrackID := "c360.edge-paged.cop.mavlink.track.system-82"
+	trackPrefix := graphEntityPrefix("c360", platform, "mavlink", copmodel.EntityTrack)
+	requester := &fakeGraphSnapshotRequester{
+		prefixPages: map[string][]fakePrefixPage{
+			trackPrefix: {
+				{
+					entities: []graph.EntityState{{
+						ID:        firstTrackID,
+						UpdatedAt: observed,
+						Triples: []message.Triple{
+							testTriple(firstTrackID, copmodel.TrackNativeID, "mavlink.system.81.component.1", observed),
+							testTriple(firstTrackID, copmodel.TrackStatus, "active.armed", observed),
+							testTriple(firstTrackID, copmodel.TrackPosition, "POINT(-77.0400000 38.9000000)", observed),
+							testTriple(firstTrackID, copmodel.TrackObservedAt, observed, observed),
+							testTriple(firstTrackID, copmodel.ProvenanceSource, "mavlink", observed),
+							testTriple(firstTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+						},
+					}},
+					nextCursor: "cursor-1",
+				},
+				{
+					entities: []graph.EntityState{{
+						ID:        secondTrackID,
+						UpdatedAt: observed,
+						Triples: []message.Triple{
+							testTriple(secondTrackID, copmodel.TrackNativeID, "mavlink.system.82.component.1", observed),
+							testTriple(secondTrackID, copmodel.TrackStatus, "active.armed", observed),
+							testTriple(secondTrackID, copmodel.TrackPosition, "POINT(-77.0410000 38.9010000)", observed),
+							testTriple(secondTrackID, copmodel.TrackObservedAt, observed, observed),
+							testTriple(secondTrackID, copmodel.ProvenanceSource, "mavlink", observed),
+							testTriple(secondTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+						},
+					}},
+				},
+			},
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithGraphDiscoveryLimit(3),
+		WithGraphDiscoveryScopes([]GraphDiscoveryScope{{Org: "c360", Platform: platform}}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveTracks != 2 || len(snapshot.Tracks) != 2 {
+		t.Fatalf("tracks = %+v", snapshot.Tracks)
+	}
+	var trackRequests []recordedPrefixRequest
+	for _, request := range requester.prefixRequests {
+		if request.prefix == trackPrefix {
+			trackRequests = append(trackRequests, request)
+		}
+	}
+	if len(trackRequests) != 2 {
+		t.Fatalf("track prefix requests = %+v", trackRequests)
+	}
+	if trackRequests[0].limit != 3 || trackRequests[0].cursor != "" ||
+		trackRequests[1].limit != 2 || trackRequests[1].cursor != "cursor-1" {
+		t.Fatalf("track prefix request paging = %+v", trackRequests)
+	}
+	trackDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "mavlink", copmodel.EntityTrack)
+	if !ok {
+		t.Fatalf("missing MAVLink track diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if trackDiagnostic.Count != 2 || trackDiagnostic.Limit != 3 || trackDiagnostic.AtLimit {
+		t.Fatalf("MAVLink track diagnostic = %+v", trackDiagnostic)
+	}
+}
+
 func TestGraphProviderFallsBackPerFeedWhenDiscoveryIsPartial(t *testing.T) {
 	now := time.Date(2026, 6, 19, 17, 30, 0, 0, time.UTC)
 	observed := now.Add(-20 * time.Second)
@@ -663,33 +745,36 @@ func TestGraphProviderReportsDiscoveryLimitPressureAndErrors(t *testing.T) {
 	trackPrefix := graphEntityPrefix("c360", platform, "mavlink", copmodel.EntityTrack)
 	takAdvisoryPrefix := graphEntityPrefix("c360", platform, "tak", copmodel.EntityAdvisory)
 	requester := &fakeGraphSnapshotRequester{
-		prefixEntities: map[string][]graph.EntityState{
-			trackPrefix: {
-				{
-					ID:        firstTrackID,
-					UpdatedAt: observed,
-					Triples: []message.Triple{
-						testTriple(firstTrackID, copmodel.TrackNativeID, "mavlink.system.41.component.1", observed),
-						testTriple(firstTrackID, copmodel.TrackStatus, "active.armed", observed),
-						testTriple(firstTrackID, copmodel.TrackPosition, "POINT(-77.0400000 38.9000000)", observed),
-						testTriple(firstTrackID, copmodel.TrackObservedAt, observed, observed),
-						testTriple(firstTrackID, copmodel.ProvenanceSource, "mavlink", observed),
-						testTriple(firstTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+		prefixPages: map[string][]fakePrefixPage{
+			trackPrefix: {{
+				entities: []graph.EntityState{
+					{
+						ID:        firstTrackID,
+						UpdatedAt: observed,
+						Triples: []message.Triple{
+							testTriple(firstTrackID, copmodel.TrackNativeID, "mavlink.system.41.component.1", observed),
+							testTriple(firstTrackID, copmodel.TrackStatus, "active.armed", observed),
+							testTriple(firstTrackID, copmodel.TrackPosition, "POINT(-77.0400000 38.9000000)", observed),
+							testTriple(firstTrackID, copmodel.TrackObservedAt, observed, observed),
+							testTriple(firstTrackID, copmodel.ProvenanceSource, "mavlink", observed),
+							testTriple(firstTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+						},
+					},
+					{
+						ID:        secondTrackID,
+						UpdatedAt: observed,
+						Triples: []message.Triple{
+							testTriple(secondTrackID, copmodel.TrackNativeID, "mavlink.system.42.component.1", observed),
+							testTriple(secondTrackID, copmodel.TrackStatus, "active.armed", observed),
+							testTriple(secondTrackID, copmodel.TrackPosition, "POINT(-77.0410000 38.9010000)", observed),
+							testTriple(secondTrackID, copmodel.TrackObservedAt, observed, observed),
+							testTriple(secondTrackID, copmodel.ProvenanceSource, "mavlink", observed),
+							testTriple(secondTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+						},
 					},
 				},
-				{
-					ID:        secondTrackID,
-					UpdatedAt: observed,
-					Triples: []message.Triple{
-						testTriple(secondTrackID, copmodel.TrackNativeID, "mavlink.system.42.component.1", observed),
-						testTriple(secondTrackID, copmodel.TrackStatus, "active.armed", observed),
-						testTriple(secondTrackID, copmodel.TrackPosition, "POINT(-77.0410000 38.9010000)", observed),
-						testTriple(secondTrackID, copmodel.TrackObservedAt, observed, observed),
-						testTriple(secondTrackID, copmodel.ProvenanceSource, "mavlink", observed),
-						testTriple(secondTrackID, copmodel.ProvenanceObservedAt, observed, observed),
-					},
-				},
-			},
+				nextCursor: "more-tracks",
+			}},
 		},
 		prefixErrors: map[string]error{
 			takAdvisoryPrefix: errors.New("temporary prefix index unavailable"),
@@ -716,6 +801,18 @@ func TestGraphProviderReportsDiscoveryLimitPressureAndErrors(t *testing.T) {
 	}
 	if trackDiagnostic.Count != 2 || trackDiagnostic.Limit != 2 || !trackDiagnostic.AtLimit {
 		t.Fatalf("MAVLink track diagnostic = %+v", trackDiagnostic)
+	}
+	var trackRequestCount int
+	for _, request := range requester.prefixRequests {
+		if request.prefix == trackPrefix {
+			trackRequestCount++
+			if request.cursor != "" {
+				t.Fatalf("limit-truncated query should not request continuation cursor: %+v", requester.prefixRequests)
+			}
+		}
+	}
+	if trackRequestCount != 1 {
+		t.Fatalf("track prefix request count = %d, requests = %+v", trackRequestCount, requester.prefixRequests)
 	}
 	advisoryDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityAdvisory)
 	if !ok {
@@ -820,15 +917,23 @@ func TestGraphProviderFallsBackWhenNoGraphEntitiesExist(t *testing.T) {
 type fakeGraphSnapshotRequester struct {
 	entities       map[string]graph.EntityState
 	prefixEntities map[string][]graph.EntityState
+	prefixPages    map[string][]fakePrefixPage
 	prefixErrors   map[string]error
 	subjects       []string
 	prefixRequests []recordedPrefixRequest
 	entityRequests []string
+	prefixPageNext map[string]int
+}
+
+type fakePrefixPage struct {
+	entities   []graph.EntityState
+	nextCursor string
 }
 
 type recordedPrefixRequest struct {
 	prefix string
 	limit  int
+	cursor string
 }
 
 func (r *fakeGraphSnapshotRequester) Request(
@@ -857,22 +962,42 @@ func (r *fakeGraphSnapshotRequester) request(
 ) ([]byte, error) {
 	r.subjects = append(r.subjects, subject)
 	if subject == SubjectGraphQueryPrefix {
-		var req struct {
-			Prefix string `json:"prefix"`
-			Limit  int    `json:"limit"`
-		}
+		var req graph.PrefixQueryRequest
 		if err := json.Unmarshal(data, &req); err != nil {
 			return nil, err
 		}
-		r.prefixRequests = append(r.prefixRequests, recordedPrefixRequest{prefix: req.Prefix, limit: req.Limit})
+		r.prefixRequests = append(r.prefixRequests, recordedPrefixRequest{
+			prefix: req.Prefix,
+			limit:  req.Limit,
+			cursor: req.Cursor,
+		})
 		if err := r.prefixErrors[req.Prefix]; err != nil {
 			return nil, err
+		}
+		if pages, ok := r.prefixPages[req.Prefix]; ok {
+			if r.prefixPageNext == nil {
+				r.prefixPageNext = make(map[string]int)
+			}
+			pageIndex := r.prefixPageNext[req.Prefix]
+			r.prefixPageNext[req.Prefix] = pageIndex + 1
+			if pageIndex >= len(pages) {
+				return json.Marshal(graph.PrefixQueryResponse{})
+			}
+			page := pages[pageIndex]
+			entities := append([]graph.EntityState(nil), page.entities...)
+			if req.Limit > 0 && len(entities) > req.Limit {
+				entities = entities[:req.Limit]
+			}
+			return json.Marshal(graph.PrefixQueryResponse{
+				Entities:   entities,
+				NextCursor: page.nextCursor,
+			})
 		}
 		entities := append([]graph.EntityState(nil), r.prefixEntities[req.Prefix]...)
 		if req.Limit > 0 && len(entities) > req.Limit {
 			entities = entities[:req.Limit]
 		}
-		return json.Marshal(map[string][]graph.EntityState{"entities": entities})
+		return json.Marshal(graph.PrefixQueryResponse{Entities: entities})
 	}
 	var req map[string]string
 	if err := json.Unmarshal(data, &req); err != nil {

@@ -14,7 +14,8 @@ product-grade discovery model.
 
 - Prefix discovery can hide partial failures if one source prefix works and another does not.
 - A broad prefix scan can become a cardinality footgun if SemOps points it at too wide a scope.
-- The current prefix response is an untyped `{"entities":[...]}` envelope, not a strongly named SemStreams client API.
+- Closed by `2026-06-19-prefix-pagination-adoption-review.md`: SemStreams now exposes typed prefix-query envelopes and
+  opaque cursor pagination, and SemOps consumes them.
 - Discovery improves readback, but it does not replace feed-specific compliance, lifecycle, or replay evidence.
 - Future graph visualization should reuse SemConnect/SemLink graph-lens patterns before SemOps creates a new graph UI.
 
@@ -30,14 +31,15 @@ product-grade discovery model.
 ## Accepted Risks
 
 - The first implementation queries a fixed set of COP source/type prefixes per configured org/platform scope.
-- Prefix discovery limit defaults to a bounded value; future pagination or streaming may be needed for large demos.
+- Prefix discovery limit defaults to a bounded SemOps cap; large demos may still need total-count metadata or
+  streaming if cursor paging proves too expensive.
 - SemOps still needs live stack evidence after the next smoke run to prove the deployed SemStreams tag behaves exactly
   like the inspected local source.
 
 ## Follow-Up Tasks
 
-- SemStreams issue #302 tracks typed prefix-query request/response contracts, a client helper, and pagination
-  guidance.
+- Closed by SemStreams issue #302 and `2026-06-19-prefix-pagination-adoption-review.md`: typed request/response and
+  cursor pagination are available in the pinned SemStreams contract and adopted by SemOps.
 - Closed by `2026-06-19-source-cardinality-diagnostics-review.md`: add source/type counters to COP diagnostics once
   the API has a deliberate operator or technical evidence panel.
 - Revisit discovery scopes before multi-org or multi-platform federation enters the demo.

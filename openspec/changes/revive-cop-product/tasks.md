@@ -101,6 +101,7 @@
       state
 - [x] 6.32 Add source/type cardinality diagnostics for prefix-discovered snapshot state
 - [x] 6.33 Promote prefix discovery pressure into source-health warning alerts
+- [x] 6.34 Adopt SemStreams typed prefix-query cursor pagination for graph-backed COP discovery
 
 ## 7. COP UI
 
@@ -144,3 +145,4 @@
 - [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need
 - [ ] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask
 - [x] 9.8 Feed back owner-token ergonomics and capture typed-token/evidence-declaration response
+- [x] 9.9 Reconcile SemStreams prefix-discovery issue #302 and adopt typed cursor pagination locally
