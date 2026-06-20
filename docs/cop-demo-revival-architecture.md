@@ -95,6 +95,9 @@ SemOps started materially stale; the first revival slices are correcting that:
 - The old `configs/robotics-flow.json` StreamKit-style flow was deleted because it taught raw subject topology and did
   not describe the current SemStreams component lifecycle, flowgraph, payload-registry, port/config, graph ingest, or
   projection surface.
+- `internal/components/mavlink` now provides the first concrete SemStreams flow component set: a UDP transport input
+  component, raw-frame decoder processor, graph projection processor, registered raw and decoded `message.BaseMessage`
+  payloads, declared NATS stream/request ports, and flowgraph-connectable metadata.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
 - The active frontend tree is a clean-sheet Svelte 5 COP in `ui`; the old flow-runtime UI idea should be treated as
   historical context, not a surface to restore.
@@ -116,10 +119,9 @@ SemOps has salvageable MAVLink depth:
   framework's mutation retry rule for transient responder startup races.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
-- The next hosted-feed hardening step is to split hosted boundaries into SemStreams input and processor components:
-  transport inputs publish registered raw `message.BaseMessage` payloads on declared stream output ports; parser,
-  decoder, projector, and fusion processors consume declared ports, publish tappable decoded outputs, and write graph
-  mutations only through declared NATS request ports.
+- The next hosted-feed hardening step is to wire the hosted app and Compose MAVLink path through the new
+  `internal/components/mavlink` flow, then repeat the same input/processor treatment for TAK/CoT, ADS-B, hosted CAP
+  if promoted, and SAPIENT.
 
 SemOps now has TAK/CoT depth beyond prior-art replay:
 
