@@ -54,7 +54,7 @@ generated or replay MAVLink frames against the live SemStreams graph path before
 expansion. PX4/SITL remains feed-fidelity evidence; it is not the prerequisite for born-first graph compliance.
 The first generated-frame smoke passed on 2026-06-17. Follow-up clean-stack runs also registered SemOps COP owners
 and used typed owner tokens minted by SemStreams registry/bind results. The hosted `cmd/semops` composition root now
-registers COP owners before composing the MAVLink and TAK/CoT adapters. The Docker Compose smoke now starts NATS,
+registers COP owners before composing the MAVLink and TAK/CoT component flows. The Docker Compose smoke now starts NATS,
 SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy; polls health, metrics, API, UI, and Svelte
 immutable assets; sends generated MAVLink and CoT seed events over hosted UDP listeners; waits for the Caddy-routed
 COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink, CoT, and CAP live graph smokes.
@@ -81,9 +81,9 @@ SemOps started materially stale; the first revival slices are correcting that:
 - SemOps now declares Go `1.26.3` and imports current `github.com/c360studio/semstreams`.
 - `go test ./...` passes for the active product compile path.
 - `cmd/semops/main.go` now loads env config, starts the hosted SemStreams/COP ownership runtime, and can opt into
-  MAVLink UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`; it can also opt into TAK/CoT UDP/TCP graph
-  writes with `SEMOPS_COT_ENABLED`. API/UI readback for CoT state, monitoring services, TCP/serial MAVLink transport,
-  and dedicated adapter-process packaging remain open.
+  MAVLink UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`; it can also opt into TAK/CoT UDP/TCP component
+  flow graph writes with `SEMOPS_COT_ENABLED`. Monitoring services, TCP/serial MAVLink transport, and dedicated
+  adapter-process packaging remain open.
 - `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, Caddy, and the hosted
   scenario runner for the current graph smoke scaffold plus first browser-facing COP path.
 - `internal/scenario` now provides a deterministic HADR flood/evacuation runner core that exercises MAVLink,
@@ -100,6 +100,12 @@ SemOps started materially stale; the first revival slices are correcting that:
   payloads, declared NATS stream/request ports, and flowgraph-connectable metadata.
 - The hosted `cmd/semops` MAVLink path now starts the projector processor, decoder processor, and UDP input component
   in that order, so native UDP ingest enters through registered raw payloads and declared ports before graph writes.
+- `internal/components/cot` now provides the same SemStreams flow component shape for TAK/CoT: UDP and TCP transport
+  input components, raw-event decoder processor, graph projection processor, registered raw and decoded
+  `message.BaseMessage` payloads, declared ports, health, and flow metrics.
+- The hosted `cmd/semops` TAK/CoT path now starts the projector processor, decoder processor, and optional UDP/TCP
+  input components in that order, so native CoT XML enters through registered raw payloads and declared ports before
+  graph writes.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
 - The active frontend tree is a clean-sheet Svelte 5 COP in `ui`; the old flow-runtime UI idea should be treated as
   historical context, not a surface to restore.
@@ -121,8 +127,8 @@ SemOps has salvageable MAVLink depth:
   framework's mutation retry rule for transient responder startup races.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
-- The next hosted-feed hardening step is to repeat the same input/processor treatment for TAK/CoT, ADS-B, hosted CAP
-  if promoted, and SAPIENT.
+- The next hosted-feed hardening step is to repeat the same input/processor treatment for ADS-B, hosted CAP if
+  promoted, and SAPIENT.
 
 SemOps now has TAK/CoT depth beyond prior-art replay:
 
@@ -132,8 +138,9 @@ SemOps now has TAK/CoT depth beyond prior-art replay:
   `content` advisories while preserving raw source refs.
 - A CoT graph writer and adapter graph path now follow the same born-first and restart reconciliation discipline as
   MAVLink.
-- The hosted runtime can compose CoT behind explicit `SEMOPS_COT_ENABLED` and UDP/TCP listener settings, and the COP
-  API/UI now reads graph-backed CoT tracks, tasks, and advisories for configured seed UIDs.
+- The hosted runtime can compose CoT behind explicit `SEMOPS_COT_ENABLED` and UDP/TCP input settings through
+  SemStreams components, and the COP API/UI now reads graph-backed CoT tracks, tasks, and advisories by prefix
+  discovery.
 
 SemLink has the more current product pattern:
 
@@ -198,8 +205,13 @@ The short rule is: ontology hydrates the inspector; SemOps owns the view.
 8. SemOps should prefer SemStreams utility packages before adding local equivalents: `natsclient` for NATS,
    JetStream, KV, retry, and request/reply behavior; `pkg/errs` for classified framework errors; `pkg/cache` for
    shared cache semantics; and `pkg/buffer` for bounded concurrent queues and raw lanes where its policies fit.
-9. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
-10. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
+9. Backpressure is a flow-level contract, not an afterthought inside adapters. Components expose SemStreams
+   `Health()` and `DataFlow()` metrics first, then Prometheus counters/histograms/gauges through SemStreams metric
+   helpers where hosted. Plain NATS subjects are acceptable for first local smokes, but durable or high-rate feed
+   edges should promote to JetStream ports, bounded `pkg/buffer`, or `pkg/cache` only when telemetry shows lag,
+   drops, redelivery/retry pressure, replay need, or smoothing need.
+10. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
+11. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
    architect, reviewer, and technical-writer roles have tried to break the assumptions and recorded the result.
 
 ## Born-First Graph Discipline
@@ -405,6 +417,8 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
 - Spatial and temporal query helpers tuned for COP workflows: polygon intersection, nearest track, stale track,
   and moving object windows.
 - A documented raw-lane plus current-state projection pattern for high-rate telemetry.
+- Component backpressure telemetry for hosted feed flows:
+  [SemStreams issue #309](https://github.com/C360Studio/semstreams/issues/309).
 - Edge/core sync guidance for structural edge nodes and inference-heavy core nodes.
 - Governance helpers for tolerant-reader adapters that append evidence without replacing owned predicates.
 

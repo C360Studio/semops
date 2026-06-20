@@ -28,8 +28,13 @@ progress:
     pinned `v1.0.0-beta.113` contract.
   - SemOps adopted that prefix pagination locally for graph-backed COP discovery and no longer treats `count == limit`
     as truncation unless SemStreams also reports continuation state.
+  - SemStreams issue #309 tracks the component backpressure telemetry gap exposed by SemOps hosted feed migration:
+    queue depth, drops, lag, retry/redelivery pressure, oldest pending age, and Prometheus mapping across
+    `FlowMetrics`, `ProcessorMetrics`, `pkg/buffer`, NATS, and JetStream.
 
 remaining:
   - Comment back on issue #302 after the SemOps PR lands with adoption evidence and any remaining total-count caveat.
+  - Comment back on issue #309 after the CoT component-flow PR lands with the current SemOps evidence and any
+    additional metrics needs found by MAVLink/CoT/CAP/ADS-B hosted smokes.
   - Keep future upstream asks evidence-led; total-count metadata is deferred until large mixed-feed demos prove cursor
     pagination is insufficient.

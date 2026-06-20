@@ -49,8 +49,12 @@ progress:
     stream ports, graph request ports, config schema, health, and flow metrics.
   - Rewired hosted `cmd/semops` MAVLink UDP ingestion onto the component flow so projector and decoder processors
     subscribe before the UDP input starts accepting native frames.
+  - Added `internal/components/cot` and rewired hosted TAK/CoT UDP/TCP ingestion onto the component flow so projector
+    and decoder processors subscribe before native CoT input components start accepting events.
   - Recorded SemStreams utility package reuse as part of framework compliance: `natsclient`, `pkg/errs`,
     `pkg/cache`, and `pkg/buffer` should be evaluated before SemOps-local helper packages grow.
+  - Recorded backpressure/telemetry gate: components expose SemStreams health/flow metrics, hosted runtimes wire
+    Prometheus telemetry, and buffer/cache/JetStream promotion follows lag, drop, retry, or replay evidence.
   - Added `internal/stack.NewMAVLinkAdapter` as a structural wiring factory for parser, raw lane, projector,
     retry-aware NATS requester, graph writer, adapter harness, and health state.
   - SemOps issue #1 triage prioritizes a generated/replay MAVLink live graph smoke before PX4/SITL, UI, or
@@ -101,6 +105,7 @@ progress:
 current_evidence:
   - `go test ./internal/contracts`
   - `go test ./internal/components/mavlink`
+  - `go test ./internal/components/cot`
   - `go test ./internal/adapters/mavlink`
   - `go test ./internal/graphrequest`
   - `go test ./internal/app`
@@ -119,7 +124,7 @@ current_evidence:
   - `bash scripts/cop-stack-smoke.sh`
 
 remaining:
-  - Wrap hosted MAVLink, TAK/CoT, ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams
+  - Wrap hosted ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams
     input and processor components with flowgraph edges, registered payloads, declared ports, and config schemas.
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.

@@ -23,6 +23,18 @@ hosted feed services instead of inventing a SemOps-local lifecycle or flow frame
 SemOps SHALL also prefer SemStreams shared utility packages for common runtime concerns, including `natsclient`,
 `pkg/errs`, `pkg/cache`, and `pkg/buffer`, before creating SemOps-local equivalents.
 
+#### Scenario: Flow backpressure is telemetry-driven
+
+- **WHEN** SemOps wires input and processor components through NATS or JetStream ports
+- **THEN** each component exposes SemStreams `Health()` and `DataFlow()` values for throughput, byte rate, error rate,
+  and last activity
+- **AND** hosted components expose Prometheus metrics through SemStreams metric helpers where the component runtime
+  provides a metrics registry
+- **AND** durable stream backpressure, replay, redelivery, or ack behavior is represented as JetStream port
+  configuration rather than hidden inside adapter code
+- **AND** SemOps adds bounded `pkg/buffer` queues or `pkg/cache` only when telemetry shows queue growth, drop pressure,
+  retry/redelivery pressure, smoothing need, or repeated reads across components
+
 #### Scenario: Network servers are input components
 
 - **WHEN** SemOps listens for native UDP, TCP, serial, file, webhook, or polling feed input

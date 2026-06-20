@@ -1,7 +1,8 @@
 # TAK/CoT Feed Evidence
 
-Status: native parser, UDP/TCP fixture replay, projection-planner, graph-writer, and hosted-adapter gates started,
-still blocked from structural adapter status by `COP-008`, live graph smoke, UI feed state, and stale-data policy.
+Status: native parser, UDP/TCP fixture replay, projection-planner, graph-writer, SemStreams component flow, live graph
+smoke, and COP readback gates started; still blocked from complete feed maturity by stale-data policy, broader
+interop evidence, and future TAK Server-equivalent roadmap work.
 
 ## Decision
 
@@ -20,6 +21,9 @@ compliance suite was verified. Treat TAK as fixture/replay/interoperability-test
   GeoChat advisories, and raw source references.
 - `internal/adapters/cot`, `internal/projectors/cot`, `internal/stack`, and `internal/app` now prove the opt-in
   hosted graph-wiring path from decoded CoT event to SemStreams graph mutation writer.
+- `internal/components/cot` now hosts the SemStreams component flow: UDP and TCP input components emit registered raw
+  CoT `message.BaseMessage` payloads, the decoder processor emits decoded CoT event payloads, and the projector
+  processor writes born-first graph plans through declared request ports.
 - `/Users/coby/Code/c360/semlink/internal/cot/cot.go` contains a dependency-light XML CoT codec for air tracks,
   operator positions, markers, GeoChat, and alerts.
 - `/Users/coby/Code/c360/semlink/internal/tak/bridge.go` supports outbound multicast/TCP and inbound UDP/TCP paths,
@@ -101,12 +105,12 @@ Current evidence:
   projection, GeoChat-to-advisory `content` projection, source refs, unsupported alert no-ops, and restart born-state
   seeding.
 
-### Graph Wiring Gate
+### Component And Graph Wiring Gate
 
 Target command:
 
 ```bash
-go test ./internal/projectors/cot ./internal/adapters/cot ./internal/stack ./internal/app
+go test ./internal/components/cot ./internal/projectors/cot ./internal/adapters/cot ./internal/stack ./internal/app
 ```
 
 Acceptance:
@@ -115,13 +119,16 @@ Acceptance:
 - CoT adapter writes projection plans only after raw capture/replay and reconciles `entity_already_exists` birth
   conflicts without re-emitting strict source edges on updates.
 - `internal/stack` can compose a NATS-backed CoT adapter or injected test writer.
-- Hosted runtime composes CoT only when `SEMOPS_COT_ENABLED=true` and starts UDP/TCP listeners only when explicitly
-  configured.
+- `internal/components/cot` exposes UDP/TCP input components, decoder and projector processors, registered raw/decoded
+  payload types, config schemas, health, flow metrics, and flowgraph-connectable ports.
+- Hosted runtime composes CoT only when `SEMOPS_COT_ENABLED=true` and starts UDP/TCP input components only when
+  explicitly configured.
 
 Current evidence:
 
-- `go test ./internal/projectors/cot ./internal/adapters/cot ./internal/stack ./internal/app` passes for the
-  graph-writer, adapter, stack, config/env, and hosted-listener lifecycle gates.
+- `go test ./internal/components/cot ./internal/projectors/cot ./internal/adapters/cot ./internal/stack ./internal/app`
+  passes for component payload/flowgraph contracts, graph-writer behavior, adapter harnesses, stack config/env, and
+  hosted input-component lifecycle gates.
 
 ### Replay Gate
 
@@ -141,7 +148,7 @@ Current evidence:
 ## Known Gaps
 
 - No verified public TAK/CoT conformance suite.
-- No TAK live graph smoke, COP UI feed state, or stale-data downgrade policy yet.
+- Stale-data downgrade policy is not yet implemented.
 - Tasking remains out of scope until a dedicated operator-value and protocol review.
 - Cross-source identity resolution between TAK-reported UAVs and MAVLink UAVs is out of scope for Phase 1.
 - TAK Server-equivalent behavior remains future SemOps/SemStreams-backed service scope, not MVP adapter scope.

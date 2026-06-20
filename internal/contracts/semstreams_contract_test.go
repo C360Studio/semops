@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
+	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
+	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/component"
 	"github.com/c360studio/semstreams/component/flowgraph"
@@ -203,6 +206,139 @@ func TestFeedBoundaryUsesInputAndProcessorComponentShape(t *testing.T) {
 	})
 }
 
+func TestCoTFeedBoundaryUsesInputAndProcessorComponentShape(t *testing.T) {
+	var _ component.LifecycleComponent = (*cotcomponent.UDPInputComponent)(nil)
+	var _ component.LifecycleComponent = (*cotcomponent.TCPInputComponent)(nil)
+	var _ component.LifecycleComponent = (*cotcomponent.DecoderComponent)(nil)
+	var _ component.LifecycleComponent = (*cotcomponent.ProjectorComponent)(nil)
+
+	bus := cotContractBus{}
+	udpInput, err := cotcomponent.NewUDPInputComponent(cotcomponent.UDPInputConfig{
+		ListenAddr:        "127.0.0.1:0",
+		AdvertisedUDPPort: 8087,
+	}, bus)
+	if err != nil {
+		t.Fatalf("new CoT UDP input component: %v", err)
+	}
+	tcpInput, err := cotcomponent.NewTCPInputComponent(cotcomponent.TCPInputConfig{
+		ListenAddr:        "127.0.0.1:0",
+		AdvertisedTCPPort: 8088,
+	}, bus)
+	if err != nil {
+		t.Fatalf("new CoT TCP input component: %v", err)
+	}
+	decoder, err := cotcomponent.NewDecoderComponent(cotcomponent.DecoderConfig{}, bus)
+	if err != nil {
+		t.Fatalf("new CoT decoder component: %v", err)
+	}
+	projector, err := cotcomponent.NewProjectorComponent(cotcomponent.ProjectorConfig{
+		Writer: cotContractPlanWriter{},
+	}, bus)
+	if err != nil {
+		t.Fatalf("new CoT projector component: %v", err)
+	}
+
+	for name, lifecycle := range map[string]component.LifecycleComponent{
+		"udp_input": udpInput,
+		"tcp_input": tcpInput,
+		"decoder":   decoder,
+		"projector": projector,
+	} {
+		if err := lifecycle.Initialize(); err != nil {
+			t.Fatalf("initialize %s: %v", name, err)
+		}
+		if err := lifecycle.Start(context.Background()); err != nil {
+			t.Fatalf("start %s: %v", name, err)
+		}
+		if err := lifecycle.Stop(time.Second); err != nil {
+			t.Fatalf("stop %s: %v", name, err)
+		}
+	}
+
+	if udpInput.Meta().Type != "input" || tcpInput.Meta().Type != "input" {
+		t.Fatalf("CoT input component types = %q/%q, want input/input", udpInput.Meta().Type, tcpInput.Meta().Type)
+	}
+	if decoder.Meta().Type != "processor" || projector.Meta().Type != "processor" {
+		t.Fatalf("CoT processor component types = %q/%q, want processor/processor", decoder.Meta().Type, projector.Meta().Type)
+	}
+	if got, want := udpInput.InputPorts()[0].Config.Type(), "network"; got != want {
+		t.Fatalf("CoT UDP ingress port type = %q, want %q", got, want)
+	}
+	if got, want := tcpInput.InputPorts()[0].Config.Type(), "network"; got != want {
+		t.Fatalf("CoT TCP ingress port type = %q, want %q", got, want)
+	}
+	if got, want := udpInput.OutputPorts()[0].Config.Type(), "nats"; got != want {
+		t.Fatalf("CoT input raw output port type = %q, want %q", got, want)
+	}
+	if got, want := decoder.OutputPorts()[0].Config.Type(), "nats"; got != want {
+		t.Fatalf("CoT decoder decoded output port type = %q, want %q", got, want)
+	}
+	for _, port := range projector.OutputPorts() {
+		if got, want := port.Config.Type(), "nats-request"; got != want {
+			t.Fatalf("CoT projector output port %q type = %q, want %q", port.Name, got, want)
+		}
+	}
+
+	requireProperty(t, udpInput.ConfigSchema(), "listen_addr")
+	requireProperty(t, tcpInput.ConfigSchema(), "max_event_bytes")
+	requireProperty(t, decoder.ConfigSchema(), "raw_max_records")
+	requireProperty(t, decoder.ConfigSchema(), "decoded_subject")
+	requireProperty(t, projector.ConfigSchema(), "owner")
+
+	fg := flowgraph.NewFlowGraph()
+	if err := fg.AddComponentNode(udpInput.Meta().Name, udpInput); err != nil {
+		t.Fatalf("add CoT UDP input to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(tcpInput.Meta().Name, tcpInput); err != nil {
+		t.Fatalf("add CoT TCP input to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
+		t.Fatalf("add CoT decoder to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(projector.Meta().Name, projector); err != nil {
+		t.Fatalf("add CoT projector to flow graph: %v", err)
+	}
+	if err := fg.ConnectComponentsByPatterns(); err != nil {
+		t.Fatalf("connect CoT feed flow graph: %v", err)
+	}
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From: flowgraph.ComponentPortRef{
+			ComponentName: udpInput.Meta().Name,
+			PortName:      "raw_events",
+		},
+		To: flowgraph.ComponentPortRef{
+			ComponentName: decoder.Meta().Name,
+			PortName:      "raw_events",
+		},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: cotcomponent.DefaultRawSubject,
+	})
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From: flowgraph.ComponentPortRef{
+			ComponentName: tcpInput.Meta().Name,
+			PortName:      "raw_events",
+		},
+		To: flowgraph.ComponentPortRef{
+			ComponentName: decoder.Meta().Name,
+			PortName:      "raw_events",
+		},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: cotcomponent.DefaultRawSubject,
+	})
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From: flowgraph.ComponentPortRef{
+			ComponentName: decoder.Meta().Name,
+			PortName:      "decoded_events",
+		},
+		To: flowgraph.ComponentPortRef{
+			ComponentName: projector.Meta().Name,
+			PortName:      "decoded_events",
+		},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: cotcomponent.DefaultDecodedSubject,
+	})
+}
+
 func TestRawFeedFlowUsesRegisteredBaseMessagePayload(t *testing.T) {
 	registry := payloadregistry.New()
 	if err := mavcomponent.RegisterPayloads(registry); err != nil {
@@ -233,6 +369,52 @@ func TestRawFeedFlowUsesRegisteredBaseMessagePayload(t *testing.T) {
 		t.Fatalf("decoded payload type = %T, want *RawFramePayload", decoded.Payload())
 	}
 	if got.Source != payload.Source || string(got.Frame) != string(payload.Frame) {
+		t.Fatalf("decoded payload = %+v, want %+v", got, payload)
+	}
+}
+
+func TestCoTRawFeedFlowUsesRegisteredBaseMessagePayload(t *testing.T) {
+	registry := payloadregistry.New()
+	if err := cotcomponent.RegisterPayloads(registry); err != nil {
+		t.Fatalf("register CoT payloads: %v", err)
+	}
+
+	now := time.Now().UTC()
+	raw, err := cotcodec.Marshal(cotcodec.Event{
+		UID:      "ANDROID-ALPHA",
+		Type:     cotcodec.TypeOperatorPosition,
+		Time:     now,
+		Stale:    now.Add(2 * time.Minute),
+		Callsign: "Alpha Team",
+		Point:    &cotcodec.Point{Lat: 30.2672, Lon: -97.7431},
+	})
+	if err != nil {
+		t.Fatalf("marshal CoT event: %v", err)
+	}
+	payload := cotcomponent.NewRawEventPayload(
+		"udp://0.0.0.0:8087",
+		"127.0.0.1:50000",
+		now,
+		raw,
+	)
+	wire, err := message.NewBaseMessage(
+		cotcomponent.RawEventType,
+		payload,
+		"semops-input-cot-udp",
+	).MarshalJSON()
+	if err != nil {
+		t.Fatalf("marshal CoT raw feed BaseMessage: %v", err)
+	}
+
+	decoded, err := message.NewDecoder(registry).Decode(wire)
+	if err != nil {
+		t.Fatalf("decode CoT raw feed BaseMessage: %v", err)
+	}
+	got, ok := decoded.Payload().(*cotcomponent.RawEventPayload)
+	if !ok {
+		t.Fatalf("decoded payload type = %T, want *RawEventPayload", decoded.Payload())
+	}
+	if got.Source != payload.Source || string(got.RawXML) != string(payload.RawXML) {
 		t.Fatalf("decoded payload = %+v, want %+v", got, payload)
 	}
 }
@@ -289,5 +471,25 @@ func (contractSubscription) Unsubscribe() error {
 type contractPlanWriter struct{}
 
 func (contractPlanWriter) Apply(context.Context, mavprojector.Plan) error {
+	return nil
+}
+
+type cotContractBus struct{}
+
+func (cotContractBus) Publish(context.Context, string, []byte) error {
+	return nil
+}
+
+func (cotContractBus) Subscribe(
+	context.Context,
+	string,
+	func(context.Context, *nats.Msg),
+) (cotcomponent.Subscription, error) {
+	return contractSubscription{}, nil
+}
+
+type cotContractPlanWriter struct{}
+
+func (cotContractPlanWriter) Apply(context.Context, cotprojector.Plan) error {
 	return nil
 }
