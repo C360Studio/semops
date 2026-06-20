@@ -55,6 +55,10 @@ progress:
     `pkg/cache`, and `pkg/buffer` should be evaluated before SemOps-local helper packages grow.
   - Recorded backpressure/telemetry gate: components expose SemStreams health/flow metrics, hosted runtimes wire
     Prometheus telemetry, and buffer/cache/JetStream promotion follows lag, drop, retry, or replay evidence.
+  - Recorded the CAP component-promotion gate: current parser/projector/scenario replay evidence is not a hosted
+    CAP service, and polling/webhook promotion must use SemStreams input/processor components.
+  - Recorded SemStreams issue #310 as the framework ask for external HTTP polling/client port metadata exposed by
+    CAP/NWS, OpenSky ADS-B, and possible SAPIENT/Apex integrations.
   - Added `internal/stack.NewMAVLinkAdapter` as a structural wiring factory for parser, raw lane, projector,
     retry-aware NATS requester, graph writer, adapter harness, and health state.
   - SemOps issue #1 triage prioritizes a generated/replay MAVLink live graph smoke before PX4/SITL, UI, or
@@ -128,6 +132,7 @@ remaining:
     input and processor components with flowgraph edges, registered payloads, declared ports, and config schemas.
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
-  - Add hosted CAP polling/webhook transport if CAP needs to move beyond scenario replay for Phase 1.
+  - Add hosted CAP polling/webhook transport only if CAP needs to move beyond scenario replay for Phase 1; if so,
+    model it as SemStreams input/processor components and reconcile HTTP polling metadata with SemStreams issue #310.
   - Add operator/API controls for scenario start, reset, pause/resume, and expected-state checkpoints.
   - Add shared-airspace playback once ADS-B/SAPIENT feed boundaries exist.

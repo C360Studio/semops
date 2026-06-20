@@ -10,6 +10,10 @@ preflight parser, a descriptor-based binary protobuf preflight, and bounded raw 
 v2 message shapes, but it must not claim SAPIENT product support or compliance until a documented Dstl harness run
 proves the boundary.
 
+Graph projection remains blocked. SemOps has no SAPIENT owner constant, projection contract, hosted component package,
+or graph writer by design. The first graph slice needs a reviewed source identity model, entity choice, indexing
+profile, and harness or explicit non-compliance-demo scope before `OwnerSAPIENT` exists.
+
 ## Local Evidence
 
 - No hosted SemOps SAPIENT adapter exists in the current checkout.
@@ -167,6 +171,12 @@ Acceptance:
 - Sensor tasking, collection plans, and alert state use `indexing_profile=control`.
 - Native decode/replay records use `indexing_profile=trace`.
 - SAPIENT does not overwrite stricter source facts without an explicit ownership contract.
+- First projection starts with absolute-location reports only, unless source sensor pose, reference frame, and
+  uncertainty are available for range/bearing detections.
+- Associated detections, derived links, and cross-source correlation use fusion or evidence contracts rather than the
+  SAPIENT adapter's source-owner contract.
+- `OwnerSAPIENT` is added only after the projection ownership/indexing review is accepted and tests prove the narrow
+  entity model.
 
 ## Known Gaps
 
@@ -180,6 +190,8 @@ Acceptance:
 - No SemOps mapping exists for SAPIENT node identity, detection lifecycle, tasking, alert acknowledgements, or Apex
   middleware interop.
 - No hosted SAPIENT raw ingress, source-health, or graph projection path exists yet.
+- No `OwnerSAPIENT`, SAPIENT projection contract, or `internal/components/sapient` package exists yet; that is
+  intentional until projection ownership and service mode are reviewed.
 
 ## Adversarial Feed-Entry Questions
 

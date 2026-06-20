@@ -44,6 +44,15 @@ SemOps SHALL also prefer SemStreams shared utility packages for common runtime c
 - **AND** the input component does not parse, project, or write graph state except for minimal envelope validation and
   transport health
 
+#### Scenario: External polling clients remain component-visible
+
+- **WHEN** SemOps polls public or vendor HTTP feeds such as NWS CAP, OpenSky ADS-B, or Apex/SAPIENT endpoints
+- **THEN** the poller is modeled as a SemStreams input component with cadence, endpoint, auth, timeout, retry, cache,
+  rate-limit, and stale-source behavior exposed through config schema and health
+- **AND** the poller emits registered raw-feed messages to declared stream output ports before parser processors run
+- **AND** SemOps uses `TimerPort` cadence plus endpoint config until SemStreams issue #310 defines first-class HTTP
+  polling/client port metadata
+
 #### Scenario: Feed adapters are processor components
 
 - **WHEN** SemOps decodes, validates, replays, maps, fuses, or projects native feed data

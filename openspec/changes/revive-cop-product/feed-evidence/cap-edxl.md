@@ -10,6 +10,13 @@ CAP should be the third feed because it proves loose civilian warning ingestion 
 strict tactical source. CAP writes hazard, advisory, expiry, and provenance evidence; it does not overwrite stricter
 track or asset facts.
 
+The current CAP slice is not a SemStreams component package. It remains parser, projection, scenario-replay, and live
+graph smoke evidence until SemOps promotes hosted polling, webhook ingestion, NWS/IPAWS/vendor integration, or
+continuous alert-source health into product scope. That promotion requires SemStreams input and processor components,
+registered raw/decoded payloads, declared ports, config schema, health, flow metrics, and telemetry-driven
+backpressure. SemStreams issue #310 tracks the external HTTP polling/client port metadata gap exposed by CAP/NWS and
+similar feeds; SemStreams issue #309 tracks richer component backpressure telemetry.
+
 ## Local Evidence
 
 - `pkg/adapters/cap` parses CAP alert, info, area, polygon, circle, resource, geocode, and parameter fields used by
@@ -137,6 +144,8 @@ Acceptance:
 - CAP conformance should be stated as schema/consumer-rule evidence until we implement a proper consumer profile.
 - The current CAP slice does not host a poller/webhook service, fetch NWS alerts, or replay update/cancel/expire
   sequences from captured NWS fixtures.
+- There is no `internal/components/cap` package yet by design; create it only when hosted polling, webhook,
+  watched-file, or vendor feed input becomes product scope.
 - The current projector intentionally does not own `cop.hazard.geometry`, `cop.hazard.severity`, or
   `cop.hazard.status`.
 - The live graph smoke is SemStreams graph-contract evidence, not CAP consumer conformance evidence.
