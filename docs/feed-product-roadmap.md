@@ -101,7 +101,7 @@ ADS-B:
 SAPIENT:
 
 - Demo/MVP boundary: parser-only BSI Flex 335 v2 protobuf fixtures and optional Dstl harness qualification before
-  graph projection.
+  graph projection, with bounded raw replay for exact JSON/protobuf payload evidence.
 - Full product path: SAPIENT-facing service with versioned protobuf, sensor identity, detection lifecycle, tasking,
   fusion, deployment profiles, Apex/middleware interop, and eventual SemOps-owned SAPIENT service capability if
   product demand requires it.
@@ -221,7 +221,8 @@ surveillance/radar processing.
 Demo/MVP lane:
 Official artifacts now exist: GOV.UK points to BSI Flex 335, Dstl protobufs, a BSI Flex 335 v2 Test Harness, and Apex
 middleware. The first SemOps lane is parser-only: JSON preflight and descriptor-based binary protobuf preflight now
-validate representative Dstl-harness-shaped messages before graph writes.
+validate representative Dstl-harness-shaped messages before graph writes. Bounded raw capture and JSON Lines replay now
+preserve exact JSON/protobuf payload bytes for repeatable preflight and future harness comparison.
 
 Full product lane:
 SemOps-hosted SAPIENT-facing service if needed, with sensor/detection/tasking integration, versioned protobuf
@@ -232,7 +233,7 @@ portable SAPIENT preflight suite for Linux CI.
 Boundary to preserve now:
 Do not guess schemas; put official BSI Flex 335 v2 artifacts behind parser, session, and service boundaries before
 graph projection. Treat Apex as an interop reference, while SemOps owns product semantics, graph ownership,
-provenance, freshness, and command authority.
+provenance, freshness, replay, and command authority.
 
 Not claimed yet:
 SAPIENT conformance, product support, local test-harness success, portable-suite authority, full-message coverage, or

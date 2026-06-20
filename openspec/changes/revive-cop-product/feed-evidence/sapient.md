@@ -1,16 +1,18 @@
 # SAPIENT Feed Evidence
 
-Status: JSON and binary descriptor preflight exist; harness qualification still required before implementation.
+Status: JSON and binary descriptor preflight plus raw replay exist; harness qualification still required before
+implementation.
 
 ## Decision
 
 SAPIENT has moved from artifact discovery to a parser/harness planning lane. SemOps now has a dependency-light JSON
-preflight parser and a descriptor-based binary protobuf preflight for representative BSI Flex 335 v2 message shapes,
-but it must not claim SAPIENT product support or compliance until a documented Dstl harness run proves the boundary.
+preflight parser, a descriptor-based binary protobuf preflight, and bounded raw replay for representative BSI Flex 335
+v2 message shapes, but it must not claim SAPIENT product support or compliance until a documented Dstl harness run
+proves the boundary.
 
 ## Local Evidence
 
-- No SemOps SAPIENT adapter exists in the current checkout.
+- No hosted SemOps SAPIENT adapter exists in the current checkout.
 - `pkg/adapters/sapient` parses Dstl-harness-shaped JSON preflight fixtures for registration, status report,
   detection report, and task acknowledgement messages.
 - `go test ./pkg/adapters/sapient` validates required top-level envelope fields, UUID/ULID identity fields,
@@ -20,6 +22,8 @@ but it must not claim SAPIENT product support or compliance until a documented D
 - `ParseBinaryMessage` compiles those sources through `github.com/bufbuild/protocompile`, decodes binary
   `SapientMessage` payloads with dynamic protobuf descriptors, and validates the result through the same preflight
   model.
+- `pkg/adapters/sapient` stores JSON and protobuf payload bytes on a bounded raw lane, persists replay records as JSON
+  Lines, and decodes replay through the same JSON/protobuf preflight boundary.
 - No SemOps SAPIENT generated Go bindings, hosted adapter, or graph projector exists yet.
 - No local SAPIENT test harness run has been performed.
 - The feed ladder assigns detections/tracks to `signal`, tasking/collection state to `control`, and native decode
@@ -118,6 +122,23 @@ Acceptance:
 - BSI Flex 335 v1/v2 drift is visible in package paths, generated-code provenance, or fixture metadata. [done:
   vendored v2 import path]
 
+### Raw Replay Gate
+
+Target command:
+
+```bash
+go test ./pkg/adapters/sapient -run 'RawLane|Replay'
+```
+
+Acceptance:
+
+- Raw JSON and protobuf payload bytes are captured with source, receive time, encoding, content kind, and native
+  identity metadata when parsing succeeds. [done: representative subset]
+- Parser-failing bytes can still be retained when the native encoding is known. [done]
+- Replay records reload from JSON Lines and decode back through the JSON/protobuf preflight boundary. [done]
+- Raw payloads remain out of graph entities until a projection ownership/indexing review approves references or
+  derived state. [open]
+
 ### Generated Binding Gate
 
 Target command if SemOps needs generated Go bindings rather than dynamic descriptors:
@@ -158,6 +179,7 @@ Acceptance:
   copies beyond trimmed test shapes.
 - No SemOps mapping exists for SAPIENT node identity, detection lifecycle, tasking, alert acknowledgements, or Apex
   middleware interop.
+- No hosted SAPIENT raw ingress, source-health, or graph projection path exists yet.
 
 ## Adversarial Feed-Entry Questions
 
