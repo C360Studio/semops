@@ -1,6 +1,6 @@
 # ADS-B Feed Evidence
 
-Status: candidate Phase 2 air-picture feed with initial OpenSky-shaped parser evidence.
+Status: candidate Phase 2 air-picture feed with parser, projection-plan, and COP readback evidence.
 
 ## Decision
 
@@ -14,7 +14,11 @@ fixtures and deterministic replay. Treat ASTERIX, raw receiver protocols, and li
 - The feed ladder assigns aircraft current state to `signal`, association evidence to `control`, and raw receiver or
   replay rows to `trace`.
 - Parser tests preserve nullable callsign, position timestamp, longitude, latitude, altitude, velocity, track,
-  vertical rate, receiver IDs, squawk, position source, and category fields before any graph projection is added.
+  vertical rate, receiver IDs, squawk, position source, and category fields before projection.
+- `internal/projectors/adsb` projects aircraft current state into source-partitioned ADS-B track entities with
+  `indexing_profile=signal`, provenance, confidence, source references, and no cross-source association edge.
+- COP graph prefix discovery reads `c360.<platform>.cop.adsb.track.*` entities back into aircraft tracks and feed
+  health without requiring a hosted ADS-B adapter.
 
 ## External Evidence
 
@@ -58,7 +62,7 @@ Acceptance:
 
 ### Projection Gate
 
-Target command after SemOps graph contracts exist:
+Target command:
 
 ```bash
 go test ./internal/projectors/adsb
@@ -66,10 +70,27 @@ go test ./internal/projectors/adsb
 
 Acceptance:
 
-- Aircraft current state uses `indexing_profile=signal`.
-- Receiver/replay rows use `indexing_profile=trace`.
-- Cross-source association with MAVLink/SAPIENT is separate fusion evidence, not an adapter side effect.
-- Position source is preserved as provenance/confidence evidence.
+- Aircraft current state uses `indexing_profile=signal`. [done]
+- Missing position data remains partial evidence and never emits fake coordinates. [done]
+- Receiver/replay rows remain outside canonical track entities; future raw rows use bounded lanes or `trace`.
+- Cross-source association with MAVLink/SAPIENT is separate fusion evidence, not an adapter side effect. [done]
+- Position source is preserved as provenance/confidence evidence. [done]
+- Restart reconciliation can seed known ADS-B track births before update-only projection. [done]
+
+### Readback Gate
+
+Target command:
+
+```bash
+go test ./internal/api/cop -run TestGraphProviderDiscoversADSBTracksByPrefix
+```
+
+Acceptance:
+
+- Prefix discovery includes ADS-B track entities. [done]
+- ADS-B track readback maps callsign/ICAO, position, velocity, source, provenance, and owner into the COP snapshot.
+  [done]
+- `feed.adsb` is live only when graph-backed ADS-B tracks are fresh; otherwise it remains planned/pending. [done]
 
 ### Live Mode Gate
 
@@ -87,10 +108,11 @@ Acceptance:
 
 ## Known Gaps
 
-- No ADS-B graph projector, hosted adapter, or COP readback path yet.
+- No ADS-B hosted adapter, deterministic replay runner, or live client yet.
 - OpenSky is useful for samples but should not become a critical-path dependency.
 - ASTERIX is not in the first ADS-B slice.
 - Raw receiver/readsb/dump1090 paths are not implemented.
+- Cross-source aircraft association is not implemented and remains fusion-owned.
 
 ## Adversarial Feed-Entry Questions
 

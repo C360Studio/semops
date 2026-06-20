@@ -80,12 +80,15 @@ canonical graph state.
 - **THEN** current-state graph entities use `signal` and raw packet or replay detail uses bounded lanes or `trace`
   references
 
-#### Scenario: ADS-B starts with OpenSky fixture parsing
+#### Scenario: ADS-B starts with OpenSky fixture parsing and source-partitioned projection
 
 - **WHEN** SemOps admits ADS-B into the feed ladder
-- **THEN** the first executable gate parses bounded OpenSky-shaped state-vector fixtures before graph projection
+- **THEN** the first executable gate parses bounded OpenSky-shaped state-vector fixtures before projection
 - **AND** nullable callsign, position timestamp, longitude, latitude, altitude, velocity, track, vertical rate,
   receiver IDs, squawk, position source, and category fields remain explicit
+- **AND** aircraft current state projects to source-partitioned ADS-B `track` entities with `signal` indexing,
+  provenance, confidence, and source references
+- **AND** COP API prefix discovery can read those aircraft tracks back from the graph
 - **AND** live OpenSky polling, ASTERIX, raw receiver protocols, and cross-source aircraft association remain out of
   scope until separate gates approve them
 
