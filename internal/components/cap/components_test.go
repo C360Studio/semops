@@ -7,11 +7,15 @@ import (
 	"testing"
 	"time"
 
+	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/component"
 	"github.com/c360studio/semstreams/component/flowgraph"
+	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/payloadregistry"
+	"github.com/c360studio/semstreams/pkg/ownership"
 	"github.com/nats-io/nats.go"
 )
 
@@ -54,6 +58,7 @@ func TestPayloadRegistryRoundTripsRawAndDecodedPayloads(t *testing.T) {
 func TestCAPComponentsExposeHTTPTimerAndStreamPorts(t *testing.T) {
 	var _ component.LifecycleComponent = (*HTTPPollerComponent)(nil)
 	var _ component.LifecycleComponent = (*DecoderComponent)(nil)
+	var _ component.LifecycleComponent = (*ProjectorComponent)(nil)
 
 	bus := &recordingBus{}
 	poller, err := NewHTTPPollerComponent(HTTPPollerConfig{
@@ -69,12 +74,20 @@ func TestCAPComponentsExposeHTTPTimerAndStreamPorts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new decoder: %v", err)
 	}
+	projector, err := NewProjectorComponent(ProjectorConfig{Writer: &recordingPlanWriter{}}, bus)
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
 
 	if poller.Meta().Type != "input" {
 		t.Fatalf("poller component type = %q, want input", poller.Meta().Type)
 	}
-	if decoder.Meta().Type != "processor" {
-		t.Fatalf("decoder component type = %q, want processor", decoder.Meta().Type)
+	if decoder.Meta().Type != "processor" || projector.Meta().Type != "processor" {
+		t.Fatalf(
+			"processor component types = %q/%q, want processor/processor",
+			decoder.Meta().Type,
+			projector.Meta().Type,
+		)
 	}
 	inputPorts := poller.InputPorts()
 	if len(inputPorts) != 2 {
@@ -102,6 +115,11 @@ func TestCAPComponentsExposeHTTPTimerAndStreamPorts(t *testing.T) {
 	if got, want := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject, DefaultDecodedSubject; got != want {
 		t.Fatalf("decoder decoded subject = %q, want %q", got, want)
 	}
+	for _, port := range projector.OutputPorts() {
+		if got, want := port.Config.Type(), "nats-request"; got != want {
+			t.Fatalf("projector output port %q type = %q, want %q", port.Name, got, want)
+		}
+	}
 
 	fg := flowgraph.NewFlowGraph()
 	if err := fg.AddComponentNode(poller.Meta().Name, poller); err != nil {
@@ -109,6 +127,9 @@ func TestCAPComponentsExposeHTTPTimerAndStreamPorts(t *testing.T) {
 	}
 	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
 		t.Fatalf("add decoder: %v", err)
+	}
+	if err := fg.AddComponentNode(projector.Meta().Name, projector); err != nil {
+		t.Fatalf("add projector: %v", err)
 	}
 	if err := fg.ConnectComponentsByPatterns(); err != nil {
 		t.Fatalf("connect flowgraph: %v", err)
@@ -118,6 +139,15 @@ func TestCAPComponentsExposeHTTPTimerAndStreamPorts(t *testing.T) {
 		t.Fatalf("HTTP polling input pattern = %q, want %q", got, want)
 	}
 	requireEdge(t, fg.GetEdges(), poller.Meta().Name, "raw_alerts", decoder.Meta().Name, "raw_alerts", DefaultRawSubject)
+	requireEdge(
+		t,
+		fg.GetEdges(),
+		decoder.Meta().Name,
+		"decoded_alerts",
+		projector.Meta().Name,
+		"decoded_alerts",
+		DefaultDecodedSubject,
+	)
 	analysis := fg.AnalyzeConnectivity()
 	for _, orphan := range analysis.OrphanedPorts {
 		if orphan.ComponentName == poller.Meta().Name && orphan.PortName == "cap_feed" {
@@ -226,6 +256,99 @@ func TestDecoderConsumesRawAndPublishesDecodedAlert(t *testing.T) {
 	}
 }
 
+func TestProjectorConsumesDecodedAlertAndWritesGraphPlan(t *testing.T) {
+	now := time.Date(2026, 6, 20, 16, 30, 0, 0, time.UTC)
+	record := mustCAPFixtureRecord(t, now)
+	alert, err := record.Alert()
+	if err != nil {
+		t.Fatalf("parse fixture alert: %v", err)
+	}
+	bus := &recordingBus{}
+	registry := payloadregistry.New()
+	writer := &recordingPlanWriter{}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Registry: registry,
+		Projector: capprojector.NewProjector(capprojector.Config{
+			OwnerTokens: map[string]ownership.OwnerToken{
+				cop.OwnerCAP: ownership.ExpectedOwnerToken(cop.OwnerCAP, "component-test"),
+			},
+			TraceID: "component-test",
+		}),
+		Writer: writer,
+		Clock:  func() time.Time { return now },
+	}, bus)
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+	if err := projector.Initialize(); err != nil {
+		t.Fatalf("initialize projector: %v", err)
+	}
+
+	payload := NewDecodedAlertPayload("decoder:test", record, alert)
+	wire := mustBaseMessageJSON(t, DecodedAlertType, payload, "semops-processor-cap-decode", now)
+	if err := projector.HandleDecodedMessage(context.Background(), wire); err != nil {
+		t.Fatalf("handle decoded: %v", err)
+	}
+
+	if len(writer.plans) != 1 {
+		t.Fatalf("plans = %d, want 1", len(writer.plans))
+	}
+	if len(writer.plans[0].Mutations) != 1 || writer.plans[0].Mutations[0].Kind != capprojector.MutationCreate {
+		t.Fatalf("plan = %+v, want hazard create", writer.plans[0])
+	}
+	create := writer.plans[0].Mutations[0].Create
+	if create.OwnerToken != "semops.feed.cap#component-test" {
+		t.Fatalf("owner token = %q", create.OwnerToken)
+	}
+	if create.TraceID != "component-test" {
+		t.Fatalf("trace id = %q", create.TraceID)
+	}
+}
+
+func TestProjectorReconcilesExistingBirth(t *testing.T) {
+	now := time.Date(2026, 6, 20, 17, 0, 0, 0, time.UTC)
+	record := mustCAPFixtureRecord(t, now)
+	alert, err := record.Alert()
+	if err != nil {
+		t.Fatalf("parse fixture alert: %v", err)
+	}
+	writer := &recordingPlanWriter{
+		failures: []error{
+			&capprojector.MutationFailureError{
+				Operation: "create_with_triples",
+				Kind:      capprojector.MutationCreate,
+				EntityID:  capprojector.EntityID("c360", "edge", alert.Identifier),
+				ErrorCode: graph.ErrorCodeEntityExists,
+				Message:   "already exists",
+			},
+		},
+	}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Projector: capprojector.NewProjector(capprojector.Config{
+			OwnerTokens: map[string]ownership.OwnerToken{
+				cop.OwnerCAP: ownership.ExpectedOwnerToken(cop.OwnerCAP, "component-test"),
+			},
+		}),
+		Writer: writer,
+		Clock:  func() time.Time { return now },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+
+	payload := NewDecodedAlertPayload("decoder:test", record, alert)
+	if err := projector.HandleDecodedPayload(context.Background(), payload); err != nil {
+		t.Fatalf("handle decoded with birth reconciliation: %v", err)
+	}
+	if len(writer.plans) != 2 {
+		t.Fatalf("plans = %d, want create retry then update", len(writer.plans))
+	}
+	last := writer.plans[len(writer.plans)-1]
+	if len(last.Mutations) != 1 || last.Mutations[0].Kind != capprojector.MutationUpdate {
+		t.Fatalf("last plan = %+v, want update after reconciling existing birth", last)
+	}
+}
+
 type publishedMessage struct {
 	subject string
 	data    []byte
@@ -278,6 +401,21 @@ type recordingReplay struct {
 func (r *recordingReplay) Append(record capcodec.RawAlertRecord) error {
 	r.records = append(r.records, record)
 	return nil
+}
+
+type recordingPlanWriter struct {
+	plans    []capprojector.Plan
+	failures []error
+}
+
+func (w *recordingPlanWriter) Apply(_ context.Context, plan capprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	if len(w.failures) == 0 {
+		return nil
+	}
+	err := w.failures[0]
+	w.failures = w.failures[1:]
+	return err
 }
 
 func mustCAPFixtureRecord(t *testing.T, start time.Time) capcodec.RawAlertRecord {

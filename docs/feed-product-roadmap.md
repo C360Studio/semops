@@ -75,15 +75,16 @@ TAK/CoT:
 
 CAP/EDXL:
 
-- Demo/MVP boundary: parser, lifecycle fixtures, scenario replay, deterministic HTTP poller/decoder component gate,
-  NWS samples, and append-evidence hazard/advisory projection.
+- Demo/MVP boundary: parser, lifecycle fixtures, scenario replay, deterministic HTTP poller/decoder/projector
+  component gate, NWS samples, and append-evidence hazard/advisory projection.
 - Full product path: SemStreams input/processor component service with polling/webhook ingestion,
   update/cancel/expire lifecycle, geocodes, multilingual info, resources, retention, and audit.
 - Promotion trigger: continuous public-alert ingestion, webhook exposure, vendor feed integration, or alert audit
   obligations.
 - Guardrail: CAP evidence does not become authoritative hazard truth. The first component package proves hosted HTTP
-  polling and decoding contracts with local tests, but it is not a default live NWS service or CAP conformance claim.
-  Hosted CAP pollers use SemStreams `HTTPClientPort` plus a sibling `TimerPort` when cadence-driven.
+  polling, decoding, and born-first graph projection contracts with local tests, but it is not a default live NWS
+  service or CAP conformance claim. Hosted CAP pollers use SemStreams `HTTPClientPort` plus a sibling `TimerPort` when
+  cadence-driven.
 
 CS API:
 
@@ -165,8 +166,8 @@ conformance.
 ### CAP/EDXL
 
 Demo/MVP lane:
-CAP XML parser with local lifecycle fixtures, deterministic HTTP poller and decoder components, NWS samples,
-schema/consumer-rule validation, hazard/advisory evidence, expiry/staleness, and append-evidence ownership.
+CAP XML parser with local lifecycle fixtures, deterministic HTTP poller, decoder, and projector components, NWS
+samples, schema/consumer-rule validation, hazard/advisory evidence, expiry/staleness, and append-evidence ownership.
 
 Full product lane:
 Polling and webhook adapters for NWS/IPAWS/vendor feeds, alert update/cancel/expire lifecycle, multilingual
@@ -174,10 +175,10 @@ info/resources, geocode/circle/polygon handling, EDXL variants, retention, and a
 
 Boundary to preserve now:
 Keep tolerant ingest separate from strict hazard/advisory projection and never let CAP overwrite stricter tactical
-source facts. CAP now has an HTTP poller input component and raw decoder processor for hosted-polling shape, but it
-is not wired as the default live service. The poller declares an `HTTPClientPort` for method, endpoint pattern, auth
-reference, contact policy, and interface, plus a sibling `TimerPort` for cadence. Projection, alert lifecycle, and
-provider health remain separate gates.
+source facts. CAP now has an HTTP poller input component, raw decoder processor, and born-first graph-projector
+processor for hosted-polling shape, but it is not wired as the default live service. The poller declares an
+`HTTPClientPort` for method, endpoint pattern, auth reference, contact policy, and interface, plus a sibling
+`TimerPort` for cadence. Alert lifecycle and provider health remain separate gates.
 
 Not claimed yet:
 Full EDXL suite, default live NWS/IPAWS service, CAP consumer conformance, authoritative hazard truth, or
