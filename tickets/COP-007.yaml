@@ -43,6 +43,10 @@ evidence_records:
   - pkg/adapters/sapient/sapient_test.go
   - pkg/adapters/sapient/protobuf.go
   - pkg/adapters/sapient/protobuf_test.go
+  - pkg/adapters/sapient/raw_lane.go
+  - pkg/adapters/sapient/raw_lane_test.go
+  - pkg/adapters/sapient/replay.go
+  - pkg/adapters/sapient/replay_test.go
   - pkg/adapters/sapient/protos/README.md
   - openspec/changes/revive-cop-product/feed-evidence/klv-stanag4609.md
 
@@ -59,6 +63,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-artifact-discovery-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-parser-preflight-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-binary-descriptor-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-raw-replay-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
@@ -84,6 +89,7 @@ acceptance:
     still tracked separately.
   - SAPIENT has descriptor-based binary `SapientMessage` preflight before graph projection, with harness evidence
     still tracked separately.
+  - SAPIENT has bounded JSON/protobuf raw replay before hosted adapter or graph projection claims.
   - Every feed has an explicit `indexing_profile` policy before graph writes are implemented.
 
 tdd:
@@ -158,12 +164,15 @@ progress:
   - Added descriptor-based SAPIENT binary protobuf preflight: official Dstl v2 proto sources are embedded with
     license, compiled by `protocompile`, decoded through dynamic protobuf descriptors, and validated through the
     same preflight model.
+  - Added bounded SAPIENT JSON/protobuf raw replay: payload bytes are captured with source/encoding/content metadata,
+    persisted as JSON Lines, and decoded back through the parser boundary without graph writes.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
   - Run or qualify the Dstl SAPIENT test harness before any SAPIENT compliance language.
   - Keep SAPIENT graph writes blocked until ownership/indexing projection review exists.
+  - Add hosted SAPIENT raw ingress and source-health only after the parser/replay boundary has a service design.
   - Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptor decode.
   - Evaluate whether SemOps should create or contribute a portable SAPIENT preflight suite while preserving Dstl
     harness results as the official compliance anchor.

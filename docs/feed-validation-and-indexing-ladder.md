@@ -392,7 +392,7 @@ First acceptance gate:
 
 ### SAPIENT
 
-Status: JSON and binary descriptor preflight exist; harness qualification still required.
+Status: JSON and binary descriptor preflight plus raw replay exist; harness qualification still required.
 
 Compliance and sample evidence:
 
@@ -415,6 +415,8 @@ Local assets:
   report, detection report, and task acknowledgement messages.
 - `pkg/adapters/sapient` embeds official Dstl BSI Flex 335 v2 proto sources and compiles them with
   `github.com/bufbuild/protocompile` for dynamic descriptor-based binary `SapientMessage` decode.
+- `pkg/adapters/sapient` now has a bounded raw lane and JSON Lines replay store for JSON and protobuf payloads; replay
+  decodes through the same preflight boundary rather than treating captured bytes as normalized graph state.
 - `go test ./pkg/adapters/sapient` rejects malformed JSON and binary required-field cases before graph writes.
 - No local SAPIENT harness run, generated Go bindings, hosted adapter, or graph projector exists.
 
@@ -440,6 +442,8 @@ First acceptance gate:
   become governed tracks or observations with clear source ownership.
 - Given binary BSI Flex 335 v2 payloads, the embedded descriptor toolchain decodes `SapientMessage` before SemOps
   claims protobuf preflight support.
+- Given captured JSON or protobuf SAPIENT payloads, SemOps can replay exact native bytes through the parser boundary
+  without writing graph state or claiming hosted SAPIENT support.
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
 

@@ -74,6 +74,8 @@
 - [ ] 5.28 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
 - [x] 5.29 Add SAPIENT BSI Flex 335 v2 descriptor-based binary payload decode gate
 - [ ] 5.30 Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptors
+- [x] 5.31 Add bounded SAPIENT raw lane and replay for JSON/binary preflight payloads
+- [ ] 5.32 Run SAPIENT projection ownership/indexing review before graph writes
 
 ## 6. Structural COP Stack
 
