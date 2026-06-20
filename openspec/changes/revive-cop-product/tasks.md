@@ -24,6 +24,8 @@
 - [x] 2.10 Add the first concrete TAK/CoT input/decoder/projector component package using SemStreams payload registry
       and ports
 - [x] 2.11 Bump SemOps to SemStreams `v1.0.0-beta.114` and add the `HTTPClientPort` contract guard
+- [x] 2.12 Add the first concrete CAP HTTP poller input and decoder processor components using SemStreams
+      `HTTPClientPort`, `TimerPort`, payload registry, and ports
 
 ## 3. COP Model And Governance
 
@@ -87,6 +89,7 @@
 - [x] 5.32 Add bounded SAPIENT raw lane and replay for JSON/binary preflight payloads
 - [x] 5.33 Run SAPIENT projection ownership/indexing review before graph writes
 - [x] 5.34 Record CAP component-promotion gate so scenario replay is not mistaken for hosted polling/webhook service
+- [x] 5.35 Add CAP HTTP poller/decoder component gate without claiming live NWS service or CAP conformance
 
 ## 6. Structural COP Stack
 
@@ -141,6 +144,8 @@
       processor flow
 - [x] 6.44 Record that ADS-B scenario replay remains an adapter harness until live ingress forces a component package
 - [x] 6.45 Record SAPIENT hosted component gate and SemStreams `HTTPClientPort` adoption
+- [x] 6.46 Add initial CAP hosted HTTP poller and raw decoder component package while keeping default-stack live
+      provider wiring open
 
 ## 7. COP UI
 
@@ -189,3 +194,4 @@
 - [x] 9.10 File SemStreams component backpressure telemetry issue #309 from hosted feed migration pressure
 - [x] 9.11 File SemStreams external HTTP polling/client port metadata issue #310
 - [x] 9.12 Adopt SemStreams `HTTPClientPort` from `v1.0.0-beta.114` for external polling/client feed boundaries
+- [x] 9.13 File SemStreams `TimerPort` flowgraph cadence-boundary issue #312 from the CAP HTTP poller component

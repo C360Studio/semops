@@ -1,0 +1,331 @@
+package cap
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
+	"github.com/c360studio/semstreams/component"
+	"github.com/c360studio/semstreams/component/flowgraph"
+	"github.com/c360studio/semstreams/message"
+	"github.com/c360studio/semstreams/payloadregistry"
+	"github.com/nats-io/nats.go"
+)
+
+func TestPayloadRegistryRoundTripsRawAndDecodedPayloads(t *testing.T) {
+	registry := payloadregistry.New()
+	if err := RegisterPayloads(registry); err != nil {
+		t.Fatalf("register payloads: %v", err)
+	}
+	if err := RegisterPayloads(registry); err != nil {
+		t.Fatalf("register payloads should be idempotent: %v", err)
+	}
+
+	now := time.Date(2026, 6, 20, 15, 0, 0, 0, time.UTC)
+	record := mustCAPFixtureRecord(t, now)
+	raw := NewRawAlertPayload("cap:http:test", "https://example.test/cap", now, http.StatusOK, record.RawXML)
+	rawWire := mustBaseMessageJSON(t, RawAlertType, raw, "semops-input-cap-http", now)
+	rawEnvelope, err := message.NewDecoder(registry).Decode(rawWire)
+	if err != nil {
+		t.Fatalf("decode raw payload: %v", err)
+	}
+	if _, ok := rawEnvelope.Payload().(*RawAlertPayload); !ok {
+		t.Fatalf("raw payload type = %T, want *RawAlertPayload", rawEnvelope.Payload())
+	}
+
+	alert, err := record.Alert()
+	if err != nil {
+		t.Fatalf("parse fixture alert: %v", err)
+	}
+	decoded := NewDecodedAlertPayload("cap:decoder", record, alert)
+	decodedWire := mustBaseMessageJSON(t, DecodedAlertType, decoded, "semops-processor-cap-decode", now)
+	decodedEnvelope, err := message.NewDecoder(registry).Decode(decodedWire)
+	if err != nil {
+		t.Fatalf("decode decoded-alert payload: %v", err)
+	}
+	if _, ok := decodedEnvelope.Payload().(*DecodedAlertPayload); !ok {
+		t.Fatalf("decoded payload type = %T, want *DecodedAlertPayload", decodedEnvelope.Payload())
+	}
+}
+
+func TestCAPComponentsExposeHTTPTimerAndStreamPorts(t *testing.T) {
+	var _ component.LifecycleComponent = (*HTTPPollerComponent)(nil)
+	var _ component.LifecycleComponent = (*DecoderComponent)(nil)
+
+	bus := &recordingBus{}
+	poller, err := NewHTTPPollerComponent(HTTPPollerConfig{
+		URL:           "https://api.weather.gov/alerts/active",
+		PollInterval:  30 * time.Second,
+		ContactPolicy: "semops-demo@example.invalid",
+		AuthRef:       "nws-alerts",
+	}, bus)
+	if err != nil {
+		t.Fatalf("new poller: %v", err)
+	}
+	decoder, err := NewDecoderComponent(DecoderConfig{}, bus)
+	if err != nil {
+		t.Fatalf("new decoder: %v", err)
+	}
+
+	if poller.Meta().Type != "input" {
+		t.Fatalf("poller component type = %q, want input", poller.Meta().Type)
+	}
+	if decoder.Meta().Type != "processor" {
+		t.Fatalf("decoder component type = %q, want processor", decoder.Meta().Type)
+	}
+	inputPorts := poller.InputPorts()
+	if len(inputPorts) != 2 {
+		t.Fatalf("poller input ports = %d, want HTTP client and timer", len(inputPorts))
+	}
+	httpPort, ok := inputPorts[0].Config.(component.HTTPClientPort)
+	if !ok {
+		t.Fatalf("poller cap_feed config = %T, want HTTPClientPort", inputPorts[0].Config)
+	}
+	if got, want := httpPort.Type(), "http-client"; got != want {
+		t.Fatalf("HTTP client port type = %q, want %q", got, want)
+	}
+	if got, want := httpPort.TriggerPort, "poll_tick"; got != want {
+		t.Fatalf("HTTP client trigger = %q, want %q", got, want)
+	}
+	if got, want := httpPort.Interface.Compatible[0], RawAlertType.Key(); got != want {
+		t.Fatalf("HTTP client interface compatible = %q, want %q", got, want)
+	}
+	if got, want := inputPorts[1].Config.Type(), "timer"; got != want {
+		t.Fatalf("poll_tick config type = %q, want %q", got, want)
+	}
+	if got, want := poller.OutputPorts()[0].Config.(component.NATSPort).Subject, DefaultRawSubject; got != want {
+		t.Fatalf("poller raw subject = %q, want %q", got, want)
+	}
+	if got, want := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject, DefaultDecodedSubject; got != want {
+		t.Fatalf("decoder decoded subject = %q, want %q", got, want)
+	}
+
+	fg := flowgraph.NewFlowGraph()
+	if err := fg.AddComponentNode(poller.Meta().Name, poller); err != nil {
+		t.Fatalf("add poller: %v", err)
+	}
+	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
+		t.Fatalf("add decoder: %v", err)
+	}
+	if err := fg.ConnectComponentsByPatterns(); err != nil {
+		t.Fatalf("connect flowgraph: %v", err)
+	}
+	pollerNode := fg.GetNodes()[poller.Meta().Name]
+	if got, want := pollerNode.InputPorts[0].Pattern, flowgraph.PatternHTTPClient; got != want {
+		t.Fatalf("HTTP polling input pattern = %q, want %q", got, want)
+	}
+	requireEdge(t, fg.GetEdges(), poller.Meta().Name, "raw_alerts", decoder.Meta().Name, "raw_alerts", DefaultRawSubject)
+	analysis := fg.AnalyzeConnectivity()
+	for _, orphan := range analysis.OrphanedPorts {
+		if orphan.ComponentName == poller.Meta().Name && orphan.PortName == "cap_feed" {
+			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
+		}
+	}
+}
+
+func TestHTTPPollerPollOncePublishesRawBaseMessage(t *testing.T) {
+	now := time.Date(2026, 6, 20, 15, 30, 0, 0, time.UTC)
+	record := mustCAPFixtureRecord(t, now)
+	var userAgent string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userAgent = r.UserAgent()
+		w.Header().Set("Content-Type", "application/cap+xml")
+		w.Header().Set("ETag", `"fixture-1"`)
+		w.Header().Set("Last-Modified", now.Format(http.TimeFormat))
+		_, _ = w.Write(record.RawXML)
+	}))
+	defer server.Close()
+
+	bus := &recordingBus{}
+	poller, err := NewHTTPPollerComponent(HTTPPollerConfig{
+		Source:        "cap:http:test",
+		URL:           server.URL,
+		Client:        server.Client(),
+		ContactPolicy: "semops-test@example.invalid",
+		Clock:         func() time.Time { return now },
+	}, bus)
+	if err != nil {
+		t.Fatalf("new poller: %v", err)
+	}
+	if err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("poll once: %v", err)
+	}
+	if userAgent != "semops-test@example.invalid" {
+		t.Fatalf("user agent = %q", userAgent)
+	}
+
+	published := bus.singlePublished(t, DefaultRawSubject)
+	registry := payloadregistry.New()
+	if err := RegisterPayloads(registry); err != nil {
+		t.Fatalf("register payloads: %v", err)
+	}
+	envelope, err := message.NewDecoder(registry).Decode(published.data)
+	if err != nil {
+		t.Fatalf("decode published raw message: %v", err)
+	}
+	payload, ok := envelope.Payload().(*RawAlertPayload)
+	if !ok {
+		t.Fatalf("payload = %T, want *RawAlertPayload", envelope.Payload())
+	}
+	if payload.Source != "cap:http:test" || payload.Endpoint != server.URL {
+		t.Fatalf("payload source/endpoint = %+v", payload)
+	}
+	if payload.StatusCode != http.StatusOK || payload.ETag != `"fixture-1"` {
+		t.Fatalf("payload status/cache metadata = %+v", payload)
+	}
+	if string(payload.RawXML) != string(record.RawXML) {
+		t.Fatalf("raw XML changed across raw publish")
+	}
+}
+
+func TestDecoderConsumesRawAndPublishesDecodedAlert(t *testing.T) {
+	now := time.Date(2026, 6, 20, 16, 0, 0, 0, time.UTC)
+	record := mustCAPFixtureRecord(t, now)
+	bus := &recordingBus{}
+	registry := payloadregistry.New()
+	replay := &recordingReplay{}
+	decoder, err := NewDecoderComponent(DecoderConfig{
+		Source:   "decoder:test",
+		Clock:    func() time.Time { return now },
+		Registry: registry,
+		Replay:   replay,
+	}, bus)
+	if err != nil {
+		t.Fatalf("new decoder: %v", err)
+	}
+	if err := decoder.Initialize(); err != nil {
+		t.Fatalf("initialize decoder: %v", err)
+	}
+
+	raw := NewRawAlertPayload("cap:http:test", "https://example.test/cap", now, http.StatusOK, record.RawXML)
+	rawWire := mustBaseMessageJSON(t, RawAlertType, raw, "semops-input-cap-http", now)
+	if err := decoder.HandleRawMessage(context.Background(), rawWire); err != nil {
+		t.Fatalf("handle raw: %v", err)
+	}
+
+	published := bus.singlePublished(t, DefaultDecodedSubject)
+	envelope, err := message.NewDecoder(registry).Decode(published.data)
+	if err != nil {
+		t.Fatalf("decode published decoded message: %v", err)
+	}
+	payload, ok := envelope.Payload().(*DecodedAlertPayload)
+	if !ok {
+		t.Fatalf("payload = %T, want *DecodedAlertPayload", envelope.Payload())
+	}
+	if payload.Alert.Identifier != "nws-demo-flood-warning" || payload.Alert.MsgType != "Alert" {
+		t.Fatalf("decoded alert = %+v", payload.Alert)
+	}
+	if payload.RawRef == "" {
+		t.Fatalf("decoded payload missing raw ref: %+v", payload)
+	}
+	if len(replay.records) != 1 || replay.records[0].Ref != payload.RawRef {
+		t.Fatalf("replay records = %+v, decoded raw ref = %q", replay.records, payload.RawRef)
+	}
+}
+
+type publishedMessage struct {
+	subject string
+	data    []byte
+}
+
+type recordingBus struct {
+	published     []publishedMessage
+	subscriptions []string
+}
+
+func (b *recordingBus) Publish(_ context.Context, subject string, data []byte) error {
+	b.published = append(b.published, publishedMessage{
+		subject: subject,
+		data:    append([]byte(nil), data...),
+	})
+	return nil
+}
+
+func (b *recordingBus) Subscribe(
+	_ context.Context,
+	subject string,
+	_ func(context.Context, *nats.Msg),
+) (Subscription, error) {
+	b.subscriptions = append(b.subscriptions, subject)
+	return fakeSubscription{}, nil
+}
+
+func (b *recordingBus) singlePublished(t *testing.T, subject string) publishedMessage {
+	t.Helper()
+	var matches []publishedMessage
+	for _, msg := range b.published {
+		if msg.subject == subject {
+			matches = append(matches, msg)
+		}
+	}
+	if len(matches) != 1 {
+		t.Fatalf("published messages for %s = %d, want 1; all=%+v", subject, len(matches), b.published)
+	}
+	return matches[0]
+}
+
+type fakeSubscription struct{}
+
+func (fakeSubscription) Unsubscribe() error { return nil }
+
+type recordingReplay struct {
+	records []capcodec.RawAlertRecord
+}
+
+func (r *recordingReplay) Append(record capcodec.RawAlertRecord) error {
+	r.records = append(r.records, record)
+	return nil
+}
+
+func mustCAPFixtureRecord(t *testing.T, start time.Time) capcodec.RawAlertRecord {
+	t.Helper()
+	records, err := capcodec.LifecycleFixtureRecords(start)
+	if err != nil {
+		t.Fatalf("load CAP fixture records: %v", err)
+	}
+	if len(records) == 0 {
+		t.Fatalf("CAP fixture records empty")
+	}
+	return records[0]
+}
+
+func mustBaseMessageJSON(
+	t *testing.T,
+	msgType message.Type,
+	payload message.Payload,
+	source string,
+	observedAt time.Time,
+) []byte {
+	t.Helper()
+	data, err := marshalBaseMessage(msgType, payload, source, observedAt)
+	if err != nil {
+		t.Fatalf("marshal base message: %v", err)
+	}
+	return data
+}
+
+func requireEdge(
+	t *testing.T,
+	edges []flowgraph.FlowEdge,
+	fromComponent string,
+	fromPort string,
+	toComponent string,
+	toPort string,
+	connectionID string,
+) {
+	t.Helper()
+	for _, edge := range edges {
+		if edge.From.ComponentName == fromComponent &&
+			edge.From.PortName == fromPort &&
+			edge.To.ComponentName == toComponent &&
+			edge.To.PortName == toPort &&
+			edge.Pattern == flowgraph.PatternStream &&
+			edge.ConnectionID == connectionID {
+			return
+		}
+	}
+	t.Fatalf("missing edge %s.%s -> %s.%s (%s) in %+v", fromComponent, fromPort, toComponent, toPort, connectionID, edges)
+}

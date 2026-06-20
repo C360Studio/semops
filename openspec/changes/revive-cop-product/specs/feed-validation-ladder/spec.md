@@ -50,8 +50,10 @@ become dead-end architecture.
 
 - **WHEN** CAP lifecycle fixtures replay through parser, projector, scenario runner, or direct graph smoke paths
 - **THEN** SemOps treats the result as parser/projection/readback evidence
+- **AND** the first CAP HTTP poller and decoder components are treated as component-contract evidence, not default live
+  NWS/IPAWS service evidence
 - **AND** SemOps does not claim hosted CAP polling, webhook, NWS/IPAWS integration, or alert feed service support until
-  hosted input and processor components exist for that boundary
+  provider fixtures, runtime wiring, stale-source behavior, and alert lifecycle gates exist for that boundary
 
 ### Requirement: Compliance claims require reproducible evidence
 

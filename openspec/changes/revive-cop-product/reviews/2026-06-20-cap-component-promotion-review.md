@@ -4,11 +4,12 @@ Date: 2026-06-20
 
 ## Decision
 
-Do not promote the current CAP scenario replay and direct graph smoke into a SemStreams component package yet.
+Promote only the first hosted HTTP poller and raw-alert decoder boundary into a SemStreams component package.
 
-The current CAP slice is valid parser, projection, replay, readback, and born-first append-evidence proof. It is not a
-hosted CAP feed service. SemOps should create CAP input and processor components only when Phase 1 or product scope
-adds hosted polling, webhook ingestion, IPAWS/NWS/vendor integration, or continuous alert-source health.
+The current CAP slice is valid parser, projection, replay, readback, born-first append-evidence proof, and now a
+deterministic local HTTP poller/decoder component proof. It is still not a default live CAP feed service, NWS/IPAWS
+integration, or CAP conformance claim. SemOps should keep CAP projector components, default-stack hosting, webhook
+ingestion, vendor integration, and continuous alert-source health behind later product gates.
 
 When promoted, the CAP boundary must follow SemStreams lifecycle rules:
 
@@ -21,14 +22,17 @@ When promoted, the CAP boundary must follow SemStreams lifecycle rules:
 
 SemStreams `v1.0.0-beta.114` delivered `component.HTTPClientPort` for reusable external HTTP client and polling
 metadata. A hosted CAP poller should use `HTTPClientPort` for method, URL pattern, auth reference, contact policy, and
-interface metadata, plus a sibling `TimerPort` referenced by `TriggerPort` when cadence is timer-driven. Webhook
-ingestion can use a network/request-facing input component, and captured alert fixtures can use file input.
+interface metadata, plus a sibling `TimerPort` referenced by `TriggerPort` when cadence is timer-driven. SemOps filed
+SemStreams issue #312 so the flowgraph can eventually classify `TimerPort` as a first-class cadence boundary instead
+of leaving it stream-shaped. Webhook ingestion can use a network/request-facing input component, and captured alert
+fixtures can use file input.
 
 ## Objections Raised
 
 - The word "adapter" can hide that the current CAP path is in-process replay and smoke evidence, not hosted ingress.
-- Wrapping deterministic fixtures in `internal/components/cap` would satisfy a checklist but teach the wrong
-  lifecycle. Components are needed when there is hosted feed behavior to manage.
+- Wrapping deterministic fixtures alone in `internal/components/cap` would satisfy a checklist but teach the wrong
+  lifecycle. The accepted component package is scoped to hosted HTTP polling and raw decoding; scenario replay remains
+  separate.
 - Polling NWS/IPAWS is not just parse logic. It has cadence, user-agent, cache, rate-limit, retry, timeout, stale
   source, retention, and audit behavior that should be visible in component config and telemetry.
 - CAP remains append-only advisory evidence. Hosted ingestion must not turn CAP into authoritative hazard truth by
@@ -39,6 +43,8 @@ ingestion can use a network/request-facing input component, and captured alert f
 
 - `pkg/adapters/cap` CAP 1.2 parser and local lifecycle fixtures.
 - `internal/projectors/cap` born-first hazard append-evidence projection.
+- `internal/components/cap` lifecycle HTTP poller and decoder with raw/decoded payload registration, `HTTPClientPort`,
+  `TimerPort`, stream ports, config schema, health, and flow metrics.
 - `internal/smoke/cap` skipped live graph smoke for born-first append-evidence behavior.
 - `internal/scenario` CAP lifecycle replay through the current projector and graph writer.
 - SemStreams `component` port inventory in `v1.0.0-beta.114`, including `HTTPClientPort`, `TimerPort`, `FilePort`,
@@ -49,16 +55,17 @@ ingestion can use a network/request-facing input component, and captured alert f
 ## Accepted Risks
 
 - CAP remains structurally visible in the current Compose smoke through scenario replay and direct graph smoke rather
-  than through a hosted CAP feed service.
-- If Phase 1 chooses live public-alert ingestion, a CAP component package becomes mandatory before SemOps claims
-  hosted CAP service support.
-- The first hosted CAP poller still needs runtime implementation, but the external HTTP dependency now has a
-  framework-visible port descriptor instead of living only in config schema.
+  than through a default hosted live CAP feed service.
+- The first hosted CAP poller exists as component code, but it still needs product runtime wiring, provider fixtures,
+  stale-source behavior, and alert lifecycle review before SemOps claims hosted CAP service support.
+- The external HTTP dependency now has a framework-visible port descriptor instead of living only in config schema;
+  cadence visibility still needs SemStreams issue #312.
 
 ## Follow-Up Tasks
 
 - Keep CAP parser/projector/readback gates independent of hosted ingress.
-- Add `internal/components/cap` only when hosted polling, webhook, watched-file, or vendor feed input is in scope.
-- Use `HTTPClientPort` plus `TimerPort` for hosted HTTP polling components and comment upstream only if the first
-  concrete CAP, ADS-B, or SAPIENT design exposes a remaining framework gap.
+- Keep `internal/components/cap` scoped to hosted polling and decoding until projector/runtime hosting is explicitly
+  promoted.
+- Use `HTTPClientPort` plus `TimerPort` for hosted HTTP polling components and track SemStreams issue #312 for
+  first-class timer/cadence flowgraph semantics.
 - Keep CAP schema and consumer-rule validation separate from hosted service claims.
