@@ -52,6 +52,7 @@ Reference code can re-enter the product path only after it is extracted behind a
 tested against current SemStreams contracts. The current accepted patterns are:
 
 - SemStreams contract gate: `internal/contracts/semstreams_contract_test.go`
+- MAVLink component gate: `internal/components/mavlink`
 - COP ownership contracts: `pkg/cop/contracts.go`
 - COP contract tests: `pkg/cop/contracts_test.go`
 - Hosted feed service gates must use SemStreams input/processor component lifecycle, flowgraph, registered

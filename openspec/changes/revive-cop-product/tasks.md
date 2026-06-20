@@ -19,6 +19,8 @@
       components
 - [ ] 2.8 Wrap hosted MAVLink, TAK/CoT, ADS-B, and future SAPIENT feed boundaries as SemStreams input and processor
       components
+- [x] 2.9 Add the first concrete MAVLink input/decoder/projector component package using SemStreams payload registry
+      and ports
 
 ## 3. COP Model And Governance
 
@@ -123,6 +125,8 @@
 - [x] 6.36 Delete stale StreamKit-era robotics flow config so raw-subject topology does not pollute current context
 - [ ] 6.37 Move hosted feed service composition onto SemStreams input/processor component metadata, flowgraph,
       registered-payload, and port/config surfaces
+- [x] 6.38 Add concrete MAVLink UDP input, decoder processor, and projector processor components before app runtime
+      rewiring
 
 ## 7. COP UI
 

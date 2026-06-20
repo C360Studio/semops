@@ -39,13 +39,14 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
 - SemOps projectors and graph writers for MAVLink, TAK/CoT, CAP, and ADS-B.
 - SemOps ownership registration through `ownership.EnsureBuckets` and `projection.BindAndHeartbeat`.
 - Stale `configs/robotics-flow.json` raw-subject flow configuration.
-- `internal/contracts/semstreams_contract_test.go` component-contract guard for input -> decoder processor ->
-  projection processor flow wiring.
+- `internal/components/mavlink` concrete input -> decoder processor -> projection processor component package.
+- `internal/contracts/semstreams_contract_test.go` component-contract guard, now pointed at the production MAVLink
+  components rather than a parallel skeleton.
 
 ## Accepted Risks
 
-- Current runtime adapters still need concrete SemStreams input and processor components before SemOps can claim
-  hosted feed services are fully component-managed.
+- Current runtime adapters still need to be wired through the concrete SemStreams input and processor components
+  before SemOps can claim hosted feed services are fully component-managed.
 - The graph writer code still names SemStreams graph mutation subjects directly. That is acceptable as the graph API
   wire boundary, but component ports must describe those resources when services are promoted.
 - CAP and scenario-runner paths need the same lifecycle review as MAVLink, TAK/CoT, ADS-B, and SAPIENT before Phase 1
@@ -53,7 +54,8 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
 
 ## Follow-Up Tasks
 
-- Wrap hosted MAVLink, TAK/CoT, ADS-B, and future SAPIENT feed boundaries as SemStreams input and processor
+- Wire hosted MAVLink runtime ingestion through the concrete input -> decoder processor -> projector processor flow.
+- Wrap TAK/CoT, ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and processor
   components.
 - Register raw and decoded feed payload types in SemStreams payload registries and emit `message.BaseMessage`
   envelopes on stream output ports.

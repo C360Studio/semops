@@ -16,6 +16,7 @@ schema, NATS/JetStream runtime primitives, and reusable framework behavior.
 - COP model baseline: `docs/cop-model-and-governance.md`
 - COP UI baseline: `docs/cop-ui-stack.md`
 - Active MAVLink codec boundary: `pkg/adapters/mavlink`
+- Active MAVLink SemStreams component boundary: `internal/components/mavlink`
 - Active TAK/CoT codec, replay, projection, and graph-wiring boundary: `pkg/adapters/cot`,
   `internal/adapters/cot`, `internal/projectors/cot`
 - Active CAP codec, replay fixture, append-evidence projection, graph-wiring, and COP readback boundary:
@@ -29,6 +30,10 @@ Hosted feed work should follow SemStreams' flow model: UDP/TCP/file/polling list
 registered `message.BaseMessage` payloads on declared output ports, and parser/projector/fusion work runs as processor
 components that subscribe to those ports. Raw NATS subjects remain port configuration so any output port can be tapped
 by another component.
+
+The first concrete MAVLink component package now defines a UDP input component, raw-frame decoder processor, graph
+projection processor, and registered raw/decoded payload types. The hosted app path still needs to adopt that flow
+before SemOps claims the runtime is fully component-managed.
 
 ## First Product Model
 

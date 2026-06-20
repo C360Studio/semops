@@ -14,6 +14,7 @@ review_records:
 evidence_records:
   - docs/legacy-quarantine.md
   - internal/contracts/semstreams_contract_test.go
+  - internal/components/mavlink
 
 scope:
   - Update SemOps to the current SemStreams module path github.com/c360studio/semstreams.
@@ -41,5 +42,7 @@ progress:
   - Strengthened `internal/contracts/semstreams_contract_test.go` to cover SemStreams input components, processor
     components, flowgraph edges, registered `message.BaseMessage` payloads, network ingress ports, tappable stream
     output ports, graph mutation request ports, config schema, health, and flow metrics.
+  - Added `internal/components/mavlink` with concrete UDP input, raw-frame decoder processor, graph projector
+    processor, registered raw/decoded payloads, and flowgraph-connectable port metadata.
   - Deleted stale `configs/robotics-flow.json` so old raw-subject flow topology cannot be mistaken for the current
     SemStreams component contract.
