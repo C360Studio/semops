@@ -392,22 +392,35 @@ First acceptance gate:
 
 ### SAPIENT
 
-Status: evidence gap before phase commitment.
+Status: official artifacts found; local parser and harness qualification still required.
 
 Compliance and sample evidence:
 
-- A public SAPIENT compliance suite was not verified in this pass.
-- The first task is to find the authoritative SAPIENT ICD, protobuf definitions, sample messages, validator, or
-  conformance tooling.
+- GOV.UK identifies SAPIENT as a Dstl/MOD-owned architecture, names BSI Flex 335 as the freely available ICD, and
+  links official GitHub assets for protobuf files, a SAPIENT Test Harness, and SAPIENT Middleware.
+- BSI describes `SAPIENT Network of Autonomous Sensors and Effectors - BSI Flex 335 V2:2024` as the current message
+  structure, format, and content reference.
+- Dstl publishes official protobuf definitions in `dstl/SAPIENT-Proto-Files`, including `bsi_flex_335_v2_0`.
+- Dstl publishes a BSI Flex 335 v2 Test Harness with true/false JSON message corpora and validators. Its README says
+  it is Windows-focused, .NET 6-based, and requires PostgreSQL 12.
+- Dstl publishes Apex SAPIENT Middleware for routing, optional protobuf validation, archiving, replay, and REST API
+  access.
+- The Windows-only harness posture is itself product pressure: a future SemOps/ecosystem effort should create a
+  portable Linux/CI-friendly SAPIENT preflight suite, while keeping official compliance claims tied to the Dstl
+  harness or another accepted authority.
 
 Local assets:
 
-- None identified in SemOps yet.
+- None implemented in SemOps yet.
+- No local SAPIENT harness run, generated Go bindings, parser package, or graph projector exists.
 
 Mock or harness:
 
-- Do not build around guessed schema.
-- Once authoritative artifacts are found, create a parser-only gate and a strict fixture suite before graph writes.
+- Start with parser-only fixtures from official protobuf/sample-message evidence.
+- Run or qualify the Dstl BSI Flex 335 v2 Test Harness before using compliance language.
+- Track a portable preflight harness as developer evidence, not official compliance, until accepted externally.
+- Treat Apex middleware as an interop and service-shape reference, not as a substitute for SemOps ownership,
+  provenance, freshness, and command-authority contracts.
 
 Indexing profile pressure:
 
@@ -417,8 +430,10 @@ Indexing profile pressure:
 
 First acceptance gate:
 
-- Given authoritative SAPIENT fixtures, malformed messages are rejected before graph writes and valid detections
+- Given BSI Flex 335 v2-aligned fixtures, malformed messages are rejected before graph writes and valid detections
   become governed tracks or observations with clear source ownership.
+- Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
+  compliance claim appears in demo materials.
 
 ### KLV/STANAG 4609
 

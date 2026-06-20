@@ -50,7 +50,7 @@
 - [ ] 5.4 Prove MAVLink parser, generator, ArduPilot SITL, and PX4 SITL evidence gates
 - [x] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
 - [ ] 5.6 Prove CAP XML schema, NWS sample, and lifecycle gates before CAP conformance or service claims
-- [ ] 5.7 Verify or reject public SAPIENT compliance/fixture availability before phase commitment
+- [x] 5.7 Verify or reject public SAPIENT compliance/fixture availability before phase commitment
 - [ ] 5.8 Run a KLV/SemSource binary proof spike before claiming streaming-binary support
 - [ ] 5.9 Run adversarial review for each feed before it enters the structural stack
 - [x] 5.10 Treat ADR-055/056 live graph smoke as a MAVLink gate before simulator fidelity claims
@@ -68,6 +68,10 @@
 - [x] 5.22 Add deterministic ADS-B OpenSky fixture replay through the scenario-runner seam
 - [x] 5.23 Add hosted ADS-B adapter seam without claiming live ADS-B service
 - [x] 5.24 Add opt-in ADS-B structural scenario replay through the hosted adapter seam
+- [x] 5.25 Record official SAPIENT GOV.UK, BSI Flex 335 v2, Dstl protobuf, test-harness, and Apex middleware anchors
+- [ ] 5.26 Run or qualify the Dstl BSI Flex 335 v2 Test Harness before SAPIENT compliance claims
+- [ ] 5.27 Add parser-only SAPIENT BSI Flex 335 v2 fixture gate before graph projection
+- [ ] 5.28 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
 
 ## 6. Structural COP Stack
 

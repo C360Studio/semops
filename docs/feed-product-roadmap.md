@@ -100,11 +100,15 @@ ADS-B:
 
 SAPIENT:
 
-- Demo/MVP boundary: no implementation until authoritative schema, fixture, or validator is found.
+- Demo/MVP boundary: parser-only BSI Flex 335 v2 protobuf fixtures and optional Dstl harness qualification before
+  graph projection.
 - Full product path: SAPIENT-facing service with versioned protobuf, sensor identity, detection lifecycle, tasking,
-  fusion, and deployment profiles.
-- Promotion trigger: authoritative artifacts plus product need for sensor/detection/tasking integration.
-- Guardrail: no guessed schema support or conformance language.
+  fusion, deployment profiles, Apex/middleware interop, and eventual SemOps-owned SAPIENT service capability if
+  product demand requires it.
+- Promotion trigger: parser fixture success plus a documented Dstl BSI Flex 335 v2 Test Harness run or explicit
+  decision that the current phase is non-compliance demo evidence only.
+- Guardrail: no guessed schema support and no SAPIENT compliance language without harness scope and result. Treat a
+  future portable Linux/CI preflight suite as developer evidence until an accepted authority recognizes it.
 
 KLV/STANAG 4609:
 
@@ -215,20 +219,24 @@ surveillance/radar processing.
 ### SAPIENT
 
 Demo/MVP lane:
-No implementation until authoritative ICD/protobuf/schema/sample/validator evidence exists. The first lane is
-parser-only fixtures once artifacts are found.
+Official artifacts now exist: GOV.UK points to BSI Flex 335, Dstl protobufs, a BSI Flex 335 v2 Test Harness, and Apex
+middleware. The first SemOps lane is still parser-only: generate/import v2 protobuf bindings, parse official-aligned
+fixtures, reject malformed messages, and keep graph writes out until the boundary is proven.
 
 Full product lane:
 SemOps-hosted SAPIENT-facing service if needed, with sensor/detection/tasking integration, versioned protobuf
 compatibility, validator or compliance harness, sensor identity, detection lifecycle, multi-sensor fusion, deployment
-profiles, and interop with existing SAPIENT systems.
+profiles, interop with existing SAPIENT systems, optional Apex/middleware bridge behavior where useful, and a possible
+portable SAPIENT preflight suite for Linux CI.
 
 Boundary to preserve now:
-Do not guess schemas; put authoritative artifacts behind parser, session, and service boundaries before graph
-projection.
+Do not guess schemas; put official BSI Flex 335 v2 artifacts behind parser, session, and service boundaries before
+graph projection. Treat Apex as an interop reference, while SemOps owns product semantics, graph ownership,
+provenance, freshness, and command authority.
 
 Not claimed yet:
-SAPIENT conformance, product support, or inferred schema compatibility.
+SAPIENT conformance, product support, local test-harness success, portable-suite authority, or inferred schema
+compatibility.
 
 ### KLV/STANAG 4609
 

@@ -62,6 +62,13 @@ public conformance suite, or documented interoperability test backs the claim.
 - **THEN** SemOps records the gap and uses mock, replay, schema, or interoperability evidence without calling it
   conformance
 
+#### Scenario: Public compliance suite is verified but not yet run locally
+
+- **WHEN** a feed such as SAPIENT has an official schema, sample corpus, or compliance harness available
+- **THEN** SemOps records the authoritative sources, runtime constraints, and license boundary
+- **AND** SemOps does not claim product support or conformance until a local parser gate and scoped harness result
+  exist
+
 #### Scenario: CS API conformance is standards-edge evidence
 
 - **WHEN** SemOps maps governed COP state through OGC Connected Systems API
