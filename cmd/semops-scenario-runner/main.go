@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -18,13 +19,16 @@ import (
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	"github.com/c360studio/semops/internal/scenario"
 	"github.com/c360studio/semops/internal/stack"
+	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 const (
-	envScenarioAddr = "SEMOPS_SCENARIO_ADDR"
-	defaultAddr     = ":8090"
+	envScenarioAddr        = "SEMOPS_SCENARIO_ADDR"
+	envScenarioADSBFixture = "SEMOPS_SCENARIO_ADSB_FIXTURE"
+	defaultAddr            = ":8090"
 )
 
 var (
@@ -52,8 +56,12 @@ func main() {
 		log.Fatalf("Invalid SemOps scenario runner configuration: %v", err)
 	}
 	addr := scenarioAddr(os.Getenv)
+	includeADSB, err := scenarioADSBFixtureEnabled(os.Getenv)
+	if err != nil {
+		log.Fatalf("Invalid SemOps scenario runner configuration: %v", err)
+	}
 
-	client, stopOwners, runner, err := composeRunner(ctx, cfg)
+	client, stopOwners, runner, err := composeRunner(ctx, cfg, includeADSB)
 	if err != nil {
 		log.Fatalf("Compose scenario runner: %v", err)
 	}
@@ -75,13 +83,14 @@ func main() {
 			return
 		}
 		log.Printf(
-			"Scenario %s succeeded: steps=%d mutations=%d mavlink=%d cot=%d cap=%d",
+			"Scenario %s succeeded: steps=%d mutations=%d mavlink=%d cot=%d cap=%d adsb=%d",
 			report.ScenarioID,
 			len(report.Steps),
 			report.Summary.Mutations,
 			report.Summary.MAVLinkFrames,
 			report.Summary.CoTEvents,
 			report.Summary.CAPAlerts,
+			report.Summary.ADSBSnapshots,
 		)
 		done <- nil
 	}()
@@ -96,6 +105,7 @@ func main() {
 func composeRunner(
 	ctx context.Context,
 	cfg semopsapp.Config,
+	includeADSB bool,
 ) (*natsclient.Client, func(), *scenario.Runner, error) {
 	client, err := natsclient.NewClient(
 		cfg.NATSURL,
@@ -118,11 +128,16 @@ func composeRunner(
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 	go heartbeater.Run(heartbeatCtx)
 
-	bindings, err := copownership.RegisterFirstPhase(ctx, registry, heartbeater)
+	bindings, err := copownership.RegisterOwnedContracts(
+		ctx,
+		registry,
+		heartbeater,
+		scenarioOwnedContracts(includeADSB),
+	)
 	if err != nil {
 		heartbeatCancel()
 		_ = client.Close(context.Background())
-		return nil, nil, nil, fmt.Errorf("register first-phase COP ownership: %w", err)
+		return nil, nil, nil, fmt.Errorf("register scenario COP ownership: %w", err)
 	}
 
 	requester := graphrequest.NewNATSRequester(client, graphrequest.WithRetryConfig(cfg.MAVLink.Retry))
@@ -159,7 +174,15 @@ func composeRunner(
 		return nil, nil, nil, fmt.Errorf("compose CoT adapter: %w", err)
 	}
 
-	runner, err := scenario.NewRunner(scenario.Config{
+	fixture, err := scenarioFixture(time.Now().UTC(), includeADSB)
+	if err != nil {
+		heartbeatCancel()
+		_ = client.Close(context.Background())
+		return nil, nil, nil, err
+	}
+
+	runnerConfig := scenario.Config{
+		Fixture: fixture,
 		MAVLink: mavlink,
 		CoT:     cot,
 		CAPProjector: capprojector.NewProjector(capprojector.Config{
@@ -172,7 +195,28 @@ func composeRunner(
 			requester,
 			capprojector.WithWriteTimeout(cfg.MAVLink.WriteTimeout),
 		),
-	})
+	}
+	if includeADSB {
+		adsb, err := stack.NewADSBAdapter(stack.ADSBAdapterConfig{
+			Source:        "opensky-fixture",
+			Org:           cfg.MAVLink.Org,
+			Platform:      cfg.MAVLink.Platform,
+			OwnerTokens:   bindings.OwnerTokenMap(),
+			TraceID:       "semops-adsb-scenario-runner",
+			RawMaxRecords: cfg.MAVLink.RawMaxRecords,
+			RawMaxBytes:   cfg.MAVLink.RawMaxBytes,
+			WriteTimeout:  cfg.MAVLink.WriteTimeout,
+			Retry:         cfg.MAVLink.Retry,
+		}, stack.ADSBAdapterDeps{NATS: client})
+		if err != nil {
+			heartbeatCancel()
+			_ = client.Close(context.Background())
+			return nil, nil, nil, fmt.Errorf("compose ADS-B adapter: %w", err)
+		}
+		runnerConfig.ADSB = adsb
+	}
+
+	runner, err := scenario.NewRunner(runnerConfig)
 	if err != nil {
 		heartbeatCancel()
 		_ = client.Close(context.Background())
@@ -199,6 +243,39 @@ func startStatusServer(addr string, runner *scenario.Runner) (*http.Server, erro
 		}
 	}()
 	return server, nil
+}
+
+func scenarioFixture(start time.Time, includeADSB bool) (scenario.Fixture, error) {
+	fixture, err := scenario.Phase1HADRFixture(start)
+	if err != nil {
+		return scenario.Fixture{}, fmt.Errorf("build scenario fixture: %w", err)
+	}
+	if !includeADSB {
+		return fixture, nil
+	}
+	records, err := adsbcodec.OpenSkyFixtureRecords(fixture.StartedAt)
+	if err != nil {
+		return scenario.Fixture{}, fmt.Errorf("build ADS-B scenario fixture records: %w", err)
+	}
+	for _, record := range records {
+		fixture.ADSBSnapshots = append(fixture.ADSBSnapshots, scenario.ADSBSnapshot{
+			Name:   strings.TrimPrefix(record.Ref, "adsb://fixture/opensky-hadr/"),
+			Offset: record.ReceivedAt.Sub(fixture.StartedAt),
+			Record: cloneADSBRecord(record),
+		})
+	}
+	return fixture, nil
+}
+
+func scenarioOwnedContracts(includeADSB bool) []cop.OwnedContract {
+	owned := cop.FirstPhaseOwnedContracts()
+	if includeADSB {
+		owned = append(owned, cop.OwnedContract{
+			Owner:    cop.OwnerADSB,
+			Contract: cop.ADSBTrackContract(),
+		})
+	}
+	return owned
 }
 
 func closeServer(server *http.Server, timeout time.Duration) {
@@ -229,4 +306,24 @@ func scenarioAddr(getenv func(string) string) string {
 		return defaultAddr
 	}
 	return value
+}
+
+func scenarioADSBFixtureEnabled(getenv func(string) string) (bool, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	value := strings.TrimSpace(getenv(envScenarioADSBFixture))
+	if value == "" {
+		return false, nil
+	}
+	enabled, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("parse %s: %w", envScenarioADSBFixture, err)
+	}
+	return enabled, nil
+}
+
+func cloneADSBRecord(record adsbcodec.RawSnapshotRecord) adsbcodec.RawSnapshotRecord {
+	record.RawJSON = append([]byte(nil), record.RawJSON...)
+	return record
 }

@@ -196,16 +196,17 @@ because a CS API schema exists.
 Demo/MVP lane:
 Recorded OpenSky-shaped JSON fixtures for aircraft current state, freshness, source, provenance, and bounded replay.
 The first implemented slice is `pkg/adapters/adsb`, which parses `/states/all` snapshot fixtures and preserves
-nullable position fields plus position-source quality before projection. The next slices add deterministic OpenSky
-snapshot replay, hosted snapshot ingest, source-partitioned ADS-B aircraft projection with `signal` indexing, and
-COP graph prefix readback.
+nullable position fields plus position-source quality before projection. Current slices now include deterministic
+OpenSky snapshot replay, hosted snapshot ingest, source-partitioned ADS-B aircraft projection with `signal` indexing,
+COP graph prefix readback, and opt-in structural scenario replay with `SEMOPS_SCENARIO_ADSB_FIXTURE=true`.
 
 Full product lane:
 Optional live OpenSky with rate-limit handling, local receiver/readsb/dump1090 paths, raw ADS-B or ASTERIX later,
 association with MAVLink/SAPIENT/fusion tracks, and airspace filters.
 
 Boundary to preserve now:
-Keep raw receiver rows off the graph and project current aircraft state plus association evidence separately.
+Keep raw receiver rows off the graph and project current aircraft state plus association evidence separately. ADS-B
+owner registration is valid for token-backed structural replay; it is not a live feed or receiver-service claim.
 
 Not claimed yet:
 Live air-traffic feed reliability, ASTERIX support, cross-source aircraft association, or complete

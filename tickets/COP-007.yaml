@@ -129,13 +129,16 @@ progress:
   - Added hosted ADS-B adapter seam evidence: `internal/adapters/adsb` captures bounded raw snapshots, appends
     replay records, projects/writes graph plans, reconciles already-born tracks, and exposes health counters; stack
     wiring can use SemStreams NATS request/reply or an injected writer.
+  - Added opt-in ADS-B structural scenario replay: `SEMOPS_SCENARIO_ADSB_FIXTURE=true` appends deterministic
+    OpenSky-shaped snapshots to the hosted scenario runner, routes them through `internal/adapters/adsb`, and binds
+    `semops.feed.adsb` only for that scenario path so graph writes use minted SemStreams owner tokens.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
   - Revisit SemStreams total-count metadata only after large mixed-feed demos prove cursor paging plus truncation
     alerts are insufficient for operator/source-health decisions.
-  - Decide whether the first ADS-B structural demo uses fixture replay only, optional OpenSky live mode, or local
-    receiver files without making live network access the default path.
+  - Decide whether ADS-B live mode starts with optional OpenSky, local receiver/readsb/dump1090 files, or a dedicated
+    adapter service without making live network access the default path.
   - Implement the CS API bridge only after SemOps has enough stable structural graph state for meaningful ingress,
     egress, replay, and SemConnect conformance checks.

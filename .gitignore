@@ -13,6 +13,7 @@ dist/
 build/
 .svelte-kit/
 /semops
+/semops-scenario-runner
 *.egg-info/
 .eggs/
 

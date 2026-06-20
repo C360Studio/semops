@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
+	adsbadapter "github.com/c360studio/semops/internal/adapters/adsb"
 	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
 	mavadapter "github.com/c360studio/semops/internal/adapters/mavlink"
-	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
@@ -38,6 +38,11 @@ type CoTSink interface {
 	Health() cotadapter.Health
 }
 
+type ADSBSink interface {
+	IngestSnapshot(context.Context, []byte) (adsbadapter.IngestResult, error)
+	Health() adsbadapter.Health
+}
+
 type CAPProjector interface {
 	ProjectAlert(capcodec.Alert, string) (capprojector.Plan, error)
 	MarkBornForPlan(capprojector.Plan) int
@@ -47,35 +52,24 @@ type CAPPlanWriter interface {
 	Apply(context.Context, capprojector.Plan) error
 }
 
-type ADSBProjector interface {
-	ProjectStates([]adsbprojector.SourceState) (adsbprojector.Plan, error)
-	MarkBornForPlan(adsbprojector.Plan) int
-}
-
-type ADSBPlanWriter interface {
-	Apply(context.Context, adsbprojector.Plan) error
-}
-
 type Config struct {
-	Fixture       Fixture
-	MAVLink       MAVLinkSink
-	CoT           CoTSink
-	CAPProjector  CAPProjector
-	CAPWriter     CAPPlanWriter
-	ADSBProjector ADSBProjector
-	ADSBWriter    ADSBPlanWriter
-	Clock         func() time.Time
+	Fixture      Fixture
+	MAVLink      MAVLinkSink
+	CoT          CoTSink
+	ADSB         ADSBSink
+	CAPProjector CAPProjector
+	CAPWriter    CAPPlanWriter
+	Clock        func() time.Time
 }
 
 type Runner struct {
-	fixture       Fixture
-	mavlink       MAVLinkSink
-	cot           CoTSink
-	capProjector  CAPProjector
-	capWriter     CAPPlanWriter
-	adsbProjector ADSBProjector
-	adsbWriter    ADSBPlanWriter
-	clock         func() time.Time
+	fixture      Fixture
+	mavlink      MAVLinkSink
+	cot          CoTSink
+	adsb         ADSBSink
+	capProjector CAPProjector
+	capWriter    CAPPlanWriter
+	clock        func() time.Time
 
 	mu     sync.RWMutex
 	status Status
@@ -172,14 +166,13 @@ func NewRunner(cfg Config) (*Runner, error) {
 		return nil, err
 	}
 	runner := &Runner{
-		fixture:       fixture,
-		mavlink:       cfg.MAVLink,
-		cot:           cfg.CoT,
-		capProjector:  cfg.CAPProjector,
-		capWriter:     cfg.CAPWriter,
-		adsbProjector: cfg.ADSBProjector,
-		adsbWriter:    cfg.ADSBWriter,
-		clock:         cfg.Clock,
+		fixture:      fixture,
+		mavlink:      cfg.MAVLink,
+		cot:          cfg.CoT,
+		adsb:         cfg.ADSB,
+		capProjector: cfg.CAPProjector,
+		capWriter:    cfg.CAPWriter,
+		clock:        cfg.Clock,
 		status: Status{
 			ScenarioID: fixture.ID,
 			State:      StateIdle,
@@ -401,11 +394,8 @@ func (r *Runner) requireSinks() error {
 		}
 	}
 	if len(r.fixture.ADSBSnapshots) > 0 {
-		if r.adsbProjector == nil {
-			return fmt.Errorf("scenario %s includes ADS-B snapshots but no ADS-B projector", r.fixture.ID)
-		}
-		if r.adsbWriter == nil {
-			return fmt.Errorf("scenario %s includes ADS-B snapshots but no ADS-B graph writer", r.fixture.ID)
+		if r.adsb == nil {
+			return fmt.Errorf("scenario %s includes ADS-B snapshots but no ADS-B sink", r.fixture.ID)
 		}
 	}
 	return nil
@@ -457,29 +447,16 @@ func (r *Runner) runADSBStep(ctx context.Context, snapshot ADSBSnapshot) (StepRe
 	if err := ctx.Err(); err != nil {
 		return r.finishStep(step, 0, snapshot.Record.Ref, err), err
 	}
-	parsed, err := snapshot.Record.Snapshot()
+	result, err := r.adsb.IngestSnapshot(ctx, snapshot.Record.RawJSON)
+	rawRef := result.RawRef
+	if rawRef == "" {
+		rawRef = snapshot.Record.Ref
+	}
 	if err != nil {
-		err = fmt.Errorf("parse ADS-B scenario snapshot %q: %w", snapshot.Name, err)
-		return r.finishStep(step, 0, snapshot.Record.Ref, err), err
+		err = fmt.Errorf("ingest ADS-B scenario snapshot %q: %w", snapshot.Name, err)
+		return r.finishStep(step, result.Mutations, rawRef, err), err
 	}
-	states := make([]adsbprojector.SourceState, 0, len(parsed.States))
-	for _, state := range parsed.States {
-		states = append(states, adsbprojector.SourceState{
-			State:     state,
-			SourceRef: snapshot.Record.Ref,
-		})
-	}
-	plan, err := r.adsbProjector.ProjectStates(states)
-	if err != nil {
-		err = fmt.Errorf("project ADS-B scenario snapshot %q: %w", snapshot.Name, err)
-		return r.finishStep(step, 0, snapshot.Record.Ref, err), err
-	}
-	if err := r.adsbWriter.Apply(ctx, plan); err != nil {
-		err = fmt.Errorf("write ADS-B scenario snapshot %q: %w", snapshot.Name, err)
-		return r.finishStep(step, len(plan.Mutations), snapshot.Record.Ref, err), err
-	}
-	r.adsbProjector.MarkBornForPlan(plan)
-	return r.finishStep(step, len(plan.Mutations), snapshot.Record.Ref, nil), nil
+	return r.finishStep(step, result.Mutations, rawRef, nil), nil
 }
 
 func (r *Runner) startStep(feed, name string) StepReport {

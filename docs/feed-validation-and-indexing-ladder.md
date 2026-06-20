@@ -61,7 +61,9 @@ events, and CAP lifecycle XML records through the real adapter/projector seams a
 `cmd/semops-scenario-runner` hosts that core in the local Compose stack and the stack smoke polls
 `/scenario/status`; it also asserts the Caddy-routed COP snapshot contains the scenario's MAVLink track, TAK/CoT task
 and advisory, and CAP hazard. This is replay infrastructure evidence, not a full shared-airspace vignette or operator
-scenario control surface.
+scenario control surface. The runner can also opt into deterministic ADS-B fixture replay with
+`SEMOPS_SCENARIO_ADSB_FIXTURE=true`; that path exercises the hosted ADS-B adapter and born-first owner token without
+making live ADS-B part of the default MVP stack.
 
 ## Indexing Pressure
 
@@ -330,8 +332,8 @@ First acceptance gate:
 
 ### ADS-B
 
-Status: later air-picture feed with OpenSky-shaped parser, deterministic replay, hosted-adapter seam,
-current-state projection, and graph readback evidence.
+Status: later air-picture feed with OpenSky-shaped parser, deterministic replay, hosted-adapter seam, optional
+structural scenario replay, current-state projection, owner registration, and graph readback evidence.
 
 Compliance and sample evidence:
 
@@ -350,16 +352,20 @@ Local assets:
 - `internal/projectors/adsb` projects aircraft current state to source-partitioned ADS-B tracks with `signal`
   indexing, provenance, confidence, and source references.
 - `internal/scenario` can replay ADS-B snapshots through parse, projection, graph-plan writing, and born-state
-  marking when a scenario opts into ADS-B.
+  marking through the hosted ADS-B adapter when a scenario opts into ADS-B.
 - `internal/adapters/adsb` provides a hosted snapshot ingest seam with bounded raw capture, replay append,
   projection writes, SemStreams mutation writer integration, born-first reconciliation, and health counters.
+- `cmd/semops-scenario-runner` adds ADS-B snapshots only when `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose service
+  passes that flag through but defaults it to false.
+- The scenario runner appends `semops.feed.adsb` ownership only for that opt-in path so structural ADS-B graph writes
+  use SemStreams minted owner tokens.
 - The COP API discovers ADS-B aircraft tracks from `c360.<platform>.cop.adsb.track.*` prefixes and exposes
   `feed.adsb` health when fresh tracks exist.
 
 Mock or harness:
 
 - Start with recorded OpenSky JSON fixtures and deterministic replay. This now exists for snapshot fixtures and
-  scenario-runner input.
+  opt-in scenario-runner input.
 - Add live OpenSky calls only as an optional demo mode with rate-limit handling.
 - Consider readsb or dump1090-style local fixtures if we want raw ADS-B later.
 
@@ -377,10 +383,12 @@ First acceptance gate:
   runner without live network access.
 - Given a hosted ADS-B snapshot ingest, SemOps captures raw JSON, appends replay records, projects current-state
   tracks, writes graph plans, reconciles already-born tracks, and reports health counters.
+- Given `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, the hosted scenario runner replays two ADS-B snapshots through the
+  adapter seam and token-backed graph writes without live network access.
 - Given a projected ADS-B aircraft state, SemOps writes current-state track evidence without source-asset or
   cross-source association edges and reads it back through prefix discovery.
-- Next gate: decide whether the first structural demo uses fixture replay only, optional OpenSky live mode, or local
-  receiver files, without making live network access the default path.
+- Next gate: decide whether live mode should start with optional OpenSky, local receiver/readsb/dump1090 files, or a
+  dedicated adapter service, without making live network access the default path.
 
 ### SAPIENT
 
