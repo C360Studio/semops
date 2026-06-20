@@ -80,6 +80,15 @@ canonical graph state.
 - **THEN** current-state graph entities use `signal` and raw packet or replay detail uses bounded lanes or `trace`
   references
 
+#### Scenario: ADS-B starts with OpenSky fixture parsing
+
+- **WHEN** SemOps admits ADS-B into the feed ladder
+- **THEN** the first executable gate parses bounded OpenSky-shaped state-vector fixtures before graph projection
+- **AND** nullable callsign, position timestamp, longitude, latitude, altitude, velocity, track, vertical rate,
+  receiver IDs, squawk, position source, and category fields remain explicit
+- **AND** live OpenSky polling, ASTERIX, raw receiver protocols, and cross-source aircraft association remain out of
+  scope until separate gates approve them
+
 #### Scenario: Textual advisories stay content shaped
 
 - **WHEN** CAP advisory text, operator notes, chat text, or semantic translations are projected

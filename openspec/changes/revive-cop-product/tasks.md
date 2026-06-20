@@ -63,6 +63,7 @@
 - [x] 5.17 Add CAP lifecycle-status readback without claiming authoritative hazard status
 - [x] 5.18 Add CAP raw XML lifecycle fixture replay for scenario-runner input
 - [x] 5.19 Add service-promotion matrix and current CS API source anchors without claiming bridge implementation
+- [x] 5.20 Add initial ADS-B OpenSky-shaped parser fixture gate without claiming live ADS-B support
 
 ## 6. Structural COP Stack
 
@@ -128,7 +129,7 @@
 
 ## 8. Tier Escalation And Egress
 
-- [ ] 8.1 Add ADS-B and SAPIENT feed boundaries
+- [x] 8.1 Add ADS-B and SAPIENT feed boundaries
 - [ ] 8.2 Add statistical track association for ambiguous air tracks
 - [ ] 8.3 Add KLV footprint extraction
 - [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge

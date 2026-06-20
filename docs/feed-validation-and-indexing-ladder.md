@@ -330,16 +330,20 @@ First acceptance gate:
 
 ### ADS-B
 
-Status: later air-picture feed.
+Status: later air-picture feed with initial OpenSky-shaped parser evidence.
 
 Compliance and sample evidence:
 
 - OpenSky exposes REST state vectors, flights, and tracks. Public state-vector calls are rate limited.
+- Current OpenSky docs use OAuth2 client-credentials authentication for authenticated calls; fixture replay remains
+  the deterministic gate.
 - ASTERIX is a later binary/radar-like target, not the first ADS-B slice.
 
 Local assets:
 
-- None identified in SemOps yet.
+- `pkg/adapters/adsb` parses OpenSky `/states/all` snapshot fixtures and preserves nullable state-vector fields,
+  position-source quality, receiver IDs, and category values.
+- `go test ./pkg/adapters/adsb` is the first executable ADS-B boundary.
 
 Mock or harness:
 
@@ -355,8 +359,10 @@ Indexing profile pressure:
 
 First acceptance gate:
 
-- Given a bounded OpenSky state-vector fixture, the adapter writes aircraft current state, freshness, source, and
-  position-source evidence without creating high-cardinality graph noise.
+- Given a bounded OpenSky state-vector fixture, SemOps decodes typed aircraft current-state evidence with nullable
+  fields preserved and malformed rows rejected before any graph writes.
+- Next gate: project aircraft current state, freshness, source, and position-source evidence without creating
+  high-cardinality graph noise.
 
 ### SAPIENT
 
