@@ -1,17 +1,21 @@
 # SAPIENT Feed Evidence
 
-Status: official artifacts found; parser and harness qualification still required before implementation.
+Status: JSON preflight parser exists; binary protobuf and harness qualification still required before implementation.
 
 ## Decision
 
-SAPIENT can move from artifact discovery to parser/harness planning. SemOps should target BSI Flex 335 v2 protobuf
-messages and official Dstl tooling, but it must not claim SAPIENT product support or compliance until local parser
-fixtures and a documented harness run prove the boundary.
+SAPIENT has moved from artifact discovery to a parser/harness planning lane. SemOps now has a dependency-light JSON
+preflight parser for representative BSI Flex 335 v2 message shapes, but it must not claim SAPIENT product support,
+binary protobuf coverage, or compliance until generated bindings and a documented harness run prove the boundary.
 
 ## Local Evidence
 
 - No SemOps SAPIENT adapter exists in the current checkout.
-- No SemOps SAPIENT parser, fixture corpus, generated protobuf bindings, or graph projector exists yet.
+- `pkg/adapters/sapient` parses Dstl-harness-shaped JSON preflight fixtures for registration, status report,
+  detection report, and task acknowledgement messages.
+- `go test ./pkg/adapters/sapient` validates required top-level envelope fields, UUID/ULID identity fields,
+  mandatory content fields, location/range-bearing oneof behavior, and malformed fixture rejection before projection.
+- No SemOps SAPIENT generated protobuf bindings, binary decoder, hosted adapter, or graph projector exists yet.
 - No local SAPIENT test harness run has been performed.
 - The feed ladder assigns detections/tracks to `signal`, tasking/collection state to `control`, and native decode
   traces to `trace`.
@@ -78,7 +82,7 @@ Acceptance:
 
 ### Parser Gate
 
-Target command after artifacts are imported or generated:
+Target command:
 
 ```bash
 go test ./pkg/adapters/sapient
@@ -86,10 +90,25 @@ go test ./pkg/adapters/sapient
 
 Acceptance:
 
-- Valid Dstl or BSI Flex 335 v2-aligned fixtures parse.
-- Malformed messages fail before graph writes.
-- Unknown or future fields are handled according to the authoritative compatibility rules.
-- Generated bindings are versioned so BSI Flex 335 v1/v2 drift is visible.
+- Valid Dstl or BSI Flex 335 v2-aligned JSON fixtures parse. [done: representative preflight subset]
+- Malformed messages fail before graph writes. [done: representative preflight subset]
+- Unknown or future fields are handled according to the authoritative compatibility rules. [open]
+- Generated bindings are versioned so BSI Flex 335 v1/v2 drift is visible. [open]
+
+### Binary Protobuf Gate
+
+Target command after generated bindings exist:
+
+```bash
+go test ./pkg/adapters/sapient -run Protobuf
+```
+
+Acceptance:
+
+- Official BSI Flex 335 v2 `.proto` files are generated or compiled through a reproducible toolchain.
+- Binary `SapientMessage` payload fixtures decode into typed SemOps preflight messages.
+- JSON preflight and binary decode agree on envelope, content kind, identity fields, and required-field failures.
+- BSI Flex 335 v1/v2 drift is visible in package paths, generated-code provenance, or fixture metadata.
 
 ### Projection Gate
 
@@ -112,8 +131,9 @@ Acceptance:
 - The official harness is Windows-focused and requires PostgreSQL 12, so CI automation needs a deliberate plan.
 - A portable Linux/CI-friendly preflight suite does not exist yet; creating one would be a meaningful ecosystem
   contribution.
-- No local SAPIENT protobuf bindings or parser package exists.
-- No local fixtures are vendored yet; redistribution and attribution should be checked before committing copies.
+- No local SAPIENT protobuf bindings or binary decoder exists.
+- No full official fixture corpus is vendored yet; redistribution and attribution should be checked before committing
+  copies beyond trimmed test shapes.
 - No SemOps mapping exists for SAPIENT node identity, detection lifecycle, tasking, alert acknowledgements, or Apex
   middleware interop.
 

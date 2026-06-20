@@ -39,6 +39,8 @@ evidence_records:
   - openspec/changes/revive-cop-product/feed-evidence/semconnect-csapi-egress.md
   - openspec/changes/revive-cop-product/feed-evidence/adsb.md
   - openspec/changes/revive-cop-product/feed-evidence/sapient.md
+  - pkg/adapters/sapient/sapient.go
+  - pkg/adapters/sapient/sapient_test.go
   - openspec/changes/revive-cop-product/feed-evidence/klv-stanag4609.md
 
 review_records:
@@ -52,6 +54,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-source-cardinality-diagnostics-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-source-health-alerting-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-artifact-discovery-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-parser-preflight-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
@@ -73,6 +76,8 @@ acceptance:
   - KLV has a small fixture plan proving metadata extraction, storage references, and memory-bounded handling.
   - SAPIENT has official BSI Flex 335 v2 protobuf, Dstl test-harness, sample-corpus, and middleware anchors recorded
     before parser or graph projection work starts.
+  - SAPIENT has a parser-only JSON preflight gate before graph projection, with binary protobuf and harness evidence
+    still tracked separately.
   - Every feed has an explicit `indexing_profile` policy before graph writes are implemented.
 
 tdd:
@@ -141,12 +146,16 @@ progress:
     implemented SAPIENT parsing yet.
   - Recorded the Dstl harness portability gap as product pressure: Windows-only, .NET 6, PostgreSQL 12 evidence is
     real but not Linux CI-friendly, so a portable SAPIENT preflight suite may be a future ecosystem contribution.
+  - Added `pkg/adapters/sapient` as a parser-only JSON preflight gate for representative BSI Flex 335 v2 message
+    shapes: registration, status report, detection report, and task acknowledgement. This is developer evidence only;
+    it is not binary protobuf support or SAPIENT compliance.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
-  - Run or qualify the Dstl SAPIENT test harness and add parser-only BSI Flex 335 v2 fixtures before any SAPIENT
-    graph writes or compliance language.
+  - Run or qualify the Dstl SAPIENT test harness before any SAPIENT compliance language.
+  - Keep SAPIENT graph writes blocked until binary protobuf decode and ownership/indexing projection review exist.
+  - Add generated SAPIENT protobuf bindings and binary payload fixtures before claiming native protobuf decode.
   - Evaluate whether SemOps should create or contribute a portable SAPIENT preflight suite while preserving Dstl
     harness results as the official compliance anchor.
   - Revisit SemStreams total-count metadata only after large mixed-feed demos prove cursor paging plus truncation
