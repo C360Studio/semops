@@ -96,6 +96,8 @@ requests before triples or foreign edges are added.
 - **AND** position-source quality contributes provenance/confidence evidence
 - **AND** the ADS-B adapter does not emit `cop.track.source` or cross-source aircraft association edges
 - **AND** deterministic snapshot replay can drive parse, projection, graph-plan writing, and born-state marking
+- **AND** hosted snapshot ingest preserves bounded raw refs, replay append, health counters, and born-first write
+  reconciliation before any live-source promotion
 - **AND** the COP snapshot may read ADS-B aircraft tracks by prefix discovery while hosted polling, receiver
   protocols, ASTERIX, and statistical association remain separate gates
 

@@ -330,8 +330,8 @@ First acceptance gate:
 
 ### ADS-B
 
-Status: later air-picture feed with OpenSky-shaped parser, deterministic replay, current-state projection, and graph
-readback evidence.
+Status: later air-picture feed with OpenSky-shaped parser, deterministic replay, hosted-adapter seam,
+current-state projection, and graph readback evidence.
 
 Compliance and sample evidence:
 
@@ -351,6 +351,8 @@ Local assets:
   indexing, provenance, confidence, and source references.
 - `internal/scenario` can replay ADS-B snapshots through parse, projection, graph-plan writing, and born-state
   marking when a scenario opts into ADS-B.
+- `internal/adapters/adsb` provides a hosted snapshot ingest seam with bounded raw capture, replay append,
+  projection writes, SemStreams mutation writer integration, born-first reconciliation, and health counters.
 - The COP API discovers ADS-B aircraft tracks from `c360.<platform>.cop.adsb.track.*` prefixes and exposes
   `feed.adsb` health when fresh tracks exist.
 
@@ -373,10 +375,12 @@ First acceptance gate:
   fields preserved and malformed rows rejected before any graph writes.
 - Given deterministic OpenSky replay records, SemOps loads raw snapshot refs and replays them through the scenario
   runner without live network access.
+- Given a hosted ADS-B snapshot ingest, SemOps captures raw JSON, appends replay records, projects current-state
+  tracks, writes graph plans, reconciles already-born tracks, and reports health counters.
 - Given a projected ADS-B aircraft state, SemOps writes current-state track evidence without source-asset or
   cross-source association edges and reads it back through prefix discovery.
-- Next gate: add a hosted adapter seam without making live OpenSky or receiver protocols part of the default demo
-  path.
+- Next gate: decide whether the first structural demo uses fixture replay only, optional OpenSky live mode, or local
+  receiver files, without making live network access the default path.
 
 ### SAPIENT
 

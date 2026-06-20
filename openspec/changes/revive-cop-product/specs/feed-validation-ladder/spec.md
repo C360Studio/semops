@@ -89,6 +89,8 @@ canonical graph state.
 - **AND** aircraft current state projects to source-partitioned ADS-B `track` entities with `signal` indexing,
   provenance, confidence, and source references
 - **AND** deterministic OpenSky snapshot records can replay through the scenario runner without live network access
+- **AND** a hosted snapshot-ingest seam captures bounded raw snapshots, appends replay, writes projection plans, and
+  reports health without requiring live OpenSky
 - **AND** COP API prefix discovery can read those aircraft tracks back from the graph
 - **AND** live OpenSky polling, ASTERIX, raw receiver protocols, and cross-source aircraft association remain out of
   scope until separate gates approve them
