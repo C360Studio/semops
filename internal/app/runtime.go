@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
+	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
 	"github.com/c360studio/semops/internal/graphrequest"
+	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
 	"github.com/c360studio/semstreams/natsclient"
@@ -25,8 +26,10 @@ type App struct {
 	mavlinkInput     *mavcomponent.UDPInputComponent
 	mavlinkDecoder   *mavcomponent.DecoderComponent
 	mavlinkProjector *mavcomponent.ProjectorComponent
-	cotAdapter       *cotadapter.Adapter
-	cotTransports    []runningCoTTransport
+	cotUDPInput      *cotcomponent.UDPInputComponent
+	cotTCPInput      *cotcomponent.TCPInputComponent
+	cotDecoder       *cotcomponent.DecoderComponent
+	cotProjector     *cotcomponent.ProjectorComponent
 }
 
 type semstreamsClient interface {
@@ -51,21 +54,11 @@ type dependencies struct {
 	newMAVLinkUDPInput   func(mavcomponent.UDPInputConfig, mavcomponent.Bus) (*mavcomponent.UDPInputComponent, error)
 	newMAVLinkDecoder    func(mavcomponent.DecoderConfig, mavcomponent.Bus) (*mavcomponent.DecoderComponent, error)
 	newMAVLinkProjector  func(mavcomponent.ProjectorConfig, mavcomponent.Bus) (*mavcomponent.ProjectorComponent, error)
-	newCoTAdapter        func(stack.CoTAdapterConfig, stack.CoTAdapterDeps) (*cotadapter.Adapter, error)
-	newCoTUDPListener    func(cotadapter.UDPListenerConfig, *cotadapter.Adapter) (cotTransport, error)
-	newCoTTCPListener    func(cotadapter.TCPListenerConfig, *cotadapter.Adapter) (cotTransport, error)
-}
-
-type cotTransport interface {
-	Run(context.Context) error
-	Close() error
-}
-
-type runningCoTTransport struct {
-	name      string
-	transport cotTransport
-	cancel    context.CancelFunc
-	done      chan error
+	newCoTPlanWriter     func(stack.CoTAdapterConfig, stack.CoTAdapterDeps) (cotcomponent.PlanWriter, error)
+	newCoTUDPInput       func(cotcomponent.UDPInputConfig, cotcomponent.Bus) (*cotcomponent.UDPInputComponent, error)
+	newCoTTCPInput       func(cotcomponent.TCPInputConfig, cotcomponent.Bus) (*cotcomponent.TCPInputComponent, error)
+	newCoTDecoder        func(cotcomponent.DecoderConfig, cotcomponent.Bus) (*cotcomponent.DecoderComponent, error)
+	newCoTProjector      func(cotcomponent.ProjectorConfig, cotcomponent.Bus) (*cotcomponent.ProjectorComponent, error)
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -80,14 +73,19 @@ func (a *App) Close(ctx context.Context) error {
 		ctx = context.Background()
 	}
 	var errs []error
-	for _, running := range a.cotTransports {
-		if running.cancel != nil {
-			running.cancel()
-		}
-	}
 	if a.mavlinkInput != nil {
 		if err := a.mavlinkInput.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink input component: %w", err))
+		}
+	}
+	if a.cotUDPInput != nil {
+		if err := a.cotUDPInput.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop CoT UDP input component: %w", err))
+		}
+	}
+	if a.cotTCPInput != nil {
+		if err := a.cotTCPInput.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop CoT TCP input component: %w", err))
 		}
 	}
 	if a.mavlinkDecoder != nil {
@@ -95,29 +93,19 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop MAVLink decoder component: %w", err))
 		}
 	}
+	if a.cotDecoder != nil {
+		if err := a.cotDecoder.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop CoT decoder component: %w", err))
+		}
+	}
 	if a.mavlinkProjector != nil {
 		if err := a.mavlinkProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink projector component: %w", err))
 		}
 	}
-	for _, running := range a.cotTransports {
-		if running.transport != nil {
-			if err := running.transport.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("close %s transport: %w", running.name, err))
-			}
-		}
-	}
-	for _, running := range a.cotTransports {
-		if running.done == nil {
-			continue
-		}
-		select {
-		case err := <-running.done:
-			if err != nil {
-				errs = append(errs, fmt.Errorf("run %s transport: %w", running.name, err))
-			}
-		case <-ctx.Done():
-			errs = append(errs, fmt.Errorf("wait for %s transport shutdown: %w", running.name, ctx.Err()))
+	if a.cotProjector != nil {
+		if err := a.cotProjector.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop CoT projector component: %w", err))
 		}
 	}
 	if a.ownershipStop != nil {
@@ -159,11 +147,32 @@ func (a *App) MAVLinkProjector() *mavcomponent.ProjectorComponent {
 	return a.mavlinkProjector
 }
 
-func (a *App) CoTAdapter() *cotadapter.Adapter {
+func (a *App) CoTUDPInput() *cotcomponent.UDPInputComponent {
 	if a == nil {
 		return nil
 	}
-	return a.cotAdapter
+	return a.cotUDPInput
+}
+
+func (a *App) CoTTCPInput() *cotcomponent.TCPInputComponent {
+	if a == nil {
+		return nil
+	}
+	return a.cotTCPInput
+}
+
+func (a *App) CoTDecoder() *cotcomponent.DecoderComponent {
+	if a == nil {
+		return nil
+	}
+	return a.cotDecoder
+}
+
+func (a *App) CoTProjector() *cotcomponent.ProjectorComponent {
+	if a == nil {
+		return nil
+	}
+	return a.cotProjector
 }
 
 func (a *App) GraphRequester() GraphRequester {
@@ -209,40 +218,8 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 	}
 
 	if cfg.CoT.Enabled {
-		adapter, err := deps.newCoTAdapter(stack.CoTAdapterConfig{
-			Source:        cfg.CoT.Source,
-			Org:           cfg.CoT.Org,
-			Platform:      cfg.CoT.Platform,
-			OwnerTokens:   bindings.OwnerTokenMap(),
-			TraceID:       cfg.CoT.TraceID,
-			RawMaxRecords: cfg.CoT.RawMaxRecords,
-			RawMaxBytes:   cfg.CoT.RawMaxBytes,
-			WriteTimeout:  cfg.CoT.WriteTimeout,
-			Retry:         cfg.CoT.Retry,
-		}, stack.CoTAdapterDeps{NATS: client})
-		if err != nil {
-			return nil, fmt.Errorf("compose CoT adapter: %w", err)
-		}
-		app.cotAdapter = adapter
-		if cfg.CoT.UDP.ListenAddr != "" {
-			transport, err := deps.newCoTUDPListener(cotadapter.UDPListenerConfig{
-				ListenAddr:       cfg.CoT.UDP.ListenAddr,
-				MaxDatagramBytes: cfg.CoT.UDP.MaxDatagramBytes,
-			}, adapter)
-			if err != nil {
-				return nil, fmt.Errorf("start CoT UDP listener: %w", err)
-			}
-			app.startCoTTransport("CoT UDP", transport)
-		}
-		if cfg.CoT.TCP.ListenAddr != "" {
-			transport, err := deps.newCoTTCPListener(cotadapter.TCPListenerConfig{
-				ListenAddr:    cfg.CoT.TCP.ListenAddr,
-				MaxEventBytes: cfg.CoT.TCP.MaxEventBytes,
-			}, adapter)
-			if err != nil {
-				return nil, fmt.Errorf("start CoT TCP listener: %w", err)
-			}
-			app.startCoTTransport("CoT TCP", transport)
+		if err := app.startCoTFlow(ctx, cfg.CoT, bindings, deps); err != nil {
+			return nil, err
 		}
 	}
 
@@ -258,9 +235,11 @@ func defaultDependencies() dependencies {
 		newMAVLinkUDPInput:   mavcomponent.NewUDPInputComponent,
 		newMAVLinkDecoder:    mavcomponent.NewDecoderComponent,
 		newMAVLinkProjector:  mavcomponent.NewProjectorComponent,
-		newCoTAdapter:        stack.NewCoTAdapter,
-		newCoTUDPListener:    newCoTUDPListener,
-		newCoTTCPListener:    newCoTTCPListener,
+		newCoTPlanWriter:     newCoTPlanWriter,
+		newCoTUDPInput:       cotcomponent.NewUDPInputComponent,
+		newCoTTCPInput:       cotcomponent.NewTCPInputComponent,
+		newCoTDecoder:        cotcomponent.NewDecoderComponent,
+		newCoTProjector:      cotcomponent.NewProjectorComponent,
 	}
 }
 
@@ -284,14 +263,20 @@ func fillDependencies(deps dependencies) dependencies {
 	if deps.newMAVLinkProjector == nil {
 		deps.newMAVLinkProjector = defaults.newMAVLinkProjector
 	}
-	if deps.newCoTAdapter == nil {
-		deps.newCoTAdapter = defaults.newCoTAdapter
+	if deps.newCoTPlanWriter == nil {
+		deps.newCoTPlanWriter = defaults.newCoTPlanWriter
 	}
-	if deps.newCoTUDPListener == nil {
-		deps.newCoTUDPListener = defaults.newCoTUDPListener
+	if deps.newCoTUDPInput == nil {
+		deps.newCoTUDPInput = defaults.newCoTUDPInput
 	}
-	if deps.newCoTTCPListener == nil {
-		deps.newCoTTCPListener = defaults.newCoTTCPListener
+	if deps.newCoTTCPInput == nil {
+		deps.newCoTTCPInput = defaults.newCoTTCPInput
+	}
+	if deps.newCoTDecoder == nil {
+		deps.newCoTDecoder = defaults.newCoTDecoder
+	}
+	if deps.newCoTProjector == nil {
+		deps.newCoTProjector = defaults.newCoTProjector
 	}
 	return deps
 }
@@ -371,6 +356,96 @@ func (a *App) startMAVLinkFlow(
 	return nil
 }
 
+func (a *App) startCoTFlow(
+	ctx context.Context,
+	cfg CoTConfig,
+	bindings copownership.BindingResult,
+	deps dependencies,
+) error {
+	bus := cotRuntimeBus{client: a.client}
+	registry := payloadregistry.New()
+	writer, err := deps.newCoTPlanWriter(stack.CoTAdapterConfig{
+		Source:        cfg.Source,
+		Org:           cfg.Org,
+		Platform:      cfg.Platform,
+		OwnerTokens:   bindings.OwnerTokenMap(),
+		TraceID:       cfg.TraceID,
+		RawMaxRecords: cfg.RawMaxRecords,
+		RawMaxBytes:   cfg.RawMaxBytes,
+		WriteTimeout:  cfg.WriteTimeout,
+		Retry:         cfg.Retry,
+	}, stack.CoTAdapterDeps{NATS: a.client})
+	if err != nil {
+		return fmt.Errorf("compose CoT graph writer: %w", err)
+	}
+
+	projector, err := deps.newCoTProjector(cotcomponent.ProjectorConfig{
+		Registry: registry,
+		Projector: cotprojector.NewProjector(cotprojector.Config{
+			Org:         cfg.Org,
+			Platform:    cfg.Platform,
+			OwnerTokens: bindings.OwnerTokenMap(),
+			TraceID:     cfg.TraceID,
+		}),
+		Writer:       writer,
+		WriteTimeout: cfg.WriteTimeout,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose CoT projector component: %w", err)
+	}
+	decoder, err := deps.newCoTDecoder(cotcomponent.DecoderConfig{
+		Source:         cfg.Source,
+		RawSubject:     cotcomponent.DefaultRawSubject,
+		DecodedSubject: cotcomponent.DefaultDecodedSubject,
+		RawMaxRecords:  cfg.RawMaxRecords,
+		RawMaxBytes:    cfg.RawMaxBytes,
+		Registry:       registry,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose CoT decoder component: %w", err)
+	}
+	a.cotProjector = projector
+	a.cotDecoder = decoder
+
+	if err := startLifecycle(ctx, "CoT projector", projector); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "CoT decoder", decoder); err != nil {
+		return err
+	}
+	if cfg.UDP.ListenAddr != "" {
+		input, err := deps.newCoTUDPInput(cotcomponent.UDPInputConfig{
+			Source:           cfg.Source,
+			ListenAddr:       cfg.UDP.ListenAddr,
+			RawSubject:       cotcomponent.DefaultRawSubject,
+			MaxDatagramBytes: cfg.UDP.MaxDatagramBytes,
+		}, bus)
+		if err != nil {
+			return fmt.Errorf("compose CoT UDP input component: %w", err)
+		}
+		a.cotUDPInput = input
+		if err := startLifecycle(ctx, "CoT UDP input", input); err != nil {
+			return err
+		}
+	}
+	if cfg.TCP.ListenAddr != "" {
+		input, err := deps.newCoTTCPInput(cotcomponent.TCPInputConfig{
+			Source:        cfg.Source,
+			ListenAddr:    cfg.TCP.ListenAddr,
+			RawSubject:    cotcomponent.DefaultRawSubject,
+			MaxEventBytes: cfg.TCP.MaxEventBytes,
+		}, bus)
+		if err != nil {
+			return fmt.Errorf("compose CoT TCP input component: %w", err)
+		}
+		a.cotTCPInput = input
+		if err := startLifecycle(ctx, "CoT TCP input", input); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	Initialize() error
 	Start(context.Context) error
@@ -384,39 +459,18 @@ func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	return nil
 }
 
-func (a *App) startCoTTransport(name string, transport cotTransport) {
-	transportCtx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	a.cotTransports = append(a.cotTransports, runningCoTTransport{
-		name:      name,
-		transport: transport,
-		cancel:    cancel,
-		done:      done,
-	})
-	go func() {
-		done <- transport.Run(transportCtx)
-	}()
-}
-
-func newCoTUDPListener(
-	cfg cotadapter.UDPListenerConfig,
-	adapter *cotadapter.Adapter,
-) (cotTransport, error) {
-	return cotadapter.ListenUDP(cfg, adapter)
-}
-
-func newCoTTCPListener(
-	cfg cotadapter.TCPListenerConfig,
-	adapter *cotadapter.Adapter,
-) (cotTransport, error) {
-	return cotadapter.ListenTCP(cfg, adapter)
-}
-
 func newMAVLinkPlanWriter(
 	cfg stack.MAVLinkAdapterConfig,
 	deps stack.MAVLinkAdapterDeps,
 ) (mavcomponent.PlanWriter, error) {
 	return stack.NewMAVLinkPlanWriter(cfg, deps)
+}
+
+func newCoTPlanWriter(
+	cfg stack.CoTAdapterConfig,
+	deps stack.CoTAdapterDeps,
+) (cotcomponent.PlanWriter, error) {
+	return stack.NewCoTPlanWriter(cfg, deps)
 }
 
 func newNATSClient(cfg Config) (semstreamsClient, error) {
@@ -479,6 +533,29 @@ type noopSubscription struct{}
 
 func (noopSubscription) Unsubscribe() error {
 	return nil
+}
+
+type cotRuntimeBus struct {
+	client semstreamsClient
+}
+
+func (b cotRuntimeBus) Publish(ctx context.Context, subject string, data []byte) error {
+	return b.client.Publish(ctx, subject, data)
+}
+
+func (b cotRuntimeBus) Subscribe(
+	ctx context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (cotcomponent.Subscription, error) {
+	subscription, err := b.client.Subscribe(ctx, subject, handler)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return noopSubscription{}, nil
+	}
+	return subscription, nil
 }
 
 func remainingTimeout(ctx context.Context) time.Duration {

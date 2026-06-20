@@ -17,9 +17,11 @@
 - [x] 2.6 Migrate SemOps runtime/projector wiring to SemStreams typed `ownership.OwnerToken` bind results
 - [x] 2.7 Add SemStreams flowgraph, lifecycle, port, payload-registry, and config-schema contract guard for feed
       components
-- [ ] 2.8 Wrap hosted MAVLink, TAK/CoT, ADS-B, and future SAPIENT feed boundaries as SemStreams input and processor
+- [ ] 2.8 Wrap hosted ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and processor
       components
 - [x] 2.9 Add the first concrete MAVLink input/decoder/projector component package using SemStreams payload registry
+      and ports
+- [x] 2.10 Add the first concrete TAK/CoT input/decoder/projector component package using SemStreams payload registry
       and ports
 
 ## 3. COP Model And Governance
@@ -130,6 +132,10 @@
 - [x] 6.39 Rewire hosted MAVLink UDP ingestion onto the SemStreams input -> decoder processor -> projector processor
       flow
 - [x] 6.40 Record SemStreams utility package reuse as a SemOps framework-compliance expectation
+- [x] 6.41 Record flow backpressure and Prometheus telemetry as component-boundary design gates
+- [x] 6.42 Add concrete TAK/CoT UDP input, TCP input, decoder processor, and projector processor components
+- [x] 6.43 Rewire hosted TAK/CoT UDP/TCP ingestion onto the SemStreams input -> decoder processor -> projector
+      processor flow
 
 ## 7. COP UI
 
@@ -175,3 +181,4 @@
 - [ ] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask
 - [x] 9.8 Feed back owner-token ergonomics and capture typed-token/evidence-declaration response
 - [x] 9.9 Reconcile SemStreams prefix-discovery issue #302 and adopt typed cursor pagination locally
+- [x] 9.10 File SemStreams component backpressure telemetry issue #309 from hosted feed migration pressure

@@ -64,6 +64,13 @@ func NewCoTAdapter(
 	})
 }
 
+func NewCoTPlanWriter(
+	cfg CoTAdapterConfig,
+	deps CoTAdapterDeps,
+) (cotadapter.PlanWriter, error) {
+	return cotWriter(cfg, deps)
+}
+
 func cotWriter(
 	cfg CoTAdapterConfig,
 	deps CoTAdapterDeps,

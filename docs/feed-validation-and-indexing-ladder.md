@@ -181,6 +181,9 @@ Local assets:
 - SemOps now has `internal/projectors/cot`, a pure projection planner that births TAK source assets before strict
   track source edges, maps markers to `control` tasks, maps GeoChat to `content` advisories, and carries raw source
   references without embedding native XML in graph entities.
+- SemOps now has `internal/components/cot`, a SemStreams flow component package with UDP/TCP input components,
+  raw-event decoder processor, graph projector processor, registered raw/decoded `message.BaseMessage` payloads,
+  config schemas, health, and flow metrics.
 - SemLink has a TAK bridge and `scripts/demo-up.sh` seeds UDP CoT events for operators, markers, and chat.
 
 Mock or harness:
@@ -218,13 +221,14 @@ Current projection gate:
   track source edges, marker-to-task `control` projection, GeoChat-to-advisory `content` projection, source refs,
   unsupported alert no-ops, and restart born-state seeding.
 
-Current graph-wiring gate:
+Current component and graph-wiring gate:
 
-- `go test ./internal/projectors/cot ./internal/adapters/cot ./internal/stack ./internal/app` passes for CoT
-  create/update graph writer behavior, restart birth reconciliation, NATS-backed stack composition, opt-in hosted
-  CoT adapter composition, and UDP/TCP listener lifecycle wiring.
-- TAK/CoT graph wiring remains a local unit/integration gate until a skipped live graph smoke verifies source asset,
-  track, task, advisory, and source-ref readback against a running SemStreams graph.
+- `go test ./internal/components/cot ./internal/projectors/cot ./internal/adapters/cot ./internal/stack ./internal/app`
+  passes for CoT component payload/flowgraph contracts, create/update graph writer behavior, restart birth
+  reconciliation, NATS-backed stack composition, opt-in hosted component-flow composition, and UDP/TCP input lifecycle
+  wiring.
+- The Docker stack smoke and direct live graph smoke verify source asset, track, task, advisory, and source-ref
+  readback against a running SemStreams graph.
 
 ### CAP/EDXL
 

@@ -19,6 +19,12 @@ SemOps should also treat SemStreams utility packages as part of the framework su
 `pkg/cache`, and `pkg/buffer` are preferred starting points for common runtime concerns before SemOps grows local
 copies.
 
+Backpressure and telemetry must stay visible at component boundaries. Plain NATS stream ports are acceptable for local
+first smokes, but durable or high-rate edges should promote to JetStream ports, bounded `pkg/buffer`, or `pkg/cache`
+only when component `Health()`, `DataFlow()`, Prometheus metrics, queue depth, drop count, retry/redelivery pressure,
+or replay requirements prove the need. SemStreams issue #309 now tracks the reusable framework gap for richer
+backpressure metrics across component flow ports.
+
 This review also deletes the stale `configs/robotics-flow.json` file because it preserved raw subject topology from an
 old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgraph and component story.
 
@@ -44,13 +50,14 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
 - SemOps ownership registration through `ownership.EnsureBuckets` and `projection.BindAndHeartbeat`.
 - Stale `configs/robotics-flow.json` raw-subject flow configuration.
 - `internal/components/mavlink` concrete input -> decoder processor -> projection processor component package.
-- `internal/contracts/semstreams_contract_test.go` component-contract guard, now pointed at the production MAVLink
-  components rather than a parallel skeleton.
+- `internal/components/cot` concrete UDP/TCP input -> decoder processor -> projection processor component package.
+- `internal/contracts/semstreams_contract_test.go` component-contract guard, now pointed at the production MAVLink and
+  TAK/CoT components rather than a parallel skeleton.
 
 ## Accepted Risks
 
-- MAVLink runtime ingress now uses the concrete SemStreams input and processor components; TAK/CoT, ADS-B, hosted CAP
-  if promoted, and SAPIENT still need the same treatment before SemOps can claim hosted feed services are fully
+- MAVLink and TAK/CoT runtime ingress now use concrete SemStreams input and processor components; ADS-B, hosted CAP if
+  promoted, and SAPIENT still need the same treatment before SemOps can claim hosted feed services are fully
   component-managed.
 - The graph writer code still names SemStreams graph mutation subjects directly. That is acceptable as the graph API
   wire boundary, but component ports must describe those resources when services are promoted.
@@ -59,10 +66,11 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
 
 ## Follow-Up Tasks
 
-- Wrap TAK/CoT, ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and processor
-  components.
+- Wrap ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and processor components.
 - Audit feed-runtime helpers against SemStreams utilities (`natsclient`, `pkg/errs`, `pkg/cache`, `pkg/buffer`) before
   adding or expanding SemOps-local equivalents.
+- Wire hosted component metrics into Prometheus and use lag/drop/retry evidence before adding local buffers, caches,
+  or JetStream durability to a flow edge; reconcile the resulting needs with SemStreams issue #309.
 - Register raw and decoded feed payload types in SemStreams payload registries and emit `message.BaseMessage`
   envelopes on stream output ports.
 - Compose feed topology through SemStreams flowgraph edges so every declared output port remains tappable by another

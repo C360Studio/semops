@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
-	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
+	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
+	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
@@ -151,7 +152,7 @@ func TestStartCleansUpWhenMAVLinkCompositionFails(t *testing.T) {
 	}
 }
 
-func TestStartComposesCoTAdapterAfterOwnershipRegistration(t *testing.T) {
+func TestStartRegistersOwnershipBeforeComposingCoTFlow(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -162,8 +163,8 @@ func TestStartComposesCoTAdapterAfterOwnershipRegistration(t *testing.T) {
 	cfg.CoT.WriteTimeout = 750 * time.Millisecond
 
 	var stoppedOwners bool
-	var gotAdapterCfg stack.CoTAdapterConfig
-	var gotAdapterDeps stack.CoTAdapterDeps
+	var gotWriterCfg stack.CoTAdapterConfig
+	var gotWriterDeps stack.CoTAdapterDeps
 
 	app, err := start(ctx, cfg, dependencies{
 		newNATSClient: func(Config) (semstreamsClient, error) {
@@ -194,32 +195,35 @@ func TestStartComposesCoTAdapterAfterOwnershipRegistration(t *testing.T) {
 					stoppedOwners = true
 				}, nil
 		},
-		newCoTAdapter: func(
-			adapterCfg stack.CoTAdapterConfig,
-			adapterDeps stack.CoTAdapterDeps,
-		) (*cotadapter.Adapter, error) {
-			gotAdapterCfg = adapterCfg
-			gotAdapterDeps = adapterDeps
-			return testCoTAdapter(t), nil
+		newCoTPlanWriter: func(
+			writerCfg stack.CoTAdapterConfig,
+			writerDeps stack.CoTAdapterDeps,
+		) (cotcomponent.PlanWriter, error) {
+			gotWriterCfg = writerCfg
+			gotWriterDeps = writerDeps
+			return &recordingCoTAppPlanWriter{}, nil
 		},
 	})
 	if err != nil {
 		t.Fatalf("start app: %v", err)
 	}
-	if app.CoTAdapter() == nil {
-		t.Fatal("expected hosted CoT adapter")
+	if app.CoTDecoder() == nil || app.CoTProjector() == nil {
+		t.Fatal("expected hosted CoT decoder and projector components")
 	}
-	if got, want := gotAdapterCfg.OwnerTokens[cop.OwnerTAK].Wire(), "semops.feed.tak#lease-123"; got != want {
-		t.Fatalf("adapter TAK owner token = %q, want %q", got, want)
+	if got, want := gotWriterCfg.OwnerTokens[cop.OwnerTAK].Wire(), "semops.feed.tak#lease-123"; got != want {
+		t.Fatalf("writer TAK owner token = %q, want %q", got, want)
 	}
-	if gotAdapterCfg.Platform != "edge-alpha" || gotAdapterCfg.Source != "udp:cot" {
-		t.Fatalf("adapter config = %+v", gotAdapterCfg)
+	if gotWriterCfg.Platform != "edge-alpha" || gotWriterCfg.Source != "udp:cot" {
+		t.Fatalf("writer config = %+v", gotWriterCfg)
 	}
-	if gotAdapterCfg.WriteTimeout != 750*time.Millisecond {
-		t.Fatalf("adapter write timeout = %s", gotAdapterCfg.WriteTimeout)
+	if gotWriterCfg.WriteTimeout != 750*time.Millisecond {
+		t.Fatalf("writer timeout = %s", gotWriterCfg.WriteTimeout)
 	}
-	if gotAdapterDeps.NATS != client {
-		t.Fatal("CoT adapter must reuse the connected SemStreams client")
+	if gotWriterDeps.NATS != client {
+		t.Fatal("CoT writer must reuse the connected SemStreams client")
+	}
+	if !client.hasSubscription(cotcomponent.DefaultDecodedSubject) || !client.hasSubscription(cotcomponent.DefaultRawSubject) {
+		t.Fatalf("CoT flow subscriptions = %+v", client.subscriptionSubjects())
 	}
 
 	if err := app.Close(context.Background()); err != nil {
@@ -238,7 +242,7 @@ func TestStartCleansUpWhenCoTCompositionFails(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.MAVLink.Enabled = false
 	cfg.CoT.Enabled = true
-	adapterErr := errors.New("bad cot adapter")
+	adapterErr := errors.New("bad cot writer")
 	var stoppedOwners bool
 
 	_, err := start(context.Background(), cfg, dependencies{
@@ -254,10 +258,10 @@ func TestStartCleansUpWhenCoTCompositionFails(t *testing.T) {
 				stoppedOwners = true
 			}, nil
 		},
-		newCoTAdapter: func(
+		newCoTPlanWriter: func(
 			stack.CoTAdapterConfig,
 			stack.CoTAdapterDeps,
-		) (*cotadapter.Adapter, error) {
+		) (cotcomponent.PlanWriter, error) {
 			return nil, adapterErr
 		},
 	})
@@ -308,7 +312,7 @@ func TestStartCanDisableHostedMAVLinkFlow(t *testing.T) {
 	}
 }
 
-func TestStartCanDisableHostedCoTAdapter(t *testing.T) {
+func TestStartCanDisableHostedCoTFlow(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
 	cfg.MAVLink.Enabled = false
@@ -326,22 +330,22 @@ func TestStartCanDisableHostedCoTAdapter(t *testing.T) {
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
-		newCoTAdapter: func(
+		newCoTPlanWriter: func(
 			stack.CoTAdapterConfig,
 			stack.CoTAdapterDeps,
-		) (*cotadapter.Adapter, error) {
+		) (cotcomponent.PlanWriter, error) {
 			composed = true
-			return testCoTAdapter(t), nil
+			return &recordingCoTAppPlanWriter{}, nil
 		},
 	})
 	if err != nil {
 		t.Fatalf("start app: %v", err)
 	}
 	if composed {
-		t.Fatal("CoT adapter should not be composed when disabled")
+		t.Fatal("CoT flow should not be composed when disabled")
 	}
-	if app.CoTAdapter() != nil {
-		t.Fatal("CoT adapter should be nil when disabled")
+	if app.CoTDecoder() != nil || app.CoTProjector() != nil || app.CoTUDPInput() != nil || app.CoTTCPInput() != nil {
+		t.Fatal("CoT components should be nil when disabled")
 	}
 }
 
@@ -394,21 +398,15 @@ func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	}
 }
 
-func TestStartHostsCoTTransportsWhenConfigured(t *testing.T) {
+func TestStartHostsCoTInputFlowWhenConfigured(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
 	cfg.MAVLink.Enabled = false
 	cfg.CoT.Enabled = true
-	cfg.CoT.UDP.ListenAddr = "127.0.0.1:18080"
+	cfg.CoT.UDP.ListenAddr = "127.0.0.1:0"
 	cfg.CoT.UDP.MaxDatagramBytes = 2048
-	cfg.CoT.TCP.ListenAddr = "127.0.0.1:18081"
+	cfg.CoT.TCP.ListenAddr = "127.0.0.1:0"
 	cfg.CoT.TCP.MaxEventBytes = 4096
-	udpTransport := newFakeMAVLinkTransport()
-	tcpTransport := newFakeMAVLinkTransport()
-	var gotUDPCfg cotadapter.UDPListenerConfig
-	var gotTCPCfg cotadapter.TCPListenerConfig
-	var gotUDPAdapter *cotadapter.Adapter
-	var gotTCPAdapter *cotadapter.Adapter
 
 	app, err := start(context.Background(), cfg, dependencies{
 		newNATSClient: func(Config) (semstreamsClient, error) {
@@ -421,51 +419,33 @@ func TestStartHostsCoTTransportsWhenConfigured(t *testing.T) {
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
-		newCoTAdapter: func(
-			stack.CoTAdapterConfig,
-			stack.CoTAdapterDeps,
-		) (*cotadapter.Adapter, error) {
-			return testCoTAdapter(t), nil
-		},
-		newCoTUDPListener: func(
-			transportCfg cotadapter.UDPListenerConfig,
-			adapter *cotadapter.Adapter,
-		) (cotTransport, error) {
-			gotUDPCfg = transportCfg
-			gotUDPAdapter = adapter
-			return udpTransport, nil
-		},
-		newCoTTCPListener: func(
-			transportCfg cotadapter.TCPListenerConfig,
-			adapter *cotadapter.Adapter,
-		) (cotTransport, error) {
-			gotTCPCfg = transportCfg
-			gotTCPAdapter = adapter
-			return tcpTransport, nil
-		},
 	})
 	if err != nil {
 		t.Fatalf("start app: %v", err)
 	}
-	udpTransport.waitStarted(t)
-	tcpTransport.waitStarted(t)
-	if gotUDPCfg.ListenAddr != "127.0.0.1:18080" ||
-		gotUDPCfg.MaxDatagramBytes != 2048 {
-		t.Fatalf("CoT UDP config = %+v", gotUDPCfg)
+	if app.CoTUDPInput() == nil || app.CoTTCPInput() == nil {
+		t.Fatal("expected hosted CoT UDP and TCP input components")
 	}
-	if gotTCPCfg.ListenAddr != "127.0.0.1:18081" ||
-		gotTCPCfg.MaxEventBytes != 4096 {
-		t.Fatalf("CoT TCP config = %+v", gotTCPCfg)
+	if app.CoTUDPInput().Addr() == nil || app.CoTTCPInput().Addr() == nil {
+		t.Fatal("expected hosted CoT input addresses")
 	}
-	if gotUDPAdapter != app.CoTAdapter() || gotTCPAdapter != app.CoTAdapter() {
-		t.Fatal("CoT transports must receive the hosted CoT adapter")
+	if !client.hasSubscription(cotcomponent.DefaultRawSubject) || !client.hasSubscription(cotcomponent.DefaultDecodedSubject) {
+		t.Fatalf("subscriptions = %+v", client.subscriptionSubjects())
 	}
+
+	conn, err := net.Dial("udp", app.CoTUDPInput().Addr().String())
+	if err != nil {
+		t.Fatalf("dial CoT UDP input: %v", err)
+	}
+	defer conn.Close()
+	if _, err := conn.Write(mustRuntimeCoTEvent(t)); err != nil {
+		t.Fatalf("write CoT event: %v", err)
+	}
+	waitFor(t, time.Second, func() bool { return client.requestCount() >= 2 })
 
 	if err := app.Close(context.Background()); err != nil {
 		t.Fatalf("close app: %v", err)
 	}
-	udpTransport.waitClosed(t)
-	tcpTransport.waitClosed(t)
 	if !client.closed {
 		t.Fatal("close must close SemStreams client")
 	}
@@ -861,66 +841,13 @@ func (w *recordingAppPlanWriter) Apply(_ context.Context, plan mavprojector.Plan
 	return nil
 }
 
-type noopCoTPlanWriter struct{}
+type recordingCoTAppPlanWriter struct {
+	plans []cotprojector.Plan
+}
 
-func (noopCoTPlanWriter) Apply(context.Context, cotprojector.Plan) error {
+func (w *recordingCoTAppPlanWriter) Apply(_ context.Context, plan cotprojector.Plan) error {
+	w.plans = append(w.plans, plan)
 	return nil
-}
-
-func testCoTAdapter(t *testing.T) *cotadapter.Adapter {
-	t.Helper()
-	adapter, err := cotadapter.NewAdapter(cotadapter.Config{
-		Projector: cotprojector.NewProjector(cotprojector.Config{}),
-		Writer:    noopCoTPlanWriter{},
-	})
-	if err != nil {
-		t.Fatalf("new test CoT adapter: %v", err)
-	}
-	return adapter
-}
-
-type fakeMAVLinkTransport struct {
-	started   chan struct{}
-	closed    chan struct{}
-	closeOnce sync.Once
-}
-
-func newFakeMAVLinkTransport() *fakeMAVLinkTransport {
-	return &fakeMAVLinkTransport{
-		started: make(chan struct{}),
-		closed:  make(chan struct{}),
-	}
-}
-
-func (t *fakeMAVLinkTransport) Run(ctx context.Context) error {
-	close(t.started)
-	<-ctx.Done()
-	return nil
-}
-
-func (t *fakeMAVLinkTransport) Close() error {
-	t.closeOnce.Do(func() {
-		close(t.closed)
-	})
-	return nil
-}
-
-func (t *fakeMAVLinkTransport) waitStarted(tb testing.TB) {
-	tb.Helper()
-	select {
-	case <-t.started:
-	case <-time.After(time.Second):
-		tb.Fatal("timed out waiting for transport start")
-	}
-}
-
-func (t *fakeMAVLinkTransport) waitClosed(tb testing.TB) {
-	tb.Helper()
-	select {
-	case <-t.closed:
-	case <-time.After(time.Second):
-		tb.Fatal("timed out waiting for transport close")
-	}
 }
 
 func mustRuntimeHeartbeatFrame(t *testing.T) []byte {
@@ -934,6 +861,31 @@ func mustRuntimeHeartbeatFrame(t *testing.T) []byte {
 		t.Fatalf("generate heartbeat: %v", err)
 	}
 	return frame
+}
+
+func mustRuntimeCoTEvent(t *testing.T) []byte {
+	t.Helper()
+	now := time.Now().UTC()
+	raw, err := cotcodec.Marshal(cotcodec.Event{
+		UID:      "ANDROID-ALPHA",
+		Type:     cotcodec.TypeOperatorPosition,
+		How:      cotcodec.DefaultHow,
+		Time:     now,
+		Start:    now,
+		Stale:    now.Add(2 * time.Minute),
+		Callsign: "Alpha Team",
+		Point: &cotcodec.Point{
+			Lat: 30.2672,
+			Lon: -97.7431,
+			HAE: 188,
+			CE:  5,
+			LE:  8,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal CoT event: %v", err)
+	}
+	return raw
 }
 
 func mustRuntimeJSON(value any) []byte {

@@ -19,6 +19,7 @@ schema, NATS/JetStream runtime primitives, shared utility packages, and reusable
 - Active MAVLink SemStreams component boundary: `internal/components/mavlink`
 - Active TAK/CoT codec, replay, projection, and graph-wiring boundary: `pkg/adapters/cot`,
   `internal/adapters/cot`, `internal/projectors/cot`
+- Active TAK/CoT SemStreams component boundary: `internal/components/cot`
 - Active CAP codec, replay fixture, append-evidence projection, graph-wiring, and COP readback boundary:
   `pkg/adapters/cap`, `internal/projectors/cap`, `internal/smoke/cap`
 
@@ -35,9 +36,9 @@ SemOps should also prefer SemStreams utility packages when they fit the runtime 
 JetStream, KV, retry, and request/reply behavior; `pkg/errs` for framework-consistent error classification;
 `pkg/cache` for shared in-memory cache patterns; and `pkg/buffer` for bounded concurrent buffering.
 
-The first concrete MAVLink component package now defines a UDP input component, raw-frame decoder processor, graph
-projection processor, and registered raw/decoded payload types. The hosted app starts that MAVLink flow in projector
--> decoder -> input order so the UDP listener no longer bypasses SemStreams component ports.
+The first concrete MAVLink and TAK/CoT component packages now define transport input components, decoder processors,
+graph projection processors, and registered raw/decoded payload types. The hosted app starts projector -> decoder ->
+input order for both feeds so UDP/TCP listeners no longer bypass SemStreams component ports.
 
 ## First Product Model
 
@@ -87,7 +88,8 @@ SEMOPS_NATS_URL=nats://127.0.0.1:4222 go run ./cmd/semops
 ```
 
 `cmd/semops` now connects to SemStreams, registers first-phase COP ownership, enrolls owners for heartbeat, and
-composes hosted MAVLink and opt-in TAK/CoT adapters with typed owner tokens minted by SemStreams registry/bind results.
+composes hosted MAVLink and opt-in TAK/CoT component flows with typed owner tokens minted by SemStreams registry/bind
+results.
 
 Enable UDP MAVLink ingestion explicitly when you want the hosted runtime to listen for datagrams:
 
@@ -98,7 +100,7 @@ go run ./cmd/semops
 ```
 
 Enable TAK/CoT ingestion explicitly when you want the hosted runtime to listen for CoT XML. This writes governed graph
-state but is not yet surfaced through the COP snapshot API/UI:
+state through the CoT UDP/TCP input -> decoder processor -> projector processor flow:
 
 ```bash
 SEMOPS_NATS_URL=nats://127.0.0.1:4222 \

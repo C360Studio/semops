@@ -46,7 +46,13 @@ progress:
     processor, registered raw/decoded payloads, and flowgraph-connectable port metadata.
   - Rewired hosted MAVLink UDP startup to use SemStreams input/processor components rather than the old direct
     UDP-listener-to-adapter shortcut.
+  - Added `internal/components/cot` with concrete UDP/TCP input components, raw-event decoder processor, graph
+    projector processor, registered raw/decoded payloads, and flowgraph-connectable port metadata.
+  - Rewired hosted TAK/CoT startup to use SemStreams input/processor components rather than the old direct
+    UDP/TCP-listener-to-adapter shortcut.
   - Recorded that SemOps should prefer SemStreams utility packages such as `natsclient`, `pkg/errs`, `pkg/cache`,
     and `pkg/buffer` for common runtime concerns before adding local equivalents.
+  - Recorded that flow backpressure decisions must be driven by component health, flow metrics, Prometheus telemetry,
+    lag/drop/retry evidence, and replay/smoothing need before adding local buffers, caches, or JetStream durability.
   - Deleted stale `configs/robotics-flow.json` so old raw-subject flow topology cannot be mistaken for the current
     SemStreams component contract.
