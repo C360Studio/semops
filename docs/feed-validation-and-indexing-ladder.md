@@ -392,7 +392,7 @@ First acceptance gate:
 
 ### SAPIENT
 
-Status: official artifacts found; local parser and harness qualification still required.
+Status: JSON preflight parser exists; binary protobuf and harness qualification still required.
 
 Compliance and sample evidence:
 
@@ -411,12 +411,17 @@ Compliance and sample evidence:
 
 Local assets:
 
-- None implemented in SemOps yet.
-- No local SAPIENT harness run, generated Go bindings, parser package, or graph projector exists.
+- `pkg/adapters/sapient` parses representative Dstl-harness-shaped JSON preflight fixtures for registration, status
+  report, detection report, and task acknowledgement messages.
+- `go test ./pkg/adapters/sapient` rejects malformed required fields before graph writes.
+- No local SAPIENT harness run, generated Go bindings, binary protobuf decoder, hosted adapter, or graph projector
+  exists.
 
 Mock or harness:
 
 - Start with parser-only fixtures from official protobuf/sample-message evidence.
+- Treat the current JSON preflight as developer evidence only; generated protobuf bindings and binary payload fixtures
+  remain a separate gate.
 - Run or qualify the Dstl BSI Flex 335 v2 Test Harness before using compliance language.
 - Track a portable preflight harness as developer evidence, not official compliance, until accepted externally.
 - Treat Apex middleware as an interop and service-shape reference, not as a substitute for SemOps ownership,
@@ -432,6 +437,8 @@ First acceptance gate:
 
 - Given BSI Flex 335 v2-aligned fixtures, malformed messages are rejected before graph writes and valid detections
   become governed tracks or observations with clear source ownership.
+- Given binary BSI Flex 335 v2 payloads, generated bindings or an equivalent reproducible descriptor toolchain decode
+  `SapientMessage` before SemOps claims protobuf support.
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
 

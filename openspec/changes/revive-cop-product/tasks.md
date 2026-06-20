@@ -70,8 +70,9 @@
 - [x] 5.24 Add opt-in ADS-B structural scenario replay through the hosted adapter seam
 - [x] 5.25 Record official SAPIENT GOV.UK, BSI Flex 335 v2, Dstl protobuf, test-harness, and Apex middleware anchors
 - [ ] 5.26 Run or qualify the Dstl BSI Flex 335 v2 Test Harness before SAPIENT compliance claims
-- [ ] 5.27 Add parser-only SAPIENT BSI Flex 335 v2 fixture gate before graph projection
+- [x] 5.27 Add parser-only SAPIENT BSI Flex 335 v2 JSON preflight fixture gate before graph projection
 - [ ] 5.28 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
+- [ ] 5.29 Add generated SAPIENT BSI Flex 335 v2 protobuf bindings and binary payload decode gate
 
 ## 6. Structural COP Stack
 
