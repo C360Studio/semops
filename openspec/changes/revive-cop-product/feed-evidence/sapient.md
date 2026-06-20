@@ -1,12 +1,12 @@
 # SAPIENT Feed Evidence
 
-Status: JSON preflight parser exists; binary protobuf and harness qualification still required before implementation.
+Status: JSON and binary descriptor preflight exist; harness qualification still required before implementation.
 
 ## Decision
 
 SAPIENT has moved from artifact discovery to a parser/harness planning lane. SemOps now has a dependency-light JSON
-preflight parser for representative BSI Flex 335 v2 message shapes, but it must not claim SAPIENT product support,
-binary protobuf coverage, or compliance until generated bindings and a documented harness run prove the boundary.
+preflight parser and a descriptor-based binary protobuf preflight for representative BSI Flex 335 v2 message shapes,
+but it must not claim SAPIENT product support or compliance until a documented Dstl harness run proves the boundary.
 
 ## Local Evidence
 
@@ -15,7 +15,12 @@ binary protobuf coverage, or compliance until generated bindings and a documente
   detection report, and task acknowledgement messages.
 - `go test ./pkg/adapters/sapient` validates required top-level envelope fields, UUID/ULID identity fields,
   mandatory content fields, location/range-bearing oneof behavior, and malformed fixture rejection before projection.
-- No SemOps SAPIENT generated protobuf bindings, binary decoder, hosted adapter, or graph projector exists yet.
+- `pkg/adapters/sapient` embeds the official Dstl BSI Flex 335 v2 `.proto` sources and license under
+  `pkg/adapters/sapient/protos/sapient_msg`.
+- `ParseBinaryMessage` compiles those sources through `github.com/bufbuild/protocompile`, decodes binary
+  `SapientMessage` payloads with dynamic protobuf descriptors, and validates the result through the same preflight
+  model.
+- No SemOps SAPIENT generated Go bindings, hosted adapter, or graph projector exists yet.
 - No local SAPIENT test harness run has been performed.
 - The feed ladder assigns detections/tracks to `signal`, tasking/collection state to `control`, and native decode
   traces to `trace`.
@@ -95,9 +100,9 @@ Acceptance:
 - Unknown or future fields are handled according to the authoritative compatibility rules. [open]
 - Generated bindings are versioned so BSI Flex 335 v1/v2 drift is visible. [open]
 
-### Binary Protobuf Gate
+### Binary Protobuf Descriptor Gate
 
-Target command after generated bindings exist:
+Target command:
 
 ```bash
 go test ./pkg/adapters/sapient -run Protobuf
@@ -105,10 +110,27 @@ go test ./pkg/adapters/sapient -run Protobuf
 
 Acceptance:
 
-- Official BSI Flex 335 v2 `.proto` files are generated or compiled through a reproducible toolchain.
-- Binary `SapientMessage` payload fixtures decode into typed SemOps preflight messages.
+- Official BSI Flex 335 v2 `.proto` files are generated or compiled through a reproducible toolchain. [done:
+  descriptor compile]
+- Binary `SapientMessage` payload fixtures decode into typed SemOps preflight messages. [done: representative subset]
 - JSON preflight and binary decode agree on envelope, content kind, identity fields, and required-field failures.
-- BSI Flex 335 v1/v2 drift is visible in package paths, generated-code provenance, or fixture metadata.
+  [done: representative subset]
+- BSI Flex 335 v1/v2 drift is visible in package paths, generated-code provenance, or fixture metadata. [done:
+  vendored v2 import path]
+
+### Generated Binding Gate
+
+Target command if SemOps needs generated Go bindings rather than dynamic descriptors:
+
+```bash
+go test ./pkg/adapters/sapient -run Generated
+```
+
+Acceptance:
+
+- Generation uses the same vendored Dstl proto source and records the generator version.
+- Generated package paths preserve the BSI Flex 335 version boundary.
+- Generated messages agree with the descriptor-based binary preflight fixtures.
 
 ### Projection Gate
 
@@ -131,7 +153,7 @@ Acceptance:
 - The official harness is Windows-focused and requires PostgreSQL 12, so CI automation needs a deliberate plan.
 - A portable Linux/CI-friendly preflight suite does not exist yet; creating one would be a meaningful ecosystem
   contribution.
-- No local SAPIENT protobuf bindings or binary decoder exists.
+- No generated SAPIENT Go bindings exist.
 - No full official fixture corpus is vendored yet; redistribution and attribution should be checked before committing
   copies beyond trimmed test shapes.
 - No SemOps mapping exists for SAPIENT node identity, detection lifecycle, tasking, alert acknowledgements, or Apex

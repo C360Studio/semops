@@ -69,12 +69,13 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** SemOps does not claim product support or conformance until a local parser gate and scoped harness result
   exist
 
-#### Scenario: SAPIENT JSON preflight is not protobuf conformance
+#### Scenario: SAPIENT parser preflight is not conformance
 
 - **WHEN** SemOps parses BSI Flex 335 v2 JSON fixtures derived from official SAPIENT sample shapes
 - **THEN** the parser may be used as developer preflight evidence before graph projection
-- **AND** SemOps does not claim binary protobuf support, portable-suite authority, or SAPIENT compliance until separate
-  generated-binding, binary-payload, and harness evidence exists
+- **AND** SemOps may add descriptor-based binary protobuf preflight from official proto source without claiming
+  full-message coverage, portable-suite authority, product support, or SAPIENT compliance
+- **AND** SemOps does not claim compliance until scoped Dstl harness evidence exists
 
 #### Scenario: CS API conformance is standards-edge evidence
 
