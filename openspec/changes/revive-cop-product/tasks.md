@@ -65,6 +65,7 @@
 - [x] 5.19 Add service-promotion matrix and current CS API source anchors without claiming bridge implementation
 - [x] 5.20 Add initial ADS-B OpenSky-shaped parser fixture gate without claiming live ADS-B support
 - [x] 5.21 Add ADS-B projection/readback fixture gate without claiming hosted ADS-B service
+- [x] 5.22 Add deterministic ADS-B OpenSky fixture replay through the scenario-runner seam
 
 ## 6. Structural COP Stack
 

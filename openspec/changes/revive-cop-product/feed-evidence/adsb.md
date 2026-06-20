@@ -15,8 +15,13 @@ fixtures and deterministic replay. Treat ASTERIX, raw receiver protocols, and li
   replay rows to `trace`.
 - Parser tests preserve nullable callsign, position timestamp, longitude, latitude, altitude, velocity, track,
   vertical rate, receiver IDs, squawk, position source, and category fields before projection.
+- `pkg/adapters/adsb` provides deterministic OpenSky snapshot fixture records plus JSONL replay load/store support.
 - `internal/projectors/adsb` projects aircraft current state into source-partitioned ADS-B track entities with
   `indexing_profile=signal`, provenance, confidence, source references, and no cross-source association edge.
+- `internal/projectors/adsb` has a graph writer boundary for SemStreams create/update mutation request/reply
+  contracts.
+- `internal/scenario` can replay ADS-B snapshot records through parse, projection, graph-plan writing, and born-state
+  marking when a scenario opts into ADS-B.
 - COP graph prefix discovery reads `c360.<platform>.cop.adsb.track.*` entities back into aircraft tracks and feed
   health without requiring a hosted ADS-B adapter.
 
@@ -57,8 +62,11 @@ Target artifact:
 
 Acceptance:
 
-- Replay produces deterministic current aircraft state and stale-data transitions.
-- Fixture replay is the CI default; live OpenSky access is optional.
+- Replay produces deterministic current aircraft state, missing-position state, and non-ADS-B position-source state.
+  [done]
+- Fixture replay is the CI default; live OpenSky access is optional. [done]
+- Replay records carry source refs without putting receiver rows directly into canonical track entities. [done]
+- Scenario replay can process two OpenSky snapshots so repeated ICAO24 state updates after the first birth. [done]
 
 ### Projection Gate
 
@@ -108,7 +116,7 @@ Acceptance:
 
 ## Known Gaps
 
-- No ADS-B hosted adapter, deterministic replay runner, or live client yet.
+- No ADS-B hosted adapter or live client yet.
 - OpenSky is useful for samples but should not become a critical-path dependency.
 - ASTERIX is not in the first ADS-B slice.
 - Raw receiver/readsb/dump1090 paths are not implemented.

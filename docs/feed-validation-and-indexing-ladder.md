@@ -330,7 +330,8 @@ First acceptance gate:
 
 ### ADS-B
 
-Status: later air-picture feed with OpenSky-shaped parser, current-state projection, and graph readback evidence.
+Status: later air-picture feed with OpenSky-shaped parser, deterministic replay, current-state projection, and graph
+readback evidence.
 
 Compliance and sample evidence:
 
@@ -344,14 +345,19 @@ Local assets:
 - `pkg/adapters/adsb` parses OpenSky `/states/all` snapshot fixtures and preserves nullable state-vector fields,
   position-source quality, receiver IDs, and category values.
 - `go test ./pkg/adapters/adsb` is the first executable ADS-B boundary.
+- `pkg/adapters/adsb` also provides deterministic OpenSky snapshot fixture records plus JSONL replay load/store
+  support.
 - `internal/projectors/adsb` projects aircraft current state to source-partitioned ADS-B tracks with `signal`
   indexing, provenance, confidence, and source references.
+- `internal/scenario` can replay ADS-B snapshots through parse, projection, graph-plan writing, and born-state
+  marking when a scenario opts into ADS-B.
 - The COP API discovers ADS-B aircraft tracks from `c360.<platform>.cop.adsb.track.*` prefixes and exposes
   `feed.adsb` health when fresh tracks exist.
 
 Mock or harness:
 
-- Start with recorded OpenSky JSON fixtures and deterministic replay.
+- Start with recorded OpenSky JSON fixtures and deterministic replay. This now exists for snapshot fixtures and
+  scenario-runner input.
 - Add live OpenSky calls only as an optional demo mode with rate-limit handling.
 - Consider readsb or dump1090-style local fixtures if we want raw ADS-B later.
 
@@ -365,10 +371,12 @@ First acceptance gate:
 
 - Given a bounded OpenSky state-vector fixture, SemOps decodes typed aircraft current-state evidence with nullable
   fields preserved and malformed rows rejected before any graph writes.
+- Given deterministic OpenSky replay records, SemOps loads raw snapshot refs and replays them through the scenario
+  runner without live network access.
 - Given a projected ADS-B aircraft state, SemOps writes current-state track evidence without source-asset or
   cross-source association edges and reads it back through prefix discovery.
-- Next gate: add deterministic fixture replay and a hosted adapter seam without making live OpenSky or receiver
-  protocols part of the default demo path.
+- Next gate: add a hosted adapter seam without making live OpenSky or receiver protocols part of the default demo
+  path.
 
 ### SAPIENT
 

@@ -8,10 +8,12 @@ import (
 	"time"
 
 	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
+	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
+	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/pkg/ownership"
 )
@@ -21,6 +23,17 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 	fixture, err := Phase1HADRFixture(start)
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
+	}
+	adsbRecords, err := adsbcodec.OpenSkyFixtureRecords(start)
+	if err != nil {
+		t.Fatalf("adsb fixture records: %v", err)
+	}
+	for _, record := range adsbRecords {
+		fixture.ADSBSnapshots = append(fixture.ADSBSnapshots, ADSBSnapshot{
+			Name:   strings.TrimPrefix(record.Ref, "adsb://fixture/opensky-hadr/"),
+			Offset: record.ReceivedAt.Sub(start),
+			Record: cloneADSBRecord(record),
+		})
 	}
 
 	tokens := testOwnerTokens("scenario")
@@ -51,6 +64,7 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 	}
 
 	capWriter := &recordingCAPWriter{}
+	adsbWriter := &recordingADSBWriter{}
 	runner, err := NewRunner(Config{
 		Fixture: fixture,
 		MAVLink: mavAdapter,
@@ -62,7 +76,14 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 			TraceID:     "scenario-runner-test",
 		}),
 		CAPWriter: capWriter,
-		Clock:     fixedClock(start),
+		ADSBProjector: adsbprojector.NewProjector(adsbprojector.Config{
+			Org:         "c360",
+			Platform:    "scenario",
+			OwnerTokens: tokens,
+			TraceID:     "scenario-runner-test",
+		}),
+		ADSBWriter: adsbWriter,
+		Clock:      fixedClock(start),
 	})
 	if err != nil {
 		t.Fatalf("runner: %v", err)
@@ -73,13 +94,14 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 		t.Fatalf("run scenario: %v", err)
 	}
 
-	wantSteps := len(fixture.MAVLinkFrames) + len(fixture.CoTEvents) + len(fixture.CAPAlerts)
+	wantSteps := len(fixture.MAVLinkFrames) + len(fixture.CoTEvents) + len(fixture.CAPAlerts) + len(fixture.ADSBSnapshots)
 	if report.State != StateSucceeded || len(report.Steps) != wantSteps {
 		t.Fatalf("report state/steps = %s/%d, want %s/%d", report.State, len(report.Steps), StateSucceeded, wantSteps)
 	}
 	if report.Summary.MAVLinkFrames != 2 ||
 		report.Summary.CoTEvents != 4 ||
 		report.Summary.CAPAlerts != 4 ||
+		report.Summary.ADSBSnapshots != 2 ||
 		report.Summary.Errors != 0 {
 		t.Fatalf("summary = %+v", report.Summary)
 	}
@@ -95,6 +117,9 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 	if len(capWriter.plans) != 4 {
 		t.Fatalf("cap plans = %d, want lifecycle create/update/update/create", len(capWriter.plans))
 	}
+	if len(adsbWriter.plans) != 2 {
+		t.Fatalf("adsb plans = %d, want two OpenSky snapshot plans", len(adsbWriter.plans))
+	}
 	if capWriter.plans[0].Mutations[0].Kind != capprojector.MutationCreate ||
 		capWriter.plans[1].Mutations[0].Kind != capprojector.MutationUpdate ||
 		capWriter.plans[2].Mutations[0].Kind != capprojector.MutationUpdate ||
@@ -104,6 +129,16 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 			capWriter.plans[1].Mutations[0].Kind,
 			capWriter.plans[2].Mutations[0].Kind,
 			capWriter.plans[3].Mutations[0].Kind)
+	}
+	if adsbWriter.plans[0].Mutations[0].Kind != adsbprojector.MutationCreate ||
+		adsbWriter.plans[0].Mutations[1].Kind != adsbprojector.MutationCreate ||
+		adsbWriter.plans[1].Mutations[0].Kind != adsbprojector.MutationUpdate ||
+		adsbWriter.plans[1].Mutations[1].Kind != adsbprojector.MutationCreate {
+		t.Fatalf("adsb mutation kinds = %s/%s/%s/%s",
+			adsbWriter.plans[0].Mutations[0].Kind,
+			adsbWriter.plans[0].Mutations[1].Kind,
+			adsbWriter.plans[1].Mutations[0].Kind,
+			adsbWriter.plans[1].Mutations[1].Kind)
 	}
 
 	status := runner.Status()
@@ -205,12 +240,23 @@ func (w *recordingCAPWriter) Apply(_ context.Context, plan capprojector.Plan) er
 	return w.err
 }
 
+type recordingADSBWriter struct {
+	plans []adsbprojector.Plan
+	err   error
+}
+
+func (w *recordingADSBWriter) Apply(_ context.Context, plan adsbprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	return w.err
+}
+
 func testOwnerTokens(suffix string) map[string]ownership.OwnerToken {
 	return map[string]ownership.OwnerToken{
 		cop.OwnerAsset:   ownership.ExpectedOwnerToken(cop.OwnerAsset, suffix),
 		cop.OwnerMAVLink: ownership.ExpectedOwnerToken(cop.OwnerMAVLink, suffix),
 		cop.OwnerTAK:     ownership.ExpectedOwnerToken(cop.OwnerTAK, suffix),
 		cop.OwnerCAP:     ownership.ExpectedOwnerToken(cop.OwnerCAP, suffix),
+		cop.OwnerADSB:    ownership.ExpectedOwnerToken(cop.OwnerADSB, suffix),
 	}
 }
 
@@ -218,4 +264,10 @@ func fixedClock(now time.Time) func() time.Time {
 	return func() time.Time { return now }
 }
 
+func cloneADSBRecord(record adsbcodec.RawSnapshotRecord) adsbcodec.RawSnapshotRecord {
+	record.RawJSON = append([]byte(nil), record.RawJSON...)
+	return record
+}
+
 var _ cotadapter.PlanWriter = (*recordingCoTWriter)(nil)
+var _ ADSBPlanWriter = (*recordingADSBWriter)(nil)
