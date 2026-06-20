@@ -259,7 +259,11 @@ func TestCoTFeedBoundaryUsesInputAndProcessorComponentShape(t *testing.T) {
 		t.Fatalf("CoT input component types = %q/%q, want input/input", udpInput.Meta().Type, tcpInput.Meta().Type)
 	}
 	if decoder.Meta().Type != "processor" || projector.Meta().Type != "processor" {
-		t.Fatalf("CoT processor component types = %q/%q, want processor/processor", decoder.Meta().Type, projector.Meta().Type)
+		t.Fatalf(
+			"CoT processor component types = %q/%q, want processor/processor",
+			decoder.Meta().Type,
+			projector.Meta().Type,
+		)
 	}
 	if got, want := udpInput.InputPorts()[0].Config.Type(), "network"; got != want {
 		t.Fatalf("CoT UDP ingress port type = %q, want %q", got, want)
@@ -337,6 +341,108 @@ func TestCoTFeedBoundaryUsesInputAndProcessorComponentShape(t *testing.T) {
 		Pattern:      flowgraph.PatternStream,
 		ConnectionID: cotcomponent.DefaultDecodedSubject,
 	})
+}
+
+func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
+	var _ component.Portable = component.HTTPClientPort{}
+
+	capFeed := component.HTTPClientPort{
+		Method:        "GET",
+		URLPattern:    "https://api.weather.gov/alerts/active",
+		TriggerPort:   "poll_tick",
+		AuthRef:       "nws-alerts",
+		ContactPolicy: "semops-demo@example.invalid",
+		Interface: &component.InterfaceContract{
+			Type:    "semops.cap.raw-alert",
+			Version: "v1",
+		},
+	}
+	if got, want := capFeed.Type(), "http-client"; got != want {
+		t.Fatalf("HTTP client port type = %q, want %q", got, want)
+	}
+	if got, want := capFeed.ResourceID(), "http-client:GET:https://api.weather.gov/alerts/active"; got != want {
+		t.Fatalf("HTTP client resource id = %q, want %q", got, want)
+	}
+	if capFeed.IsExclusive() {
+		t.Fatalf("HTTP client port must be shareable so multiple components can poll the same external resource")
+	}
+
+	tick := component.TimerPort{Interval: "30s"}
+	if got, want := tick.Type(), "timer"; got != want {
+		t.Fatalf("timer port type = %q, want %q", got, want)
+	}
+
+	poller := contractDiscoverable{
+		meta: component.Metadata{Name: "cap-poller", Type: "input", Version: "v0.1.0"},
+		inputs: []component.Port{{
+			Name:      "cap_feed",
+			Direction: component.DirectionInput,
+			Required:  true,
+			Config:    capFeed,
+		}},
+		outputs: []component.Port{{
+			Name:      "raw_alerts",
+			Direction: component.DirectionOutput,
+			Required:  true,
+			Config: component.NATSPort{
+				Subject: "semops.cap.raw",
+				Interface: &component.InterfaceContract{
+					Type:    "semops.cap.raw-alert",
+					Version: "v1",
+				},
+			},
+		}},
+	}
+	decoder := contractDiscoverable{
+		meta: component.Metadata{Name: "cap-decoder", Type: "processor", Version: "v0.1.0"},
+		inputs: []component.Port{{
+			Name:      "raw_alerts",
+			Direction: component.DirectionInput,
+			Required:  true,
+			Config: component.NATSPort{
+				Subject: "semops.cap.raw",
+				Interface: &component.InterfaceContract{
+					Type:    "semops.cap.raw-alert",
+					Version: "v1",
+				},
+			},
+		}},
+	}
+
+	fg := flowgraph.NewFlowGraph()
+	if err := fg.AddComponentNode(poller.Meta().Name, poller); err != nil {
+		t.Fatalf("add HTTP poller to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
+		t.Fatalf("add decoder to flow graph: %v", err)
+	}
+	if err := fg.ConnectComponentsByPatterns(); err != nil {
+		t.Fatalf("connect HTTP poller flow graph: %v", err)
+	}
+
+	pollerNode := fg.GetNodes()[poller.Meta().Name]
+	if len(pollerNode.InputPorts) != 1 {
+		t.Fatalf("poller input ports = %d, want 1", len(pollerNode.InputPorts))
+	}
+	if got, want := pollerNode.InputPorts[0].Pattern, flowgraph.PatternHTTPClient; got != want {
+		t.Fatalf("HTTP polling input pattern = %q, want %q", got, want)
+	}
+	if got, want := pollerNode.InputPorts[0].ConnectionID, capFeed.URLPattern; got != want {
+		t.Fatalf("HTTP polling connection id = %q, want %q", got, want)
+	}
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: poller.Meta().Name, PortName: "raw_alerts"},
+		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_alerts"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: "semops.cap.raw",
+	})
+
+	analysis := fg.AnalyzeConnectivity()
+	for _, orphan := range analysis.OrphanedPorts {
+		if orphan.ComponentName == poller.Meta().Name && orphan.PortName == "cap_feed" {
+			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
+		}
+	}
 }
 
 func TestRawFeedFlowUsesRegisteredBaseMessagePayload(t *testing.T) {
@@ -422,7 +528,11 @@ func TestCoTRawFeedFlowUsesRegisteredBaseMessagePayload(t *testing.T) {
 func TestLegacyRoboticsFlowConfigIsNotRetained(t *testing.T) {
 	path := filepath.Join("..", "..", "configs", "robotics-flow.json")
 	if _, err := os.Stat(path); err == nil {
-		t.Fatalf("%s must not be retained; use SemStreams component metadata, flowgraph, payload registry, ports, and config schema instead", path)
+		t.Fatalf(
+			"%s must not be retained; use SemStreams component metadata, flowgraph, "+
+				"payload registry, ports, and config schema instead",
+			path,
+		)
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("stat %s: %v", path, err)
 	}
@@ -492,4 +602,34 @@ type cotContractPlanWriter struct{}
 
 func (cotContractPlanWriter) Apply(context.Context, cotprojector.Plan) error {
 	return nil
+}
+
+type contractDiscoverable struct {
+	meta    component.Metadata
+	inputs  []component.Port
+	outputs []component.Port
+}
+
+func (c contractDiscoverable) Meta() component.Metadata {
+	return c.meta
+}
+
+func (c contractDiscoverable) InputPorts() []component.Port {
+	return c.inputs
+}
+
+func (c contractDiscoverable) OutputPorts() []component.Port {
+	return c.outputs
+}
+
+func (c contractDiscoverable) ConfigSchema() component.ConfigSchema {
+	return component.ConfigSchema{Properties: map[string]component.PropertySchema{}}
+}
+
+func (contractDiscoverable) Health() component.HealthStatus {
+	return component.HealthStatus{Healthy: true, LastCheck: time.Now().UTC(), Status: "ok"}
+}
+
+func (contractDiscoverable) DataFlow() component.FlowMetrics {
+	return component.FlowMetrics{LastActivity: time.Now().UTC()}
 }

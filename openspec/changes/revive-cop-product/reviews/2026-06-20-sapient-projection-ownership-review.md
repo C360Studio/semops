@@ -58,4 +58,4 @@ The first acceptable projection should be narrow:
 - Decide whether generated Go bindings add value beyond dynamic descriptor decode.
 - Define the first SAPIENT source identity and projection contract before adding `OwnerSAPIENT`.
 - Use SemStreams input and processor components for hosted SAPIENT ingress once service mode is chosen.
-- Revisit SemStreams issue #310 if SAPIENT/Apex integration needs reusable HTTP polling/client metadata.
+- Use SemStreams `HTTPClientPort` if SAPIENT/Apex integration needs reusable outbound HTTP client metadata.

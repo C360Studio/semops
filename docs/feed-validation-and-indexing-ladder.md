@@ -297,7 +297,8 @@ Remaining gates:
 - NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
 - Hosted poller, webhook, watched-file, or vendor feed service boundary. Once promoted, CAP must use SemStreams input
   and processor components with registered raw/decoded payloads, declared ports, config schema, health, flow metrics,
-  and telemetry-driven backpressure. SemStreams issue #310 tracks reusable external HTTP polling/client port metadata.
+  and telemetry-driven backpressure. Hosted HTTP pollers should declare `HTTPClientPort` plus `TimerPort` cadence
+  where polling is timer-driven.
 
 ### CS API Bidirectional Interop
 
@@ -465,7 +466,7 @@ First acceptance gate:
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
 - Given a future hosted SAPIENT feed, SemOps uses SemStreams input and processor components once service mode is
-  chosen, and revisits SemStreams issue #310 if Apex or HTTP polling/client integration needs framework metadata.
+  chosen, including `HTTPClientPort` for Apex or other outbound HTTP client integration modes.
 
 ### KLV/STANAG 4609
 

@@ -68,8 +68,8 @@ and CAP hazard. The runner can also opt into deterministic ADS-B fixture replay 
 `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, using the hosted ADS-B adapter and `semops.feed.adsb` owner token; the default
 stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence is shared-airspace
 playback, operator scenario controls, durable checkpoint/read-back reconciliation, and hosted CAP polling only if
-Phase 1 chooses live public-alert ingestion. SemStreams issue #310 tracks the reusable HTTP polling/client port
-metadata that CAP/NWS, OpenSky ADS-B, and possible SAPIENT/Apex integrations expose.
+Phase 1 chooses live public-alert ingestion. SemStreams `v1.0.0-beta.114` now provides `component.HTTPClientPort` for
+the outbound HTTP/polling dependency shape that CAP/NWS, OpenSky ADS-B, and possible SAPIENT/Apex integrations expose.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -241,10 +241,12 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - The first one-command graph smoke passes through `scripts/cop-stack-smoke.sh`; it starts the graph scaffold, polls
   health, metrics, API, UI, Svelte immutable asset caching, the hosted MAVLink UDP-to-snapshot path, and the direct
   MAVLink live graph smoke before tearing the stack down.
-- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.113`, the
-  prefix-discovery contract tag that follows the shipped ADR-055 must-exist flip.
+- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.114`, retaining
+  the beta.113 prefix-discovery contract and adding the beta.114 `HTTPClientPort` component boundary.
 - The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,
   `go test ./...`, `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
+- The 2026-06-20 beta.114 adoption added a SemOps contract test for `component.HTTPClientPort`, confirming outbound
+  HTTP client inputs classify as `flowgraph.PatternHTTPClient` and are not treated as internal orphaned inputs.
 - The one-command smoke now prints NATS/SemStreams diagnostics on compose startup failure. This caught a local Docker
   Desktop storage condition where NATS JetStream reported `Max Storage: 0 B`; after pruning unused Docker build cache
   and moving SemStreams dedicated health off the service-manager port, the stack smoke passed again.
@@ -421,6 +423,8 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
 - A documented raw-lane plus current-state projection pattern for high-rate telemetry.
 - Component backpressure telemetry for hosted feed flows:
   [SemStreams issue #309](https://github.com/C360Studio/semstreams/issues/309).
+- External HTTP client/polling port metadata is now a shipped SemStreams contract:
+  `component.HTTPClientPort` in `v1.0.0-beta.114`.
 - Edge/core sync guidance for structural edge nodes and inference-heavy core nodes.
 - Governance helpers for tolerant-reader adapters that append evidence without replacing owned predicates.
 

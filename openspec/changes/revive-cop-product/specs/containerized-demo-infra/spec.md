@@ -50,8 +50,8 @@ SemOps SHALL also prefer SemStreams shared utility packages for common runtime c
 - **THEN** the poller is modeled as a SemStreams input component with cadence, endpoint, auth, timeout, retry, cache,
   rate-limit, and stale-source behavior exposed through config schema and health
 - **AND** the poller emits registered raw-feed messages to declared stream output ports before parser processors run
-- **AND** SemOps uses `TimerPort` cadence plus endpoint config until SemStreams issue #310 defines first-class HTTP
-  polling/client port metadata
+- **AND** the poller declares a SemStreams `HTTPClientPort` for outbound HTTP resource metadata
+- **AND** timer-driven pollers declare a sibling `TimerPort` referenced by `HTTPClientPort.TriggerPort`
 
 #### Scenario: Feed adapters are processor components
 
