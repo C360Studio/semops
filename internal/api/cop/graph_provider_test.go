@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	copmodel "github.com/c360studio/semops/pkg/cop"
@@ -290,6 +291,74 @@ func TestGraphProviderMapsCAPHazardEvidence(t *testing.T) {
 	}
 }
 
+func TestGraphProviderDiscoversADSBTracksByPrefix(t *testing.T) {
+	now := time.Date(2026, 6, 20, 15, 0, 0, 0, time.UTC)
+	observed := now.Add(-10 * time.Second)
+	platform := "edge-adsb"
+	trackID := adsbprojector.EntityID("c360", platform, "A1B2C3")
+	requester := &fakeGraphSnapshotRequester{
+		prefixEntities: map[string][]graph.EntityState{
+			graphEntityPrefix("c360", platform, "adsb", copmodel.EntityTrack): {{
+				ID:        trackID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(trackID, copmodel.TrackNativeID, "adsb.icao24.a1b2c3.callsign.n123ab.source.ads-b", observed),
+					testTriple(trackID, copmodel.TrackStatus, "active.aircraft", observed),
+					testTriple(trackID, copmodel.TrackPosition, "POINT(-77.0400000 38.9000000)", observed),
+					testTriple(trackID, copmodel.TrackVelocity, "AIR_MOTION_MPS(71.50 180.25 -1.20)", observed),
+					testTriple(trackID, copmodel.TrackObservedAt, observed, observed),
+					testTriple(trackID, copmodel.ProvenanceSource, "adsb", observed),
+					testTriple(trackID, copmodel.ProvenanceConfidence, 0.85, observed),
+					testTriple(trackID, copmodel.ProvenanceObservedAt, observed, observed),
+					testTriple(trackID, copmodel.ProvenanceSourceRef, "opensky://states/a1b2c3/1781965785", observed),
+				},
+			}},
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithGraphDiscoveryScopes([]GraphDiscoveryScope{{Org: "c360", Platform: platform}}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveTracks != 1 || len(snapshot.Tracks) != 1 {
+		t.Fatalf("track summary/list = %d/%d", snapshot.Summary.ActiveTracks, len(snapshot.Tracks))
+	}
+	track := snapshot.Tracks[0]
+	if track.ID != trackID ||
+		track.Label != "N123AB" ||
+		track.Source != "adsb" ||
+		track.Provenance.Owner != copmodel.OwnerADSB ||
+		track.Provenance.SourceRef != "opensky://states/a1b2c3/1781965785" {
+		t.Fatalf("ADS-B track = %+v", track)
+	}
+	if track.Position.Lat != 38.9 || track.Position.Lon != -77.04 {
+		t.Fatalf("ADS-B track position = %+v", track.Position)
+	}
+	if len(snapshot.Feeds) != 4 ||
+		snapshot.Feeds[3].ID != "feed.adsb" ||
+		snapshot.Feeds[3].Status != "live" {
+		t.Fatalf("ADS-B feed = %+v", snapshot.Feeds)
+	}
+	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "adsb", copmodel.EntityTrack)
+	if !ok {
+		t.Fatalf("missing ADS-B track discovery diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if diagnostic.Family != "adsb" ||
+		diagnostic.Count != 1 ||
+		diagnostic.AtLimit {
+		t.Fatalf("ADS-B diagnostic = %+v", diagnostic)
+	}
+}
+
 func TestGraphProviderMapsCAPHazardLifecycleStatus(t *testing.T) {
 	now := time.Date(2026, 6, 19, 16, 0, 0, 0, time.UTC)
 	hazardID := capprojector.EntityID("c360", "edge-cap", "nws-demo-flood-warning")
@@ -526,7 +595,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if snapshot.Hazards[0].ID != hazardID || snapshot.Hazards[0].Source != "cap" {
 		t.Fatalf("hazard = %+v", snapshot.Hazards[0])
 	}
-	if len(requester.prefixRequests) != 7 {
+	if len(requester.prefixRequests) != 8 {
 		t.Fatalf("prefix requests = %+v", requester.prefixRequests)
 	}
 	for _, subject := range requester.subjects {
@@ -537,7 +606,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
-	if len(snapshot.Diagnostics.Discovery) != 7 {
+	if len(snapshot.Diagnostics.Discovery) != 8 {
 		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
 	}
 	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)

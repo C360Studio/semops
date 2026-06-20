@@ -379,7 +379,7 @@ func (p *GraphProvider) discoverInto(
 }
 
 func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
-	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*7)
+	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*8)
 	for _, scope := range p.discovery.Scopes {
 		targets = append(targets,
 			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityAsset, "mavlink"),
@@ -389,6 +389,7 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityTask, "cot"),
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityAdvisory, "cot"),
 			newGraphDiscoveryTarget(scope, "cap", copmodel.EntityHazardArea, "cap"),
+			newGraphDiscoveryTarget(scope, "adsb", copmodel.EntityTrack, "adsb"),
 		)
 	}
 	return targets
@@ -720,6 +721,8 @@ func sourceLabel(source string) string {
 		return "TAK/CoT"
 	case "cap":
 		return "CAP"
+	case "adsb":
+		return "ADS-B"
 	default:
 		return source
 	}
@@ -737,6 +740,8 @@ func feedIDForDiscoverySource(source string) string {
 		return "feed.tak"
 	case "cap":
 		return "feed.cap"
+	case "adsb":
+		return "feed.adsb"
 	default:
 		return "feed." + alertIDSegment(source)
 	}
@@ -789,7 +794,22 @@ func firstPhaseFeedHealth(
 		cap.Status = "planned"
 		cap.LastEventAt = now.Add(-33 * time.Minute)
 	}
-	return []FeedHealth{mavlink, tak, cap}
+	adsbTracks := filterTracksBySource(tracks, "adsb")
+	adsb := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.adsb",
+		"ADS-B",
+		"air-picture",
+		"ADS-B projection gate pending",
+		"Graph-backed ADS-B aircraft tracks",
+		trackObservationTimes(adsbTracks),
+	)
+	if len(adsbTracks) == 0 {
+		adsb.Status = "planned"
+		adsb.LastEventAt = now.Add(-45 * time.Minute)
+	}
+	return []FeedHealth{mavlink, tak, cap, adsb}
 }
 
 func feedHealthFromObservations(
@@ -1188,6 +1208,9 @@ func sourceFromEntityID(entityID string) string {
 	if strings.Contains(entityID, ".cop.cap.") {
 		return "cap"
 	}
+	if strings.Contains(entityID, ".cop.adsb.") {
+		return "adsb"
+	}
 	return "graph"
 }
 
@@ -1199,6 +1222,8 @@ func ownerForSource(source string) string {
 		return copmodel.OwnerMAVLink
 	case "cap":
 		return copmodel.OwnerCAP
+	case "adsb":
+		return copmodel.OwnerADSB
 	default:
 		return copmodel.OwnerFusion
 	}
@@ -1381,6 +1406,9 @@ func trackLabel(entity graph.EntityState) string {
 	if uid := cotUIDFromNativeID(nativeID); uid != "" {
 		return uid
 	}
+	if aircraftID := adsbIDFromNativeID(nativeID); aircraftID != "" {
+		return aircraftID
+	}
 	if systemID := systemIDFromNativeID(nativeID); systemID != "" {
 		return "UAS " + systemID
 	}
@@ -1403,6 +1431,19 @@ func cotUIDFromNativeID(nativeID string) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.TrimPrefix(nativeID, "cot.uid."))
+}
+
+func adsbIDFromNativeID(nativeID string) string {
+	parts := strings.Split(strings.TrimSpace(nativeID), ".")
+	if len(parts) < 3 || parts[0] != "adsb" || parts[1] != "icao24" {
+		return ""
+	}
+	for i := 2; i < len(parts)-1; i++ {
+		if parts[i] == "callsign" && strings.TrimSpace(parts[i+1]) != "" {
+			return strings.ToUpper(strings.TrimSpace(parts[i+1]))
+		}
+	}
+	return strings.ToUpper(strings.TrimSpace(parts[2]))
 }
 
 func systemIDFromNativeID(nativeID string) string {

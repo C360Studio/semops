@@ -88,6 +88,16 @@ requests before triples or foreign edges are added.
 - **AND** feed health reflects live or stale state from graph observation timestamps
 - **AND** the result remains a seed-UID readback gate, not a claim of TAK Server-equivalent behavior
 
+#### Scenario: ADS-B projection does not own aircraft association
+
+- **WHEN** an ADS-B-shaped state vector is projected into SemStreams graph state
+- **THEN** SemOps births a source-partitioned ADS-B `track` entity with `signal` indexing before update-only writes
+- **AND** nullable position data stays partial evidence instead of fake coordinates
+- **AND** position-source quality contributes provenance/confidence evidence
+- **AND** the ADS-B adapter does not emit `cop.track.source` or cross-source aircraft association edges
+- **AND** the COP snapshot may read ADS-B aircraft tracks by prefix discovery while hosted polling, receiver
+  protocols, ASTERIX, and statistical association remain separate gates
+
 #### Scenario: COP readback uses SemStreams discovery primitives
 
 - **WHEN** SemOps needs to hydrate the operator snapshot from graph state

@@ -64,6 +64,7 @@
 - [x] 5.18 Add CAP raw XML lifecycle fixture replay for scenario-runner input
 - [x] 5.19 Add service-promotion matrix and current CS API source anchors without claiming bridge implementation
 - [x] 5.20 Add initial ADS-B OpenSky-shaped parser fixture gate without claiming live ADS-B support
+- [x] 5.21 Add ADS-B projection/readback fixture gate without claiming hosted ADS-B service
 
 ## 6. Structural COP Stack
 
@@ -126,6 +127,7 @@
 - [x] 7.18 Surface derived CAP hazard lifecycle status in the COP view model
 - [x] 7.19 Surface compact prefix-discovery counts in source cards
 - [x] 7.20 Surface prefix discovery pressure in the alert list
+- [x] 7.21 Surface ADS-B prefix-discovered aircraft tracks in the COP API contract
 
 ## 8. Tier Escalation And Egress
 

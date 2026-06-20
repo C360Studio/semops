@@ -20,6 +20,7 @@ const (
 const (
 	OwnerMAVLink = "semops.feed.mavlink"
 	OwnerTAK     = "semops.feed.tak"
+	OwnerADSB    = "semops.feed.adsb"
 	OwnerAsset   = "semops.feed.asset"
 	OwnerCAP     = "semops.feed.cap"
 	OwnerFusion  = "semops.fusion.structural"
@@ -187,6 +188,32 @@ func TAKTrackContract() projection.Contract {
 			Predicate:     TrackSource,
 			Mode:          ownership.EdgeStrict,
 			TargetPattern: EntityPattern(EntityAsset),
+		}},
+	}
+}
+
+// ADSBTrackContract owns current aircraft state projected from ADS-B shaped
+// feeds such as OpenSky snapshots. Association with MAVLink, SAPIENT, or fusion
+// tracks is deliberately separate fusion evidence.
+func ADSBTrackContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.track.adsb-current-state",
+		MessageType:     "semops.adsb.track.v1",
+		EntityPattern:   SourceEntityPattern("adsb", EntityTrack),
+		IndexingProfile: "signal",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				TrackPosition,
+				TrackVelocity,
+				TrackStatus,
+				TrackObservedAt,
+				TrackNativeID,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
 		}},
 	}
 }

@@ -80,6 +80,30 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 		t.Fatalf("TAK and MAVLink strict track contracts must be source-partitioned")
 	}
 
+	adsb := ADSBTrackContract()
+	if err := adsb.Validate(); err != nil {
+		t.Fatalf("ADS-B contract should validate: %v", err)
+	}
+	if got := adsb.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("ADS-B mode = %q, want replace-owned", got)
+	}
+	if adsb.IndexingProfile != "signal" {
+		t.Fatalf("ADS-B indexing profile = %q, want signal", adsb.IndexingProfile)
+	}
+	if adsb.EntityPattern == mavlink.EntityPattern || adsb.EntityPattern == tak.EntityPattern {
+		t.Fatalf("ADS-B strict track contract must be source-partitioned")
+	}
+	if len(adsb.ForeignEdges) != 0 {
+		t.Fatalf("ADS-B feed must not claim association foreign edges: %+v", adsb.ForeignEdges)
+	}
+	adsbRegistration, err := projection.Derive(OwnerADSB, adsb)
+	if err != nil {
+		t.Fatalf("derive ADS-B ownership: %v", err)
+	}
+	if len(adsbRegistration.ForeignEdges) != 0 {
+		t.Fatalf("ADS-B derived foreign edges = %+v, want none", adsbRegistration.ForeignEdges)
+	}
+
 	takTask := TAKTaskContract()
 	if got := takTask.Groups[0].Mode; got != ownership.ModeReplaceOwned {
 		t.Fatalf("TAK task mode = %q, want replace-owned", got)
