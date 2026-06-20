@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
@@ -345,17 +346,47 @@ func TestCoTFeedBoundaryUsesInputAndProcessorComponentShape(t *testing.T) {
 
 func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	var _ component.Portable = component.HTTPClientPort{}
+	var _ component.LifecycleComponent = (*capcomponent.HTTPPollerComponent)(nil)
+	var _ component.LifecycleComponent = (*capcomponent.DecoderComponent)(nil)
 
-	capFeed := component.HTTPClientPort{
-		Method:        "GET",
-		URLPattern:    "https://api.weather.gov/alerts/active",
-		TriggerPort:   "poll_tick",
+	bus := capContractBus{}
+	poller, err := capcomponent.NewHTTPPollerComponent(capcomponent.HTTPPollerConfig{
+		URL:           "https://api.weather.gov/alerts/active",
+		PollInterval:  30 * time.Second,
 		AuthRef:       "nws-alerts",
 		ContactPolicy: "semops-demo@example.invalid",
-		Interface: &component.InterfaceContract{
-			Type:    "semops.cap.raw-alert",
-			Version: "v1",
-		},
+	}, bus)
+	if err != nil {
+		t.Fatalf("new CAP HTTP poller: %v", err)
+	}
+	decoder, err := capcomponent.NewDecoderComponent(capcomponent.DecoderConfig{}, bus)
+	if err != nil {
+		t.Fatalf("new CAP decoder: %v", err)
+	}
+	for name, lifecycle := range map[string]component.LifecycleComponent{
+		"poller":  poller,
+		"decoder": decoder,
+	} {
+		if err := lifecycle.Initialize(); err != nil {
+			t.Fatalf("initialize %s: %v", name, err)
+		}
+		if err := lifecycle.Start(context.Background()); err != nil {
+			t.Fatalf("start %s: %v", name, err)
+		}
+		if err := lifecycle.Stop(time.Second); err != nil {
+			t.Fatalf("stop %s: %v", name, err)
+		}
+	}
+
+	if poller.Meta().Type != "input" {
+		t.Fatalf("CAP poller component type = %q, want input", poller.Meta().Type)
+	}
+	if decoder.Meta().Type != "processor" {
+		t.Fatalf("CAP decoder component type = %q, want processor", decoder.Meta().Type)
+	}
+	capFeed, ok := poller.InputPorts()[0].Config.(component.HTTPClientPort)
+	if !ok {
+		t.Fatalf("CAP poller cap_feed config = %T, want HTTPClientPort", poller.InputPorts()[0].Config)
 	}
 	if got, want := capFeed.Type(), "http-client"; got != want {
 		t.Fatalf("HTTP client port type = %q, want %q", got, want)
@@ -366,48 +397,21 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	if capFeed.IsExclusive() {
 		t.Fatalf("HTTP client port must be shareable so multiple components can poll the same external resource")
 	}
+	if got, want := capFeed.Interface.Compatible[0], capcomponent.RawAlertType.Key(); got != want {
+		t.Fatalf("HTTP client compatible payload = %q, want %q", got, want)
+	}
 
-	tick := component.TimerPort{Interval: "30s"}
+	tick, ok := poller.InputPorts()[1].Config.(component.TimerPort)
+	if !ok {
+		t.Fatalf("CAP poller poll_tick config = %T, want TimerPort", poller.InputPorts()[1].Config)
+	}
 	if got, want := tick.Type(), "timer"; got != want {
 		t.Fatalf("timer port type = %q, want %q", got, want)
 	}
 
-	poller := contractDiscoverable{
-		meta: component.Metadata{Name: "cap-poller", Type: "input", Version: "v0.1.0"},
-		inputs: []component.Port{{
-			Name:      "cap_feed",
-			Direction: component.DirectionInput,
-			Required:  true,
-			Config:    capFeed,
-		}},
-		outputs: []component.Port{{
-			Name:      "raw_alerts",
-			Direction: component.DirectionOutput,
-			Required:  true,
-			Config: component.NATSPort{
-				Subject: "semops.cap.raw",
-				Interface: &component.InterfaceContract{
-					Type:    "semops.cap.raw-alert",
-					Version: "v1",
-				},
-			},
-		}},
-	}
-	decoder := contractDiscoverable{
-		meta: component.Metadata{Name: "cap-decoder", Type: "processor", Version: "v0.1.0"},
-		inputs: []component.Port{{
-			Name:      "raw_alerts",
-			Direction: component.DirectionInput,
-			Required:  true,
-			Config: component.NATSPort{
-				Subject: "semops.cap.raw",
-				Interface: &component.InterfaceContract{
-					Type:    "semops.cap.raw-alert",
-					Version: "v1",
-				},
-			},
-		}},
-	}
+	requireProperty(t, poller.ConfigSchema(), "url")
+	requireProperty(t, poller.ConfigSchema(), "contact_policy")
+	requireProperty(t, decoder.ConfigSchema(), "decoded_subject")
 
 	fg := flowgraph.NewFlowGraph()
 	if err := fg.AddComponentNode(poller.Meta().Name, poller); err != nil {
@@ -421,8 +425,8 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	}
 
 	pollerNode := fg.GetNodes()[poller.Meta().Name]
-	if len(pollerNode.InputPorts) != 1 {
-		t.Fatalf("poller input ports = %d, want 1", len(pollerNode.InputPorts))
+	if len(pollerNode.InputPorts) != 2 {
+		t.Fatalf("poller input ports = %d, want HTTP client and timer", len(pollerNode.InputPorts))
 	}
 	if got, want := pollerNode.InputPorts[0].Pattern, flowgraph.PatternHTTPClient; got != want {
 		t.Fatalf("HTTP polling input pattern = %q, want %q", got, want)
@@ -434,7 +438,7 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 		From:         flowgraph.ComponentPortRef{ComponentName: poller.Meta().Name, PortName: "raw_alerts"},
 		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_alerts"},
 		Pattern:      flowgraph.PatternStream,
-		ConnectionID: "semops.cap.raw",
+		ConnectionID: capcomponent.DefaultRawSubject,
 	})
 
 	analysis := fg.AnalyzeConnectivity()
@@ -604,32 +608,16 @@ func (cotContractPlanWriter) Apply(context.Context, cotprojector.Plan) error {
 	return nil
 }
 
-type contractDiscoverable struct {
-	meta    component.Metadata
-	inputs  []component.Port
-	outputs []component.Port
+type capContractBus struct{}
+
+func (capContractBus) Publish(context.Context, string, []byte) error {
+	return nil
 }
 
-func (c contractDiscoverable) Meta() component.Metadata {
-	return c.meta
-}
-
-func (c contractDiscoverable) InputPorts() []component.Port {
-	return c.inputs
-}
-
-func (c contractDiscoverable) OutputPorts() []component.Port {
-	return c.outputs
-}
-
-func (c contractDiscoverable) ConfigSchema() component.ConfigSchema {
-	return component.ConfigSchema{Properties: map[string]component.PropertySchema{}}
-}
-
-func (contractDiscoverable) Health() component.HealthStatus {
-	return component.HealthStatus{Healthy: true, LastCheck: time.Now().UTC(), Status: "ok"}
-}
-
-func (contractDiscoverable) DataFlow() component.FlowMetrics {
-	return component.FlowMetrics{LastActivity: time.Now().UTC()}
+func (capContractBus) Subscribe(
+	context.Context,
+	string,
+	func(context.Context, *nats.Msg),
+) (capcomponent.Subscription, error) {
+	return contractSubscription{}, nil
 }

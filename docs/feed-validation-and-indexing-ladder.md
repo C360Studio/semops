@@ -233,7 +233,8 @@ Current component and graph-wiring gate:
 ### CAP/EDXL
 
 Status: third feed; parser, deterministic raw XML lifecycle fixture replay, append-evidence projection, graph writer,
-COP readback, first lifecycle-status readback, and skipped-by-default live graph smoke exist.
+COP readback, first lifecycle-status readback, skipped-by-default live graph smoke, and initial HTTP poller/decoder
+component package exist.
 
 Compliance and sample evidence:
 
@@ -250,8 +251,10 @@ Local assets:
 - `internal/api/cop` maps CAP hazard evidence JSON into the COP hazard view model for the map overlay and derives
   operator-facing status from CAP `msgType`, `status`, `expires`, and freshness without writing authoritative hazard
   status predicates.
-- CAP intentionally has no `internal/components/cap` package yet. The current evidence is parser, projection,
-  scenario replay, COP readback, and graph-contract smoke proof rather than hosted poller/webhook service proof.
+- `internal/components/cap` provides a SemStreams lifecycle HTTP poller input component, a raw-alert decoder
+  processor, registered raw/decoded `message.BaseMessage` payloads, `HTTPClientPort`, `TimerPort`, stream ports,
+  config schema, health, and flow metrics. It is deterministic local component evidence, not default live NWS service
+  proof.
 
 Mock or harness:
 
@@ -276,9 +279,20 @@ First acceptance gate:
 Current commands:
 
 ```bash
-go test ./pkg/adapters/cap ./internal/projectors/cap ./internal/api/cop ./internal/smoke/cap
+go test ./pkg/adapters/cap ./internal/projectors/cap ./internal/api/cop ./internal/smoke/cap ./internal/components/cap
 go test ./internal/scenario
 ```
+
+Current component gate:
+
+```bash
+go test ./internal/components/cap ./internal/contracts
+```
+
+This gate proves the CAP HTTP poller and decoder are real SemStreams components with registered payloads, declared
+ports, config schema, health, and flow metrics. The poller uses `HTTPClientPort` for the external feed dependency and
+a sibling `TimerPort` referenced by `TriggerPort` for cadence. Tests use a local HTTP server; live NWS remains a
+separate optional gate. SemStreams issue #312 tracks first-class flowgraph cadence semantics for `TimerPort`.
 
 Live graph gate:
 
@@ -295,10 +309,10 @@ Remaining gates:
 - NWS samples captured as deterministic fixtures.
 - XML schema and CAP consumer-rule validation.
 - NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
-- Hosted poller, webhook, watched-file, or vendor feed service boundary. Once promoted, CAP must use SemStreams input
-  and processor components with registered raw/decoded payloads, declared ports, config schema, health, flow metrics,
-  and telemetry-driven backpressure. Hosted HTTP pollers should declare `HTTPClientPort` plus `TimerPort` cadence
-  where polling is timer-driven.
+- Default-stack hosting for the CAP HTTP poller and graph-projector component wiring.
+- Webhook, watched-file, or vendor feed service boundaries.
+- Telemetry-driven backpressure decisions once hosted CAP polling has real provider cadence, stale-source, retry,
+  retention, and audit pressure.
 
 ### CS API Bidirectional Interop
 

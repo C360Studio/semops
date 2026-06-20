@@ -1,8 +1,9 @@
 # CAP/EDXL Feed Evidence
 
 Status: initial Phase 1 parser/projection/readback slice exists, with deterministic raw XML lifecycle fixture replay,
-derived lifecycle-status readback, and a skipped-by-default live graph smoke for born-first append-evidence behavior.
-Hosted CAP polling, NWS fixture capture, XML schema validation, and consumer-rule coverage remain open.
+derived lifecycle-status readback, a skipped-by-default live graph smoke for born-first append-evidence behavior, and
+the first hosted HTTP poller plus decoder component package. Live NWS fixture capture, XML schema validation,
+consumer-rule coverage, default-stack hosting, and graph-projector component wiring remain open.
 
 ## Decision
 
@@ -10,12 +11,13 @@ CAP should be the third feed because it proves loose civilian warning ingestion 
 strict tactical source. CAP writes hazard, advisory, expiry, and provenance evidence; it does not overwrite stricter
 track or asset facts.
 
-The current CAP slice is not a SemStreams component package. It remains parser, projection, scenario-replay, and live
-graph smoke evidence until SemOps promotes hosted polling, webhook ingestion, NWS/IPAWS/vendor integration, or
-continuous alert-source health into product scope. That promotion requires SemStreams input and processor components,
-registered raw/decoded payloads, declared ports, config schema, health, flow metrics, and telemetry-driven
-backpressure. SemStreams `v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP pollers, while
-SemStreams issue #309 tracks richer component backpressure telemetry.
+The current CAP slice now has the first SemStreams component package for a hosted HTTP poller and raw-alert decoder.
+That is a component-contract and deterministic local-polling gate, not a default live NWS service claim. CAP remains
+parser, projection, scenario-replay, readback, and live graph smoke evidence until SemOps wires hosted polling,
+webhook ingestion, NWS/IPAWS/vendor integration, alert-source health, and projector components into product scope.
+SemStreams `v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP pollers, while SemStreams
+issue #309 tracks richer component backpressure telemetry and issue #312 tracks first-class `TimerPort` flowgraph
+cadence semantics.
 
 ## Local Evidence
 
@@ -29,6 +31,9 @@ SemStreams issue #309 tracks richer component backpressure telemetry.
   operator-facing status from CAP `msgType`, `status`, `expires`, and read-time freshness.
 - `internal/smoke/cap` writes CAP create and update plans through a live SemStreams graph stack, polls
   `graph.query.prefix`, and checks that CAP evidence did not claim authoritative hazard predicates.
+- `internal/components/cap` adds a SemStreams lifecycle `HTTPPollerComponent` with `HTTPClientPort` plus sibling
+  `TimerPort`, a raw-alert decoder processor, registered raw/decoded `message.BaseMessage` payloads, config schemas,
+  health, and flow metrics.
 - The COP model reserves `hazard_area`, `alert`, and `advisory` as first-slice entities.
 - The feed ladder assigns current CAP evidence to `content`, future authoritative alert lifecycle to `control`, and
   fetch/replay detail to `trace`.
@@ -89,6 +94,26 @@ Acceptance:
 - CAP evidence appends to source-owned predicates and does not replace stricter feed state.
 - Expired alerts become stale or inactive in the COP instead of silently remaining active.
 
+### Component Gate
+
+Current target command:
+
+```bash
+go test ./internal/components/cap ./internal/contracts
+```
+
+Acceptance:
+
+- The HTTP poller declares a SemStreams `HTTPClientPort` for method, URL pattern, auth reference, contact policy, and
+  raw-alert interface metadata.
+- The poller declares a sibling `TimerPort` referenced by `HTTPClientPort.TriggerPort` so polling cadence is visible
+  as a component contract.
+- Raw and decoded CAP payloads register with the SemStreams `PayloadRegistry` and round-trip through
+  `message.BaseMessage`.
+- Deterministic local HTTP tests publish raw CAP XML without calling live NWS.
+- The decoder processor parses raw CAP XML, appends replay evidence when configured, and emits decoded CAP alerts on
+  a stream port.
+
 ### COP Readback Gate
 
 Current target command:
@@ -142,10 +167,11 @@ Acceptance:
 - EDXL beyond CAP is not scoped for Phase 1.
 - NWS is a useful public source, but live NWS calls should not be required for deterministic CI.
 - CAP conformance should be stated as schema/consumer-rule evidence until we implement a proper consumer profile.
-- The current CAP slice does not host a poller/webhook service, fetch NWS alerts, or replay update/cancel/expire
-  sequences from captured NWS fixtures.
-- There is no `internal/components/cap` package yet by design; create it only when hosted polling, webhook,
-  watched-file, or vendor feed input becomes product scope.
+- The initial `internal/components/cap` package is not wired into the default Compose stack and does not fetch live
+  NWS alerts by default.
+- Captured NWS update/cancel/expire fixture replay is still missing.
+- CAP projection is still not a component package; add it only when hosted CAP feed behavior is promoted into the
+  managed runtime path.
 - The current projector intentionally does not own `cop.hazard.geometry`, `cop.hazard.severity`, or
   `cop.hazard.status`.
 - The live graph smoke is SemStreams graph-contract evidence, not CAP consumer conformance evidence.
