@@ -14,7 +14,7 @@ current SemStreams projection, ownership, indexing, rule, and tiering patterns.
 - SemOps owns the COP product, HA/DR scenario, feed adapters, canonical COP model, UI, fusion rules, scenario
   playback, and product-scoped governance.
 - SemStreams owns framework substrate: NATS/JetStream, graph mutation/query APIs, projection contracts, ownership
-  claims, indexing profiles, rules, lifecycle primitives, and reusable tier infrastructure.
+  claims, indexing profiles, rules, lifecycle primitives, shared utility packages, and reusable tier infrastructure.
 - SemConnect owns OGC Connected Systems API bridge behavior and conformance claims unless SemOps is explicitly
   rechartered to own that gateway product.
 - SemLink remains a basic GCS/demo proving selected patterns. SemOps may reuse or port anything useful from it, but
@@ -25,6 +25,8 @@ current SemStreams projection, ownership, indexing, rule, and tiering patterns.
 - Raw high-rate feed data stays on bounded raw lanes.
 - Graph writes represent current state, durable events, provenance, confidence, and relationship evidence.
 - Every graph writer declares SemStreams projection and ownership contracts before integration.
+- Runtime code prefers SemStreams utility packages such as `natsclient`, `pkg/errs`, `pkg/cache`, and `pkg/buffer`
+  before adding SemOps-local equivalents.
 - Strict feeds reject malformed messages at the adapter boundary.
 - Loose feeds use tolerant readers, then write strict governed projections with confidence and provenance.
 - Structural behavior is the default tier. Statistical and semantic work must be explicit, justified, observable,

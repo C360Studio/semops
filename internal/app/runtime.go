@@ -7,30 +7,34 @@ import (
 	"time"
 
 	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
-	mavadapter "github.com/c360studio/semops/internal/adapters/mavlink"
+	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
 	"github.com/c360studio/semops/internal/graphrequest"
+	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
 	"github.com/c360studio/semstreams/natsclient"
+	"github.com/c360studio/semstreams/payloadregistry"
 	"github.com/c360studio/semstreams/pkg/ownership"
+	"github.com/nats-io/nats.go"
 )
 
 type App struct {
 	client           semstreamsClient
 	ownershipStop    func()
 	ownershipResult  copownership.BindingResult
-	mavlinkAdapter   *mavadapter.Adapter
-	mavlinkTransport mavlinkTransport
+	mavlinkInput     *mavcomponent.UDPInputComponent
+	mavlinkDecoder   *mavcomponent.DecoderComponent
+	mavlinkProjector *mavcomponent.ProjectorComponent
 	cotAdapter       *cotadapter.Adapter
 	cotTransports    []runningCoTTransport
-	transportCancel  context.CancelFunc
-	transportDone    chan error
 }
 
 type semstreamsClient interface {
 	graphrequest.RetryRequester
 	Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
 	RequestClassified(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
+	Publish(ctx context.Context, subject string, data []byte) error
+	Subscribe(ctx context.Context, subject string, handler func(context.Context, *nats.Msg)) (*natsclient.Subscription, error)
 	Connect(context.Context) error
 	Close(context.Context) error
 }
@@ -41,18 +45,15 @@ type GraphRequester interface {
 }
 
 type dependencies struct {
-	newNATSClient         func(Config) (semstreamsClient, error)
-	registerOwners        func(context.Context, semstreamsClient, time.Duration) (copownership.BindingResult, func(), error)
-	newMAVLinkAdapter     func(stack.MAVLinkAdapterConfig, stack.MAVLinkAdapterDeps) (*mavadapter.Adapter, error)
-	newMAVLinkUDPListener func(mavadapter.UDPListenerConfig, *mavadapter.Adapter) (mavlinkTransport, error)
-	newCoTAdapter         func(stack.CoTAdapterConfig, stack.CoTAdapterDeps) (*cotadapter.Adapter, error)
-	newCoTUDPListener     func(cotadapter.UDPListenerConfig, *cotadapter.Adapter) (cotTransport, error)
-	newCoTTCPListener     func(cotadapter.TCPListenerConfig, *cotadapter.Adapter) (cotTransport, error)
-}
-
-type mavlinkTransport interface {
-	Run(context.Context) error
-	Close() error
+	newNATSClient        func(Config) (semstreamsClient, error)
+	registerOwners       func(context.Context, semstreamsClient, time.Duration) (copownership.BindingResult, func(), error)
+	newMAVLinkPlanWriter func(stack.MAVLinkAdapterConfig, stack.MAVLinkAdapterDeps) (mavcomponent.PlanWriter, error)
+	newMAVLinkUDPInput   func(mavcomponent.UDPInputConfig, mavcomponent.Bus) (*mavcomponent.UDPInputComponent, error)
+	newMAVLinkDecoder    func(mavcomponent.DecoderConfig, mavcomponent.Bus) (*mavcomponent.DecoderComponent, error)
+	newMAVLinkProjector  func(mavcomponent.ProjectorConfig, mavcomponent.Bus) (*mavcomponent.ProjectorComponent, error)
+	newCoTAdapter        func(stack.CoTAdapterConfig, stack.CoTAdapterDeps) (*cotadapter.Adapter, error)
+	newCoTUDPListener    func(cotadapter.UDPListenerConfig, *cotadapter.Adapter) (cotTransport, error)
+	newCoTTCPListener    func(cotadapter.TCPListenerConfig, *cotadapter.Adapter) (cotTransport, error)
 }
 
 type cotTransport interface {
@@ -79,17 +80,24 @@ func (a *App) Close(ctx context.Context) error {
 		ctx = context.Background()
 	}
 	var errs []error
-	if a.transportCancel != nil {
-		a.transportCancel()
-	}
 	for _, running := range a.cotTransports {
 		if running.cancel != nil {
 			running.cancel()
 		}
 	}
-	if a.mavlinkTransport != nil {
-		if err := a.mavlinkTransport.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("close MAVLink transport: %w", err))
+	if a.mavlinkInput != nil {
+		if err := a.mavlinkInput.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop MAVLink input component: %w", err))
+		}
+	}
+	if a.mavlinkDecoder != nil {
+		if err := a.mavlinkDecoder.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop MAVLink decoder component: %w", err))
+		}
+	}
+	if a.mavlinkProjector != nil {
+		if err := a.mavlinkProjector.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop MAVLink projector component: %w", err))
 		}
 	}
 	for _, running := range a.cotTransports {
@@ -97,16 +105,6 @@ func (a *App) Close(ctx context.Context) error {
 			if err := running.transport.Close(); err != nil {
 				errs = append(errs, fmt.Errorf("close %s transport: %w", running.name, err))
 			}
-		}
-	}
-	if a.transportDone != nil {
-		select {
-		case err := <-a.transportDone:
-			if err != nil {
-				errs = append(errs, fmt.Errorf("run MAVLink transport: %w", err))
-			}
-		case <-ctx.Done():
-			errs = append(errs, fmt.Errorf("wait for MAVLink transport shutdown: %w", ctx.Err()))
 		}
 	}
 	for _, running := range a.cotTransports {
@@ -140,11 +138,25 @@ func (a *App) OwnershipBinding() copownership.BindingResult {
 	return a.ownershipResult
 }
 
-func (a *App) MAVLinkAdapter() *mavadapter.Adapter {
+func (a *App) MAVLinkInput() *mavcomponent.UDPInputComponent {
 	if a == nil {
 		return nil
 	}
-	return a.mavlinkAdapter
+	return a.mavlinkInput
+}
+
+func (a *App) MAVLinkDecoder() *mavcomponent.DecoderComponent {
+	if a == nil {
+		return nil
+	}
+	return a.mavlinkDecoder
+}
+
+func (a *App) MAVLinkProjector() *mavcomponent.ProjectorComponent {
+	if a == nil {
+		return nil
+	}
+	return a.mavlinkProjector
 }
 
 func (a *App) CoTAdapter() *cotadapter.Adapter {
@@ -191,25 +203,8 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 	app.ownershipStop = stopOwners
 
 	if cfg.MAVLink.Enabled {
-		adapter, err := deps.newMAVLinkAdapter(stack.MAVLinkAdapterConfig{
-			Source:        cfg.MAVLink.Source,
-			Org:           cfg.MAVLink.Org,
-			Platform:      cfg.MAVLink.Platform,
-			OwnerTokens:   bindings.OwnerTokenMap(),
-			TraceID:       cfg.MAVLink.TraceID,
-			RawMaxRecords: cfg.MAVLink.RawMaxRecords,
-			RawMaxBytes:   cfg.MAVLink.RawMaxBytes,
-			WriteTimeout:  cfg.MAVLink.WriteTimeout,
-			Retry:         cfg.MAVLink.Retry,
-		}, stack.MAVLinkAdapterDeps{NATS: client})
-		if err != nil {
-			return nil, fmt.Errorf("compose MAVLink adapter: %w", err)
-		}
-		app.mavlinkAdapter = adapter
-		if cfg.MAVLink.UDP.ListenAddr != "" {
-			if err := app.startMAVLinkUDPTransport(cfg.MAVLink.UDP, deps, adapter); err != nil {
-				return nil, err
-			}
+		if err := app.startMAVLinkFlow(ctx, cfg.MAVLink, bindings, deps); err != nil {
+			return nil, err
 		}
 	}
 
@@ -257,13 +252,15 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 
 func defaultDependencies() dependencies {
 	return dependencies{
-		newNATSClient:         newNATSClient,
-		registerOwners:        registerOwners,
-		newMAVLinkAdapter:     stack.NewMAVLinkAdapter,
-		newMAVLinkUDPListener: newMAVLinkUDPListener,
-		newCoTAdapter:         stack.NewCoTAdapter,
-		newCoTUDPListener:     newCoTUDPListener,
-		newCoTTCPListener:     newCoTTCPListener,
+		newNATSClient:        newNATSClient,
+		registerOwners:       registerOwners,
+		newMAVLinkPlanWriter: newMAVLinkPlanWriter,
+		newMAVLinkUDPInput:   mavcomponent.NewUDPInputComponent,
+		newMAVLinkDecoder:    mavcomponent.NewDecoderComponent,
+		newMAVLinkProjector:  mavcomponent.NewProjectorComponent,
+		newCoTAdapter:        stack.NewCoTAdapter,
+		newCoTUDPListener:    newCoTUDPListener,
+		newCoTTCPListener:    newCoTTCPListener,
 	}
 }
 
@@ -275,11 +272,17 @@ func fillDependencies(deps dependencies) dependencies {
 	if deps.registerOwners == nil {
 		deps.registerOwners = defaults.registerOwners
 	}
-	if deps.newMAVLinkAdapter == nil {
-		deps.newMAVLinkAdapter = defaults.newMAVLinkAdapter
+	if deps.newMAVLinkPlanWriter == nil {
+		deps.newMAVLinkPlanWriter = defaults.newMAVLinkPlanWriter
 	}
-	if deps.newMAVLinkUDPListener == nil {
-		deps.newMAVLinkUDPListener = defaults.newMAVLinkUDPListener
+	if deps.newMAVLinkUDPInput == nil {
+		deps.newMAVLinkUDPInput = defaults.newMAVLinkUDPInput
+	}
+	if deps.newMAVLinkDecoder == nil {
+		deps.newMAVLinkDecoder = defaults.newMAVLinkDecoder
+	}
+	if deps.newMAVLinkProjector == nil {
+		deps.newMAVLinkProjector = defaults.newMAVLinkProjector
 	}
 	if deps.newCoTAdapter == nil {
 		deps.newCoTAdapter = defaults.newCoTAdapter
@@ -293,27 +296,91 @@ func fillDependencies(deps dependencies) dependencies {
 	return deps
 }
 
-func (a *App) startMAVLinkUDPTransport(
-	cfg MAVLinkUDPConfig,
+func (a *App) startMAVLinkFlow(
+	ctx context.Context,
+	cfg MAVLinkConfig,
+	bindings copownership.BindingResult,
 	deps dependencies,
-	adapter *mavadapter.Adapter,
 ) error {
-	transport, err := deps.newMAVLinkUDPListener(mavadapter.UDPListenerConfig{
-		ListenAddr:       cfg.ListenAddr,
-		MaxDatagramBytes: cfg.MaxDatagramBytes,
-	}, adapter)
+	bus := runtimeBus{client: a.client}
+	registry := payloadregistry.New()
+	writer, err := deps.newMAVLinkPlanWriter(stack.MAVLinkAdapterConfig{
+		Source:        cfg.Source,
+		Org:           cfg.Org,
+		Platform:      cfg.Platform,
+		OwnerTokens:   bindings.OwnerTokenMap(),
+		TraceID:       cfg.TraceID,
+		RawMaxRecords: cfg.RawMaxRecords,
+		RawMaxBytes:   cfg.RawMaxBytes,
+		WriteTimeout:  cfg.WriteTimeout,
+		Retry:         cfg.Retry,
+	}, stack.MAVLinkAdapterDeps{NATS: a.client})
 	if err != nil {
-		return fmt.Errorf("start MAVLink UDP listener: %w", err)
+		return fmt.Errorf("compose MAVLink graph writer: %w", err)
 	}
 
-	transportCtx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	a.mavlinkTransport = transport
-	a.transportCancel = cancel
-	a.transportDone = done
-	go func() {
-		done <- transport.Run(transportCtx)
-	}()
+	projector, err := deps.newMAVLinkProjector(mavcomponent.ProjectorConfig{
+		Registry: registry,
+		Projector: mavprojector.NewProjector(mavprojector.Config{
+			Org:         cfg.Org,
+			Platform:    cfg.Platform,
+			OwnerTokens: bindings.OwnerTokenMap(),
+			TraceID:     cfg.TraceID,
+		}),
+		Writer:       writer,
+		WriteTimeout: cfg.WriteTimeout,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose MAVLink projector component: %w", err)
+	}
+	decoder, err := deps.newMAVLinkDecoder(mavcomponent.DecoderConfig{
+		Source:         cfg.Source,
+		RawSubject:     mavcomponent.DefaultRawSubject,
+		DecodedSubject: mavcomponent.DefaultDecodedSubject,
+		RawMaxRecords:  cfg.RawMaxRecords,
+		RawMaxBytes:    cfg.RawMaxBytes,
+		Registry:       registry,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose MAVLink decoder component: %w", err)
+	}
+	a.mavlinkProjector = projector
+	a.mavlinkDecoder = decoder
+
+	if err := startLifecycle(ctx, "MAVLink projector", projector); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "MAVLink decoder", decoder); err != nil {
+		return err
+	}
+	if cfg.UDP.ListenAddr != "" {
+		input, err := deps.newMAVLinkUDPInput(mavcomponent.UDPInputConfig{
+			Source:           cfg.Source,
+			ListenAddr:       cfg.UDP.ListenAddr,
+			RawSubject:       mavcomponent.DefaultRawSubject,
+			MaxDatagramBytes: cfg.UDP.MaxDatagramBytes,
+		}, bus)
+		if err != nil {
+			return fmt.Errorf("compose MAVLink UDP input component: %w", err)
+		}
+		a.mavlinkInput = input
+		if err := startLifecycle(ctx, "MAVLink UDP input", input); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func startLifecycle(ctx context.Context, name string, lifecycle interface {
+	Initialize() error
+	Start(context.Context) error
+}) error {
+	if err := lifecycle.Initialize(); err != nil {
+		return fmt.Errorf("initialize %s: %w", name, err)
+	}
+	if err := lifecycle.Start(ctx); err != nil {
+		return fmt.Errorf("start %s: %w", name, err)
+	}
 	return nil
 }
 
@@ -331,13 +398,6 @@ func (a *App) startCoTTransport(name string, transport cotTransport) {
 	}()
 }
 
-func newMAVLinkUDPListener(
-	cfg mavadapter.UDPListenerConfig,
-	adapter *mavadapter.Adapter,
-) (mavlinkTransport, error) {
-	return mavadapter.ListenUDP(cfg, adapter)
-}
-
 func newCoTUDPListener(
 	cfg cotadapter.UDPListenerConfig,
 	adapter *cotadapter.Adapter,
@@ -350,6 +410,13 @@ func newCoTTCPListener(
 	adapter *cotadapter.Adapter,
 ) (cotTransport, error) {
 	return cotadapter.ListenTCP(cfg, adapter)
+}
+
+func newMAVLinkPlanWriter(
+	cfg stack.MAVLinkAdapterConfig,
+	deps stack.MAVLinkAdapterDeps,
+) (mavcomponent.PlanWriter, error) {
+	return stack.NewMAVLinkPlanWriter(cfg, deps)
 }
 
 func newNATSClient(cfg Config) (semstreamsClient, error) {
@@ -383,4 +450,43 @@ func registerOwners(
 		return copownership.BindingResult{}, nil, err
 	}
 	return bindings, heartbeatCancel, nil
+}
+
+type runtimeBus struct {
+	client semstreamsClient
+}
+
+func (b runtimeBus) Publish(ctx context.Context, subject string, data []byte) error {
+	return b.client.Publish(ctx, subject, data)
+}
+
+func (b runtimeBus) Subscribe(
+	ctx context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (mavcomponent.Subscription, error) {
+	subscription, err := b.client.Subscribe(ctx, subject, handler)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return noopSubscription{}, nil
+	}
+	return subscription, nil
+}
+
+type noopSubscription struct{}
+
+func (noopSubscription) Unsubscribe() error {
+	return nil
+}
+
+func remainingTimeout(ctx context.Context) time.Duration {
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining > 0 {
+			return remaining
+		}
+		return time.Nanosecond
+	}
+	return time.Second
 }

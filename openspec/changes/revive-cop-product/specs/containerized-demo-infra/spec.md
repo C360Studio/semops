@@ -20,6 +20,9 @@ failure domain justify a service boundary.
 SemOps SHALL use SemStreams component lifecycle, flowgraph, port, payload-registry, and config-schema patterns for
 hosted feed services instead of inventing a SemOps-local lifecycle or flow framework.
 
+SemOps SHALL also prefer SemStreams shared utility packages for common runtime concerns, including `natsclient`,
+`pkg/errs`, `pkg/cache`, and `pkg/buffer`, before creating SemOps-local equivalents.
+
 #### Scenario: Network servers are input components
 
 - **WHEN** SemOps listens for native UDP, TCP, serial, file, webhook, or polling feed input

@@ -15,6 +15,10 @@ graph mutations only through declared request ports. Components expose config sc
 writes continue to use SemStreams projection, ownership, graph mutation, indexing-profile, and retry-aware
 request/reply contracts.
 
+SemOps should also treat SemStreams utility packages as part of the framework surface. `natsclient`, `pkg/errs`,
+`pkg/cache`, and `pkg/buffer` are preferred starting points for common runtime concerns before SemOps grows local
+copies.
+
 This review also deletes the stale `configs/robotics-flow.json` file because it preserved raw subject topology from an
 old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgraph and component story.
 
@@ -45,8 +49,9 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
 
 ## Accepted Risks
 
-- Current runtime adapters still need to be wired through the concrete SemStreams input and processor components
-  before SemOps can claim hosted feed services are fully component-managed.
+- MAVLink runtime ingress now uses the concrete SemStreams input and processor components; TAK/CoT, ADS-B, hosted CAP
+  if promoted, and SAPIENT still need the same treatment before SemOps can claim hosted feed services are fully
+  component-managed.
 - The graph writer code still names SemStreams graph mutation subjects directly. That is acceptable as the graph API
   wire boundary, but component ports must describe those resources when services are promoted.
 - CAP and scenario-runner paths need the same lifecycle review as MAVLink, TAK/CoT, ADS-B, and SAPIENT before Phase 1
@@ -54,9 +59,10 @@ old StreamKit/BaseProcessor-era model and polluted the active SemStreams flowgra
 
 ## Follow-Up Tasks
 
-- Wire hosted MAVLink runtime ingestion through the concrete input -> decoder processor -> projector processor flow.
 - Wrap TAK/CoT, ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and processor
   components.
+- Audit feed-runtime helpers against SemStreams utilities (`natsclient`, `pkg/errs`, `pkg/cache`, `pkg/buffer`) before
+  adding or expanding SemOps-local equivalents.
 - Register raw and decoded feed payload types in SemStreams payload registries and emit `message.BaseMessage`
   envelopes on stream output ports.
 - Compose feed topology through SemStreams flowgraph edges so every declared output port remains tappable by another

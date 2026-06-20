@@ -63,6 +63,13 @@ func NewMAVLinkAdapter(
 	})
 }
 
+func NewMAVLinkPlanWriter(
+	cfg MAVLinkAdapterConfig,
+	deps MAVLinkAdapterDeps,
+) (mavadapter.PlanWriter, error) {
+	return mavlinkWriter(cfg, deps)
+}
+
 func mavlinkWriter(
 	cfg MAVLinkAdapterConfig,
 	deps MAVLinkAdapterDeps,

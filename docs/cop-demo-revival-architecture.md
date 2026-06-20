@@ -23,7 +23,7 @@ Product boundary:
   scenario playback, and product-scoped governance.
 - SemStreams owns the substrate: NATS/JetStream, graph mutation/query contracts, projection contracts,
   ownership claims, indexing profiles, component lifecycle, flowgraph topology, payload registry, port/config schema,
-  rule processing, and tiered structural/statistical/semantic services.
+  rule processing, shared utility packages, and tiered structural/statistical/semantic services.
 - SemConnect owns the standards-facing OGC Connected Systems API bridge and conformance evidence while SemOps keeps
   native feed ingestion and governed COP state as the product core.
 - SemLink remains useful prior art for the modern GCS UI pattern, source-aware graph lens, TAK bridge, CS API bridge,
@@ -98,6 +98,8 @@ SemOps started materially stale; the first revival slices are correcting that:
 - `internal/components/mavlink` now provides the first concrete SemStreams flow component set: a UDP transport input
   component, raw-frame decoder processor, graph projection processor, registered raw and decoded `message.BaseMessage`
   payloads, declared NATS stream/request ports, and flowgraph-connectable metadata.
+- The hosted `cmd/semops` MAVLink path now starts the projector processor, decoder processor, and UDP input component
+  in that order, so native UDP ingest enters through registered raw payloads and declared ports before graph writes.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
 - The active frontend tree is a clean-sheet Svelte 5 COP in `ui`; the old flow-runtime UI idea should be treated as
   historical context, not a surface to restore.
@@ -119,8 +121,7 @@ SemOps has salvageable MAVLink depth:
   framework's mutation retry rule for transient responder startup races.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
-- The next hosted-feed hardening step is to wire the hosted app and Compose MAVLink path through the new
-  `internal/components/mavlink` flow, then repeat the same input/processor treatment for TAK/CoT, ADS-B, hosted CAP
+- The next hosted-feed hardening step is to repeat the same input/processor treatment for TAK/CoT, ADS-B, hosted CAP
   if promoted, and SAPIENT.
 
 SemOps now has TAK/CoT depth beyond prior-art replay:
@@ -194,8 +195,11 @@ The short rule is: ontology hydrates the inspector; SemOps owns the view.
 7. Hosted feed boundaries use SemStreams input/processor component lifecycle, flowgraph, payload-registry, port,
    config-schema, health, and flow-metric patterns rather than a SemOps-local framework. Raw NATS subjects are port
    configuration; every output port should be tappable by another component.
-8. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
-9. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
+8. SemOps should prefer SemStreams utility packages before adding local equivalents: `natsclient` for NATS,
+   JetStream, KV, retry, and request/reply behavior; `pkg/errs` for classified framework errors; `pkg/cache` for
+   shared cache semantics; and `pkg/buffer` for bounded concurrent queues and raw lanes where its policies fit.
+9. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
+10. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
    architect, reviewer, and technical-writer roles have tried to break the assumptions and recorded the result.
 
 ## Born-First Graph Discipline

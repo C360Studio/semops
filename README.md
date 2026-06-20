@@ -5,7 +5,7 @@ SemOps is the SemStreams-backed data-fusion common operating picture product.
 The current revival is intentionally greenfield. SemOps owns the operator COP, feed adapters, canonical COP model,
 scenario runner, product governance, and UI. SemStreams owns the substrate: projection contracts, ownership rules,
 graph mutation/query APIs, indexing profiles, component lifecycle, flowgraph topology, payload registry, port/config
-schema, NATS/JetStream runtime primitives, and reusable framework behavior.
+schema, NATS/JetStream runtime primitives, shared utility packages, and reusable framework behavior.
 
 ## Current State
 
@@ -31,9 +31,13 @@ registered `message.BaseMessage` payloads on declared output ports, and parser/p
 components that subscribe to those ports. Raw NATS subjects remain port configuration so any output port can be tapped
 by another component.
 
+SemOps should also prefer SemStreams utility packages when they fit the runtime problem: `natsclient` for NATS,
+JetStream, KV, retry, and request/reply behavior; `pkg/errs` for framework-consistent error classification;
+`pkg/cache` for shared in-memory cache patterns; and `pkg/buffer` for bounded concurrent buffering.
+
 The first concrete MAVLink component package now defines a UDP input component, raw-frame decoder processor, graph
-projection processor, and registered raw/decoded payload types. The hosted app path still needs to adopt that flow
-before SemOps claims the runtime is fully component-managed.
+projection processor, and registered raw/decoded payload types. The hosted app starts that MAVLink flow in projector
+-> decoder -> input order so the UDP listener no longer bypasses SemStreams component ports.
 
 ## First Product Model
 

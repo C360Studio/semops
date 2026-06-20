@@ -44,5 +44,9 @@ progress:
     output ports, graph mutation request ports, config schema, health, and flow metrics.
   - Added `internal/components/mavlink` with concrete UDP input, raw-frame decoder processor, graph projector
     processor, registered raw/decoded payloads, and flowgraph-connectable port metadata.
+  - Rewired hosted MAVLink UDP startup to use SemStreams input/processor components rather than the old direct
+    UDP-listener-to-adapter shortcut.
+  - Recorded that SemOps should prefer SemStreams utility packages such as `natsclient`, `pkg/errs`, `pkg/cache`,
+    and `pkg/buffer` for common runtime concerns before adding local equivalents.
   - Deleted stale `configs/robotics-flow.json` so old raw-subject flow topology cannot be mistaken for the current
     SemStreams component contract.
