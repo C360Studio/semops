@@ -21,6 +21,8 @@ acceptance:
   - Logs and metrics distinguish raw ingest, projection writes, rules, and COP API state.
   - Feed graph writes declare expected indexing profiles and do not create graph entities per raw packet.
   - Smoke tests prove feed adapters create entities before updates or ADR-056 foreign-edge writes.
+  - Hosted feed services declare SemStreams input/processor lifecycle, flowgraph, payload-registry, port,
+    config-schema, health, and flow-metric surfaces before they are treated as framework-managed components.
   - A generated/replay MAVLink smoke clears the ADR-055/056 must-exist graph gate before UI or second-feed expansion.
   - Adversarial Phase 1 review has challenged demo credibility, monitoring, and graph/index cardinality.
 
@@ -39,6 +41,9 @@ progress:
     parseable frame records.
   - Added `internal/graphrequest.NATSRequester` so graph writers use SemStreams `RequestWithRetry` for mutation
     request/reply instead of bare query-style requests.
+  - Added a SemStreams component-boundary contract guard and removed the stale StreamKit-era robotics flow config so
+    hosted feed services must move toward input/processor lifecycle, flowgraph, payload-registry, port/config surfaces
+    instead of raw subject plumbing.
   - Added `internal/stack.NewMAVLinkAdapter` as a structural wiring factory for parser, raw lane, projector,
     retry-aware NATS requester, graph writer, adapter harness, and health state.
   - SemOps issue #1 triage prioritizes a generated/replay MAVLink live graph smoke before PX4/SITL, UI, or
@@ -87,6 +92,7 @@ progress:
     `bash scripts/cop-stack-smoke.sh` successfully.
 
 current_evidence:
+  - `go test ./internal/contracts`
   - `go test ./internal/adapters/mavlink`
   - `go test ./internal/graphrequest`
   - `go test ./internal/app`
@@ -105,6 +111,8 @@ current_evidence:
   - `bash scripts/cop-stack-smoke.sh`
 
 remaining:
+  - Wrap hosted MAVLink, TAK/CoT, ADS-B, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams
+    input and processor components with flowgraph edges, registered payloads, declared ports, and config schemas.
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
   - Add hosted CAP polling/webhook transport if CAP needs to move beyond scenario replay for Phase 1.

@@ -39,9 +39,12 @@ These old paths were removed because they carried stale architecture rather than
 - `pkg/processors/mavlink/vocabulary`
 - old MAVLink BaseProcessor, metrics, error, compliance, and routing tests
 - `test/migrated_tests`
+- `configs/robotics-flow.json`
 
 The removed code depended on old SemStreams or StreamKit surfaces such as EntityStore conversion helpers,
 ObjectStore migration tests, BaseProcessor lifecycle assumptions, and old payload graphing.
+The removed flow config also depended on raw subject topology that no longer describes the active SemStreams
+component lifecycle, flowgraph, payload-registry, port, config-schema, projection, and graph mutation surfaces.
 
 ## Re-entry Rule
 
@@ -51,6 +54,10 @@ tested against current SemStreams contracts. The current accepted patterns are:
 - SemStreams contract gate: `internal/contracts/semstreams_contract_test.go`
 - COP ownership contracts: `pkg/cop/contracts.go`
 - COP contract tests: `pkg/cop/contracts_test.go`
+- Hosted feed service gates must use SemStreams input/processor component lifecycle, flowgraph, registered
+  `message.BaseMessage` payloads, ports, config schema, health, and flow metrics.
+- Transport listeners are input components; parser, decoder, projector, and fusion behavior are processor components
+  connected through declared ports.
 
 ## Deletion Rule
 

@@ -24,6 +24,17 @@ SemOps MUST consume SemStreams substrate contracts rather than reimplementing fr
 - **WHEN** a SemOps component writes current state, events, or relationship evidence into the graph
 - **THEN** it uses current SemStreams projection, ownership, graph mutation, and indexing-profile contracts
 
+#### Scenario: Product runtime uses framework lifecycle patterns
+
+- **WHEN** SemOps promotes parser, projector, replay, transport, or scenario behavior into a hosted runtime component
+- **THEN** SemOps uses SemStreams component lifecycle, flowgraph, port, payload-registry, config-schema, health, and
+  flow-metric interfaces where they apply
+- **AND** transport listeners are input components whose stream output ports can be tapped by processor components
+- **AND** parser, decoder, projector, and fusion behavior are processor components wired through declared ports rather
+  than hidden NATS subject dependencies
+- **AND** SemOps does not recreate a parallel component registry, lifecycle manager, flowgraph, port model, payload
+  registry, or config schema locally
+
 #### Scenario: Reusable framework pressure is routed upstream
 
 - **WHEN** a SemOps feature needs reusable deployment metadata, inference evidence, provenance, or query helpers
