@@ -1,6 +1,7 @@
 # ADS-B Feed Evidence
 
-Status: candidate Phase 2 air-picture feed with parser, projection-plan, and COP readback evidence.
+Status: candidate Phase 2 air-picture feed with parser, replay, hosted-adapter seam, projection, and COP readback
+evidence.
 
 ## Decision
 
@@ -22,8 +23,11 @@ fixtures and deterministic replay. Treat ASTERIX, raw receiver protocols, and li
   contracts.
 - `internal/scenario` can replay ADS-B snapshot records through parse, projection, graph-plan writing, and born-state
   marking when a scenario opts into ADS-B.
+- `internal/adapters/adsb` hosts an OpenSky-shaped snapshot ingest seam with bounded raw capture, JSONL replay
+  append, projection writes, born-first reconciliation, and pollable health counters.
+- `internal/stack.NewADSBAdapter` composes the adapter with either a SemStreams NATS requester or injected writer.
 - COP graph prefix discovery reads `c360.<platform>.cop.adsb.track.*` entities back into aircraft tracks and feed
-  health without requiring a hosted ADS-B adapter.
+  health without requiring a live ADS-B service.
 
 ## External Evidence
 
@@ -100,6 +104,23 @@ Acceptance:
   [done]
 - `feed.adsb` is live only when graph-backed ADS-B tracks are fresh; otherwise it remains planned/pending. [done]
 
+### Hosted Adapter Seam Gate
+
+Target command:
+
+```bash
+go test ./internal/adapters/adsb ./internal/stack -run ADSB
+```
+
+Acceptance:
+
+- The adapter captures raw OpenSky-shaped snapshots on a bounded lane and appends replay records before projection.
+  [done]
+- The adapter projects snapshots through the ADS-B projector/writer seam and records graph mutation health. [done]
+- Malformed snapshots are captured and replayed before parse failure, without graph writes. [done]
+- `entity_already_exists` birth conflicts reconcile into update-only projection for already-born tracks. [done]
+- Stack wiring can use SemStreams NATS request/reply with retry configuration or an injected writer. [done]
+
 ### Live Mode Gate
 
 Target command after optional live mode exists:
@@ -116,7 +137,7 @@ Acceptance:
 
 ## Known Gaps
 
-- No ADS-B hosted adapter or live client yet.
+- No ADS-B live client yet.
 - OpenSky is useful for samples but should not become a critical-path dependency.
 - ASTERIX is not in the first ADS-B slice.
 - Raw receiver/readsb/dump1090 paths are not implemented.

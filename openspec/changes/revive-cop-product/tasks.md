@@ -66,6 +66,7 @@
 - [x] 5.20 Add initial ADS-B OpenSky-shaped parser fixture gate without claiming live ADS-B support
 - [x] 5.21 Add ADS-B projection/readback fixture gate without claiming hosted ADS-B service
 - [x] 5.22 Add deterministic ADS-B OpenSky fixture replay through the scenario-runner seam
+- [x] 5.23 Add hosted ADS-B adapter seam without claiming live ADS-B service
 
 ## 6. Structural COP Stack
 
