@@ -10,6 +10,7 @@ import (
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
+	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
@@ -363,9 +364,16 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new CAP decoder: %v", err)
 	}
+	projector, err := capcomponent.NewProjectorComponent(capcomponent.ProjectorConfig{
+		Writer: capContractPlanWriter{},
+	}, bus)
+	if err != nil {
+		t.Fatalf("new CAP projector: %v", err)
+	}
 	for name, lifecycle := range map[string]component.LifecycleComponent{
-		"poller":  poller,
-		"decoder": decoder,
+		"poller":    poller,
+		"decoder":   decoder,
+		"projector": projector,
 	} {
 		if err := lifecycle.Initialize(); err != nil {
 			t.Fatalf("initialize %s: %v", name, err)
@@ -381,8 +389,12 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	if poller.Meta().Type != "input" {
 		t.Fatalf("CAP poller component type = %q, want input", poller.Meta().Type)
 	}
-	if decoder.Meta().Type != "processor" {
-		t.Fatalf("CAP decoder component type = %q, want processor", decoder.Meta().Type)
+	if decoder.Meta().Type != "processor" || projector.Meta().Type != "processor" {
+		t.Fatalf(
+			"CAP processor component types = %q/%q, want processor/processor",
+			decoder.Meta().Type,
+			projector.Meta().Type,
+		)
 	}
 	capFeed, ok := poller.InputPorts()[0].Config.(component.HTTPClientPort)
 	if !ok {
@@ -412,6 +424,7 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	requireProperty(t, poller.ConfigSchema(), "url")
 	requireProperty(t, poller.ConfigSchema(), "contact_policy")
 	requireProperty(t, decoder.ConfigSchema(), "decoded_subject")
+	requireProperty(t, projector.ConfigSchema(), "owner")
 
 	fg := flowgraph.NewFlowGraph()
 	if err := fg.AddComponentNode(poller.Meta().Name, poller); err != nil {
@@ -419,6 +432,9 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	}
 	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
 		t.Fatalf("add decoder to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(projector.Meta().Name, projector); err != nil {
+		t.Fatalf("add projector to flow graph: %v", err)
 	}
 	if err := fg.ConnectComponentsByPatterns(); err != nil {
 		t.Fatalf("connect HTTP poller flow graph: %v", err)
@@ -439,6 +455,12 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_alerts"},
 		Pattern:      flowgraph.PatternStream,
 		ConnectionID: capcomponent.DefaultRawSubject,
+	})
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "decoded_alerts"},
+		To:           flowgraph.ComponentPortRef{ComponentName: projector.Meta().Name, PortName: "decoded_alerts"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: capcomponent.DefaultDecodedSubject,
 	})
 
 	analysis := fg.AnalyzeConnectivity()
@@ -620,4 +642,10 @@ func (capContractBus) Subscribe(
 	func(context.Context, *nats.Msg),
 ) (capcomponent.Subscription, error) {
 	return contractSubscription{}, nil
+}
+
+type capContractPlanWriter struct{}
+
+func (capContractPlanWriter) Apply(context.Context, capprojector.Plan) error {
+	return nil
 }

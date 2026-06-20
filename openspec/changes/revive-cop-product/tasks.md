@@ -26,6 +26,8 @@
 - [x] 2.11 Bump SemOps to SemStreams `v1.0.0-beta.114` and add the `HTTPClientPort` contract guard
 - [x] 2.12 Add the first concrete CAP HTTP poller input and decoder processor components using SemStreams
       `HTTPClientPort`, `TimerPort`, payload registry, and ports
+- [x] 2.13 Add the first concrete CAP graph projector processor component using SemStreams request ports and
+      born-first restart reconciliation
 
 ## 3. COP Model And Governance
 
@@ -90,6 +92,7 @@
 - [x] 5.33 Run SAPIENT projection ownership/indexing review before graph writes
 - [x] 5.34 Record CAP component-promotion gate so scenario replay is not mistaken for hosted polling/webhook service
 - [x] 5.35 Add CAP HTTP poller/decoder component gate without claiming live NWS service or CAP conformance
+- [x] 5.36 Add CAP graph-projector component gate without claiming default hosted CAP service
 
 ## 6. Structural COP Stack
 
@@ -146,6 +149,7 @@
 - [x] 6.45 Record SAPIENT hosted component gate and SemStreams `HTTPClientPort` adoption
 - [x] 6.46 Add initial CAP hosted HTTP poller and raw decoder component package while keeping default-stack live
       provider wiring open
+- [x] 6.47 Add initial CAP born-first graph projector component package while keeping default-stack hosting open
 
 ## 7. COP UI
 
