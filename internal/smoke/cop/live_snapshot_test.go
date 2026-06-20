@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +27,7 @@ const (
 	liveSnapshotCoTTaskEnv  = "SEMOPS_COP_SMOKE_EXPECTED_COT_TASK_ID"
 	liveSnapshotCoTChatEnv  = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
 	liveSnapshotHazardEnv   = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
+	liveScenarioADSBEnv     = "SEMOPS_SCENARIO_ADSB_FIXTURE"
 	defaultExpectedTrackID  = "c360.edge-compose.cop.mavlink.track.system-42"
 	defaultExpectedCoTTrack = "c360.edge-compose.cop.tak.track.android-alpha"
 	defaultExpectedCoTTask  = "c360.edge-compose.cop.tak.task.marker-north-gate"
@@ -132,6 +135,10 @@ func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 	expectedTaskID := firstNonEmpty(os.Getenv(liveSnapshotCoTTaskEnv), defaultExpectedCoTTask)
 	expectedAdvisoryID := firstNonEmpty(os.Getenv(liveSnapshotCoTChatEnv), defaultExpectedCoTChat)
 	expectedHazardID := firstNonEmpty(os.Getenv(liveSnapshotHazardEnv), defaultExpectedHazard)
+	expectADSB, err := scenarioADSBExpectedFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
 	defer cancel()
@@ -148,15 +155,25 @@ func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 		} else if status.State != "succeeded" {
 			lastErr = fmt.Errorf("scenario runner state = %q, completed=%d failed=%d last_error=%q",
 				status.State, status.CompletedSteps, status.FailedSteps, status.LastError)
+		} else if expectADSB && status.Summary.ADSBSnapshots < 2 {
+			lastErr = fmt.Errorf("scenario runner ADS-B snapshots = %d, want at least 2",
+				status.Summary.ADSBSnapshots)
 		} else {
 			snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
 			if err != nil {
 				lastErr = err
-			} else if snapshotHasScenarioRunnerState(snapshot, expectedTrackID, expectedTaskID, expectedAdvisoryID, expectedHazardID) {
+			} else if snapshotHasScenarioRunnerState(
+				snapshot,
+				expectedTrackID,
+				expectedTaskID,
+				expectedAdvisoryID,
+				expectedHazardID,
+				expectADSB,
+			) {
 				return
 			} else {
-				lastErr = fmt.Errorf("snapshot missing scenario runner state: scenario=%s tracks=%d tasks=%d advisories=%d hazards=%d",
-					snapshot.Scenario, len(snapshot.Tracks), len(snapshot.Tasks), len(snapshot.Advisories), len(snapshot.Hazards))
+				lastErr = fmt.Errorf("snapshot missing scenario runner state: scenario=%s tracks=%d tasks=%d advisories=%d hazards=%d expect_adsb=%v",
+					snapshot.Scenario, len(snapshot.Tracks), len(snapshot.Tasks), len(snapshot.Advisories), len(snapshot.Hazards), expectADSB)
 			}
 		}
 
@@ -279,6 +296,9 @@ type scenarioStatus struct {
 	CompletedSteps int    `json:"completed_steps"`
 	FailedSteps    int    `json:"failed_steps"`
 	LastError      string `json:"last_error"`
+	Summary        struct {
+		ADSBSnapshots int `json:"adsb_snapshots"`
+	} `json:"summary"`
 }
 
 func snapshotHasTrack(snapshot copapi.Snapshot, expectedTrackID string) bool {
@@ -306,11 +326,18 @@ func snapshotHasScenarioRunnerState(
 	expectedTaskID string,
 	expectedAdvisoryID string,
 	expectedHazardID string,
+	expectADSB bool,
 ) bool {
 	if !snapshotHasCoT(snapshot, expectedTrackID, expectedTaskID, expectedAdvisoryID) {
 		return false
 	}
-	return snapshotHasHazard(snapshot, expectedHazardID)
+	if !snapshotHasHazard(snapshot, expectedHazardID) {
+		return false
+	}
+	if expectADSB {
+		return snapshotHasADSBTrack(snapshot)
+	}
+	return true
 }
 
 func snapshotHasCoT(snapshot copapi.Snapshot, expectedTrackID, expectedTaskID, expectedAdvisoryID string) bool {
@@ -355,6 +382,37 @@ func snapshotHasHazard(snapshot copapi.Snapshot, expectedHazardID string) bool {
 		return true
 	}
 	return false
+}
+
+func snapshotHasADSBTrack(snapshot copapi.Snapshot) bool {
+	if snapshot.Scenario != "phase-1-live-graph" {
+		return false
+	}
+	for _, track := range snapshot.Tracks {
+		if track.Source != "adsb" {
+			continue
+		}
+		if track.Position.Lat == 0 || track.Position.Lon == 0 {
+			return false
+		}
+		if track.Provenance.Owner != "semops.feed.adsb" {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func scenarioADSBExpectedFromEnv() (bool, error) {
+	value := strings.TrimSpace(os.Getenv(liveScenarioADSBEnv))
+	if value == "" {
+		return false, nil
+	}
+	enabled, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("parse %s: %w", liveScenarioADSBEnv, err)
+	}
+	return enabled, nil
 }
 
 func firstNonEmpty(values ...string) string {
