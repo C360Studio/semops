@@ -340,10 +340,10 @@ func (p *GraphProvider) discoverInto(
 	var result graphDiscoveryResult
 	var firstErr error
 	for _, target := range p.discoveryTargets() {
-		entities, err := p.queryPrefix(ctx, target.Prefix)
+		entities, truncated, err := p.queryPrefix(ctx, target.Prefix)
 		if err != nil {
 			firstErr = errors.Join(firstErr, err)
-			result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, 0, err))
+			result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, 0, false, err))
 			continue
 		}
 		var count int
@@ -373,7 +373,7 @@ func (p *GraphProvider) discoverInto(
 				hazardsByID[entity.ID] = entity
 			}
 		}
-		result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, count, nil))
+		result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, count, truncated, nil))
 	}
 	return result, firstErr
 }
@@ -405,7 +405,7 @@ func newGraphDiscoveryTarget(scope GraphDiscoveryScope, source string, entityTyp
 	}
 }
 
-func (t graphDiscoveryTarget) diagnostic(limit int, count int, err error) DiscoveryDiagnostic {
+func (t graphDiscoveryTarget) diagnostic(limit int, count int, truncated bool, err error) DiscoveryDiagnostic {
 	diagnostic := DiscoveryDiagnostic{
 		Org:        t.Org,
 		Platform:   t.Platform,
@@ -415,7 +415,7 @@ func (t graphDiscoveryTarget) diagnostic(limit int, count int, err error) Discov
 		Prefix:     t.Prefix,
 		Count:      count,
 		Limit:      limit,
-		AtLimit:    limit > 0 && count >= limit,
+		AtLimit:    truncated,
 	}
 	if err != nil {
 		diagnostic.Error = err.Error()
@@ -423,41 +423,109 @@ func (t graphDiscoveryTarget) diagnostic(limit int, count int, err error) Discov
 	return diagnostic
 }
 
-func (p *GraphProvider) queryPrefix(ctx context.Context, prefix string) ([]graph.EntityState, error) {
-	body, err := json.Marshal(map[string]any{
-		"prefix": prefix,
-		"limit":  p.discovery.Limit,
+func (p *GraphProvider) queryPrefix(ctx context.Context, prefix string) ([]graph.EntityState, bool, error) {
+	limit := p.discovery.Limit
+	if limit <= 0 {
+		limit = DefaultGraphDiscoveryLimit
+	}
+	capacity := limit
+	if capacity > 64 {
+		capacity = 64
+	}
+	entities := make([]graph.EntityState, 0, capacity)
+	remaining := limit
+	cursor := ""
+	for {
+		pageLimit := prefixPageLimit(remaining)
+		if pageLimit <= 0 {
+			return entities, cursor != "", nil
+		}
+		page, err := p.queryPrefixPage(ctx, prefix, cursor, pageLimit)
+		if err != nil {
+			return nil, false, err
+		}
+		pageEntities := page.Entities
+		if len(pageEntities) > remaining {
+			entities = append(entities, pageEntities[:remaining]...)
+			return entities, true, nil
+		}
+		entities = append(entities, pageEntities...)
+		remaining -= len(pageEntities)
+		if page.NextCursor == "" {
+			return entities, false, nil
+		}
+		if remaining <= 0 {
+			return entities, true, nil
+		}
+		if len(pageEntities) == 0 {
+			return nil, false, fmt.Errorf("query graph prefix %s: empty page returned continuation cursor", prefix)
+		}
+		if page.NextCursor == cursor {
+			return nil, false, fmt.Errorf("query graph prefix %s: repeated continuation cursor %q", prefix, cursor)
+		}
+		cursor = page.NextCursor
+	}
+}
+
+func prefixPageLimit(remaining int) int {
+	if remaining <= 0 {
+		return 0
+	}
+	if remaining > graph.MaxPrefixQueryLimit {
+		return graph.MaxPrefixQueryLimit
+	}
+	return remaining
+}
+
+func (p *GraphProvider) queryPrefixPage(
+	ctx context.Context,
+	prefix string,
+	cursor string,
+	limit int,
+) (graph.PrefixQueryResponse, error) {
+	body, err := json.Marshal(graph.PrefixQueryRequest{
+		Prefix: prefix,
+		Limit:  limit,
+		Cursor: cursor,
 	})
 	if err != nil {
-		return nil, err
+		return graph.PrefixQueryResponse{}, err
 	}
 	response, err := p.requestPrefix(ctx, body)
 	if err != nil {
-		return nil, fmt.Errorf("query graph prefix %s: %w", prefix, err)
+		return graph.PrefixQueryResponse{}, fmt.Errorf("query graph prefix %s: %w", prefix, err)
 	}
 	if isLegacyErrorResponse(response) {
 		if isNotFoundText(string(response)) {
-			return nil, nil
+			return graph.PrefixQueryResponse{}, nil
 		}
-		return nil, fmt.Errorf("query graph prefix %s: %s", prefix, string(response))
+		return graph.PrefixQueryResponse{}, fmt.Errorf("query graph prefix %s: %s", prefix, string(response))
 	}
 	var envelope struct {
-		Entities []graph.EntityState `json:"entities"`
-		Data     struct {
-			Entities []graph.EntityState `json:"entities"`
+		Entities   []graph.EntityState `json:"entities"`
+		NextCursor string              `json:"next_cursor,omitempty"`
+		Data       struct {
+			Entities   []graph.EntityState `json:"entities"`
+			NextCursor string              `json:"next_cursor,omitempty"`
 		} `json:"data"`
 		Error string `json:"error"`
 	}
 	if err := json.Unmarshal(response, &envelope); err != nil {
-		return nil, fmt.Errorf("decode graph prefix %s: %w", prefix, err)
+		return graph.PrefixQueryResponse{}, fmt.Errorf("decode graph prefix %s: %w", prefix, err)
 	}
 	if envelope.Error != "" {
-		return nil, fmt.Errorf("query graph prefix %s: %s", prefix, envelope.Error)
+		return graph.PrefixQueryResponse{}, fmt.Errorf("query graph prefix %s: %s", prefix, envelope.Error)
 	}
-	if len(envelope.Entities) > 0 {
-		return envelope.Entities, nil
+	result := graph.PrefixQueryResponse{
+		Entities:   envelope.Entities,
+		NextCursor: envelope.NextCursor,
 	}
-	return envelope.Data.Entities, nil
+	if len(result.Entities) == 0 && result.NextCursor == "" &&
+		(len(envelope.Data.Entities) > 0 || envelope.Data.NextCursor != "") {
+		result.Entities = envelope.Data.Entities
+		result.NextCursor = envelope.Data.NextCursor
+	}
+	return result, nil
 }
 
 func (p *GraphProvider) queryEntity(ctx context.Context, entityID string) (graph.EntityState, bool, error) {
@@ -610,11 +678,11 @@ func diagnosticAlertsFromDiscovery(diagnostics []DiscoveryDiagnostic, now time.T
 		if diagnostic.AtLimit {
 			alerts = append(alerts, Alert{
 				ID:        discoveryAlertID(diagnostic, "limit"),
-				Label:     fmt.Sprintf("%s %s discovery at limit", sourceLabel(diagnostic.Source), entityTypeLabel(diagnostic.EntityType)),
+				Label:     fmt.Sprintf("%s %s discovery truncated", sourceLabel(diagnostic.Source), entityTypeLabel(diagnostic.EntityType)),
 				Severity:  "warning",
 				Status:    "active",
 				EntityID:  feedIDForDiscoverySource(diagnostic.Source),
-				Reason:    fmt.Sprintf("Prefix query returned %d entities, reaching the configured limit of %d; snapshot results may be truncated.", diagnostic.Count, diagnostic.Limit),
+				Reason:    fmt.Sprintf("Prefix query returned %d entities and SemStreams reported more continuation state after the configured limit of %d; snapshot results may be truncated.", diagnostic.Count, diagnostic.Limit),
 				UpdatedAt: now,
 			})
 		}

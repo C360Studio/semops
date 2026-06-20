@@ -22,3 +22,14 @@ acceptance:
 
 tdd:
   - Use demo evidence and failing contract gaps as the red state before proposing framework work.
+
+progress:
+  - SemStreams issue #302 delivered typed prefix-query request/response envelopes and opaque cursor pagination in the
+    pinned `v1.0.0-beta.113` contract.
+  - SemOps adopted that prefix pagination locally for graph-backed COP discovery and no longer treats `count == limit`
+    as truncation unless SemStreams also reports continuation state.
+
+remaining:
+  - Comment back on issue #302 after the SemOps PR lands with adoption evidence and any remaining total-count caveat.
+  - Keep future upstream asks evidence-led; total-count metadata is deferred until large mixed-feed demos prove cursor
+    pagination is insufficient.

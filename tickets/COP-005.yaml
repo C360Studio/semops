@@ -77,7 +77,7 @@ progress:
     map and alert controls.
   - Added compact prefix-discovery count chips to source cards so source/type cardinality pressure is visible without
     turning the first screen into a graph console.
-  - Added source-health warning alerts for prefix discovery errors and at-limit pressure so diagnostics enter the
+  - Added source-health warning alerts for prefix discovery errors and truncation pressure so diagnostics enter the
     existing alert workflow.
 
 current_evidence:

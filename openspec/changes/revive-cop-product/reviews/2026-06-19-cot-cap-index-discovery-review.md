@@ -29,7 +29,9 @@ required in the hosted COP demo path when graph discovery is enabled.
 
 - Discovery success is tracked at the feed-family level, not per entity kind; a discovered CoT task can suppress
   CoT seed fallback for a missing CoT advisory.
-- Prefix discovery still needs source/type counters and pagination guidance before large mixed-feed demos.
+- Closed by `2026-06-19-source-cardinality-diagnostics-review.md` and
+  `2026-06-19-prefix-pagination-adoption-review.md`: source/type counters and cursor pagination are in place before
+  large mixed-feed demos.
 - Seed fallback remains important for targeted tests and degraded deployments, so it should be kept deliberately
   visible rather than deleted.
 

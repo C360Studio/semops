@@ -223,8 +223,12 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - CAP now has a local parser, raw XML lifecycle fixture replay, born-first append-evidence projection planner/writer,
   graph-backed COP hazard readback, and derived lifecycle status in the COP view model. It is still not a hosted
   CAP/NWS service and does not claim CAP consumer conformance.
-- Remaining compliance hardening requires pagination/total-count guidance for source/type cardinality pressure, CAP
-  schema/NWS validation expansion, and durable checkpoint/read-back reconciliation.
+- SemOps COP snapshot discovery now consumes SemStreams typed prefix-query request/response envelopes and follows
+  opaque cursor pagination until each source/type prefix is exhausted or the configured SemOps discovery cap is hit.
+  At-limit source-health alerts now mean SemOps deliberately stopped with more continuation state available.
+- Remaining compliance hardening requires CAP schema/NWS validation expansion, durable checkpoint/read-back
+  reconciliation, and possible total-count metadata only if large mixed-feed demos prove cursor paging is not enough
+  source-health evidence.
 
 ## CS API Positioning
 
