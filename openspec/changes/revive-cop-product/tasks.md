@@ -67,6 +67,7 @@
 - [x] 5.21 Add ADS-B projection/readback fixture gate without claiming hosted ADS-B service
 - [x] 5.22 Add deterministic ADS-B OpenSky fixture replay through the scenario-runner seam
 - [x] 5.23 Add hosted ADS-B adapter seam without claiming live ADS-B service
+- [x] 5.24 Add opt-in ADS-B structural scenario replay through the hosted adapter seam
 
 ## 6. Structural COP Stack
 
@@ -106,6 +107,7 @@
 - [x] 6.32 Add source/type cardinality diagnostics for prefix-discovered snapshot state
 - [x] 6.33 Promote prefix discovery pressure into source-health warning alerts
 - [x] 6.34 Adopt SemStreams typed prefix-query cursor pagination for graph-backed COP discovery
+- [x] 6.35 Bind ADS-B ownership for structural replay while keeping live ADS-B service out of the MVP default
 
 ## 7. COP UI
 

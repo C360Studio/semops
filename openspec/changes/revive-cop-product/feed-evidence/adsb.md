@@ -1,7 +1,7 @@
 # ADS-B Feed Evidence
 
-Status: candidate Phase 2 air-picture feed with parser, replay, hosted-adapter seam, projection, and COP readback
-evidence.
+Status: candidate Phase 2 air-picture feed with parser, replay, hosted-adapter seam, opt-in structural scenario
+replay, projection, ownership registration, and COP readback evidence.
 
 ## Decision
 
@@ -22,10 +22,14 @@ fixtures and deterministic replay. Treat ASTERIX, raw receiver protocols, and li
 - `internal/projectors/adsb` has a graph writer boundary for SemStreams create/update mutation request/reply
   contracts.
 - `internal/scenario` can replay ADS-B snapshot records through parse, projection, graph-plan writing, and born-state
-  marking when a scenario opts into ADS-B.
+  marking through the hosted adapter seam when a scenario opts into ADS-B.
 - `internal/adapters/adsb` hosts an OpenSky-shaped snapshot ingest seam with bounded raw capture, JSONL replay
   append, projection writes, born-first reconciliation, and pollable health counters.
 - `internal/stack.NewADSBAdapter` composes the adapter with either a SemStreams NATS requester or injected writer.
+- `cmd/semops-scenario-runner` can opt into ADS-B replay with `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose
+  service passes the flag through but defaults it off.
+- The scenario runner appends `semops.feed.adsb` ownership only for the opt-in ADS-B path; this is not a live OpenSky
+  or receiver service claim.
 - COP graph prefix discovery reads `c360.<platform>.cop.adsb.track.*` entities back into aircraft tracks and feed
   health without requiring a live ADS-B service.
 
@@ -120,6 +124,22 @@ Acceptance:
 - Malformed snapshots are captured and replayed before parse failure, without graph writes. [done]
 - `entity_already_exists` birth conflicts reconcile into update-only projection for already-born tracks. [done]
 - Stack wiring can use SemStreams NATS request/reply with retry configuration or an injected writer. [done]
+
+### Structural Scenario Gate
+
+Target command:
+
+```bash
+SEMOPS_SCENARIO_ADSB_FIXTURE=true ./scripts/cop-stack-smoke.sh
+```
+
+Acceptance:
+
+- The hosted scenario runner appends two deterministic OpenSky-shaped ADS-B snapshots only when explicitly enabled.
+  [done]
+- ADS-B scenario replay uses `internal/adapters/adsb.Adapter`, not a test-only projector/writer shortcut. [done]
+- ADS-B graph writes are backed by a SemStreams-minted `semops.feed.adsb` owner token. [done]
+- The default stack path remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. [done]
 
 ### Live Mode Gate
 

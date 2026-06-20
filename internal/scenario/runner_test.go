@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	adsbadapter "github.com/c360studio/semops/internal/adapters/adsb"
 	cotadapter "github.com/c360studio/semops/internal/adapters/cot"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
@@ -65,10 +66,22 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 
 	capWriter := &recordingCAPWriter{}
 	adsbWriter := &recordingADSBWriter{}
+	adsbAdapter, err := stack.NewADSBAdapter(stack.ADSBAdapterConfig{
+		Source:      "opensky-fixture",
+		Org:         "c360",
+		Platform:    "scenario",
+		OwnerTokens: tokens,
+		TraceID:     "scenario-runner-test",
+		Clock:       fixedClock(start),
+	}, stack.ADSBAdapterDeps{Writer: adsbWriter})
+	if err != nil {
+		t.Fatalf("adsb adapter: %v", err)
+	}
 	runner, err := NewRunner(Config{
 		Fixture: fixture,
 		MAVLink: mavAdapter,
 		CoT:     cotAdapter,
+		ADSB:    adsbAdapter,
 		CAPProjector: capprojector.NewProjector(capprojector.Config{
 			Org:         "c360",
 			Platform:    "scenario",
@@ -76,14 +89,7 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 			TraceID:     "scenario-runner-test",
 		}),
 		CAPWriter: capWriter,
-		ADSBProjector: adsbprojector.NewProjector(adsbprojector.Config{
-			Org:         "c360",
-			Platform:    "scenario",
-			OwnerTokens: tokens,
-			TraceID:     "scenario-runner-test",
-		}),
-		ADSBWriter: adsbWriter,
-		Clock:      fixedClock(start),
+		Clock:     fixedClock(start),
 	})
 	if err != nil {
 		t.Fatalf("runner: %v", err)
@@ -119,6 +125,12 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 	}
 	if len(adsbWriter.plans) != 2 {
 		t.Fatalf("adsb plans = %d, want two OpenSky snapshot plans", len(adsbWriter.plans))
+	}
+	if report.Steps[len(report.Steps)-2].RawRef != "adsb://raw/opensky-fixture/00000001" ||
+		report.Steps[len(report.Steps)-1].RawRef != "adsb://raw/opensky-fixture/00000002" {
+		t.Fatalf("adsb raw refs = %q/%q, want captured raw lane refs",
+			report.Steps[len(report.Steps)-2].RawRef,
+			report.Steps[len(report.Steps)-1].RawRef)
 	}
 	if capWriter.plans[0].Mutations[0].Kind != capprojector.MutationCreate ||
 		capWriter.plans[1].Mutations[0].Kind != capprojector.MutationUpdate ||
@@ -270,4 +282,4 @@ func cloneADSBRecord(record adsbcodec.RawSnapshotRecord) adsbcodec.RawSnapshotRe
 }
 
 var _ cotadapter.PlanWriter = (*recordingCoTWriter)(nil)
-var _ ADSBPlanWriter = (*recordingADSBWriter)(nil)
+var _ adsbadapter.PlanWriter = (*recordingADSBWriter)(nil)

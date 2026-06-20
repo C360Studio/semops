@@ -108,6 +108,7 @@ services:
       SEMOPS_NATS_URL: nats://semops-nats:4222
       SEMOPS_NATS_NAME: semops-scenario-runner
       SEMOPS_SCENARIO_ADDR: :8090
+      SEMOPS_SCENARIO_ADSB_FIXTURE: "${SEMOPS_SCENARIO_ADSB_FIXTURE:-false}"
       SEMOPS_MAVLINK_ENABLED: "true"
       SEMOPS_MAVLINK_SOURCE: mavlink:scenario
       SEMOPS_COT_ENABLED: "true"

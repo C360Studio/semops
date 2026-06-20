@@ -63,8 +63,10 @@ hazard state. The COP now derives CAP hazard lifecycle status from evidence for 
 `semops-scenario-runner` service now runs the first HADR
 flood/evacuation fixture against the live SemStreams graph in Compose, exposes `/healthz` plus `/scenario/status`,
 and the stack smoke asserts the Caddy-routed COP snapshot contains the scenario MAVLink track, TAK/CoT task/advisory,
-and CAP hazard. Remaining structural evidence is hosted CAP polling, shared-airspace playback, operator scenario
-controls, and durable checkpoint/read-back reconciliation.
+and CAP hazard. The runner can also opt into deterministic ADS-B fixture replay with
+`SEMOPS_SCENARIO_ADSB_FIXTURE=true`, using the hosted ADS-B adapter and `semops.feed.adsb` owner token; the default
+stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence is hosted CAP
+polling, shared-airspace playback, operator scenario controls, and durable checkpoint/read-back reconciliation.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -84,10 +86,11 @@ SemOps started materially stale; the first revival slices are correcting that:
 - `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, Caddy, and the hosted
   scenario runner for the current graph smoke scaffold plus first browser-facing COP path.
 - `internal/scenario` now provides a deterministic HADR flood/evacuation runner core that exercises MAVLink,
-  TAK/CoT, and CAP lifecycle replay through the same adapter/projector seams used by hosted graph writes. Container
-  packaging is now present through `cmd/semops-scenario-runner`; an operator/API control surface and the
-  shared-airspace vignette remain open. The one-command stack smoke now verifies the runner's graph writes are
-  product-visible through the same-origin COP snapshot.
+  TAK/CoT, and CAP lifecycle replay through the same adapter/projector seams used by hosted graph writes. It can also
+  opt into ADS-B snapshot replay through the hosted ADS-B adapter. Container packaging is now present through
+  `cmd/semops-scenario-runner`; an operator/API control surface and the shared-airspace vignette remain open. The
+  one-command stack smoke now verifies the runner's graph writes are product-visible through the same-origin COP
+  snapshot.
 - `configs/robotics-flow.json` describes an old StreamKit-style flow and not the current SemStreams graph ingest
   and projection contract surface.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
@@ -325,8 +328,8 @@ stack, then split edge/core only after the deployment metadata has real value.
 | `semops-adapter-mavlink` | SemOps | External UDP now; TCP/serial/SITL boundary and raw lane producer later | Phase 1 |
 | `semops-adapter-cot` | SemOps | TAK UDP/TCP/XML boundary and operator/marker/message projection | Phase 1 |
 | `semops-adapter-cap` | SemOps | Tolerant CAP/EDXL reader and hazard/advisory projection | Phase 1 |
-| `semops-adapter-sapient` | SemOps | Protobuf boundary and strict detection/track projection | Phase 2 |
 | `semops-adapter-adsb` | SemOps | Air-track source, raw JSON first, ASTERIX later | Phase 2 |
+| `semops-adapter-sapient` | SemOps | Protobuf boundary and strict detection/track projection | Phase 2 |
 | `semops-adapter-klv` | SemOps | Video metadata/footprint extraction from STANAG 4609 KLV subset | Phase 3 |
 | `semops-track-association` | SemOps | Statistical tier for ambiguous cross-source track association | Phase 2 |
 | `semops-translation-agent` | SemOps | Semantic tier for civilian advisory translation and explanations | Phase 3 |
@@ -350,8 +353,9 @@ These belong inside the SemOps codebase even when a container hosts them.
 | `internal/graphrequest` | SemStreams request/reply adapters | Retry-aware mutation request boundary |
 | `internal/projectors/mavlink` | Decoded MAVLink packets to graph mutation plans | Born-first current-state planner |
 | `internal/projectors/cot` | Decoded CoT events to graph mutation plans | Track, task, advisory planner |
-| `internal/scenario` | Deterministic HA/DR scenario runner core | Replays MAVLink, TAK/CoT, and CAP fixtures through real seams |
+| `internal/scenario` | Deterministic HA/DR scenario runner core | Replays MAVLink, TAK/CoT, CAP, and opt-in ADS-B fixtures through real seams |
 | `cmd/semops-scenario-runner` | Hosted one-shot scenario service | Runs HADR replay and exposes status/health for active polling |
+| `internal/adapters/adsb` | ADS-B adapter harness | OpenSky-shaped snapshot capture, replay append, projection, write, health |
 | `internal/stack` | Testable service composition factories | Wires SemStreams clients, writers, adapters |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
