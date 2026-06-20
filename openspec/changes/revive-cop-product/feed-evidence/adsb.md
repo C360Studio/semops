@@ -1,18 +1,20 @@
 # ADS-B Feed Evidence
 
-Status: candidate Phase 2 air-picture feed.
+Status: candidate Phase 2 air-picture feed with initial OpenSky-shaped parser evidence.
 
 ## Decision
 
 ADS-B should enter after MAVLink, TAK/CoT, CAP, and the structural COP are stable. Start with OpenSky-shaped JSON
-fixtures and deterministic replay. Treat ASTERIX and raw receiver protocols as later expansion.
+fixtures and deterministic replay. Treat ASTERIX, raw receiver protocols, and live OpenSky access as later expansion.
 
 ## Local Evidence
 
-- No SemOps ADS-B adapter exists in the current checkout.
+- `pkg/adapters/adsb` parses OpenSky state-vector snapshots from bounded JSON fixtures.
 - The first canonical model already includes `track`, which can represent aircraft state.
 - The feed ladder assigns aircraft current state to `signal`, association evidence to `control`, and raw receiver or
   replay rows to `trace`.
+- Parser tests preserve nullable callsign, position timestamp, longitude, latitude, altitude, velocity, track,
+  vertical rate, receiver IDs, squawk, position source, and category fields before any graph projection is added.
 
 ## External Evidence
 
@@ -21,23 +23,26 @@ fixtures and deterministic replay. Treat ASTERIX and raw receiver protocols as l
   latitude, altitude, velocity, track, vertical rate, receivers, squawk, position source, and category.
 - OpenSky state-vector calls for sensors other than the caller's own are rate limited.
 - Position source values include ADS-B, ASTERIX, MLAT, and FLARM, which lets the adapter preserve source quality.
+- Current OpenSky docs require OAuth2 client credentials for authenticated API use; live access is not part of this
+  fixture/parser gate.
 
 ## Gates
 
 ### Parser Gate
 
-Target command after the SemOps ADS-B package exists:
+Target command:
 
 ```bash
-go test ./internal/adsb
+go test ./pkg/adapters/adsb
 ```
 
 Acceptance:
 
-- OpenSky state-vector fixtures decode with nullable fields preserved.
+- OpenSky state-vector fixtures decode with nullable fields preserved. [done]
 - ICAO24, callsign, position time, last contact, position, velocity, track, vertical rate, and position source map
-  into a typed intermediate model.
-- Missing position data produces partial evidence rather than fake coordinates.
+  into a typed intermediate model. [done]
+- Missing position data produces partial evidence rather than fake coordinates. [done]
+- Malformed rows fail before projection. [done]
 
 ### Replay Gate
 
@@ -82,9 +87,10 @@ Acceptance:
 
 ## Known Gaps
 
-- No local adapter or fixtures yet.
+- No ADS-B graph projector, hosted adapter, or COP readback path yet.
 - OpenSky is useful for samples but should not become a critical-path dependency.
 - ASTERIX is not in the first ADS-B slice.
+- Raw receiver/readsb/dump1090 paths are not implemented.
 
 ## Adversarial Feed-Entry Questions
 

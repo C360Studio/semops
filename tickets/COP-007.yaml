@@ -118,11 +118,14 @@ progress:
   - Added source-health warning alerts for prefix discovery errors and truncation pressure.
   - Adopted SemStreams typed prefix discovery envelopes and opaque cursor pagination so snapshot discovery can page
     source/type prefixes up to the configured SemOps cap before reporting truncation pressure.
+  - Added the first ADS-B executable boundary in `pkg/adapters/adsb`: OpenSky-shaped `/states/all` fixture parsing
+    with nullable position fields, position-source quality, category preservation, and malformed-row rejection.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
   - Revisit SemStreams total-count metadata only after large mixed-feed demos prove cursor paging plus truncation
     alerts are insufficient for operator/source-health decisions.
+  - Add ADS-B projection/readback only after the parser boundary and ownership/indexing profile review are stable.
   - Implement the CS API bridge only after SemOps has enough stable structural graph state for meaningful ingress,
     egress, replay, and SemConnect conformance checks.

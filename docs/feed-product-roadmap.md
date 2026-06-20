@@ -91,7 +91,8 @@ CS API:
 
 ADS-B:
 
-- Demo/MVP boundary: recorded OpenSky-shaped JSON fixture and replay for aircraft current state.
+- Demo/MVP boundary: recorded OpenSky-shaped JSON fixture parsing for aircraft current state; replay/projection follow
+  as separate gates.
 - Full product path: live OpenSky or receiver/readsb/dump1090 service, rate limits, ASTERIX later, association, and
   airspace filters.
 - Promotion trigger: shared-airspace vignette or live receiver requirement.
@@ -194,6 +195,8 @@ because a CS API schema exists.
 
 Demo/MVP lane:
 Recorded OpenSky-shaped JSON fixtures for aircraft current state, freshness, source, provenance, and bounded replay.
+The first implemented slice is `pkg/adapters/adsb`, which parses `/states/all` snapshot fixtures and preserves
+nullable position fields plus position-source quality before projection.
 
 Full product lane:
 Optional live OpenSky with rate-limit handling, local receiver/readsb/dump1090 paths, raw ADS-B or ASTERIX later,
@@ -203,7 +206,8 @@ Boundary to preserve now:
 Keep raw receiver rows off the graph and project current aircraft state plus association evidence separately.
 
 Not claimed yet:
-Live air-traffic feed reliability, ASTERIX support, or complete surveillance/radar processing.
+Graph projection, hosted ADS-B adapter behavior, live air-traffic feed reliability, ASTERIX support, or complete
+surveillance/radar processing.
 
 ### SAPIENT
 

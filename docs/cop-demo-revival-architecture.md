@@ -420,7 +420,9 @@ profile semantics.
 
 ### Phase 2: Air Picture And Statistical Escalation
 
-- Add ADS-B and SAPIENT feed boundaries.
+- Add ADS-B projection/readback now that the OpenSky-shaped parser boundary exists.
+- Keep SAPIENT at the artifact-discovery boundary until authoritative ICD, protobuf/schema, samples, validator, or
+  conformance tooling is found.
 - Add a statistical track association service for ambiguous air tracks.
 - Write association evidence back to the graph; add UI only if it helps operator decisions.
 
