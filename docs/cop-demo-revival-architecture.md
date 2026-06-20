@@ -426,8 +426,10 @@ profile semantics.
 
 - Add deterministic ADS-B replay and a hosted adapter seam now that OpenSky-shaped parsing plus graph
   projection/readback exist.
-- Keep SAPIENT at the artifact-discovery boundary until authoritative ICD, protobuf/schema, samples, validator, or
-  conformance tooling is found.
+- Move SAPIENT from artifact discovery to parser/harness planning now that GOV.UK, BSI Flex 335 v2, Dstl protobufs,
+  the Dstl v2 Test Harness, and Apex middleware are identified.
+- Keep SAPIENT out of graph projection and demo compliance language until SemOps has local parser fixtures and a
+  documented harness result or an explicit non-compliance demo decision.
 - Add a statistical track association service for ambiguous air tracks.
 - Write association evidence back to the graph; add UI only if it helps operator decisions.
 

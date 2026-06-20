@@ -51,6 +51,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-cot-cap-index-discovery-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-source-cardinality-diagnostics-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-19-source-health-alerting-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-artifact-discovery-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
@@ -59,7 +60,8 @@ scope:
     architecture.
   - Record parser, mock, simulator, replay, compliance, and sample-data evidence before each feed enters the demo.
   - Define the expected SemStreams `indexing_profile` and cardinality risk for each projected entity type.
-  - Keep SAPIENT and KLV as evidence-gated work until authoritative fixtures and binary proof spikes exist.
+  - Keep SAPIENT and KLV as evidence-gated work until official SAPIENT parser/harness proof and KLV binary proof
+    spikes exist.
   - Track framework-breaking graph gates separately from simulator fidelity when SemStreams changes write semantics.
 
 acceptance:
@@ -69,6 +71,8 @@ acceptance:
   - TAK/CoT has UDP/TCP fixture replay gates documented without claiming public conformance.
   - CAP has OASIS schema or consumer-rule validation plus NWS sample gates documented.
   - KLV has a small fixture plan proving metadata extraction, storage references, and memory-bounded handling.
+  - SAPIENT has official BSI Flex 335 v2 protobuf, Dstl test-harness, sample-corpus, and middleware anchors recorded
+    before parser or graph projection work starts.
   - Every feed has an explicit `indexing_profile` policy before graph writes are implemented.
 
 tdd:
@@ -132,10 +136,19 @@ progress:
   - Added opt-in ADS-B structural scenario replay: `SEMOPS_SCENARIO_ADSB_FIXTURE=true` appends deterministic
     OpenSky-shaped snapshots to the hosted scenario runner, routes them through `internal/adapters/adsb`, and binds
     `semops.feed.adsb` only for that scenario path so graph writes use minted SemStreams owner tokens.
+  - Corrected SAPIENT artifact discovery: GOV.UK, BSI Flex 335 v2, Dstl protobufs, the Dstl BSI Flex 335 v2 Test
+    Harness, and Apex middleware are now recorded as official planning anchors. SemOps has not run the harness or
+    implemented SAPIENT parsing yet.
+  - Recorded the Dstl harness portability gap as product pressure: Windows-only, .NET 6, PostgreSQL 12 evidence is
+    real but not Linux CI-friendly, so a portable SAPIENT preflight suite may be a future ecosystem contribution.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
+  - Run or qualify the Dstl SAPIENT test harness and add parser-only BSI Flex 335 v2 fixtures before any SAPIENT
+    graph writes or compliance language.
+  - Evaluate whether SemOps should create or contribute a portable SAPIENT preflight suite while preserving Dstl
+    harness results as the official compliance anchor.
   - Revisit SemStreams total-count metadata only after large mixed-feed demos prove cursor paging plus truncation
     alerts are insufficient for operator/source-health decisions.
   - Decide whether ADS-B live mode starts with optional OpenSky, local receiver/readsb/dump1090 files, or a dedicated
