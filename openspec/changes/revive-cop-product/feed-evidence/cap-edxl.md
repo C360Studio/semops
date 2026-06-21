@@ -2,8 +2,9 @@
 
 Status: initial Phase 1 parser/projection/readback slice exists, with deterministic raw XML lifecycle fixture replay,
 derived lifecycle-status readback, a skipped-by-default live graph smoke for born-first append-evidence behavior, and
-the first hosted HTTP poller, decoder, and graph-projector component package. Live NWS fixture capture, XML schema
-validation, consumer-rule coverage, and default-stack hosting remain open.
+the first hosted HTTP poller, decoder, and graph-projector component package. The app runtime can compose that chain
+behind `SEMOPS_CAP_ENABLED=true`, while default live-provider enablement remains off. Live NWS fixture capture, XML
+schema validation, and consumer-rule coverage remain open.
 
 ## Decision
 
@@ -13,11 +14,11 @@ track or asset facts.
 
 The current CAP slice now has the first SemStreams component package for a hosted HTTP poller, raw-alert decoder, and
 born-first graph projector. That is a component-contract and deterministic local-polling gate, not a default live NWS
-service claim. CAP remains parser, projection, scenario-replay, readback, and live graph smoke evidence until SemOps
-wires hosted polling, webhook ingestion, NWS/IPAWS/vendor integration, and alert-source health into product scope.
-SemStreams `v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP pollers, while SemStreams issue
-#309 tracks richer component backpressure telemetry and issue #312 tracks first-class `TimerPort` flowgraph cadence
-semantics.
+service claim. CAP remains parser, projection, scenario-replay, readback, opt-in runtime, and live graph smoke
+evidence until SemOps proves provider fixtures, webhook ingestion, NWS/IPAWS/vendor integration, stale-source behavior,
+and alert-source health. SemStreams `v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP
+pollers, while SemStreams issue #309 tracks richer component backpressure telemetry and issue #312 tracks first-class
+`TimerPort` flowgraph cadence semantics.
 
 ## Local Evidence
 
@@ -169,10 +170,10 @@ Acceptance:
 - EDXL beyond CAP is not scoped for Phase 1.
 - NWS is a useful public source, but live NWS calls should not be required for deterministic CI.
 - CAP conformance should be stated as schema/consumer-rule evidence until we implement a proper consumer profile.
-- The initial `internal/components/cap` package is not wired into the default Compose stack and does not fetch live
-  NWS alerts by default.
+- The initial `internal/components/cap` package is wired into the app runtime and Compose as an explicit opt-in, but
+  `SEMOPS_CAP_ENABLED` defaults to `false` and does not fetch live NWS alerts by default.
 - Captured NWS update/cancel/expire fixture replay is still missing.
-- CAP component hosting is still not enabled in the default Compose stack.
+- Default live-provider CAP polling is still not enabled in the default Compose stack.
 - The current projector intentionally does not own `cop.hazard.geometry`, `cop.hazard.severity`, or
   `cop.hazard.status`.
 - The live graph smoke is SemStreams graph-contract evidence, not CAP consumer conformance evidence.

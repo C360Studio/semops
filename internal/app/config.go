@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/pkg/ownership"
 )
@@ -32,6 +33,15 @@ const (
 	EnvCoTUDPMaxDatagramBytes     = "SEMOPS_COT_UDP_MAX_DATAGRAM_BYTES"
 	EnvCoTTCPListenAddr           = "SEMOPS_COT_TCP_LISTEN_ADDR"
 	EnvCoTTCPMaxEventBytes        = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
+	EnvCAPEnabled                 = "SEMOPS_CAP_ENABLED"
+	EnvCAPSource                  = "SEMOPS_CAP_SOURCE"
+	EnvCAPWriteTimeout            = "SEMOPS_CAP_WRITE_TIMEOUT"
+	EnvCAPHTTPURL                 = "SEMOPS_CAP_HTTP_URL"
+	EnvCAPHTTPMethod              = "SEMOPS_CAP_HTTP_METHOD"
+	EnvCAPHTTPPollInterval        = "SEMOPS_CAP_HTTP_POLL_INTERVAL"
+	EnvCAPHTTPContactPolicy       = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
+	EnvCAPHTTPAuthRef             = "SEMOPS_CAP_HTTP_AUTH_REF"
+	EnvCAPHTTPMaxResponseBytes    = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
 	EnvCOPGraphQueryTimeout       = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
 	EnvCOPGraphDiscoveryEnabled   = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
 	EnvCOPGraphDiscoveryLimit     = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
@@ -49,6 +59,7 @@ type Config struct {
 	OwnershipHeartbeatInterval time.Duration
 	MAVLink                    MAVLinkConfig
 	CoT                        CoTConfig
+	CAP                        CAPConfig
 	COP                        COPConfig
 }
 
@@ -92,6 +103,26 @@ type CoTUDPConfig struct {
 type CoTTCPConfig struct {
 	ListenAddr    string
 	MaxEventBytes int
+}
+
+type CAPConfig struct {
+	Enabled      bool
+	Source       string
+	Org          string
+	Platform     string
+	TraceID      string
+	WriteTimeout time.Duration
+	Retry        natsclient.RetryConfig
+	HTTP         CAPHTTPConfig
+}
+
+type CAPHTTPConfig struct {
+	URL              string
+	Method           string
+	PollInterval     time.Duration
+	ContactPolicy    string
+	AuthRef          string
+	MaxResponseBytes int
 }
 
 type COPConfig struct {
@@ -148,6 +179,26 @@ func DefaultConfig() Config {
 				BackoffMultiplier: 2,
 			},
 		},
+		CAP: CAPConfig{
+			Enabled:      false,
+			Source:       "cap:http:inprocess",
+			Org:          "c360",
+			Platform:     "edge",
+			TraceID:      "semops-cap-hosted",
+			WriteTimeout: 2 * time.Second,
+			HTTP: CAPHTTPConfig{
+				URL:              capcomponent.DefaultHTTPPollURL,
+				Method:           "GET",
+				PollInterval:     capcomponent.DefaultHTTPPollInterval,
+				MaxResponseBytes: capcomponent.DefaultHTTPMaxResponseBytes,
+			},
+			Retry: natsclient.RetryConfig{
+				MaxRetries:        5,
+				InitialBackoff:    50 * time.Millisecond,
+				MaxBackoff:        500 * time.Millisecond,
+				BackoffMultiplier: 2,
+			},
+		},
 		COP: COPConfig{
 			GraphQueryTimeout:     2 * time.Second,
 			GraphDiscoveryEnabled: true,
@@ -168,15 +219,23 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvAPIAddr, &cfg.APIAddr)
 	setString(getenv, EnvMAVLinkSource, &cfg.MAVLink.Source)
 	setString(getenv, EnvCoTSource, &cfg.CoT.Source)
+	setString(getenv, EnvCAPSource, &cfg.CAP.Source)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
+	setString(getenv, EnvOrg, &cfg.CAP.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
 	setString(getenv, EnvPlatform, &cfg.CoT.Platform)
+	setString(getenv, EnvPlatform, &cfg.CAP.Platform)
 	setString(getenv, EnvTraceID, &cfg.MAVLink.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CoT.TraceID)
+	setString(getenv, EnvTraceID, &cfg.CAP.TraceID)
 	setString(getenv, EnvMAVLinkUDPListenAddr, &cfg.MAVLink.UDP.ListenAddr)
 	setString(getenv, EnvCoTUDPListenAddr, &cfg.CoT.UDP.ListenAddr)
 	setString(getenv, EnvCoTTCPListenAddr, &cfg.CoT.TCP.ListenAddr)
+	setString(getenv, EnvCAPHTTPURL, &cfg.CAP.HTTP.URL)
+	setString(getenv, EnvCAPHTTPMethod, &cfg.CAP.HTTP.Method)
+	setString(getenv, EnvCAPHTTPContactPolicy, &cfg.CAP.HTTP.ContactPolicy)
+	setString(getenv, EnvCAPHTTPAuthRef, &cfg.CAP.HTTP.AuthRef)
 
 	var err error
 	if cfg.NATSConnectTimeout, err = durationFromEnv(getenv, EnvNATSConnectTimeout, cfg.NATSConnectTimeout); err != nil {
@@ -203,6 +262,20 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.CAP.WriteTimeout, err = durationFromEnv(
+		getenv,
+		EnvCAPWriteTimeout,
+		cfg.CAP.WriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.CAP.HTTP.PollInterval, err = durationFromEnv(
+		getenv,
+		EnvCAPHTTPPollInterval,
+		cfg.CAP.HTTP.PollInterval,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.COP.GraphQueryTimeout, err = durationFromEnv(
 		getenv,
 		EnvCOPGraphQueryTimeout,
@@ -223,6 +296,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	if cfg.CoT.Enabled, err = boolFromEnv(getenv, EnvCoTEnabled, cfg.CoT.Enabled); err != nil {
 		return Config{}, err
 	}
+	if cfg.CAP.Enabled, err = boolFromEnv(getenv, EnvCAPEnabled, cfg.CAP.Enabled); err != nil {
+		return Config{}, err
+	}
 	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
 		getenv,
 		EnvMAVLinkUDPMaxDatagramBytes,
@@ -241,6 +317,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvCoTTCPMaxEventBytes,
 		cfg.CoT.TCP.MaxEventBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.CAP.HTTP.MaxResponseBytes, err = intFromEnv(
+		getenv,
+		EnvCAPHTTPMaxResponseBytes,
+		cfg.CAP.HTTP.MaxResponseBytes,
 	); err != nil {
 		return Config{}, err
 	}
@@ -306,6 +389,9 @@ func (c Config) Validate() error {
 	if err := c.CoT.Validate(); err != nil {
 		return err
 	}
+	if err := c.CAP.Validate(); err != nil {
+		return err
+	}
 	if !c.MAVLink.Enabled {
 		return nil
 	}
@@ -348,6 +434,37 @@ func (c CoTConfig) Validate() error {
 	}
 	if strings.TrimSpace(c.TCP.ListenAddr) != "" && c.TCP.MaxEventBytes <= 0 {
 		return fmt.Errorf("%s must be greater than zero when CoT TCP is enabled", EnvCoTTCPMaxEventBytes)
+	}
+	return nil
+}
+
+func (c CAPConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(c.Source) == "" {
+		return fmt.Errorf("%s is required when CAP is enabled", EnvCAPSource)
+	}
+	if strings.TrimSpace(c.Org) == "" {
+		return fmt.Errorf("%s is required when CAP is enabled", EnvOrg)
+	}
+	if strings.TrimSpace(c.Platform) == "" {
+		return fmt.Errorf("%s is required when CAP is enabled", EnvPlatform)
+	}
+	if c.WriteTimeout <= 0 {
+		return fmt.Errorf("%s must be greater than zero when CAP is enabled", EnvCAPWriteTimeout)
+	}
+	if strings.TrimSpace(c.HTTP.URL) == "" {
+		return fmt.Errorf("%s is required when CAP is enabled", EnvCAPHTTPURL)
+	}
+	if strings.TrimSpace(c.HTTP.Method) == "" {
+		return fmt.Errorf("%s is required when CAP is enabled", EnvCAPHTTPMethod)
+	}
+	if c.HTTP.PollInterval <= 0 {
+		return fmt.Errorf("%s must be greater than zero when CAP is enabled", EnvCAPHTTPPollInterval)
+	}
+	if c.HTTP.MaxResponseBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when CAP is enabled", EnvCAPHTTPMaxResponseBytes)
 	}
 	return nil
 }

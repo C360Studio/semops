@@ -10,9 +10,11 @@ import (
 	"testing"
 	"time"
 
+	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
+	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
@@ -276,6 +278,132 @@ func TestStartCleansUpWhenCoTCompositionFails(t *testing.T) {
 	}
 }
 
+func TestStartRegistersOwnershipBeforeComposingCAPFlow(t *testing.T) {
+	ctx := context.Background()
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.CAP.Enabled = true
+	cfg.CAP.Platform = "edge-alpha"
+	cfg.CAP.Source = "cap:http:test"
+	cfg.CAP.WriteTimeout = 750 * time.Millisecond
+	cfg.CAP.HTTP.URL = "https://example.test/cap"
+	cfg.CAP.HTTP.PollInterval = time.Hour
+	cfg.CAP.HTTP.ContactPolicy = "semops-test@example.invalid"
+
+	var stoppedOwners bool
+	var gotWriterCfg stack.CAPAdapterConfig
+	var gotWriterDeps stack.CAPAdapterDeps
+
+	app, err := start(ctx, cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			_ context.Context,
+			gotClient semstreamsClient,
+			heartbeat time.Duration,
+		) (copownership.BindingResult, func(), error) {
+			if gotClient != client {
+				t.Fatal("ownership registration got unexpected client")
+			}
+			if !client.connected {
+				t.Fatal("ownership registration must run after NATS connect")
+			}
+			if heartbeat != cfg.OwnershipHeartbeatInterval {
+				t.Fatalf("heartbeat interval = %s, want %s", heartbeat, cfg.OwnershipHeartbeatInterval)
+			}
+			return copownership.BindingResult{
+					Incarnation: "lease-123",
+					Owners:      []string{cop.OwnerCAP},
+					Tokens: map[string]ownership.OwnerToken{
+						cop.OwnerCAP: ownership.ExpectedOwnerToken(cop.OwnerCAP, "lease-123"),
+					},
+				}, func() {
+					stoppedOwners = true
+				}, nil
+		},
+		newCAPPlanWriter: func(
+			writerCfg stack.CAPAdapterConfig,
+			writerDeps stack.CAPAdapterDeps,
+		) (capcomponent.PlanWriter, error) {
+			gotWriterCfg = writerCfg
+			gotWriterDeps = writerDeps
+			return &recordingCAPAppPlanWriter{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if app.CAPHTTPPoller() == nil || app.CAPDecoder() == nil || app.CAPProjector() == nil {
+		t.Fatal("expected hosted CAP poller, decoder, and projector components")
+	}
+	if got, want := gotWriterCfg.OwnerTokens[cop.OwnerCAP].Wire(), "semops.feed.cap#lease-123"; got != want {
+		t.Fatalf("writer CAP owner token = %q, want %q", got, want)
+	}
+	if gotWriterCfg.Platform != "edge-alpha" || gotWriterCfg.Source != "cap:http:test" {
+		t.Fatalf("writer config = %+v", gotWriterCfg)
+	}
+	if gotWriterCfg.WriteTimeout != 750*time.Millisecond {
+		t.Fatalf("writer timeout = %s", gotWriterCfg.WriteTimeout)
+	}
+	if gotWriterDeps.NATS != client {
+		t.Fatal("CAP writer must reuse the connected SemStreams client")
+	}
+	if !client.hasSubscription(capcomponent.DefaultDecodedSubject) || !client.hasSubscription(capcomponent.DefaultRawSubject) {
+		t.Fatalf("CAP flow subscriptions = %+v", client.subscriptionSubjects())
+	}
+
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatalf("close app: %v", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("close must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("close must close SemStreams client")
+	}
+}
+
+func TestStartCleansUpWhenCAPCompositionFails(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.CAP.Enabled = true
+	writerErr := errors.New("bad cap writer")
+	var stoppedOwners bool
+
+	_, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {
+				stoppedOwners = true
+			}, nil
+		},
+		newCAPPlanWriter: func(
+			stack.CAPAdapterConfig,
+			stack.CAPAdapterDeps,
+		) (capcomponent.PlanWriter, error) {
+			return nil, writerErr
+		},
+	})
+	if !errors.Is(err, writerErr) {
+		t.Fatalf("error = %v, want cap writer error", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("failed startup must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("failed startup must close SemStreams client")
+	}
+}
+
 func TestStartCanDisableHostedMAVLinkFlow(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -346,6 +474,43 @@ func TestStartCanDisableHostedCoTFlow(t *testing.T) {
 	}
 	if app.CoTDecoder() != nil || app.CoTProjector() != nil || app.CoTUDPInput() != nil || app.CoTTCPInput() != nil {
 		t.Fatal("CoT components should be nil when disabled")
+	}
+}
+
+func TestStartCanDisableHostedCAPFlow(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.CAP.Enabled = false
+	var composed bool
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+		newCAPPlanWriter: func(
+			stack.CAPAdapterConfig,
+			stack.CAPAdapterDeps,
+		) (capcomponent.PlanWriter, error) {
+			composed = true
+			return &recordingCAPAppPlanWriter{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if composed {
+		t.Fatal("CAP flow should not be composed when disabled")
+	}
+	if app.CAPHTTPPoller() != nil || app.CAPDecoder() != nil || app.CAPProjector() != nil {
+		t.Fatal("CAP components should be nil when disabled")
 	}
 }
 
@@ -479,6 +644,15 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvCoTUDPMaxDatagramBytes:     "4096",
 		EnvCoTTCPListenAddr:           "127.0.0.1:18081",
 		EnvCoTTCPMaxEventBytes:        "8192",
+		EnvCAPEnabled:                 "true",
+		EnvCAPSource:                  "cap:http",
+		EnvCAPWriteTimeout:            "975ms",
+		EnvCAPHTTPURL:                 "https://example.test/cap",
+		EnvCAPHTTPMethod:              "POST",
+		EnvCAPHTTPPollInterval:        "45s",
+		EnvCAPHTTPContactPolicy:       "semops-test@example.invalid",
+		EnvCAPHTTPAuthRef:             "cap-secret",
+		EnvCAPHTTPMaxResponseBytes:    "123456",
 	}
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
@@ -552,6 +726,26 @@ func TestConfigFromEnv(t *testing.T) {
 	if cfg.CoT.TCP.ListenAddr != "127.0.0.1:18081" ||
 		cfg.CoT.TCP.MaxEventBytes != 8192 {
 		t.Fatalf("CoT TCP config = %+v", cfg.CoT.TCP)
+	}
+	if !cfg.CAP.Enabled {
+		t.Fatal("CAP enabled = false, want true")
+	}
+	if cfg.CAP.Source != "cap:http" ||
+		cfg.CAP.Org != "lab" ||
+		cfg.CAP.Platform != "edge-7" ||
+		cfg.CAP.TraceID != "trace-7" {
+		t.Fatalf("CAP config = %+v", cfg.CAP)
+	}
+	if cfg.CAP.WriteTimeout != 975*time.Millisecond {
+		t.Fatalf("CAP write timeout = %s", cfg.CAP.WriteTimeout)
+	}
+	if cfg.CAP.HTTP.URL != "https://example.test/cap" ||
+		cfg.CAP.HTTP.Method != "POST" ||
+		cfg.CAP.HTTP.PollInterval != 45*time.Second ||
+		cfg.CAP.HTTP.ContactPolicy != "semops-test@example.invalid" ||
+		cfg.CAP.HTTP.AuthRef != "cap-secret" ||
+		cfg.CAP.HTTP.MaxResponseBytes != 123456 {
+		t.Fatalf("CAP HTTP config = %+v", cfg.CAP.HTTP)
 	}
 }
 
@@ -666,6 +860,26 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			want: EnvCoTTCPMaxEventBytes,
 		},
 		{
+			name: "bad cap enabled",
+			env:  map[string]string{EnvCAPEnabled: "sometimes"},
+			want: EnvCAPEnabled,
+		},
+		{
+			name: "bad cap write timeout",
+			env:  map[string]string{EnvCAPWriteTimeout: "forever"},
+			want: EnvCAPWriteTimeout,
+		},
+		{
+			name: "bad cap poll interval",
+			env:  map[string]string{EnvCAPHTTPPollInterval: "soon"},
+			want: EnvCAPHTTPPollInterval,
+		},
+		{
+			name: "bad cap max response bytes",
+			env:  map[string]string{EnvCAPHTTPMaxResponseBytes: "huge"},
+			want: EnvCAPHTTPMaxResponseBytes,
+		},
+		{
 			name: "zero udp max datagram",
 			env: map[string]string{
 				EnvMAVLinkUDPListenAddr:       "127.0.0.1:14550",
@@ -690,6 +904,14 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvCoTTCPMaxEventBytes: "0",
 			},
 			want: EnvCoTTCPMaxEventBytes,
+		},
+		{
+			name: "zero cap max response bytes",
+			env: map[string]string{
+				EnvCAPEnabled:              "true",
+				EnvCAPHTTPMaxResponseBytes: "0",
+			},
+			want: EnvCAPHTTPMaxResponseBytes,
 		},
 	}
 
@@ -846,6 +1068,15 @@ type recordingCoTAppPlanWriter struct {
 }
 
 func (w *recordingCoTAppPlanWriter) Apply(_ context.Context, plan cotprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	return nil
+}
+
+type recordingCAPAppPlanWriter struct {
+	plans []capprojector.Plan
+}
+
+func (w *recordingCAPAppPlanWriter) Apply(_ context.Context, plan capprojector.Plan) error {
 	w.plans = append(w.plans, plan)
 	return nil
 }

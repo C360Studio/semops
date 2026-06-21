@@ -310,7 +310,8 @@ Remaining gates:
 - NWS samples captured as deterministic fixtures.
 - XML schema and CAP consumer-rule validation.
 - NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
-- Default-stack hosting for the CAP HTTP poller, decoder, and graph-projector components.
+- Provider fixture and stale-source proof for the opt-in `SEMOPS_CAP_ENABLED=true` runtime chain.
+- Default live-provider enablement; Compose exposes CAP knobs but keeps hosted public-alert polling disabled by default.
 - Webhook, watched-file, or vendor feed service boundaries.
 - Telemetry-driven backpressure decisions once hosted CAP polling has real provider cadence, stale-source, retry,
   retention, and audit pressure.

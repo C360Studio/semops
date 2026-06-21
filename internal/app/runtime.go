@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
 	"github.com/c360studio/semops/internal/graphrequest"
+	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
@@ -30,6 +32,9 @@ type App struct {
 	cotTCPInput      *cotcomponent.TCPInputComponent
 	cotDecoder       *cotcomponent.DecoderComponent
 	cotProjector     *cotcomponent.ProjectorComponent
+	capPoller        *capcomponent.HTTPPollerComponent
+	capDecoder       *capcomponent.DecoderComponent
+	capProjector     *capcomponent.ProjectorComponent
 }
 
 type semstreamsClient interface {
@@ -59,6 +64,10 @@ type dependencies struct {
 	newCoTTCPInput       func(cotcomponent.TCPInputConfig, cotcomponent.Bus) (*cotcomponent.TCPInputComponent, error)
 	newCoTDecoder        func(cotcomponent.DecoderConfig, cotcomponent.Bus) (*cotcomponent.DecoderComponent, error)
 	newCoTProjector      func(cotcomponent.ProjectorConfig, cotcomponent.Bus) (*cotcomponent.ProjectorComponent, error)
+	newCAPPlanWriter     func(stack.CAPAdapterConfig, stack.CAPAdapterDeps) (capcomponent.PlanWriter, error)
+	newCAPHTTPPoller     func(capcomponent.HTTPPollerConfig, capcomponent.Bus) (*capcomponent.HTTPPollerComponent, error)
+	newCAPDecoder        func(capcomponent.DecoderConfig, capcomponent.Bus) (*capcomponent.DecoderComponent, error)
+	newCAPProjector      func(capcomponent.ProjectorConfig, capcomponent.Bus) (*capcomponent.ProjectorComponent, error)
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -88,6 +97,11 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop CoT TCP input component: %w", err))
 		}
 	}
+	if a.capPoller != nil {
+		if err := a.capPoller.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop CAP HTTP poller component: %w", err))
+		}
+	}
 	if a.mavlinkDecoder != nil {
 		if err := a.mavlinkDecoder.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink decoder component: %w", err))
@@ -98,6 +112,11 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop CoT decoder component: %w", err))
 		}
 	}
+	if a.capDecoder != nil {
+		if err := a.capDecoder.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop CAP decoder component: %w", err))
+		}
+	}
 	if a.mavlinkProjector != nil {
 		if err := a.mavlinkProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink projector component: %w", err))
@@ -106,6 +125,11 @@ func (a *App) Close(ctx context.Context) error {
 	if a.cotProjector != nil {
 		if err := a.cotProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop CoT projector component: %w", err))
+		}
+	}
+	if a.capProjector != nil {
+		if err := a.capProjector.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop CAP projector component: %w", err))
 		}
 	}
 	if a.ownershipStop != nil {
@@ -175,6 +199,27 @@ func (a *App) CoTProjector() *cotcomponent.ProjectorComponent {
 	return a.cotProjector
 }
 
+func (a *App) CAPHTTPPoller() *capcomponent.HTTPPollerComponent {
+	if a == nil {
+		return nil
+	}
+	return a.capPoller
+}
+
+func (a *App) CAPDecoder() *capcomponent.DecoderComponent {
+	if a == nil {
+		return nil
+	}
+	return a.capDecoder
+}
+
+func (a *App) CAPProjector() *capcomponent.ProjectorComponent {
+	if a == nil {
+		return nil
+	}
+	return a.capProjector
+}
+
 func (a *App) GraphRequester() GraphRequester {
 	if a == nil {
 		return nil
@@ -223,6 +268,12 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 		}
 	}
 
+	if cfg.CAP.Enabled {
+		if err := app.startCAPFlow(ctx, cfg.CAP, bindings, deps); err != nil {
+			return nil, err
+		}
+	}
+
 	cleanup = false
 	return app, nil
 }
@@ -240,6 +291,10 @@ func defaultDependencies() dependencies {
 		newCoTTCPInput:       cotcomponent.NewTCPInputComponent,
 		newCoTDecoder:        cotcomponent.NewDecoderComponent,
 		newCoTProjector:      cotcomponent.NewProjectorComponent,
+		newCAPPlanWriter:     newCAPPlanWriter,
+		newCAPHTTPPoller:     capcomponent.NewHTTPPollerComponent,
+		newCAPDecoder:        capcomponent.NewDecoderComponent,
+		newCAPProjector:      capcomponent.NewProjectorComponent,
 	}
 }
 
@@ -277,6 +332,18 @@ func fillDependencies(deps dependencies) dependencies {
 	}
 	if deps.newCoTProjector == nil {
 		deps.newCoTProjector = defaults.newCoTProjector
+	}
+	if deps.newCAPPlanWriter == nil {
+		deps.newCAPPlanWriter = defaults.newCAPPlanWriter
+	}
+	if deps.newCAPHTTPPoller == nil {
+		deps.newCAPHTTPPoller = defaults.newCAPHTTPPoller
+	}
+	if deps.newCAPDecoder == nil {
+		deps.newCAPDecoder = defaults.newCAPDecoder
+	}
+	if deps.newCAPProjector == nil {
+		deps.newCAPProjector = defaults.newCAPProjector
 	}
 	return deps
 }
@@ -446,6 +513,79 @@ func (a *App) startCoTFlow(
 	return nil
 }
 
+func (a *App) startCAPFlow(
+	ctx context.Context,
+	cfg CAPConfig,
+	bindings copownership.BindingResult,
+	deps dependencies,
+) error {
+	bus := capRuntimeBus{client: a.client}
+	registry := payloadregistry.New()
+	writer, err := deps.newCAPPlanWriter(stack.CAPAdapterConfig{
+		Source:       cfg.Source,
+		Org:          cfg.Org,
+		Platform:     cfg.Platform,
+		OwnerTokens:  bindings.OwnerTokenMap(),
+		TraceID:      cfg.TraceID,
+		WriteTimeout: cfg.WriteTimeout,
+		Retry:        cfg.Retry,
+	}, stack.CAPAdapterDeps{NATS: a.client})
+	if err != nil {
+		return fmt.Errorf("compose CAP graph writer: %w", err)
+	}
+
+	projector, err := deps.newCAPProjector(capcomponent.ProjectorConfig{
+		Registry: registry,
+		Projector: capprojector.NewProjector(capprojector.Config{
+			Org:         cfg.Org,
+			Platform:    cfg.Platform,
+			OwnerTokens: bindings.OwnerTokenMap(),
+			TraceID:     cfg.TraceID,
+		}),
+		Writer:       writer,
+		WriteTimeout: cfg.WriteTimeout,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose CAP projector component: %w", err)
+	}
+	decoder, err := deps.newCAPDecoder(capcomponent.DecoderConfig{
+		Source:         cfg.Source,
+		RawSubject:     capcomponent.DefaultRawSubject,
+		DecodedSubject: capcomponent.DefaultDecodedSubject,
+		Registry:       registry,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose CAP decoder component: %w", err)
+	}
+	poller, err := deps.newCAPHTTPPoller(capcomponent.HTTPPollerConfig{
+		Source:           cfg.Source,
+		URL:              cfg.HTTP.URL,
+		Method:           cfg.HTTP.Method,
+		RawSubject:       capcomponent.DefaultRawSubject,
+		PollInterval:     cfg.HTTP.PollInterval,
+		ContactPolicy:    cfg.HTTP.ContactPolicy,
+		AuthRef:          cfg.HTTP.AuthRef,
+		MaxResponseBytes: cfg.HTTP.MaxResponseBytes,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose CAP HTTP poller component: %w", err)
+	}
+	a.capProjector = projector
+	a.capDecoder = decoder
+	a.capPoller = poller
+
+	if err := startLifecycle(ctx, "CAP projector", projector); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "CAP decoder", decoder); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "CAP HTTP poller", poller); err != nil {
+		return err
+	}
+	return nil
+}
+
 func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	Initialize() error
 	Start(context.Context) error
@@ -471,6 +611,13 @@ func newCoTPlanWriter(
 	deps stack.CoTAdapterDeps,
 ) (cotcomponent.PlanWriter, error) {
 	return stack.NewCoTPlanWriter(cfg, deps)
+}
+
+func newCAPPlanWriter(
+	cfg stack.CAPAdapterConfig,
+	deps stack.CAPAdapterDeps,
+) (capcomponent.PlanWriter, error) {
+	return stack.NewCAPPlanWriter(cfg, deps)
 }
 
 func newNATSClient(cfg Config) (semstreamsClient, error) {
@@ -548,6 +695,29 @@ func (b cotRuntimeBus) Subscribe(
 	subject string,
 	handler func(context.Context, *nats.Msg),
 ) (cotcomponent.Subscription, error) {
+	subscription, err := b.client.Subscribe(ctx, subject, handler)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return noopSubscription{}, nil
+	}
+	return subscription, nil
+}
+
+type capRuntimeBus struct {
+	client semstreamsClient
+}
+
+func (b capRuntimeBus) Publish(ctx context.Context, subject string, data []byte) error {
+	return b.client.Publish(ctx, subject, data)
+}
+
+func (b capRuntimeBus) Subscribe(
+	ctx context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (capcomponent.Subscription, error) {
 	subscription, err := b.client.Subscribe(ctx, subject, handler)
 	if err != nil {
 		return nil, err

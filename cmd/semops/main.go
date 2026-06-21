@@ -62,11 +62,12 @@ func main() {
 	defer closeAPIServer(apiServer, cfg.ShutdownTimeout)
 
 	log.Printf(
-		"SemOps runtime started: nats=%s api=%s mavlink_enabled=%t cot_enabled=%t cop_owners=%d",
+		"SemOps runtime started: nats=%s api=%s mavlink_enabled=%t cot_enabled=%t cap_enabled=%t cop_owners=%d",
 		cfg.NATSURL,
 		cfg.APIAddr,
 		cfg.MAVLink.Enabled,
 		cfg.CoT.Enabled,
+		cfg.CAP.Enabled,
 		len(runtime.OwnershipBinding().Owners),
 	)
 
