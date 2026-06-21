@@ -228,6 +228,68 @@ func TestHostedCOPSnapshotReflectsADSBHTTPProvider(t *testing.T) {
 	}
 }
 
+func TestHostedCOPSnapshotReflectsHADRSharedAirspace(t *testing.T) {
+	snapshotURL := os.Getenv(liveSnapshotURLEnv)
+	statusURL := os.Getenv(liveScenarioStatusEnv)
+	if snapshotURL == "" || statusURL == "" {
+		t.Skipf("set %s and %s to run the hosted COP shared-airspace smoke",
+			liveSnapshotURLEnv, liveScenarioStatusEnv)
+	}
+	expectADSB, err := boolFromEnv(liveSnapshotADSBHTTPEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !expectADSB {
+		t.Skipf("set %s=true to run the hosted COP shared-airspace smoke", liveSnapshotADSBHTTPEnv)
+	}
+	expectedTrackID := firstNonEmpty(os.Getenv(liveSnapshotTrackIDEnv), defaultExpectedTrackID)
+	expectedTaskID := firstNonEmpty(os.Getenv(liveSnapshotCoTTaskEnv), defaultExpectedCoTTask)
+	expectedAdvisoryID := firstNonEmpty(os.Getenv(liveSnapshotCoTChatEnv), defaultExpectedCoTChat)
+	expectedHazardID := firstNonEmpty(os.Getenv(liveSnapshotHazardEnv), defaultExpectedHazard)
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		status, err := fetchScenarioStatus(ctx, client, statusURL)
+		if err != nil {
+			lastErr = err
+		} else if status.State != "succeeded" {
+			lastErr = fmt.Errorf("scenario runner state = %q, completed=%d failed=%d last_error=%q",
+				status.State, status.CompletedSteps, status.FailedSteps, status.LastError)
+		} else {
+			snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
+			if err != nil {
+				lastErr = err
+			} else if snapshotHasScenarioRunnerState(
+				snapshot,
+				expectedTrackID,
+				expectedTaskID,
+				expectedAdvisoryID,
+				expectedHazardID,
+				false,
+			) && snapshotHasADSBTrack(snapshot) {
+				return
+			} else {
+				lastErr = fmt.Errorf("snapshot missing shared-airspace state: scenario=%s tracks=%d tasks=%d advisories=%d hazards=%d",
+					snapshot.Scenario, len(snapshot.Tracks), len(snapshot.Tasks), len(snapshot.Advisories), len(snapshot.Hazards))
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted COP snapshot did not reflect HADR shared airspace before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
 func generatedMAVLinkFrames(t *testing.T) [][]byte {
 	t.Helper()
 

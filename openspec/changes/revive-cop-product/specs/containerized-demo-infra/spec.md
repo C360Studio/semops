@@ -125,6 +125,13 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **AND** the snapshot contains the scenario CAP hazard with geometry and provenance
 - **AND** this check runs before direct feed-specific live graph smokes so product visibility fails fast
 
+#### Scenario: HADR shared-airspace playback is product-visible
+
+- **WHEN** the local Compose smoke enables the local ADS-B HTTP fixture component alongside the HADR scenario runner
+- **THEN** a single Caddy-routed COP snapshot contains the scenario MAVLink/TAK/CAP state and an ADS-B aircraft track
+- **AND** the ADS-B evidence comes from the hosted ADS-B component flow, not a second scenario-runner owner claim
+- **AND** this remains local fixture evidence rather than a live OpenSky, ASTERIX, or receiver-support claim
+
 #### Scenario: Browser ingress is same-origin in development
 
 - **WHEN** the local COP stack exposes the operator UI

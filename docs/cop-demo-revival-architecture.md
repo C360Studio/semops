@@ -68,9 +68,12 @@ and CAP hazard. The stack smoke actively polls `/scenario/status`, reports compl
 on explicit scenario failure, and treats stale status as a wedged run with Compose diagnostics instead of relying on a
 passive log tail or one-shot health check. The runner can also opt into deterministic ADS-B fixture replay with
 `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, using the hosted ADS-B adapter and `semops.feed.adsb` owner token; the default
-stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence is shared-airspace
-playback, operator scenario controls, durable checkpoint/read-back reconciliation, and provider-backed CAP fixture
-evidence before live public-alert ingestion is claimed. SemStreams `v1.0.0-beta.114` now provides
+stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence includes operator
+scenario controls, durable checkpoint/read-back reconciliation, and provider-backed CAP fixture evidence before live
+public-alert ingestion is claimed. The Compose smoke now proves the shared-airspace vignette by
+requiring one Caddy-routed COP snapshot to contain the HADR scenario's MAVLink/TAK/CAP state and the local ADS-B HTTP
+component's aircraft track. That keeps ADS-B ownership in the hosted component flow and avoids a second scenario-runner
+owner claim. SemStreams `v1.0.0-beta.114` now provides
 `component.HTTPClientPort` for the outbound HTTP/polling dependency shape that CAP/NWS, OpenSky ADS-B, and possible
 SAPIENT/Apex integrations expose. ADS-B now has an OpenSky-compatible HTTP input -> decoder -> graph-projector
 component package proved against local provider fixtures, and the hosted app can wire that chain behind
@@ -107,10 +110,11 @@ SemOps started materially stale; the first revival slices are correcting that:
 - `internal/scenario` now provides a deterministic HADR flood/evacuation runner core that exercises MAVLink,
   TAK/CoT, and CAP lifecycle replay through the same adapter/projector seams used by hosted graph writes. It can also
   opt into ADS-B snapshot replay through the hosted ADS-B adapter. Container packaging is now present through
-  `cmd/semops-scenario-runner`; an operator/API control surface and the shared-airspace vignette remain open. The
+  `cmd/semops-scenario-runner`; an operator/API control surface remains open. The
   one-command stack smoke now verifies the runner's graph writes are product-visible through the same-origin COP
   snapshot and actively polls the scenario status document so failed or wedged demo runs stop with concrete progress
-  evidence.
+  evidence. The stack smoke also checks that the same snapshot can carry the HADR scenario state and the local ADS-B
+  HTTP component's aircraft track for the first shared-airspace vignette.
 - The old `configs/robotics-flow.json` StreamKit-style flow was deleted because it taught raw subject topology and did
   not describe the current SemStreams component lifecycle, flowgraph, payload-registry, port/config, graph ingest, or
   projection surface.
