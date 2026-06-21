@@ -98,8 +98,10 @@ requests before triples or foreign edges are added.
 - **AND** deterministic snapshot replay can drive parse, projection, graph-plan writing, and born-state marking
 - **AND** hosted snapshot ingest preserves bounded raw refs, replay append, health counters, and born-first write
   reconciliation before any live-source promotion
-- **AND** the COP snapshot may read ADS-B aircraft tracks by prefix discovery while hosted polling, receiver
-  protocols, ASTERIX, and statistical association remain separate gates
+- **AND** the hosted app can opt into the OpenSky-compatible HTTP poller -> decoder -> projector component flow with
+  `semops.feed.adsb` ownership minted only for that enabled runtime
+- **AND** the COP snapshot may read ADS-B aircraft tracks by prefix discovery while default live provider enablement,
+  receiver protocols, ASTERIX, and statistical association remain separate gates
 
 #### Scenario: COP readback uses SemStreams discovery primitives
 

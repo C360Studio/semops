@@ -71,7 +71,9 @@ playback, operator scenario controls, durable checkpoint/read-back reconciliatio
 evidence before live public-alert ingestion is claimed. SemStreams `v1.0.0-beta.114` now provides
 `component.HTTPClientPort` for the outbound HTTP/polling dependency shape that CAP/NWS, OpenSky ADS-B, and possible
 SAPIENT/Apex integrations expose. ADS-B now has an OpenSky-compatible HTTP input -> decoder -> graph-projector
-component package proved against local provider fixtures, but it is not wired into the default runtime.
+component package proved against local provider fixtures, and the hosted app can wire that chain behind
+`SEMOPS_ADSB_ENABLED=true` with replay, stale-source, and raw-lane configuration. The default runtime keeps ADS-B off,
+so this is not a live OpenSky reliability, receiver, or ASTERIX claim.
 SAPIENT now has a preflight-only HTTP input -> decoder component package for raw/decoded JSON or protobuf payload
 streams; it deliberately has no graph request ports or owner claim.
 
@@ -112,6 +114,9 @@ SemOps started materially stale; the first revival slices are correcting that:
 - The hosted `cmd/semops` TAK/CoT path now starts the projector processor, decoder processor, and optional UDP/TCP
   input components in that order, so native CoT XML enters through registered raw payloads and declared ports before
   graph writes.
+- The hosted `cmd/semops` ADS-B path can start the projector processor, decoder processor, and HTTP poller input in
+  that order behind `SEMOPS_ADSB_ENABLED=true`. Runtime ownership appends `semops.feed.adsb` only for that opt-in flow,
+  and Compose passes the OpenSky-compatible HTTP settings through while defaulting the feed off.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
 - The active frontend tree is a clean-sheet Svelte 5 COP in `ui`; the old flow-runtime UI idea should be treated as
   historical context, not a surface to restore.
@@ -133,10 +138,10 @@ SemOps has salvageable MAVLink depth:
   framework's mutation retry rule for transient responder startup races.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
-- The next hosted-feed hardening step is to decide whether ADS-B should wire its OpenSky-compatible HTTP components
-  into an opt-in runtime path or prioritize local receiver/readsb/dump1090 input components first. SAPIENT has a
-  preflight-only input -> decoder component flow, but graph projection, `OwnerSAPIENT`, and product service hosting
-  remain blocked behind projection ownership, harness, and service-mode review. CAP now has an opt-in input ->
+- The next hosted-feed hardening step is to prove ADS-B's opt-in OpenSky-compatible runtime flow in the full Compose
+  smoke or prioritize local receiver/readsb/dump1090 input components. SAPIENT has a preflight-only input -> decoder
+  component flow, but graph projection, `OwnerSAPIENT`, and product service hosting remain blocked behind projection
+  ownership, harness, and service-mode review. CAP now has an opt-in input ->
   decoder -> projector component flow, component-level stale health, and optional provider-shaped replay capture
   through `SEMOPS_CAP_REPLAY_PATH`, but real provider fixtures and lifecycle behavior remain open.
 

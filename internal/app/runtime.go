@@ -6,16 +6,20 @@ import (
 	"fmt"
 	"time"
 
+	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
 	"github.com/c360studio/semops/internal/graphrequest"
+	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
+	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/payloadregistry"
 	"github.com/c360studio/semstreams/pkg/ownership"
@@ -36,6 +40,9 @@ type App struct {
 	capPoller        *capcomponent.HTTPPollerComponent
 	capDecoder       *capcomponent.DecoderComponent
 	capProjector     *capcomponent.ProjectorComponent
+	adsbPoller       *adsbcomponent.HTTPPollerComponent
+	adsbDecoder      *adsbcomponent.DecoderComponent
+	adsbProjector    *adsbcomponent.ProjectorComponent
 }
 
 type semstreamsClient interface {
@@ -59,7 +66,7 @@ type GraphRequester interface {
 
 type dependencies struct {
 	newNATSClient        func(Config) (semstreamsClient, error)
-	registerOwners       func(context.Context, semstreamsClient, time.Duration) (copownership.BindingResult, func(), error)
+	registerOwners       func(context.Context, semstreamsClient, time.Duration, []cop.OwnedContract) (copownership.BindingResult, func(), error)
 	newMAVLinkPlanWriter func(stack.MAVLinkAdapterConfig, stack.MAVLinkAdapterDeps) (mavcomponent.PlanWriter, error)
 	newMAVLinkUDPInput   func(mavcomponent.UDPInputConfig, mavcomponent.Bus) (*mavcomponent.UDPInputComponent, error)
 	newMAVLinkDecoder    func(mavcomponent.DecoderConfig, mavcomponent.Bus) (*mavcomponent.DecoderComponent, error)
@@ -73,6 +80,10 @@ type dependencies struct {
 	newCAPHTTPPoller     func(capcomponent.HTTPPollerConfig, capcomponent.Bus) (*capcomponent.HTTPPollerComponent, error)
 	newCAPDecoder        func(capcomponent.DecoderConfig, capcomponent.Bus) (*capcomponent.DecoderComponent, error)
 	newCAPProjector      func(capcomponent.ProjectorConfig, capcomponent.Bus) (*capcomponent.ProjectorComponent, error)
+	newADSBPlanWriter    func(stack.ADSBAdapterConfig, stack.ADSBAdapterDeps) (adsbcomponent.PlanWriter, error)
+	newADSBHTTPPoller    func(adsbcomponent.HTTPPollerConfig, adsbcomponent.Bus) (*adsbcomponent.HTTPPollerComponent, error)
+	newADSBDecoder       func(adsbcomponent.DecoderConfig, adsbcomponent.Bus) (*adsbcomponent.DecoderComponent, error)
+	newADSBProjector     func(adsbcomponent.ProjectorConfig, adsbcomponent.Bus) (*adsbcomponent.ProjectorComponent, error)
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -107,6 +118,11 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop CAP HTTP poller component: %w", err))
 		}
 	}
+	if a.adsbPoller != nil {
+		if err := a.adsbPoller.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop ADS-B HTTP poller component: %w", err))
+		}
+	}
 	if a.mavlinkDecoder != nil {
 		if err := a.mavlinkDecoder.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink decoder component: %w", err))
@@ -122,6 +138,11 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop CAP decoder component: %w", err))
 		}
 	}
+	if a.adsbDecoder != nil {
+		if err := a.adsbDecoder.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop ADS-B decoder component: %w", err))
+		}
+	}
 	if a.mavlinkProjector != nil {
 		if err := a.mavlinkProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink projector component: %w", err))
@@ -135,6 +156,11 @@ func (a *App) Close(ctx context.Context) error {
 	if a.capProjector != nil {
 		if err := a.capProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop CAP projector component: %w", err))
+		}
+	}
+	if a.adsbProjector != nil {
+		if err := a.adsbProjector.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop ADS-B projector component: %w", err))
 		}
 	}
 	if a.ownershipStop != nil {
@@ -225,6 +251,27 @@ func (a *App) CAPProjector() *capcomponent.ProjectorComponent {
 	return a.capProjector
 }
 
+func (a *App) ADSBHTTPPoller() *adsbcomponent.HTTPPollerComponent {
+	if a == nil {
+		return nil
+	}
+	return a.adsbPoller
+}
+
+func (a *App) ADSBDecoder() *adsbcomponent.DecoderComponent {
+	if a == nil {
+		return nil
+	}
+	return a.adsbDecoder
+}
+
+func (a *App) ADSBProjector() *adsbcomponent.ProjectorComponent {
+	if a == nil {
+		return nil
+	}
+	return a.adsbProjector
+}
+
 func (a *App) GraphRequester() GraphRequester {
 	if a == nil {
 		return nil
@@ -254,7 +301,12 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 		}
 	}()
 
-	bindings, stopOwners, err := deps.registerOwners(ctx, client, cfg.OwnershipHeartbeatInterval)
+	bindings, stopOwners, err := deps.registerOwners(
+		ctx,
+		client,
+		cfg.OwnershipHeartbeatInterval,
+		runtimeOwnedContracts(cfg),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("register SemOps COP ownership: %w", err)
 	}
@@ -275,6 +327,12 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 
 	if cfg.CAP.Enabled {
 		if err := app.startCAPFlow(ctx, cfg.CAP, bindings, deps); err != nil {
+			return nil, err
+		}
+	}
+
+	if cfg.ADSB.Enabled {
+		if err := app.startADSBFlow(ctx, cfg.ADSB, bindings, deps); err != nil {
 			return nil, err
 		}
 	}
@@ -300,6 +358,10 @@ func defaultDependencies() dependencies {
 		newCAPHTTPPoller:     capcomponent.NewHTTPPollerComponent,
 		newCAPDecoder:        capcomponent.NewDecoderComponent,
 		newCAPProjector:      capcomponent.NewProjectorComponent,
+		newADSBPlanWriter:    newADSBPlanWriter,
+		newADSBHTTPPoller:    adsbcomponent.NewHTTPPollerComponent,
+		newADSBDecoder:       adsbcomponent.NewDecoderComponent,
+		newADSBProjector:     adsbcomponent.NewProjectorComponent,
 	}
 }
 
@@ -349,6 +411,18 @@ func fillDependencies(deps dependencies) dependencies {
 	}
 	if deps.newCAPProjector == nil {
 		deps.newCAPProjector = defaults.newCAPProjector
+	}
+	if deps.newADSBPlanWriter == nil {
+		deps.newADSBPlanWriter = defaults.newADSBPlanWriter
+	}
+	if deps.newADSBHTTPPoller == nil {
+		deps.newADSBHTTPPoller = defaults.newADSBHTTPPoller
+	}
+	if deps.newADSBDecoder == nil {
+		deps.newADSBDecoder = defaults.newADSBDecoder
+	}
+	if deps.newADSBProjector == nil {
+		deps.newADSBProjector = defaults.newADSBProjector
 	}
 	return deps
 }
@@ -597,6 +671,89 @@ func (a *App) startCAPFlow(
 	return nil
 }
 
+func (a *App) startADSBFlow(
+	ctx context.Context,
+	cfg ADSBConfig,
+	bindings copownership.BindingResult,
+	deps dependencies,
+) error {
+	bus := adsbRuntimeBus{client: a.client}
+	registry := payloadregistry.New()
+	writer, err := deps.newADSBPlanWriter(stack.ADSBAdapterConfig{
+		Source:        cfg.Source,
+		Org:           cfg.Org,
+		Platform:      cfg.Platform,
+		OwnerTokens:   bindings.OwnerTokenMap(),
+		TraceID:       cfg.TraceID,
+		RawMaxRecords: cfg.RawMaxRecords,
+		RawMaxBytes:   cfg.RawMaxBytes,
+		WriteTimeout:  cfg.WriteTimeout,
+		Retry:         cfg.Retry,
+	}, stack.ADSBAdapterDeps{NATS: a.client})
+	if err != nil {
+		return fmt.Errorf("compose ADS-B graph writer: %w", err)
+	}
+
+	projector, err := deps.newADSBProjector(adsbcomponent.ProjectorConfig{
+		Registry: registry,
+		Projector: adsbprojector.NewProjector(adsbprojector.Config{
+			Org:         cfg.Org,
+			Platform:    cfg.Platform,
+			OwnerTokens: bindings.OwnerTokenMap(),
+			TraceID:     cfg.TraceID,
+		}),
+		Writer:       writer,
+		WriteTimeout: cfg.WriteTimeout,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose ADS-B projector component: %w", err)
+	}
+	var replay adsbcomponent.ReplayAppender
+	if cfg.ReplayPath != "" {
+		replay = adsbcodec.NewReplayStore(cfg.ReplayPath)
+	}
+	decoder, err := deps.newADSBDecoder(adsbcomponent.DecoderConfig{
+		Source:         cfg.Source,
+		RawSubject:     adsbcomponent.DefaultRawSubject,
+		DecodedSubject: adsbcomponent.DefaultDecodedSubject,
+		RawMaxRecords:  cfg.RawMaxRecords,
+		RawMaxBytes:    cfg.RawMaxBytes,
+		Registry:       registry,
+		Replay:         replay,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose ADS-B decoder component: %w", err)
+	}
+	poller, err := deps.newADSBHTTPPoller(adsbcomponent.HTTPPollerConfig{
+		Source:           cfg.Source,
+		URL:              cfg.HTTP.URL,
+		Method:           cfg.HTTP.Method,
+		RawSubject:       adsbcomponent.DefaultRawSubject,
+		PollInterval:     cfg.HTTP.PollInterval,
+		StaleAfter:       cfg.HTTP.StaleAfter,
+		ContactPolicy:    cfg.HTTP.ContactPolicy,
+		AuthRef:          cfg.HTTP.AuthRef,
+		MaxResponseBytes: cfg.HTTP.MaxResponseBytes,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose ADS-B HTTP poller component: %w", err)
+	}
+	a.adsbProjector = projector
+	a.adsbDecoder = decoder
+	a.adsbPoller = poller
+
+	if err := startLifecycle(ctx, "ADS-B projector", projector); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "ADS-B decoder", decoder); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "ADS-B HTTP poller", poller); err != nil {
+		return err
+	}
+	return nil
+}
+
 func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	Initialize() error
 	Start(context.Context) error
@@ -631,6 +788,13 @@ func newCAPPlanWriter(
 	return stack.NewCAPPlanWriter(cfg, deps)
 }
 
+func newADSBPlanWriter(
+	cfg stack.ADSBAdapterConfig,
+	deps stack.ADSBAdapterDeps,
+) (adsbcomponent.PlanWriter, error) {
+	return stack.NewADSBPlanWriter(cfg, deps)
+}
+
 func newNATSClient(cfg Config) (semstreamsClient, error) {
 	return natsclient.NewClient(
 		cfg.NATSURL,
@@ -643,6 +807,7 @@ func registerOwners(
 	ctx context.Context,
 	client semstreamsClient,
 	heartbeatInterval time.Duration,
+	owned []cop.OwnedContract,
 ) (copownership.BindingResult, func(), error) {
 	nats, ok := client.(*natsclient.Client)
 	if !ok {
@@ -656,12 +821,23 @@ func registerOwners(
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 	go heartbeater.Run(heartbeatCtx)
 
-	bindings, err := copownership.RegisterFirstPhase(ctx, registry, heartbeater)
+	bindings, err := copownership.RegisterOwnedContracts(ctx, registry, heartbeater, owned)
 	if err != nil {
 		heartbeatCancel()
 		return copownership.BindingResult{}, nil, err
 	}
 	return bindings, heartbeatCancel, nil
+}
+
+func runtimeOwnedContracts(cfg Config) []cop.OwnedContract {
+	owned := cop.FirstPhaseOwnedContracts()
+	if cfg.ADSB.Enabled {
+		owned = append(owned, cop.OwnedContract{
+			Owner:    cop.OwnerADSB,
+			Contract: cop.ADSBTrackContract(),
+		})
+	}
+	return owned
 }
 
 type runtimeBus struct {
@@ -729,6 +905,29 @@ func (b capRuntimeBus) Subscribe(
 	subject string,
 	handler func(context.Context, *nats.Msg),
 ) (capcomponent.Subscription, error) {
+	subscription, err := b.client.Subscribe(ctx, subject, handler)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return noopSubscription{}, nil
+	}
+	return subscription, nil
+}
+
+type adsbRuntimeBus struct {
+	client semstreamsClient
+}
+
+func (b adsbRuntimeBus) Publish(ctx context.Context, subject string, data []byte) error {
+	return b.client.Publish(ctx, subject, data)
+}
+
+func (b adsbRuntimeBus) Subscribe(
+	ctx context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (adsbcomponent.Subscription, error) {
 	subscription, err := b.client.Subscribe(ctx, subject, handler)
 	if err != nil {
 		return nil, err

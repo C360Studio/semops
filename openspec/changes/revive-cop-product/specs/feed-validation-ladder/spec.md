@@ -135,11 +135,13 @@ canonical graph state.
 - **AND** the first OpenSky-compatible HTTP hosted ingress is expressed as SemStreams input and processor components
   with `HTTPClientPort`, `TimerPort`, payload-registry, stream-port, graph-request-port, health, and flow metrics
   coverage
+- **AND** the hosted app can opt into that HTTP component chain with `SEMOPS_ADSB_ENABLED=true`, config-driven replay
+  capture, raw-lane caps, stale-source settings, and `semops.feed.adsb` ownership registration
 - **AND** structural scenario replay is opt-in, uses the hosted ADS-B adapter seam, and writes graph mutations only
   after `semops.feed.adsb` has a SemStreams-minted owner token
 - **AND** COP API prefix discovery can read those aircraft tracks back from the graph
-- **AND** default live OpenSky runtime wiring, ASTERIX, raw receiver protocols, and cross-source aircraft association
-  remain out of scope until separate gates approve them
+- **AND** default live OpenSky enablement, provider reliability, ASTERIX, raw receiver protocols, and cross-source
+  aircraft association remain out of scope until separate gates approve them
 
 #### Scenario: Textual advisories stay content shaped
 

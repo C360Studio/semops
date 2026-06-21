@@ -1,7 +1,8 @@
 # ADS-B Feed Evidence
 
-Status: candidate Phase 2 air-picture feed with parser, replay, hosted-adapter seam, first OpenSky-shaped HTTP
-component package, opt-in structural scenario replay, projection, ownership registration, and COP readback evidence.
+Status: candidate Phase 2 air-picture feed with parser, replay, hosted-adapter seam, OpenSky-shaped HTTP component
+package, opt-in app-runtime wiring, opt-in structural scenario replay, projection, ownership registration, and COP
+readback evidence.
 
 ## Decision
 
@@ -12,10 +13,13 @@ The current ADS-B scenario replay seam remains an in-process deterministic harne
 parser, projection, ownership, and graph-write contracts. SemOps now also has the first real hosted ingress shape:
 `internal/components/adsb` provides an OpenSky-compatible HTTP poller input component, raw decoder processor, and
 born-first graph projector processor with declared `HTTPClientPort`, `TimerPort`, stream ports, request ports,
-registered payloads, health, flow metrics, replay capture, and provider-shaped local HTTP tests. This does not make
-live OpenSky part of the default MVP stack and does not cover readsb/dump1090, receiver TCP/UDP, or ASTERIX. See
+registered payloads, health, flow metrics, replay capture, and provider-shaped local HTTP tests. `cmd/semops` can now
+wire that poller -> decoder -> projector chain behind `SEMOPS_ADSB_ENABLED=true`, minting `semops.feed.adsb`
+ownership only for the enabled runtime. This does not make live OpenSky part of the default MVP stack and does not
+cover readsb/dump1090, receiver TCP/UDP, ASTERIX, or provider reliability. See
 `openspec/changes/revive-cop-product/reviews/2026-06-20-adsb-component-promotion-review.md` and
-`openspec/changes/revive-cop-product/reviews/2026-06-21-adsb-component-promotion-review.md`.
+`openspec/changes/revive-cop-product/reviews/2026-06-21-adsb-component-promotion-review.md` plus
+`openspec/changes/revive-cop-product/reviews/2026-06-21-adsb-runtime-flow-review.md`.
 
 ## Local Evidence
 
@@ -37,7 +41,13 @@ live OpenSky part of the default MVP stack and does not cover readsb/dump1090, r
 - `internal/components/adsb` promotes OpenSky-compatible HTTP polling into SemStreams input/processor components with
   `HTTPClientPort`, `TimerPort`, registered `message.BaseMessage` payloads, stream ports, graph request ports,
   replay capture, stale-source health, and local provider-shaped HTTP fixture tests.
+- `cmd/semops` can opt into the ADS-B HTTP poller -> decoder -> graph-projector chain with `SEMOPS_ADSB_ENABLED=true`,
+  `SEMOPS_ADSB_HTTP_URL`, stale/source replay settings, and config-driven raw-lane caps.
+- App-runtime ADS-B ownership appends `semops.feed.adsb` only when the hosted ADS-B flow is enabled, matching the
+  scenario-runner opt-in owner-token discipline.
 - `internal/stack.NewADSBAdapter` composes the adapter with either a SemStreams NATS requester or injected writer.
+- `internal/stack.NewADSBPlanWriter` exposes the same SemStreams graph request writer for component runtime wiring
+  without calling projector internals from the app layer.
 - `cmd/semops-scenario-runner` can opt into ADS-B replay with `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose
   service passes the flag through but defaults it off.
 - The scenario runner appends `semops.feed.adsb` ownership only for the opt-in ADS-B path; this is not a live OpenSky
@@ -173,6 +183,25 @@ Acceptance:
   reconciles already-born track births into update-only projection. [done]
 - Component tests use local HTTP fixture servers and do not claim live OpenSky reliability or credentials. [done]
 
+### App Runtime Component Gate
+
+Target command:
+
+```bash
+go test ./internal/app -run ADSB
+```
+
+Acceptance:
+
+- The hosted app composes ADS-B as SemStreams input -> decoder processor -> projector processor only when
+  `SEMOPS_ADSB_ENABLED=true`. [done]
+- Runtime ownership includes `semops.feed.adsb` only for the enabled ADS-B component flow. [done]
+- `SEMOPS_ADSB_REPLAY_PATH`, raw-lane bounds, HTTP URL, poll interval, stale-after, contact policy, and write timeout
+  are config/env-driven. [done]
+- Local provider-shaped HTTP fixtures can drive poller -> decoder -> projector writes and append replay without live
+  network access. [done]
+- Compose passes ADS-B runtime env through but defaults `SEMOPS_ADSB_ENABLED=false`. [done]
+
 ### Live Mode Gate
 
 Target command after optional live mode exists:
@@ -191,7 +220,8 @@ Acceptance:
 
 ## Known Gaps
 
-- No default ADS-B runtime wiring or live OpenSky client is enabled yet.
+- Default ADS-B runtime enablement remains off; opt-in OpenSky-compatible HTTP polling is not a provider reliability
+  or credentialed-live-service claim.
 - OpenSky is useful for samples but should not become a critical-path dependency.
 - ASTERIX is not in the first ADS-B slice.
 - Raw receiver/readsb/dump1090 paths are not implemented.

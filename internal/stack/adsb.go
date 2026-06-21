@@ -34,6 +34,13 @@ type ADSBAdapterDeps struct {
 	Writer adsbadapter.PlanWriter
 }
 
+func NewADSBPlanWriter(
+	cfg ADSBAdapterConfig,
+	deps ADSBAdapterDeps,
+) (adsbadapter.PlanWriter, error) {
+	return adsbWriter(cfg, deps)
+}
+
 func NewADSBAdapter(
 	cfg ADSBAdapterConfig,
 	deps ADSBAdapterDeps,

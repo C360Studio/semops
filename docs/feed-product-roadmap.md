@@ -97,7 +97,8 @@ CS API:
 ADS-B:
 
 - Demo/MVP boundary: recorded OpenSky-shaped JSON fixture parsing for aircraft current state, replay/projection, and a
-  local-fixture-proved OpenSky-compatible HTTP component chain.
+  local-fixture-proved OpenSky-compatible HTTP component chain that the hosted app can run behind
+  `SEMOPS_ADSB_ENABLED=true`.
 - Full product path: opt-in live OpenSky, receiver/readsb/dump1090 service, rate limits, ASTERIX later, association,
   and airspace filters.
 - Promotion trigger: shared-airspace vignette or live receiver requirement.
@@ -218,6 +219,8 @@ nullable position fields plus position-source quality before projection. Current
 OpenSky snapshot replay, hosted snapshot ingest, source-partitioned ADS-B aircraft projection with `signal` indexing,
 COP graph prefix readback, opt-in structural scenario replay with `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, and an
 OpenSky-compatible HTTP input -> decoder -> graph-projector component package proved with local provider fixtures.
+The hosted app can compose that chain with `SEMOPS_ADSB_ENABLED=true`, provider URL/stale/replay settings, raw-lane
+caps, and `semops.feed.adsb` ownership registration only for the enabled flow.
 
 Full product lane:
 Optional runtime wiring for live OpenSky with rate-limit handling, local receiver/readsb/dump1090 paths, raw ADS-B or
@@ -225,13 +228,13 @@ ASTERIX later, association with MAVLink/SAPIENT/fusion tracks, and airspace filt
 
 Boundary to preserve now:
 Keep raw receiver rows off the graph and project current aircraft state plus association evidence separately. ADS-B
-owner registration is valid for token-backed structural replay; it is not a live feed or receiver-service claim. Do
-not treat `internal/components/adsb` as a default live service claim; it proves the SemStreams component shape for
-OpenSky-compatible HTTP polling while readsb/dump1090 file tailing, receiver TCP/UDP, and ASTERIX still need separate
-input components when chosen.
+owner registration is valid for token-backed structural replay and opt-in runtime polling; it is not a default live
+feed or receiver-service claim. Do not treat `internal/components/adsb` as a default live service claim; it proves the
+SemStreams component shape for OpenSky-compatible HTTP polling while readsb/dump1090 file tailing, receiver TCP/UDP,
+and ASTERIX still need separate input components when chosen.
 
 Not claimed yet:
-Default live air-traffic feed reliability, runtime-hosted ADS-B service support, ASTERIX support, cross-source
+Default live air-traffic feed reliability, default-enabled ADS-B service support, ASTERIX support, cross-source
 aircraft association, or complete surveillance/radar processing.
 
 ### SAPIENT
