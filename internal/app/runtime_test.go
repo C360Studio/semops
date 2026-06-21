@@ -17,6 +17,7 @@ import (
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
+	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	"github.com/c360studio/semops/internal/copownership"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
@@ -27,6 +28,7 @@ import (
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
+	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/natsclient"
@@ -636,6 +638,141 @@ func TestStartADSBFlowCapturesProviderReplayWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestStartComposesSAPIENTPreflightFlowWithoutOwnershipExpansion(t *testing.T) {
+	ctx := context.Background()
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.SAPIENT.Enabled = true
+	cfg.SAPIENT.Source = "sapient:http:test"
+	cfg.SAPIENT.HTTP.URL = "https://example.test/sapient"
+	cfg.SAPIENT.HTTP.PollInterval = time.Hour
+	cfg.SAPIENT.HTTP.StaleAfter = 3 * time.Hour
+	cfg.SAPIENT.HTTP.ContactPolicy = "semops-test@example.invalid"
+
+	var stoppedOwners bool
+	app, err := start(ctx, cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			_ context.Context,
+			gotClient semstreamsClient,
+			heartbeat time.Duration,
+			owned []cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			if gotClient != client {
+				t.Fatal("ownership registration got unexpected client")
+			}
+			if !client.connected {
+				t.Fatal("ownership registration must run after NATS connect")
+			}
+			if heartbeat != cfg.OwnershipHeartbeatInterval {
+				t.Fatalf("heartbeat interval = %s, want %s", heartbeat, cfg.OwnershipHeartbeatInterval)
+			}
+			for _, item := range owned {
+				if strings.Contains(item.Owner, "sapient") {
+					t.Fatalf("SAPIENT preflight runtime must not register graph ownership: %+v", owned)
+				}
+			}
+			return copownership.BindingResult{
+					Incarnation: "lease-123",
+				}, func() {
+					stoppedOwners = true
+				}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if app.SAPIENTHTTPInput() == nil || app.SAPIENTDecoder() == nil {
+		t.Fatal("expected hosted SAPIENT HTTP input and decoder components")
+	}
+	if got := app.SAPIENTHTTPInput().DebugStatus().(sapientcomponent.HTTPInputDebugStatus).StaleAfter; got != 3*time.Hour {
+		t.Fatalf("SAPIENT stale_after = %s, want 3h", got)
+	}
+	if !client.hasSubscription(sapientcomponent.DefaultRawSubject) {
+		t.Fatalf("SAPIENT flow subscriptions = %+v", client.subscriptionSubjects())
+	}
+	if client.hasSubscription(sapientcomponent.DefaultDecodedSubject) {
+		t.Fatalf("SAPIENT preflight runtime should not subscribe decoded graph subject: %+v", client.subscriptionSubjects())
+	}
+
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatalf("close app: %v", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("close must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("close must close SemStreams client")
+	}
+}
+
+func TestStartSAPIENTPreflightCapturesProviderReplayWhenConfigured(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(runtimeSAPIENTTaskAckJSON))
+	}))
+	defer server.Close()
+
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.SAPIENT.Enabled = true
+	cfg.SAPIENT.Source = "sapient-fixture"
+	cfg.SAPIENT.ReplayPath = filepath.Join(t.TempDir(), "sapient-provider.jsonl")
+	cfg.SAPIENT.HTTP.URL = server.URL
+	cfg.SAPIENT.HTTP.PollInterval = time.Hour
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := app.Close(context.Background()); err != nil {
+			t.Fatalf("close app: %v", err)
+		}
+	})
+
+	if err := app.SAPIENTHTTPInput().PollOnce(context.Background()); err != nil {
+		t.Fatalf("poll SAPIENT provider fixture: %v", err)
+	}
+	if got := client.publishedCount(sapientcomponent.DefaultRawSubject); got != 1 {
+		t.Fatalf("raw SAPIENT messages = %d, want 1", got)
+	}
+	if got := client.publishedCount(sapientcomponent.DefaultDecodedSubject); got != 1 {
+		t.Fatalf("decoded SAPIENT messages = %d, want 1", got)
+	}
+	records, err := sapientcodec.LoadReplay(cfg.SAPIENT.ReplayPath)
+	if err != nil {
+		t.Fatalf("load runtime SAPIENT replay: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("runtime SAPIENT replay records = %d, want 1", len(records))
+	}
+	if records[0].Source != "sapient-fixture" ||
+		records[0].Content != sapientcodec.ContentTaskAck ||
+		records[0].NodeID != "a8654cdf-4328-47de-81fa-c495589e30c8" {
+		t.Fatalf("runtime SAPIENT replay record = %+v", records[0])
+	}
+	if _, err := records[0].Message(nil); err != nil {
+		t.Fatalf("parse runtime SAPIENT replay payload: %v", err)
+	}
+}
+
 func TestStartCleansUpWhenCAPCompositionFails(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -707,6 +844,47 @@ func TestStartCleansUpWhenADSBCompositionFails(t *testing.T) {
 	})
 	if !errors.Is(err, writerErr) {
 		t.Fatalf("error = %v, want adsb writer error", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("failed startup must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("failed startup must close SemStreams client")
+	}
+}
+
+func TestStartCleansUpWhenSAPIENTCompositionFails(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.SAPIENT.Enabled = true
+	cfg.SAPIENT.HTTP.URL = "https://example.test/sapient"
+	decoderErr := errors.New("bad sapient decoder")
+	var stoppedOwners bool
+
+	_, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {
+				stoppedOwners = true
+			}, nil
+		},
+		newSAPIENTDecoder: func(
+			sapientcomponent.DecoderConfig,
+			sapientcomponent.Bus,
+		) (*sapientcomponent.DecoderComponent, error) {
+			return nil, decoderErr
+		},
+	})
+	if !errors.Is(err, decoderErr) {
+		t.Fatalf("error = %v, want sapient decoder error", err)
 	}
 	if !stoppedOwners {
 		t.Fatal("failed startup must stop ownership heartbeat")
@@ -867,6 +1045,44 @@ func TestStartCanDisableHostedADSBFlow(t *testing.T) {
 	}
 }
 
+func TestStartCanDisableHostedSAPIENTPreflightFlow(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.SAPIENT.Enabled = false
+	var composed bool
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+		newSAPIENTHTTPInput: func(
+			sapientcomponent.HTTPInputConfig,
+			sapientcomponent.Bus,
+		) (*sapientcomponent.HTTPInputComponent, error) {
+			composed = true
+			return nil, errors.New("should not compose SAPIENT input when disabled")
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if composed {
+		t.Fatal("SAPIENT flow should not be composed when disabled")
+	}
+	if app.SAPIENTHTTPInput() != nil || app.SAPIENTDecoder() != nil {
+		t.Fatal("SAPIENT components should be nil when disabled")
+	}
+}
+
 func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -988,56 +1204,69 @@ func TestRuntimeOwnedContractsIncludeADSBOnlyWhenEnabled(t *testing.T) {
 
 func TestConfigFromEnv(t *testing.T) {
 	env := map[string]string{
-		EnvNATSURL:                    "nats://semstreams:4222",
-		EnvNATSName:                   "semops-test",
-		EnvNATSConnectTimeout:         "3s",
-		EnvAPIAddr:                    ":18088",
-		EnvOwnershipHeartbeatInterval: "4s",
-		EnvCOPGraphQueryTimeout:       "1500ms",
-		EnvCOPGraphDiscoveryEnabled:   "false",
-		EnvCOPGraphDiscoveryLimit:     "75",
-		EnvCOPMAVLinkSystemIDs:        "42, 43",
-		EnvCOPCoTUIDs:                 "ANDROID-ALPHA, MARKER-NORTH-GATE",
-		EnvCOPCAPAlertIDs:             "nws-demo-flood-warning, nws-demo-flood-update",
-		EnvMAVLinkEnabled:             "false",
-		EnvMAVLinkSource:              "udp:14550",
-		EnvOrg:                        "lab",
-		EnvPlatform:                   "edge-7",
-		EnvTraceID:                    "trace-7",
-		EnvMAVLinkWriteTimeout:        "900ms",
-		EnvMAVLinkUDPListenAddr:       "127.0.0.1:14550",
-		EnvMAVLinkUDPMaxDatagramBytes: "2048",
-		EnvCoTEnabled:                 "true",
-		EnvCoTSource:                  "udp:cot",
-		EnvCoTWriteTimeout:            "950ms",
-		EnvCoTUDPListenAddr:           "127.0.0.1:18080",
-		EnvCoTUDPMaxDatagramBytes:     "4096",
-		EnvCoTTCPListenAddr:           "127.0.0.1:18081",
-		EnvCoTTCPMaxEventBytes:        "8192",
-		EnvCAPEnabled:                 "true",
-		EnvCAPSource:                  "cap:http",
-		EnvCAPReplayPath:              "/tmp/semops-cap.jsonl",
-		EnvCAPWriteTimeout:            "975ms",
-		EnvCAPHTTPURL:                 "https://example.test/cap",
-		EnvCAPHTTPMethod:              "POST",
-		EnvCAPHTTPPollInterval:        "45s",
-		EnvCAPHTTPStaleAfter:          "2m",
-		EnvCAPHTTPContactPolicy:       "semops-test@example.invalid",
-		EnvCAPHTTPAuthRef:             "cap-secret",
-		EnvCAPHTTPMaxResponseBytes:    "123456",
-		EnvADSBEnabled:                "true",
-		EnvADSBSource:                 "adsb:opensky",
-		EnvADSBReplayPath:             "/tmp/semops-adsb.jsonl",
-		EnvADSBRawMaxRecords:          "32",
-		EnvADSBRawMaxBytes:            "65536",
-		EnvADSBWriteTimeout:           "980ms",
-		EnvADSBHTTPURL:                "https://example.test/opensky",
-		EnvADSBHTTPMethod:             "POST",
-		EnvADSBHTTPPollInterval:       "40s",
-		EnvADSBHTTPStaleAfter:         "3m",
-		EnvADSBHTTPContactPolicy:      "semops-adsb-test@example.invalid",
-		EnvADSBHTTPAuthRef:            "adsb-secret",
-		EnvADSBHTTPMaxResponseBytes:   "234567",
+		EnvNATSURL:                     "nats://semstreams:4222",
+		EnvNATSName:                    "semops-test",
+		EnvNATSConnectTimeout:          "3s",
+		EnvAPIAddr:                     ":18088",
+		EnvOwnershipHeartbeatInterval:  "4s",
+		EnvCOPGraphQueryTimeout:        "1500ms",
+		EnvCOPGraphDiscoveryEnabled:    "false",
+		EnvCOPGraphDiscoveryLimit:      "75",
+		EnvCOPMAVLinkSystemIDs:         "42, 43",
+		EnvCOPCoTUIDs:                  "ANDROID-ALPHA, MARKER-NORTH-GATE",
+		EnvCOPCAPAlertIDs:              "nws-demo-flood-warning, nws-demo-flood-update",
+		EnvMAVLinkEnabled:              "false",
+		EnvMAVLinkSource:               "udp:14550",
+		EnvOrg:                         "lab",
+		EnvPlatform:                    "edge-7",
+		EnvTraceID:                     "trace-7",
+		EnvMAVLinkWriteTimeout:         "900ms",
+		EnvMAVLinkUDPListenAddr:        "127.0.0.1:14550",
+		EnvMAVLinkUDPMaxDatagramBytes:  "2048",
+		EnvCoTEnabled:                  "true",
+		EnvCoTSource:                   "udp:cot",
+		EnvCoTWriteTimeout:             "950ms",
+		EnvCoTUDPListenAddr:            "127.0.0.1:18080",
+		EnvCoTUDPMaxDatagramBytes:      "4096",
+		EnvCoTTCPListenAddr:            "127.0.0.1:18081",
+		EnvCoTTCPMaxEventBytes:         "8192",
+		EnvCAPEnabled:                  "true",
+		EnvCAPSource:                   "cap:http",
+		EnvCAPReplayPath:               "/tmp/semops-cap.jsonl",
+		EnvCAPWriteTimeout:             "975ms",
+		EnvCAPHTTPURL:                  "https://example.test/cap",
+		EnvCAPHTTPMethod:               "POST",
+		EnvCAPHTTPPollInterval:         "45s",
+		EnvCAPHTTPStaleAfter:           "2m",
+		EnvCAPHTTPContactPolicy:        "semops-test@example.invalid",
+		EnvCAPHTTPAuthRef:              "cap-secret",
+		EnvCAPHTTPMaxResponseBytes:     "123456",
+		EnvADSBEnabled:                 "true",
+		EnvADSBSource:                  "adsb:opensky",
+		EnvADSBReplayPath:              "/tmp/semops-adsb.jsonl",
+		EnvADSBRawMaxRecords:           "32",
+		EnvADSBRawMaxBytes:             "65536",
+		EnvADSBWriteTimeout:            "980ms",
+		EnvADSBHTTPURL:                 "https://example.test/opensky",
+		EnvADSBHTTPMethod:              "POST",
+		EnvADSBHTTPPollInterval:        "40s",
+		EnvADSBHTTPStaleAfter:          "3m",
+		EnvADSBHTTPContactPolicy:       "semops-adsb-test@example.invalid",
+		EnvADSBHTTPAuthRef:             "adsb-secret",
+		EnvADSBHTTPMaxResponseBytes:    "234567",
+		EnvSAPIENTEnabled:              "true",
+		EnvSAPIENTSource:               "sapient:http",
+		EnvSAPIENTReplayPath:           "/tmp/semops-sapient.jsonl",
+		EnvSAPIENTRawMaxRecords:        "33",
+		EnvSAPIENTRawMaxBytes:          "75536",
+		EnvSAPIENTHTTPURL:              "https://example.test/sapient",
+		EnvSAPIENTHTTPMethod:           "POST",
+		EnvSAPIENTHTTPPollInterval:     "50s",
+		EnvSAPIENTHTTPStaleAfter:       "4m",
+		EnvSAPIENTHTTPContactPolicy:    "semops-sapient-test@example.invalid",
+		EnvSAPIENTHTTPAuthRef:          "sapient-secret",
+		EnvSAPIENTHTTPMaxResponseBytes: "345678",
+		EnvSAPIENTHTTPEncoding:         "json",
 	}
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
@@ -1158,6 +1387,26 @@ func TestConfigFromEnv(t *testing.T) {
 		cfg.ADSB.HTTP.AuthRef != "adsb-secret" ||
 		cfg.ADSB.HTTP.MaxResponseBytes != 234567 {
 		t.Fatalf("ADS-B HTTP config = %+v", cfg.ADSB.HTTP)
+	}
+	if !cfg.SAPIENT.Enabled {
+		t.Fatal("SAPIENT enabled = false, want true")
+	}
+	if cfg.SAPIENT.Source != "sapient:http" ||
+		cfg.SAPIENT.ReplayPath != "/tmp/semops-sapient.jsonl" {
+		t.Fatalf("SAPIENT config = %+v", cfg.SAPIENT)
+	}
+	if cfg.SAPIENT.RawMaxRecords != 33 || cfg.SAPIENT.RawMaxBytes != 75536 {
+		t.Fatalf("SAPIENT raw lane config = records %d bytes %d", cfg.SAPIENT.RawMaxRecords, cfg.SAPIENT.RawMaxBytes)
+	}
+	if cfg.SAPIENT.HTTP.URL != "https://example.test/sapient" ||
+		cfg.SAPIENT.HTTP.Method != "POST" ||
+		cfg.SAPIENT.HTTP.PollInterval != 50*time.Second ||
+		cfg.SAPIENT.HTTP.StaleAfter != 4*time.Minute ||
+		cfg.SAPIENT.HTTP.ContactPolicy != "semops-sapient-test@example.invalid" ||
+		cfg.SAPIENT.HTTP.AuthRef != "sapient-secret" ||
+		cfg.SAPIENT.HTTP.MaxResponseBytes != 345678 ||
+		cfg.SAPIENT.HTTP.Encoding != sapientcodec.EncodingJSON {
+		t.Fatalf("SAPIENT HTTP config = %+v", cfg.SAPIENT.HTTP)
 	}
 }
 
@@ -1332,6 +1581,36 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			want: EnvADSBHTTPMaxResponseBytes,
 		},
 		{
+			name: "bad sapient enabled",
+			env:  map[string]string{EnvSAPIENTEnabled: "sometimes"},
+			want: EnvSAPIENTEnabled,
+		},
+		{
+			name: "bad sapient poll interval",
+			env:  map[string]string{EnvSAPIENTHTTPPollInterval: "soon"},
+			want: EnvSAPIENTHTTPPollInterval,
+		},
+		{
+			name: "bad sapient stale after",
+			env:  map[string]string{EnvSAPIENTHTTPStaleAfter: "later"},
+			want: EnvSAPIENTHTTPStaleAfter,
+		},
+		{
+			name: "bad sapient raw max records",
+			env:  map[string]string{EnvSAPIENTRawMaxRecords: "many"},
+			want: EnvSAPIENTRawMaxRecords,
+		},
+		{
+			name: "bad sapient raw max bytes",
+			env:  map[string]string{EnvSAPIENTRawMaxBytes: "huge"},
+			want: EnvSAPIENTRawMaxBytes,
+		},
+		{
+			name: "bad sapient max response bytes",
+			env:  map[string]string{EnvSAPIENTHTTPMaxResponseBytes: "huge"},
+			want: EnvSAPIENTHTTPMaxResponseBytes,
+		},
+		{
 			name: "zero udp max datagram",
 			env: map[string]string{
 				EnvMAVLinkUDPListenAddr:       "127.0.0.1:14550",
@@ -1404,6 +1683,56 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvADSBHTTPStaleAfter: "0s",
 			},
 			want: EnvADSBHTTPStaleAfter,
+		},
+		{
+			name: "zero sapient raw max records",
+			env: map[string]string{
+				EnvSAPIENTEnabled:       "true",
+				EnvSAPIENTHTTPURL:       "https://example.test/sapient",
+				EnvSAPIENTRawMaxRecords: "0",
+			},
+			want: EnvSAPIENTRawMaxRecords,
+		},
+		{
+			name: "zero sapient raw max bytes",
+			env: map[string]string{
+				EnvSAPIENTEnabled:     "true",
+				EnvSAPIENTHTTPURL:     "https://example.test/sapient",
+				EnvSAPIENTRawMaxBytes: "0",
+			},
+			want: EnvSAPIENTRawMaxBytes,
+		},
+		{
+			name: "zero sapient max response bytes",
+			env: map[string]string{
+				EnvSAPIENTEnabled:              "true",
+				EnvSAPIENTHTTPURL:              "https://example.test/sapient",
+				EnvSAPIENTHTTPMaxResponseBytes: "0",
+			},
+			want: EnvSAPIENTHTTPMaxResponseBytes,
+		},
+		{
+			name: "zero sapient stale after",
+			env: map[string]string{
+				EnvSAPIENTEnabled:        "true",
+				EnvSAPIENTHTTPURL:        "https://example.test/sapient",
+				EnvSAPIENTHTTPStaleAfter: "0s",
+			},
+			want: EnvSAPIENTHTTPStaleAfter,
+		},
+		{
+			name: "sapient enabled without url",
+			env:  map[string]string{EnvSAPIENTEnabled: "true"},
+			want: EnvSAPIENTHTTPURL,
+		},
+		{
+			name: "bad sapient encoding",
+			env: map[string]string{
+				EnvSAPIENTEnabled:      "true",
+				EnvSAPIENTHTTPURL:      "https://example.test/sapient",
+				EnvSAPIENTHTTPEncoding: "yaml",
+			},
+			want: EnvSAPIENTHTTPEncoding,
 		},
 	}
 
@@ -1539,6 +1868,18 @@ func (c *fakeSemStreamsClient) requestCount() int {
 	return len(c.requests)
 }
 
+func (c *fakeSemStreamsClient) publishedCount(subject string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	count := 0
+	for _, msg := range c.published {
+		if msg.subject == subject {
+			count++
+		}
+	}
+	return count
+}
+
 type publishedRuntimeMessage struct {
 	subject string
 	data    []byte
@@ -1653,3 +1994,13 @@ func waitFor(t *testing.T, timeout time.Duration, condition func() bool) {
 	}
 	t.Fatal("condition was not met before timeout")
 }
+
+const runtimeSAPIENTTaskAckJSON = `{
+  "timestamp": "2023-07-07T12:44:17.027638700Z",
+  "nodeId": "a8654cdf-4328-47de-81fa-c495589e30c8",
+  "taskAck": {
+    "taskId": "01H4R63D7NVN8444Z5M77WEBY8",
+    "taskStatus": "TASK_STATUS_ACCEPTED",
+    "reason": ["accepted for runtime preflight"]
+  }
+}`

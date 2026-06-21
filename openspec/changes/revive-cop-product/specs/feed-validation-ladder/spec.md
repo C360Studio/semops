@@ -89,6 +89,8 @@ public conformance suite, or documented interoperability test backs the claim.
   full-message coverage, portable-suite authority, product support, or SAPIENT compliance
 - **AND** SemOps may run SAPIENT raw ingress and decoder preflight as SemStreams input and processor components only
   when they publish raw/decoded streams and avoid graph mutation ports, owner claims, and product support wording
+- **AND** the hosted app may compose that HTTP input -> decoder chain behind `SEMOPS_SAPIENT_ENABLED=true` only when
+  URL, encoding, replay, and stale-source settings remain explicit preflight configuration
 - **AND** SemOps does not claim compliance until scoped Dstl harness evidence exists
 - **AND** SemOps does not add SAPIENT owner claims, graph projection, graph-producing hosted components, or product
   service support until projection ownership, indexing, service mode, and harness scope have been reviewed

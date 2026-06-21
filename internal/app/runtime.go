@@ -10,6 +10,7 @@ import (
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
+	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	"github.com/c360studio/semops/internal/copownership"
 	"github.com/c360studio/semops/internal/graphrequest"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
@@ -19,6 +20,7 @@ import (
 	"github.com/c360studio/semops/internal/stack"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
+	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/payloadregistry"
@@ -43,6 +45,8 @@ type App struct {
 	adsbPoller       *adsbcomponent.HTTPPollerComponent
 	adsbDecoder      *adsbcomponent.DecoderComponent
 	adsbProjector    *adsbcomponent.ProjectorComponent
+	sapientInput     *sapientcomponent.HTTPInputComponent
+	sapientDecoder   *sapientcomponent.DecoderComponent
 }
 
 type semstreamsClient interface {
@@ -84,6 +88,8 @@ type dependencies struct {
 	newADSBHTTPPoller    func(adsbcomponent.HTTPPollerConfig, adsbcomponent.Bus) (*adsbcomponent.HTTPPollerComponent, error)
 	newADSBDecoder       func(adsbcomponent.DecoderConfig, adsbcomponent.Bus) (*adsbcomponent.DecoderComponent, error)
 	newADSBProjector     func(adsbcomponent.ProjectorConfig, adsbcomponent.Bus) (*adsbcomponent.ProjectorComponent, error)
+	newSAPIENTHTTPInput  func(sapientcomponent.HTTPInputConfig, sapientcomponent.Bus) (*sapientcomponent.HTTPInputComponent, error)
+	newSAPIENTDecoder    func(sapientcomponent.DecoderConfig, sapientcomponent.Bus) (*sapientcomponent.DecoderComponent, error)
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -123,6 +129,11 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop ADS-B HTTP poller component: %w", err))
 		}
 	}
+	if a.sapientInput != nil {
+		if err := a.sapientInput.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop SAPIENT HTTP input component: %w", err))
+		}
+	}
 	if a.mavlinkDecoder != nil {
 		if err := a.mavlinkDecoder.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink decoder component: %w", err))
@@ -141,6 +152,11 @@ func (a *App) Close(ctx context.Context) error {
 	if a.adsbDecoder != nil {
 		if err := a.adsbDecoder.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop ADS-B decoder component: %w", err))
+		}
+	}
+	if a.sapientDecoder != nil {
+		if err := a.sapientDecoder.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop SAPIENT decoder component: %w", err))
 		}
 	}
 	if a.mavlinkProjector != nil {
@@ -272,6 +288,20 @@ func (a *App) ADSBProjector() *adsbcomponent.ProjectorComponent {
 	return a.adsbProjector
 }
 
+func (a *App) SAPIENTHTTPInput() *sapientcomponent.HTTPInputComponent {
+	if a == nil {
+		return nil
+	}
+	return a.sapientInput
+}
+
+func (a *App) SAPIENTDecoder() *sapientcomponent.DecoderComponent {
+	if a == nil {
+		return nil
+	}
+	return a.sapientDecoder
+}
+
 func (a *App) GraphRequester() GraphRequester {
 	if a == nil {
 		return nil
@@ -337,6 +367,12 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 		}
 	}
 
+	if cfg.SAPIENT.Enabled {
+		if err := app.startSAPIENTFlow(ctx, cfg.SAPIENT, deps); err != nil {
+			return nil, err
+		}
+	}
+
 	cleanup = false
 	return app, nil
 }
@@ -362,6 +398,8 @@ func defaultDependencies() dependencies {
 		newADSBHTTPPoller:    adsbcomponent.NewHTTPPollerComponent,
 		newADSBDecoder:       adsbcomponent.NewDecoderComponent,
 		newADSBProjector:     adsbcomponent.NewProjectorComponent,
+		newSAPIENTHTTPInput:  sapientcomponent.NewHTTPInputComponent,
+		newSAPIENTDecoder:    sapientcomponent.NewDecoderComponent,
 	}
 }
 
@@ -423,6 +461,12 @@ func fillDependencies(deps dependencies) dependencies {
 	}
 	if deps.newADSBProjector == nil {
 		deps.newADSBProjector = defaults.newADSBProjector
+	}
+	if deps.newSAPIENTHTTPInput == nil {
+		deps.newSAPIENTHTTPInput = defaults.newSAPIENTHTTPInput
+	}
+	if deps.newSAPIENTDecoder == nil {
+		deps.newSAPIENTDecoder = defaults.newSAPIENTDecoder
 	}
 	return deps
 }
@@ -754,6 +798,52 @@ func (a *App) startADSBFlow(
 	return nil
 }
 
+func (a *App) startSAPIENTFlow(ctx context.Context, cfg SAPIENTConfig, deps dependencies) error {
+	bus := sapientRuntimeBus{client: a.client}
+	registry := payloadregistry.New()
+	var replay sapientcomponent.ReplayAppender
+	if cfg.ReplayPath != "" {
+		replay = sapientcodec.NewReplayStore(cfg.ReplayPath)
+	}
+	decoder, err := deps.newSAPIENTDecoder(sapientcomponent.DecoderConfig{
+		Source:         cfg.Source,
+		RawSubject:     sapientcomponent.DefaultRawSubject,
+		DecodedSubject: sapientcomponent.DefaultDecodedSubject,
+		RawMaxRecords:  cfg.RawMaxRecords,
+		RawMaxBytes:    cfg.RawMaxBytes,
+		Registry:       registry,
+		Replay:         replay,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose SAPIENT decoder component: %w", err)
+	}
+	input, err := deps.newSAPIENTHTTPInput(sapientcomponent.HTTPInputConfig{
+		Source:           cfg.Source,
+		URL:              cfg.HTTP.URL,
+		Method:           cfg.HTTP.Method,
+		RawSubject:       sapientcomponent.DefaultRawSubject,
+		PollInterval:     cfg.HTTP.PollInterval,
+		StaleAfter:       cfg.HTTP.StaleAfter,
+		ContactPolicy:    cfg.HTTP.ContactPolicy,
+		AuthRef:          cfg.HTTP.AuthRef,
+		MaxResponseBytes: cfg.HTTP.MaxResponseBytes,
+		Encoding:         cfg.HTTP.Encoding,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose SAPIENT HTTP input component: %w", err)
+	}
+	a.sapientDecoder = decoder
+	a.sapientInput = input
+
+	if err := startLifecycle(ctx, "SAPIENT decoder", decoder); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "SAPIENT HTTP input", input); err != nil {
+		return err
+	}
+	return nil
+}
+
 func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	Initialize() error
 	Start(context.Context) error
@@ -928,6 +1018,29 @@ func (b adsbRuntimeBus) Subscribe(
 	subject string,
 	handler func(context.Context, *nats.Msg),
 ) (adsbcomponent.Subscription, error) {
+	subscription, err := b.client.Subscribe(ctx, subject, handler)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return noopSubscription{}, nil
+	}
+	return subscription, nil
+}
+
+type sapientRuntimeBus struct {
+	client semstreamsClient
+}
+
+func (b sapientRuntimeBus) Publish(ctx context.Context, subject string, data []byte) error {
+	return b.client.Publish(ctx, subject, data)
+}
+
+func (b sapientRuntimeBus) Subscribe(
+	ctx context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (sapientcomponent.Subscription, error) {
 	subscription, err := b.client.Subscribe(ctx, subject, handler)
 	if err != nil {
 		return nil, err

@@ -245,7 +245,9 @@ middleware. The first SemOps lane is parser-only: JSON preflight and descriptor-
 validate representative Dstl-harness-shaped messages before graph writes. Bounded raw capture and JSON Lines replay now
 preserve exact JSON/protobuf payload bytes for repeatable preflight and future harness comparison. The first
 SemStreams component lane is preflight-only: HTTP raw input plus decoder processor produce raw/decoded streams without
-graph ports, owner claims, or product support wording.
+graph ports, owner claims, or product support wording. The hosted app can run that preflight chain behind
+`SEMOPS_SAPIENT_ENABLED=true` with an explicit URL, encoding, stale-source settings, raw-lane caps, and optional
+replay capture.
 
 Full product lane:
 SemOps-hosted SAPIENT-facing service if needed, with sensor/detection/tasking integration, versioned protobuf
@@ -259,7 +261,8 @@ graph projection. Treat Apex as an interop reference, while SemOps owns product 
 provenance, freshness, replay, and command authority. First graph projection should start with absolute-location
 reports only unless source sensor pose, reference frame, and uncertainty make range/bearing conversion honest.
 Associated detections and cross-source links belong to fusion or evidence contracts rather than the SAPIENT source
-owner. `internal/components/sapient` is a preflight flow boundary, not a SemOps-hosted SAPIENT product service.
+owner. `internal/components/sapient` and the opt-in app-runtime path are preflight flow boundaries, not a
+SemOps-hosted SAPIENT product service.
 
 Not claimed yet:
 SAPIENT conformance, product support, local test-harness success, portable-suite authority, full-message coverage, or

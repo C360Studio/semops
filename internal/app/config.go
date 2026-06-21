@@ -9,62 +9,77 @@ import (
 
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
+	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
+	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
 const (
-	EnvNATSURL                    = "SEMOPS_NATS_URL"
-	EnvNATSName                   = "SEMOPS_NATS_NAME"
-	EnvNATSConnectTimeout         = "SEMOPS_NATS_CONNECT_TIMEOUT"
-	EnvAPIAddr                    = "SEMOPS_API_ADDR"
-	EnvOwnershipHeartbeatInterval = "SEMOPS_OWNERSHIP_HEARTBEAT_INTERVAL"
-	EnvMAVLinkEnabled             = "SEMOPS_MAVLINK_ENABLED"
-	EnvMAVLinkSource              = "SEMOPS_MAVLINK_SOURCE"
-	EnvOrg                        = "SEMOPS_ORG"
-	EnvPlatform                   = "SEMOPS_PLATFORM"
-	EnvTraceID                    = "SEMOPS_TRACE_ID"
-	EnvMAVLinkWriteTimeout        = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
-	EnvMAVLinkUDPListenAddr       = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
-	EnvMAVLinkUDPMaxDatagramBytes = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
-	EnvCoTEnabled                 = "SEMOPS_COT_ENABLED"
-	EnvCoTSource                  = "SEMOPS_COT_SOURCE"
-	EnvCoTWriteTimeout            = "SEMOPS_COT_WRITE_TIMEOUT"
-	EnvCoTUDPListenAddr           = "SEMOPS_COT_UDP_LISTEN_ADDR"
-	EnvCoTUDPMaxDatagramBytes     = "SEMOPS_COT_UDP_MAX_DATAGRAM_BYTES"
-	EnvCoTTCPListenAddr           = "SEMOPS_COT_TCP_LISTEN_ADDR"
-	EnvCoTTCPMaxEventBytes        = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
-	EnvCAPEnabled                 = "SEMOPS_CAP_ENABLED"
-	EnvCAPSource                  = "SEMOPS_CAP_SOURCE"
-	EnvCAPReplayPath              = "SEMOPS_CAP_REPLAY_PATH"
-	EnvCAPWriteTimeout            = "SEMOPS_CAP_WRITE_TIMEOUT"
-	EnvCAPHTTPURL                 = "SEMOPS_CAP_HTTP_URL"
-	EnvCAPHTTPMethod              = "SEMOPS_CAP_HTTP_METHOD"
-	EnvCAPHTTPPollInterval        = "SEMOPS_CAP_HTTP_POLL_INTERVAL"
-	EnvCAPHTTPStaleAfter          = "SEMOPS_CAP_HTTP_STALE_AFTER"
-	EnvCAPHTTPContactPolicy       = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
-	EnvCAPHTTPAuthRef             = "SEMOPS_CAP_HTTP_AUTH_REF"
-	EnvCAPHTTPMaxResponseBytes    = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
-	EnvADSBEnabled                = "SEMOPS_ADSB_ENABLED"
-	EnvADSBSource                 = "SEMOPS_ADSB_SOURCE"
-	EnvADSBReplayPath             = "SEMOPS_ADSB_REPLAY_PATH"
-	EnvADSBRawMaxRecords          = "SEMOPS_ADSB_RAW_MAX_RECORDS"
-	EnvADSBRawMaxBytes            = "SEMOPS_ADSB_RAW_MAX_BYTES"
-	EnvADSBWriteTimeout           = "SEMOPS_ADSB_WRITE_TIMEOUT"
-	EnvADSBHTTPURL                = "SEMOPS_ADSB_HTTP_URL"
-	EnvADSBHTTPMethod             = "SEMOPS_ADSB_HTTP_METHOD"
-	EnvADSBHTTPPollInterval       = "SEMOPS_ADSB_HTTP_POLL_INTERVAL"
-	EnvADSBHTTPStaleAfter         = "SEMOPS_ADSB_HTTP_STALE_AFTER"
-	EnvADSBHTTPContactPolicy      = "SEMOPS_ADSB_HTTP_CONTACT_POLICY"
-	EnvADSBHTTPAuthRef            = "SEMOPS_ADSB_HTTP_AUTH_REF"
-	EnvADSBHTTPMaxResponseBytes   = "SEMOPS_ADSB_HTTP_MAX_RESPONSE_BYTES"
-	EnvCOPGraphQueryTimeout       = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
-	EnvCOPGraphDiscoveryEnabled   = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
-	EnvCOPGraphDiscoveryLimit     = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
-	EnvCOPMAVLinkSystemIDs        = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
-	EnvCOPCoTUIDs                 = "SEMOPS_COP_COT_UIDS"
-	EnvCOPCAPAlertIDs             = "SEMOPS_COP_CAP_ALERT_IDS"
+	EnvNATSURL                     = "SEMOPS_NATS_URL"
+	EnvNATSName                    = "SEMOPS_NATS_NAME"
+	EnvNATSConnectTimeout          = "SEMOPS_NATS_CONNECT_TIMEOUT"
+	EnvAPIAddr                     = "SEMOPS_API_ADDR"
+	EnvOwnershipHeartbeatInterval  = "SEMOPS_OWNERSHIP_HEARTBEAT_INTERVAL"
+	EnvMAVLinkEnabled              = "SEMOPS_MAVLINK_ENABLED"
+	EnvMAVLinkSource               = "SEMOPS_MAVLINK_SOURCE"
+	EnvOrg                         = "SEMOPS_ORG"
+	EnvPlatform                    = "SEMOPS_PLATFORM"
+	EnvTraceID                     = "SEMOPS_TRACE_ID"
+	EnvMAVLinkWriteTimeout         = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
+	EnvMAVLinkUDPListenAddr        = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
+	EnvMAVLinkUDPMaxDatagramBytes  = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
+	EnvCoTEnabled                  = "SEMOPS_COT_ENABLED"
+	EnvCoTSource                   = "SEMOPS_COT_SOURCE"
+	EnvCoTWriteTimeout             = "SEMOPS_COT_WRITE_TIMEOUT"
+	EnvCoTUDPListenAddr            = "SEMOPS_COT_UDP_LISTEN_ADDR"
+	EnvCoTUDPMaxDatagramBytes      = "SEMOPS_COT_UDP_MAX_DATAGRAM_BYTES"
+	EnvCoTTCPListenAddr            = "SEMOPS_COT_TCP_LISTEN_ADDR"
+	EnvCoTTCPMaxEventBytes         = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
+	EnvCAPEnabled                  = "SEMOPS_CAP_ENABLED"
+	EnvCAPSource                   = "SEMOPS_CAP_SOURCE"
+	EnvCAPReplayPath               = "SEMOPS_CAP_REPLAY_PATH"
+	EnvCAPWriteTimeout             = "SEMOPS_CAP_WRITE_TIMEOUT"
+	EnvCAPHTTPURL                  = "SEMOPS_CAP_HTTP_URL"
+	EnvCAPHTTPMethod               = "SEMOPS_CAP_HTTP_METHOD"
+	EnvCAPHTTPPollInterval         = "SEMOPS_CAP_HTTP_POLL_INTERVAL"
+	EnvCAPHTTPStaleAfter           = "SEMOPS_CAP_HTTP_STALE_AFTER"
+	EnvCAPHTTPContactPolicy        = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
+	EnvCAPHTTPAuthRef              = "SEMOPS_CAP_HTTP_AUTH_REF"
+	EnvCAPHTTPMaxResponseBytes     = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
+	EnvADSBEnabled                 = "SEMOPS_ADSB_ENABLED"
+	EnvADSBSource                  = "SEMOPS_ADSB_SOURCE"
+	EnvADSBReplayPath              = "SEMOPS_ADSB_REPLAY_PATH"
+	EnvADSBRawMaxRecords           = "SEMOPS_ADSB_RAW_MAX_RECORDS"
+	EnvADSBRawMaxBytes             = "SEMOPS_ADSB_RAW_MAX_BYTES"
+	EnvADSBWriteTimeout            = "SEMOPS_ADSB_WRITE_TIMEOUT"
+	EnvADSBHTTPURL                 = "SEMOPS_ADSB_HTTP_URL"
+	EnvADSBHTTPMethod              = "SEMOPS_ADSB_HTTP_METHOD"
+	EnvADSBHTTPPollInterval        = "SEMOPS_ADSB_HTTP_POLL_INTERVAL"
+	EnvADSBHTTPStaleAfter          = "SEMOPS_ADSB_HTTP_STALE_AFTER"
+	EnvADSBHTTPContactPolicy       = "SEMOPS_ADSB_HTTP_CONTACT_POLICY"
+	EnvADSBHTTPAuthRef             = "SEMOPS_ADSB_HTTP_AUTH_REF"
+	EnvADSBHTTPMaxResponseBytes    = "SEMOPS_ADSB_HTTP_MAX_RESPONSE_BYTES"
+	EnvSAPIENTEnabled              = "SEMOPS_SAPIENT_ENABLED"
+	EnvSAPIENTSource               = "SEMOPS_SAPIENT_SOURCE"
+	EnvSAPIENTReplayPath           = "SEMOPS_SAPIENT_REPLAY_PATH"
+	EnvSAPIENTRawMaxRecords        = "SEMOPS_SAPIENT_RAW_MAX_RECORDS"
+	EnvSAPIENTRawMaxBytes          = "SEMOPS_SAPIENT_RAW_MAX_BYTES"
+	EnvSAPIENTHTTPURL              = "SEMOPS_SAPIENT_HTTP_URL"
+	EnvSAPIENTHTTPMethod           = "SEMOPS_SAPIENT_HTTP_METHOD"
+	EnvSAPIENTHTTPPollInterval     = "SEMOPS_SAPIENT_HTTP_POLL_INTERVAL"
+	EnvSAPIENTHTTPStaleAfter       = "SEMOPS_SAPIENT_HTTP_STALE_AFTER"
+	EnvSAPIENTHTTPContactPolicy    = "SEMOPS_SAPIENT_HTTP_CONTACT_POLICY"
+	EnvSAPIENTHTTPAuthRef          = "SEMOPS_SAPIENT_HTTP_AUTH_REF"
+	EnvSAPIENTHTTPMaxResponseBytes = "SEMOPS_SAPIENT_HTTP_MAX_RESPONSE_BYTES"
+	EnvSAPIENTHTTPEncoding         = "SEMOPS_SAPIENT_HTTP_ENCODING"
+	EnvCOPGraphQueryTimeout        = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
+	EnvCOPGraphDiscoveryEnabled    = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
+	EnvCOPGraphDiscoveryLimit      = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
+	EnvCOPMAVLinkSystemIDs         = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
+	EnvCOPCoTUIDs                  = "SEMOPS_COP_COT_UIDS"
+	EnvCOPCAPAlertIDs              = "SEMOPS_COP_CAP_ALERT_IDS"
 )
 
 type Config struct {
@@ -78,6 +93,7 @@ type Config struct {
 	CoT                        CoTConfig
 	CAP                        CAPConfig
 	ADSB                       ADSBConfig
+	SAPIENT                    SAPIENTConfig
 	COP                        COPConfig
 }
 
@@ -167,6 +183,26 @@ type ADSBHTTPConfig struct {
 	ContactPolicy    string
 	AuthRef          string
 	MaxResponseBytes int
+}
+
+type SAPIENTConfig struct {
+	Enabled       bool
+	Source        string
+	ReplayPath    string
+	RawMaxRecords int
+	RawMaxBytes   int
+	HTTP          SAPIENTHTTPConfig
+}
+
+type SAPIENTHTTPConfig struct {
+	URL              string
+	Method           string
+	PollInterval     time.Duration
+	StaleAfter       time.Duration
+	ContactPolicy    string
+	AuthRef          string
+	MaxResponseBytes int
+	Encoding         sapientcodec.Encoding
 }
 
 type COPConfig struct {
@@ -267,6 +303,18 @@ func DefaultConfig() Config {
 				BackoffMultiplier: 2,
 			},
 		},
+		SAPIENT: SAPIENTConfig{
+			Enabled:       false,
+			Source:        "sapient:http:inprocess",
+			RawMaxRecords: sapientcodec.DefaultRawLaneMaxRecords,
+			RawMaxBytes:   sapientcodec.DefaultRawLaneMaxBytes,
+			HTTP: SAPIENTHTTPConfig{
+				Method:           "GET",
+				PollInterval:     sapientcomponent.DefaultHTTPPollInterval,
+				StaleAfter:       time.Duration(sapientcomponent.DefaultHTTPStaleMultiplier) * sapientcomponent.DefaultHTTPPollInterval,
+				MaxResponseBytes: sapientcomponent.DefaultHTTPMaxResponseBytes,
+			},
+		},
 		COP: COPConfig{
 			GraphQueryTimeout:     2 * time.Second,
 			GraphDiscoveryEnabled: true,
@@ -291,6 +339,8 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvCAPReplayPath, &cfg.CAP.ReplayPath)
 	setString(getenv, EnvADSBSource, &cfg.ADSB.Source)
 	setString(getenv, EnvADSBReplayPath, &cfg.ADSB.ReplayPath)
+	setString(getenv, EnvSAPIENTSource, &cfg.SAPIENT.Source)
+	setString(getenv, EnvSAPIENTReplayPath, &cfg.SAPIENT.ReplayPath)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)
@@ -314,6 +364,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvADSBHTTPMethod, &cfg.ADSB.HTTP.Method)
 	setString(getenv, EnvADSBHTTPContactPolicy, &cfg.ADSB.HTTP.ContactPolicy)
 	setString(getenv, EnvADSBHTTPAuthRef, &cfg.ADSB.HTTP.AuthRef)
+	setString(getenv, EnvSAPIENTHTTPURL, &cfg.SAPIENT.HTTP.URL)
+	setString(getenv, EnvSAPIENTHTTPMethod, &cfg.SAPIENT.HTTP.Method)
+	setString(getenv, EnvSAPIENTHTTPContactPolicy, &cfg.SAPIENT.HTTP.ContactPolicy)
+	setString(getenv, EnvSAPIENTHTTPAuthRef, &cfg.SAPIENT.HTTP.AuthRef)
+	if value := strings.TrimSpace(getenv(EnvSAPIENTHTTPEncoding)); value != "" {
+		cfg.SAPIENT.HTTP.Encoding = sapientcodec.Encoding(value)
+	}
 
 	var err error
 	if cfg.NATSConnectTimeout, err = durationFromEnv(getenv, EnvNATSConnectTimeout, cfg.NATSConnectTimeout); err != nil {
@@ -382,6 +439,20 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.SAPIENT.HTTP.PollInterval, err = durationFromEnv(
+		getenv,
+		EnvSAPIENTHTTPPollInterval,
+		cfg.SAPIENT.HTTP.PollInterval,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.SAPIENT.HTTP.StaleAfter, err = durationFromEnv(
+		getenv,
+		EnvSAPIENTHTTPStaleAfter,
+		cfg.SAPIENT.HTTP.StaleAfter,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.COP.GraphQueryTimeout, err = durationFromEnv(
 		getenv,
 		EnvCOPGraphQueryTimeout,
@@ -406,6 +477,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.ADSB.Enabled, err = boolFromEnv(getenv, EnvADSBEnabled, cfg.ADSB.Enabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.SAPIENT.Enabled, err = boolFromEnv(getenv, EnvSAPIENTEnabled, cfg.SAPIENT.Enabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
@@ -454,6 +528,27 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvADSBHTTPMaxResponseBytes,
 		cfg.ADSB.HTTP.MaxResponseBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.SAPIENT.RawMaxRecords, err = intFromEnv(
+		getenv,
+		EnvSAPIENTRawMaxRecords,
+		cfg.SAPIENT.RawMaxRecords,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.SAPIENT.RawMaxBytes, err = intFromEnv(
+		getenv,
+		EnvSAPIENTRawMaxBytes,
+		cfg.SAPIENT.RawMaxBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.SAPIENT.HTTP.MaxResponseBytes, err = intFromEnv(
+		getenv,
+		EnvSAPIENTHTTPMaxResponseBytes,
+		cfg.SAPIENT.HTTP.MaxResponseBytes,
 	); err != nil {
 		return Config{}, err
 	}
@@ -541,6 +636,9 @@ func (c Config) Validate() error {
 	if err := c.ADSB.Validate(); err != nil {
 		return err
 	}
+	if err := c.SAPIENT.Validate(); err != nil {
+		return err
+	}
 	if !c.MAVLink.Enabled {
 		return nil
 	}
@@ -598,6 +696,40 @@ func (c ADSBConfig) Validate() error {
 	}
 	if c.HTTP.MaxResponseBytes <= 0 {
 		return fmt.Errorf("%s must be greater than zero when ADS-B is enabled", EnvADSBHTTPMaxResponseBytes)
+	}
+	return nil
+}
+
+func (c SAPIENTConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(c.Source) == "" {
+		return fmt.Errorf("%s is required when SAPIENT is enabled", EnvSAPIENTSource)
+	}
+	if c.RawMaxRecords <= 0 {
+		return fmt.Errorf("%s must be greater than zero when SAPIENT is enabled", EnvSAPIENTRawMaxRecords)
+	}
+	if c.RawMaxBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when SAPIENT is enabled", EnvSAPIENTRawMaxBytes)
+	}
+	if strings.TrimSpace(c.HTTP.URL) == "" {
+		return fmt.Errorf("%s is required when SAPIENT is enabled", EnvSAPIENTHTTPURL)
+	}
+	if strings.TrimSpace(c.HTTP.Method) == "" {
+		return fmt.Errorf("%s is required when SAPIENT is enabled", EnvSAPIENTHTTPMethod)
+	}
+	if c.HTTP.PollInterval <= 0 {
+		return fmt.Errorf("%s must be greater than zero when SAPIENT is enabled", EnvSAPIENTHTTPPollInterval)
+	}
+	if c.HTTP.StaleAfter <= 0 {
+		return fmt.Errorf("%s must be greater than zero when SAPIENT is enabled", EnvSAPIENTHTTPStaleAfter)
+	}
+	if c.HTTP.MaxResponseBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when SAPIENT is enabled", EnvSAPIENTHTTPMaxResponseBytes)
+	}
+	if c.HTTP.Encoding != "" && !c.HTTP.Encoding.Valid() {
+		return fmt.Errorf("%s must be json, protobuf, or empty auto mode when SAPIENT is enabled", EnvSAPIENTHTTPEncoding)
 	}
 	return nil
 }
