@@ -24,8 +24,9 @@ API_HEALTH_URL="${SEMOPS_API_HEALTH_URL:-http://127.0.0.1:${API_HOST_PORT}/healt
 API_SNAPSHOT_URL="${SEMOPS_API_SNAPSHOT_URL:-http://127.0.0.1:${API_HOST_PORT}/api/cop/snapshot}"
 COP_URL="${SEMOPS_COP_URL:-http://127.0.0.1:${CADDY_HOST_PORT}}"
 COP_API_SNAPSHOT_URL="${SEMOPS_COP_API_SNAPSHOT_URL:-${COP_URL}/api/cop/snapshot}"
-SCENARIO_HEALTH_URL="${SEMOPS_SCENARIO_HEALTH_URL:-http://127.0.0.1:${SCENARIO_HOST_PORT}/healthz}"
 SCENARIO_STATUS_URL="${SEMOPS_SCENARIO_STATUS_URL:-http://127.0.0.1:${SCENARIO_HOST_PORT}/scenario/status}"
+SCENARIO_STATUS_DEADLINE="${SEMOPS_SCENARIO_STATUS_DEADLINE:-120}"
+SCENARIO_STATUS_STALE_AFTER="${SEMOPS_SCENARIO_STATUS_STALE_AFTER:-30}"
 FEED_FIXTURES_HEALTH_URL="${SEMOPS_FEED_FIXTURES_HEALTH_URL:-http://127.0.0.1:${FEED_FIXTURES_HOST_PORT}/healthz}"
 MAVLINK_UDP_ADDR="${SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR:-127.0.0.1:${MAVLINK_UDP_HOST_PORT}}"
 COT_UDP_ADDR="${SEMOPS_COP_SMOKE_COT_UDP_ADDR:-127.0.0.1:${COT_UDP_HOST_PORT}}"
@@ -54,6 +55,20 @@ print_compose_failure_diagnostics() {
   docker compose -p "$PROJECT" -f "$COMPOSE_FILE" logs --no-color --tail=120 semops-nats semstreams >&2 || true
 }
 
+print_runtime_failure_diagnostics() {
+  local reason="$1"
+  local body="${2:-}"
+
+  echo "$reason" >&2
+  if [[ -n "$body" ]]; then
+    echo "Last scenario status body:" >&2
+    printf '%s\n' "$body" >&2
+  fi
+  docker compose -p "$PROJECT" -f "$COMPOSE_FILE" ps >&2 || true
+  docker compose -p "$PROJECT" -f "$COMPOSE_FILE" logs --no-color --tail=120 \
+    semops semops-scenario-runner semops-feed-fixtures caddy >&2 || true
+}
+
 wait_http() {
   local name="$1"
   local url="$2"
@@ -67,6 +82,83 @@ wait_http() {
     fi
     if (( "$(date +%s)" - start >= deadline )); then
       echo "Timed out waiting for ${name}: ${url}" >&2
+      return 1
+    fi
+    sleep 2
+  done
+}
+
+json_string_field() {
+  local body="$1"
+  local field="$2"
+  printf '%s' "$body" | sed -nE 's/.*"'"$field"'":"([^"]*)".*/\1/p'
+}
+
+json_number_field() {
+  local body="$1"
+  local field="$2"
+  printf '%s' "$body" | sed -nE 's/.*"'"$field"'":([0-9]+).*/\1/p'
+}
+
+wait_scenario_succeeded() {
+  local name="$1"
+  local url="$2"
+  local deadline="${3:-120}"
+  local stale_after="${4:-30}"
+  local start
+  local last_progress_at
+  local last_progress_key=""
+  local last_body=""
+
+  start="$(date +%s)"
+  last_progress_at="$start"
+
+  while true; do
+    local now
+    now="$(date +%s)"
+
+    local body
+    if body="$(curl -fsS "$url" 2>/dev/null)"; then
+      last_body="$body"
+
+      local state completed failed step updated_at last_error progress_key
+      state="$(json_string_field "$body" state)"
+      completed="$(json_number_field "$body" completed_steps)"
+      failed="$(json_number_field "$body" failed_steps)"
+      step="$(json_string_field "$body" current_step)"
+      updated_at="$(json_string_field "$body" updated_at)"
+      last_error="$(json_string_field "$body" last_error)"
+      progress_key="${state}|${completed}|${failed}|${step}|${updated_at}|${last_error}"
+
+      if [[ "$progress_key" != "$last_progress_key" ]]; then
+        echo "${name} status: state=${state:-unknown} completed=${completed:-0} failed=${failed:-0} step=${step:-none} updated_at=${updated_at:-unknown}"
+        last_progress_key="$progress_key"
+        last_progress_at="$now"
+      fi
+
+      case "$state" in
+        succeeded)
+          return 0
+          ;;
+        failed)
+          print_runtime_failure_diagnostics "${name} failed before smoke verification." "$body"
+          return 1
+          ;;
+      esac
+    else
+      if [[ "$last_progress_key" != "unreachable" ]]; then
+        echo "${name} status endpoint is not reachable yet: ${url}"
+        last_progress_key="unreachable"
+        last_progress_at="$now"
+      fi
+    fi
+
+    if (( now - start >= deadline )); then
+      print_runtime_failure_diagnostics "Timed out waiting for ${name}: ${url}" "$last_body"
+      return 1
+    fi
+    if (( now - last_progress_at >= stale_after )); then
+      print_runtime_failure_diagnostics "${name} made no status progress for ${stale_after}s." "$last_body"
       return 1
     fi
     sleep 2
@@ -115,9 +207,8 @@ wait_http "SemOps COP snapshot" "$API_SNAPSHOT_URL" 90
 wait_http "SemOps Caddy COP UI" "$COP_URL" 90
 wait_svelte_assets "SemOps Caddy COP UI" "$COP_URL" 90
 wait_http "SemOps Caddy COP snapshot" "$COP_API_SNAPSHOT_URL" 90
-wait_http "SemOps scenario runner" "$SCENARIO_HEALTH_URL" 90
 wait_http "SemOps feed fixtures" "$FEED_FIXTURES_HEALTH_URL" 90
-curl -fsS "$SCENARIO_STATUS_URL" | grep -q '"state":"succeeded"'
+wait_scenario_succeeded "SemOps scenario runner" "$SCENARIO_STATUS_URL" "$SCENARIO_STATUS_DEADLINE" "$SCENARIO_STATUS_STALE_AFTER"
 
 SEMOPS_COP_SMOKE_SNAPSHOT_URL="$COP_API_SNAPSHOT_URL" \
 SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL="$SCENARIO_STATUS_URL" \

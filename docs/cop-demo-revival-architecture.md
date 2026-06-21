@@ -64,7 +64,9 @@ hazard state. The COP now derives CAP hazard lifecycle status from evidence for 
 `semops-scenario-runner` service now runs the first HADR
 flood/evacuation fixture against the live SemStreams graph in Compose, exposes `/healthz` plus `/scenario/status`,
 and the stack smoke asserts the Caddy-routed COP snapshot contains the scenario MAVLink track, TAK/CoT task/advisory,
-and CAP hazard. The runner can also opt into deterministic ADS-B fixture replay with
+and CAP hazard. The stack smoke actively polls `/scenario/status`, reports completed/failed step progress, fails fast
+on explicit scenario failure, and treats stale status as a wedged run with Compose diagnostics instead of relying on a
+passive log tail or one-shot health check. The runner can also opt into deterministic ADS-B fixture replay with
 `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, using the hosted ADS-B adapter and `semops.feed.adsb` owner token; the default
 stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence is shared-airspace
 playback, operator scenario controls, durable checkpoint/read-back reconciliation, and provider-backed CAP fixture
@@ -107,7 +109,8 @@ SemOps started materially stale; the first revival slices are correcting that:
   opt into ADS-B snapshot replay through the hosted ADS-B adapter. Container packaging is now present through
   `cmd/semops-scenario-runner`; an operator/API control surface and the shared-airspace vignette remain open. The
   one-command stack smoke now verifies the runner's graph writes are product-visible through the same-origin COP
-  snapshot.
+  snapshot and actively polls the scenario status document so failed or wedged demo runs stop with concrete progress
+  evidence.
 - The old `configs/robotics-flow.json` StreamKit-style flow was deleted because it taught raw subject topology and did
   not describe the current SemStreams component lifecycle, flowgraph, payload-registry, port/config, graph ingest, or
   projection surface.
