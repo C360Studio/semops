@@ -1,19 +1,21 @@
 # ADS-B Feed Evidence
 
-Status: candidate Phase 2 air-picture feed with parser, replay, hosted-adapter seam, opt-in structural scenario
-replay, projection, ownership registration, and COP readback evidence.
+Status: candidate Phase 2 air-picture feed with parser, replay, hosted-adapter seam, first OpenSky-shaped HTTP
+component package, opt-in structural scenario replay, projection, ownership registration, and COP readback evidence.
 
 ## Decision
 
 ADS-B should enter after MAVLink, TAK/CoT, CAP, and the structural COP are stable. Start with OpenSky-shaped JSON
 fixtures and deterministic replay. Treat ASTERIX, raw receiver protocols, and live OpenSky access as later expansion.
 
-The current ADS-B scenario replay seam is intentionally not a SemStreams component package. It is an in-process,
-deterministic harness for replaying snapshots through parser, projection, ownership, and graph-write contracts. When
-SemOps adds live ADS-B ingress, that live boundary must be promoted into SemStreams input and processor components
-with declared network, file, or request ports, registered payloads, health, flow metrics, and telemetry-driven
-backpressure decisions. See
-`openspec/changes/revive-cop-product/reviews/2026-06-20-adsb-component-promotion-review.md`.
+The current ADS-B scenario replay seam remains an in-process deterministic harness for replaying snapshots through
+parser, projection, ownership, and graph-write contracts. SemOps now also has the first real hosted ingress shape:
+`internal/components/adsb` provides an OpenSky-compatible HTTP poller input component, raw decoder processor, and
+born-first graph projector processor with declared `HTTPClientPort`, `TimerPort`, stream ports, request ports,
+registered payloads, health, flow metrics, replay capture, and provider-shaped local HTTP tests. This does not make
+live OpenSky part of the default MVP stack and does not cover readsb/dump1090, receiver TCP/UDP, or ASTERIX. See
+`openspec/changes/revive-cop-product/reviews/2026-06-20-adsb-component-promotion-review.md` and
+`openspec/changes/revive-cop-product/reviews/2026-06-21-adsb-component-promotion-review.md`.
 
 ## Local Evidence
 
@@ -32,13 +34,14 @@ backpressure decisions. See
   marking through the hosted adapter seam when a scenario opts into ADS-B.
 - `internal/adapters/adsb` hosts an OpenSky-shaped snapshot ingest seam with bounded raw capture, JSONL replay
   append, projection writes, born-first reconciliation, and pollable health counters.
+- `internal/components/adsb` promotes OpenSky-compatible HTTP polling into SemStreams input/processor components with
+  `HTTPClientPort`, `TimerPort`, registered `message.BaseMessage` payloads, stream ports, graph request ports,
+  replay capture, stale-source health, and local provider-shaped HTTP fixture tests.
 - `internal/stack.NewADSBAdapter` composes the adapter with either a SemStreams NATS requester or injected writer.
 - `cmd/semops-scenario-runner` can opt into ADS-B replay with `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose
   service passes the flag through but defaults it off.
 - The scenario runner appends `semops.feed.adsb` ownership only for the opt-in ADS-B path; this is not a live OpenSky
   or receiver service claim.
-- No `internal/components/adsb` package exists yet by design; component promotion waits for a real hosted ingress
-  decision rather than wrapping deterministic fixtures.
 - COP graph prefix discovery reads `c360.<platform>.cop.adsb.track.*` entities back into aircraft tracks and feed
   health without requiring a live ADS-B service.
 
@@ -150,6 +153,26 @@ Acceptance:
 - ADS-B graph writes are backed by a SemStreams-minted `semops.feed.adsb` owner token. [done]
 - The default stack path remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. [done]
 
+### Component Promotion Gate
+
+Target command:
+
+```bash
+go test ./internal/components/adsb ./internal/contracts -run ADSB
+```
+
+Acceptance:
+
+- OpenSky-compatible HTTP polling is represented as a SemStreams input component with an `HTTPClientPort`,
+  `TimerPort`, raw stream output, config schema, health, flow metrics, and provider-contact debug state. [done]
+- Raw and decoded ADS-B snapshots use registered `message.BaseMessage` payloads and tappable stream subjects. [done]
+- The decoder captures provider-shaped raw JSON into the ADS-B replay store before publishing decoded snapshots.
+  [done]
+- Malformed snapshots are captured and replayed before parse failure, without graph writes. [done]
+- The projector writes source-partitioned ADS-B track plans through SemStreams create/update request ports and
+  reconciles already-born track births into update-only projection. [done]
+- Component tests use local HTTP fixture servers and do not claim live OpenSky reliability or credentials. [done]
+
 ### Live Mode Gate
 
 Target command after optional live mode exists:
@@ -168,8 +191,7 @@ Acceptance:
 
 ## Known Gaps
 
-- No ADS-B live client yet.
-- No ADS-B component package yet; this is blocked on the live ingress choice.
+- No default ADS-B runtime wiring or live OpenSky client is enabled yet.
 - OpenSky is useful for samples but should not become a critical-path dependency.
 - ASTERIX is not in the first ADS-B slice.
 - Raw receiver/readsb/dump1090 paths are not implemented.

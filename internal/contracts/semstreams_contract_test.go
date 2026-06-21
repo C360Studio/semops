@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
+	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
@@ -471,6 +473,134 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	}
 }
 
+func TestADSBHTTPPollingBoundaryUsesSemStreamsComponentShape(t *testing.T) {
+	var _ component.Portable = component.HTTPClientPort{}
+	var _ component.LifecycleComponent = (*adsbcomponent.HTTPPollerComponent)(nil)
+	var _ component.LifecycleComponent = (*adsbcomponent.DecoderComponent)(nil)
+	var _ component.LifecycleComponent = (*adsbcomponent.ProjectorComponent)(nil)
+
+	bus := adsbContractBus{}
+	poller, err := adsbcomponent.NewHTTPPollerComponent(adsbcomponent.HTTPPollerConfig{
+		URL:           "https://opensky-network.org/api/states/all",
+		PollInterval:  30 * time.Second,
+		AuthRef:       "opensky",
+		ContactPolicy: "semops-demo@example.invalid",
+	}, bus)
+	if err != nil {
+		t.Fatalf("new ADS-B HTTP poller: %v", err)
+	}
+	decoder, err := adsbcomponent.NewDecoderComponent(adsbcomponent.DecoderConfig{}, bus)
+	if err != nil {
+		t.Fatalf("new ADS-B decoder: %v", err)
+	}
+	projector, err := adsbcomponent.NewProjectorComponent(adsbcomponent.ProjectorConfig{
+		Writer: adsbContractPlanWriter{},
+	}, bus)
+	if err != nil {
+		t.Fatalf("new ADS-B projector: %v", err)
+	}
+	for name, lifecycle := range map[string]component.LifecycleComponent{
+		"poller":    poller,
+		"decoder":   decoder,
+		"projector": projector,
+	} {
+		if err := lifecycle.Initialize(); err != nil {
+			t.Fatalf("initialize %s: %v", name, err)
+		}
+		if err := lifecycle.Start(context.Background()); err != nil {
+			t.Fatalf("start %s: %v", name, err)
+		}
+		if err := lifecycle.Stop(time.Second); err != nil {
+			t.Fatalf("stop %s: %v", name, err)
+		}
+	}
+
+	if poller.Meta().Type != "input" {
+		t.Fatalf("ADS-B poller component type = %q, want input", poller.Meta().Type)
+	}
+	if decoder.Meta().Type != "processor" || projector.Meta().Type != "processor" {
+		t.Fatalf(
+			"ADS-B processor component types = %q/%q, want processor/processor",
+			decoder.Meta().Type,
+			projector.Meta().Type,
+		)
+	}
+	feed, ok := poller.InputPorts()[0].Config.(component.HTTPClientPort)
+	if !ok {
+		t.Fatalf("ADS-B poller adsb_feed config = %T, want HTTPClientPort", poller.InputPorts()[0].Config)
+	}
+	if got, want := feed.Type(), "http-client"; got != want {
+		t.Fatalf("HTTP client port type = %q, want %q", got, want)
+	}
+	if got, want := feed.ResourceID(), "http-client:GET:https://opensky-network.org/api/states/all"; got != want {
+		t.Fatalf("HTTP client resource id = %q, want %q", got, want)
+	}
+	if feed.IsExclusive() {
+		t.Fatalf("HTTP client port must be shareable so multiple components can poll the same external resource")
+	}
+	if got, want := feed.Interface.Compatible[0], adsbcomponent.RawSnapshotType.Key(); got != want {
+		t.Fatalf("HTTP client compatible payload = %q, want %q", got, want)
+	}
+
+	tick, ok := poller.InputPorts()[1].Config.(component.TimerPort)
+	if !ok {
+		t.Fatalf("ADS-B poller poll_tick config = %T, want TimerPort", poller.InputPorts()[1].Config)
+	}
+	if got, want := tick.Type(), "timer"; got != want {
+		t.Fatalf("timer port type = %q, want %q", got, want)
+	}
+
+	requireProperty(t, poller.ConfigSchema(), "url")
+	requireProperty(t, poller.ConfigSchema(), "contact_policy")
+	requireProperty(t, decoder.ConfigSchema(), "raw_max_records")
+	requireProperty(t, decoder.ConfigSchema(), "decoded_subject")
+	requireProperty(t, projector.ConfigSchema(), "owner")
+
+	fg := flowgraph.NewFlowGraph()
+	if err := fg.AddComponentNode(poller.Meta().Name, poller); err != nil {
+		t.Fatalf("add ADS-B HTTP poller to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
+		t.Fatalf("add ADS-B decoder to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(projector.Meta().Name, projector); err != nil {
+		t.Fatalf("add ADS-B projector to flow graph: %v", err)
+	}
+	if err := fg.ConnectComponentsByPatterns(); err != nil {
+		t.Fatalf("connect ADS-B HTTP poller flow graph: %v", err)
+	}
+
+	pollerNode := fg.GetNodes()[poller.Meta().Name]
+	if len(pollerNode.InputPorts) != 2 {
+		t.Fatalf("poller input ports = %d, want HTTP client and timer", len(pollerNode.InputPorts))
+	}
+	if got, want := pollerNode.InputPorts[0].Pattern, flowgraph.PatternHTTPClient; got != want {
+		t.Fatalf("HTTP polling input pattern = %q, want %q", got, want)
+	}
+	if got, want := pollerNode.InputPorts[0].ConnectionID, feed.URLPattern; got != want {
+		t.Fatalf("HTTP polling connection id = %q, want %q", got, want)
+	}
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: poller.Meta().Name, PortName: "raw_snapshots"},
+		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_snapshots"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: adsbcomponent.DefaultRawSubject,
+	})
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "decoded_snapshots"},
+		To:           flowgraph.ComponentPortRef{ComponentName: projector.Meta().Name, PortName: "decoded_snapshots"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: adsbcomponent.DefaultDecodedSubject,
+	})
+
+	analysis := fg.AnalyzeConnectivity()
+	for _, orphan := range analysis.OrphanedPorts {
+		if orphan.ComponentName == poller.Meta().Name && orphan.PortName == "adsb_feed" {
+			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
+		}
+	}
+}
+
 func TestRawFeedFlowUsesRegisteredBaseMessagePayload(t *testing.T) {
 	registry := payloadregistry.New()
 	if err := mavcomponent.RegisterPayloads(registry); err != nil {
@@ -647,5 +777,25 @@ func (capContractBus) Subscribe(
 type capContractPlanWriter struct{}
 
 func (capContractPlanWriter) Apply(context.Context, capprojector.Plan) error {
+	return nil
+}
+
+type adsbContractBus struct{}
+
+func (adsbContractBus) Publish(context.Context, string, []byte) error {
+	return nil
+}
+
+func (adsbContractBus) Subscribe(
+	context.Context,
+	string,
+	func(context.Context, *nats.Msg),
+) (adsbcomponent.Subscription, error) {
+	return contractSubscription{}, nil
+}
+
+type adsbContractPlanWriter struct{}
+
+func (adsbContractPlanWriter) Apply(context.Context, adsbprojector.Plan) error {
 	return nil
 }
