@@ -360,8 +360,9 @@ First acceptance gate:
 
 ### ADS-B
 
-Status: later air-picture feed with OpenSky-shaped parser, deterministic replay, hosted-adapter seam, optional
-structural scenario replay, current-state projection, owner registration, and graph readback evidence.
+Status: later air-picture feed with OpenSky-shaped parser, deterministic replay, hosted-adapter seam, first HTTP
+component package, optional structural scenario replay, current-state projection, owner registration, and graph
+readback evidence.
 
 Compliance and sample evidence:
 
@@ -383,13 +384,15 @@ Local assets:
   marking through the hosted ADS-B adapter when a scenario opts into ADS-B.
 - `internal/adapters/adsb` provides a hosted snapshot ingest seam with bounded raw capture, replay append,
   projection writes, SemStreams mutation writer integration, born-first reconciliation, and health counters.
+- `internal/components/adsb` provides the first SemStreams component promotion for OpenSky-compatible HTTP polling:
+  `HTTPClientPort`, `TimerPort`, raw/decoded `message.BaseMessage` payload registry entries, stream ports, graph
+  request ports, replay capture, stale-source health, and local provider-shaped HTTP fixture tests.
 - `cmd/semops-scenario-runner` adds ADS-B snapshots only when `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose service
   passes that flag through but defaults it to false.
 - The scenario runner appends `semops.feed.adsb` ownership only for that opt-in path so structural ADS-B graph writes
   use SemStreams minted owner tokens.
-- The current ADS-B path intentionally has no SemStreams component package. Live OpenSky polling, readsb/dump1090 file
-  tailing, receiver TCP/UDP, or ASTERIX ingress must add input and processor components with registered payloads,
-  declared ports, health, flow metrics, and telemetry-driven backpressure.
+- The current ADS-B component package is not wired into the default runtime and does not claim live OpenSky
+  reliability, readsb/dump1090 file tailing, receiver TCP/UDP, or ASTERIX support.
 - The COP API discovers ADS-B aircraft tracks from `c360.<platform>.cop.adsb.track.*` prefixes and exposes
   `feed.adsb` health when fresh tracks exist.
 
@@ -414,14 +417,17 @@ First acceptance gate:
   runner without live network access.
 - Given a hosted ADS-B snapshot ingest, SemOps captures raw JSON, appends replay records, projects current-state
   tracks, writes graph plans, reconciles already-born tracks, and reports health counters.
+- Given an OpenSky-compatible HTTP endpoint, SemOps can run a SemStreams input -> decoder processor -> graph projector
+  processor chain against a local provider fixture, with payload registry and flowgraph edges visible before any live
+  service claim.
 - Given `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, the hosted scenario runner replays two ADS-B snapshots through the
   adapter seam and token-backed graph writes without live network access.
 - Given a projected ADS-B aircraft state, SemOps writes current-state track evidence without source-asset or
   cross-source association edges and reads it back through prefix discovery.
-- Next gate: decide whether live mode should start with optional OpenSky, local receiver/readsb/dump1090 files, or a
-  dedicated adapter service, without making live network access the default path.
-- Component gate: after that live ingress choice, build `internal/components/adsb`; do not wrap deterministic scenario
-  replay just to satisfy the component checklist.
+- Next gate: decide whether to wire the OpenSky HTTP components into an opt-in runtime path or prioritize local
+  receiver/readsb/dump1090 files first, without making live network access the default path.
+- Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress
+  still require separate input components when chosen.
 
 ### SAPIENT
 

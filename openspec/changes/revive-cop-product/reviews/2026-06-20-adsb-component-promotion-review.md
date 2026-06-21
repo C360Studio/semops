@@ -2,6 +2,10 @@
 
 Date: 2026-06-20
 
+Update: the 2026-06-21 review promotes an OpenSky-compatible HTTP component package after an explicit hosted ingress
+shape existed. This review still stands for the narrower point that deterministic scenario replay alone should not be
+wrapped as a component.
+
 ## Decision
 
 Do not promote the current ADS-B scenario replay seam into a SemStreams component package yet.
