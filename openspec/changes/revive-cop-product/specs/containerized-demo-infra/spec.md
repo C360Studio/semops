@@ -114,6 +114,8 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **AND** `/scenario/status` reports the scenario id, state, completed steps, failed steps, mutation count, and last
   error
 - **AND** the one-command smoke polls the status endpoint rather than inferring scenario success from logs
+- **AND** the smoke fails fast on explicit scenario failure and treats stale status progress as a wedged run with
+  diagnostic output
 
 #### Scenario: Hosted scenario playback is product-visible
 
