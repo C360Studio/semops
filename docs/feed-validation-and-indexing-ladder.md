@@ -431,7 +431,8 @@ First acceptance gate:
 
 ### SAPIENT
 
-Status: JSON and binary descriptor preflight plus raw replay exist; harness qualification still required.
+Status: JSON and binary descriptor preflight, raw replay, and preflight input/decoder components exist; harness
+qualification is still required before product support or conformance claims.
 
 Compliance and sample evidence:
 
@@ -457,9 +458,12 @@ Local assets:
 - `pkg/adapters/sapient` now has a bounded raw lane and JSON Lines replay store for JSON and protobuf payloads; replay
   decodes through the same preflight boundary rather than treating captured bytes as normalized graph state.
 - `go test ./pkg/adapters/sapient` rejects malformed JSON and binary required-field cases before graph writes.
-- No local SAPIENT harness run, generated Go bindings, hosted adapter, or graph projector exists.
-- No `OwnerSAPIENT`, SAPIENT projection contract, graph writer, or `internal/components/sapient` package exists yet.
-  This is intentional until projection ownership, indexing, and service mode are reviewed.
+- `internal/components/sapient` now provides a preflight-only SemStreams HTTP input and decoder processor with
+  `HTTPClientPort`, `TimerPort`, registered raw/decoded payloads, stream ports, replay capture, stale-source health,
+  and no graph request ports.
+- No local SAPIENT harness run, generated Go bindings, product service adapter, or graph projector exists.
+- No `OwnerSAPIENT`, SAPIENT projection contract, graph writer, or graph-producing SAPIENT component exists yet. This
+  is intentional until projection ownership, indexing, and product service mode are reviewed.
 
 Mock or harness:
 
@@ -488,10 +492,13 @@ First acceptance gate:
   claims protobuf preflight support.
 - Given captured JSON or protobuf SAPIENT payloads, SemOps can replay exact native bytes through the parser boundary
   without writing graph state or claiming hosted SAPIENT support.
+- Given an HTTP source of SAPIENT JSON or protobuf bytes, SemOps can run a SemStreams input -> decoder processor chain
+  against local fixtures, producing raw and decoded preflight streams without graph writes or owner claims.
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
 - Given a future hosted SAPIENT feed, SemOps uses SemStreams input and processor components once service mode is
-  chosen, including `HTTPClientPort` for Apex or other outbound HTTP client integration modes.
+  chosen, including `HTTPClientPort` for Apex or other outbound HTTP client integration modes. The current component
+  package is preflight-only and must not be read as product hosted-service support.
 
 ### KLV/STANAG 4609
 

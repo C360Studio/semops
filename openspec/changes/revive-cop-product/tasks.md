@@ -35,6 +35,7 @@
 - [x] 2.16 Add optional CAP replay-store capture to the opt-in runtime component chain
 - [x] 2.17 Add the first concrete ADS-B OpenSky HTTP poller, decoder, and projector component package using
       SemStreams ports, payload registry, health, and flow metrics
+- [x] 2.18 Add preflight-only SAPIENT HTTP input and decoder components without graph request ports or owner claims
 
 ## 3. COP Model And Governance
 
@@ -104,6 +105,7 @@
 - [x] 5.38 Add deterministic CAP poller stale-source health evidence without claiming provider-specific stale policy
 - [x] 5.39 Add deterministic provider-shaped CAP HTTP capture/replay evidence before live NWS sample capture
 - [x] 5.40 Add ADS-B OpenSky HTTP component-promotion gate without claiming default live OpenSky service support
+- [x] 5.41 Add SAPIENT preflight component gate without claiming product support, conformance, or graph projection
 
 ## 6. Structural COP Stack
 
@@ -166,6 +168,8 @@
 - [x] 6.50 Thread optional `SEMOPS_CAP_REPLAY_PATH` into the opt-in Compose/runtime chain
 - [x] 6.51 Add initial ADS-B OpenSky HTTP poller, decoder, and projector components while keeping runtime hosting
       and receiver paths gated
+- [x] 6.52 Add initial SAPIENT preflight HTTP input and decoder components while keeping runtime hosting and graph
+      projection gated
 
 ## 7. COP UI
 

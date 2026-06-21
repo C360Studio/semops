@@ -1,22 +1,21 @@
 # SAPIENT Feed Evidence
 
-Status: JSON and binary descriptor preflight plus raw replay exist; harness qualification still required before
-implementation.
+Status: JSON and binary descriptor preflight, raw replay, and preflight input/decoder components exist; harness
+qualification is still required before product support or conformance claims.
 
 ## Decision
 
 SAPIENT has moved from artifact discovery to a parser/harness planning lane. SemOps now has a dependency-light JSON
-preflight parser, a descriptor-based binary protobuf preflight, and bounded raw replay for representative BSI Flex 335
-v2 message shapes, but it must not claim SAPIENT product support or compliance until a documented Dstl harness run
-proves the boundary.
+preflight parser, a descriptor-based binary protobuf preflight, bounded raw replay, and a SemStreams raw HTTP
+input -> decoder processor component chain for representative BSI Flex 335 v2 message shapes. It must not claim
+SAPIENT product support or compliance until a documented Dstl harness run proves the boundary.
 
-Graph projection remains blocked. SemOps has no SAPIENT owner constant, projection contract, hosted component package,
-or graph writer by design. The first graph slice needs a reviewed source identity model, entity choice, indexing
-profile, and harness or explicit non-compliance-demo scope before `OwnerSAPIENT` exists.
+Graph projection remains blocked. SemOps has no SAPIENT owner constant, projection contract, graph-producing hosted
+component, or graph writer by design. The first graph slice needs a reviewed source identity model, entity choice,
+indexing profile, and harness or explicit non-compliance-demo scope before `OwnerSAPIENT` exists.
 
 ## Local Evidence
 
-- No hosted SemOps SAPIENT adapter exists in the current checkout.
 - `pkg/adapters/sapient` parses Dstl-harness-shaped JSON preflight fixtures for registration, status report,
   detection report, and task acknowledgement messages.
 - `go test ./pkg/adapters/sapient` validates required top-level envelope fields, UUID/ULID identity fields,
@@ -28,7 +27,10 @@ profile, and harness or explicit non-compliance-demo scope before `OwnerSAPIENT`
   model.
 - `pkg/adapters/sapient` stores JSON and protobuf payload bytes on a bounded raw lane, persists replay records as JSON
   Lines, and decodes replay through the same JSON/protobuf preflight boundary.
-- No SemOps SAPIENT generated Go bindings, hosted adapter, or graph projector exists yet.
+- `internal/components/sapient` provides an HTTP raw input component and decoder processor for SAPIENT preflight
+  payloads, with `HTTPClientPort`, `TimerPort`, registered raw/decoded `message.BaseMessage` payloads, stream ports,
+  replay capture, stale-source health, and no graph request ports.
+- No SemOps SAPIENT generated Go bindings, product service adapter, or graph projector exists yet.
 - No local SAPIENT test harness run has been performed.
 - The feed ladder assigns detections/tracks to `signal`, tasking/collection state to `control`, and native decode
   traces to `trace`.
@@ -39,8 +41,7 @@ profile, and harness or explicit non-compliance-demo scope before `OwnerSAPIENT`
   <https://www.gov.uk/guidance/sapient-autonomous-sensor-system>.
 - GOV.UK also links official GitHub assets for protobuf files, a SAPIENT Test Harness, and SAPIENT Middleware.
 - BSI identifies `SAPIENT Network of Autonomous Sensors and Effectors - BSI Flex 335 V2:2024` as the current
-  structure, format, and content reference for SAPIENT messages:
-  <https://www.bsigroup.com/en-US/insights-and-media/insights/brochures/bsi-flex-335-interface-of-the-sapient-sensor-management-specification/>.
+  structure, format, and content reference for SAPIENT messages on bsigroup.com.
 - Dstl publishes official protobuf definitions in `dstl/SAPIENT-Proto-Files`, including `bsi_flex_335_v2_0`:
   <https://github.com/dstl/SAPIENT-Proto-Files>.
 - Dstl publishes `dstl/BSI-Flex-335-v2-Test-Harness` for BSI Flex 335 v2 component-message compliance testing:
@@ -143,6 +144,25 @@ Acceptance:
 - Raw payloads remain out of graph entities until a projection ownership/indexing review approves references or
   derived state. [open]
 
+### Component Preflight Gate
+
+Target command:
+
+```bash
+go test ./internal/components/sapient ./internal/contracts -run SAPIENT
+```
+
+Acceptance:
+
+- SAPIENT HTTP raw ingress is represented as a SemStreams input component with `HTTPClientPort`, `TimerPort`, config
+  schema, health, flow metrics, and explicit encoding handling. [done]
+- Raw and decoded SAPIENT preflight messages use registered `message.BaseMessage` payloads and tappable stream
+  subjects. [done]
+- The decoder captures JSON/protobuf bytes into the SAPIENT replay store before publishing decoded preflight
+  messages. [done]
+- Malformed messages are captured and replayed before parse failure, without graph writes. [done]
+- The component package exposes no graph request ports and does not introduce `OwnerSAPIENT`. [done]
+
 ### Generated Binding Gate
 
 Target command if SemOps needs generated Go bindings rather than dynamic descriptors:
@@ -189,9 +209,9 @@ Acceptance:
   copies beyond trimmed test shapes.
 - No SemOps mapping exists for SAPIENT node identity, detection lifecycle, tasking, alert acknowledgements, or Apex
   middleware interop.
-- No hosted SAPIENT raw ingress, source-health, or graph projection path exists yet.
-- No `OwnerSAPIENT`, SAPIENT projection contract, or `internal/components/sapient` package exists yet; that is
-  intentional until projection ownership and service mode are reviewed.
+- No product-hosted SAPIENT service, source-health policy, or graph projection path exists yet.
+- No `OwnerSAPIENT`, SAPIENT projection contract, graph-producing SAPIENT component, or SAPIENT graph writer exists
+  yet; that is intentional until projection ownership and service mode are reviewed.
 
 ## Adversarial Feed-Entry Questions
 
