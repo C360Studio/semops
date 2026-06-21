@@ -132,7 +132,8 @@ SemOps has salvageable MAVLink depth:
   writer, and adapter harness from config so service hosting can stay thin.
 - The next hosted-feed hardening step is to repeat the same input/processor treatment for live ADS-B and SAPIENT after
   projection ownership, harness, and service-mode review. CAP now has an opt-in input -> decoder -> projector
-  component flow and component-level stale health, but provider fixtures and lifecycle behavior remain open.
+  component flow, component-level stale health, and optional provider-shaped replay capture through
+  `SEMOPS_CAP_REPLAY_PATH`, but real provider fixtures and lifecycle behavior remain open.
 
 SemOps now has TAK/CoT depth beyond prior-art replay:
 

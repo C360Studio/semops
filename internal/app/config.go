@@ -35,6 +35,7 @@ const (
 	EnvCoTTCPMaxEventBytes        = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
 	EnvCAPEnabled                 = "SEMOPS_CAP_ENABLED"
 	EnvCAPSource                  = "SEMOPS_CAP_SOURCE"
+	EnvCAPReplayPath              = "SEMOPS_CAP_REPLAY_PATH"
 	EnvCAPWriteTimeout            = "SEMOPS_CAP_WRITE_TIMEOUT"
 	EnvCAPHTTPURL                 = "SEMOPS_CAP_HTTP_URL"
 	EnvCAPHTTPMethod              = "SEMOPS_CAP_HTTP_METHOD"
@@ -112,6 +113,7 @@ type CAPConfig struct {
 	Org          string
 	Platform     string
 	TraceID      string
+	ReplayPath   string
 	WriteTimeout time.Duration
 	Retry        natsclient.RetryConfig
 	HTTP         CAPHTTPConfig
@@ -223,6 +225,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvMAVLinkSource, &cfg.MAVLink.Source)
 	setString(getenv, EnvCoTSource, &cfg.CoT.Source)
 	setString(getenv, EnvCAPSource, &cfg.CAP.Source)
+	setString(getenv, EnvCAPReplayPath, &cfg.CAP.ReplayPath)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)

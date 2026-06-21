@@ -15,6 +15,7 @@ import (
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
+	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/payloadregistry"
 	"github.com/c360studio/semstreams/pkg/ownership"
@@ -42,7 +43,11 @@ type semstreamsClient interface {
 	Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
 	RequestClassified(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
 	Publish(ctx context.Context, subject string, data []byte) error
-	Subscribe(ctx context.Context, subject string, handler func(context.Context, *nats.Msg)) (*natsclient.Subscription, error)
+	Subscribe(
+		ctx context.Context,
+		subject string,
+		handler func(context.Context, *nats.Msg),
+	) (*natsclient.Subscription, error)
 	Connect(context.Context) error
 	Close(context.Context) error
 }
@@ -548,11 +553,16 @@ func (a *App) startCAPFlow(
 	if err != nil {
 		return fmt.Errorf("compose CAP projector component: %w", err)
 	}
+	var replay capcomponent.ReplayAppender
+	if cfg.ReplayPath != "" {
+		replay = capcodec.NewReplayStore(cfg.ReplayPath)
+	}
 	decoder, err := deps.newCAPDecoder(capcomponent.DecoderConfig{
 		Source:         cfg.Source,
 		RawSubject:     capcomponent.DefaultRawSubject,
 		DecodedSubject: capcomponent.DefaultDecodedSubject,
 		Registry:       registry,
+		Replay:         replay,
 	}, bus)
 	if err != nil {
 		return fmt.Errorf("compose CAP decoder component: %w", err)

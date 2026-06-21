@@ -74,6 +74,7 @@ services:
       SEMOPS_COT_SOURCE: tak-cot:compose
       SEMOPS_CAP_ENABLED: "${SEMOPS_CAP_ENABLED:-false}"
       SEMOPS_CAP_SOURCE: cap:http:compose
+      SEMOPS_CAP_REPLAY_PATH: "${SEMOPS_CAP_REPLAY_PATH:-}"
       SEMOPS_CAP_HTTP_URL: "${SEMOPS_CAP_HTTP_URL:-https://api.weather.gov/alerts/active}"
       SEMOPS_CAP_HTTP_POLL_INTERVAL: "${SEMOPS_CAP_HTTP_POLL_INTERVAL:-5m}"
       SEMOPS_CAP_HTTP_STALE_AFTER: "${SEMOPS_CAP_HTTP_STALE_AFTER:-15m}"

@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +21,7 @@ import (
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
+	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 	"github.com/c360studio/semops/pkg/cop"
@@ -372,6 +376,80 @@ func TestStartRegistersOwnershipBeforeComposingCAPFlow(t *testing.T) {
 	}
 }
 
+func TestStartCAPFlowCapturesProviderReplayWhenConfigured(t *testing.T) {
+	now := time.Date(2026, 6, 20, 18, 0, 0, 0, time.UTC)
+	records, err := capcodec.LifecycleFixtureRecords(now)
+	if err != nil {
+		t.Fatalf("cap fixtures: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/cap+xml")
+		_, _ = w.Write(records[0].RawXML)
+	}))
+	defer server.Close()
+
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.CAP.Enabled = true
+	cfg.CAP.Source = "cap:http:runtime-provider-fixture"
+	cfg.CAP.ReplayPath = filepath.Join(t.TempDir(), "cap-provider.jsonl")
+	cfg.CAP.HTTP.URL = server.URL
+	cfg.CAP.HTTP.PollInterval = time.Hour
+	writer := &recordingCAPAppPlanWriter{}
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{
+				Incarnation: "lease-123",
+				Owners:      []string{cop.OwnerCAP},
+				Tokens: map[string]ownership.OwnerToken{
+					cop.OwnerCAP: ownership.ExpectedOwnerToken(cop.OwnerCAP, "lease-123"),
+				},
+			}, func() {}, nil
+		},
+		newCAPPlanWriter: func(
+			stack.CAPAdapterConfig,
+			stack.CAPAdapterDeps,
+		) (capcomponent.PlanWriter, error) {
+			return writer, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := app.Close(context.Background()); err != nil {
+			t.Fatalf("close app: %v", err)
+		}
+	})
+
+	if err := app.CAPHTTPPoller().PollOnce(context.Background()); err != nil {
+		t.Fatalf("poll CAP provider fixture: %v", err)
+	}
+	loaded, err := capcodec.LoadReplay(cfg.CAP.ReplayPath)
+	if err != nil {
+		t.Fatalf("load runtime CAP replay: %v", err)
+	}
+	if len(loaded) != 1 {
+		t.Fatalf("runtime CAP replay records = %d, want 1", len(loaded))
+	}
+	if loaded[0].Source != "cap:http:runtime-provider-fixture" ||
+		loaded[0].Identifier != "nws-demo-flood-warning" {
+		t.Fatalf("runtime CAP replay record = %+v", loaded[0])
+	}
+	if len(writer.plans) != 1 {
+		t.Fatalf("CAP graph plans = %d, want hazard projection", len(writer.plans))
+	}
+}
+
 func TestStartCleansUpWhenCAPCompositionFails(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -655,6 +733,7 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvCoTTCPMaxEventBytes:        "8192",
 		EnvCAPEnabled:                 "true",
 		EnvCAPSource:                  "cap:http",
+		EnvCAPReplayPath:              "/tmp/semops-cap.jsonl",
 		EnvCAPWriteTimeout:            "975ms",
 		EnvCAPHTTPURL:                 "https://example.test/cap",
 		EnvCAPHTTPMethod:              "POST",
@@ -743,7 +822,8 @@ func TestConfigFromEnv(t *testing.T) {
 	if cfg.CAP.Source != "cap:http" ||
 		cfg.CAP.Org != "lab" ||
 		cfg.CAP.Platform != "edge-7" ||
-		cfg.CAP.TraceID != "trace-7" {
+		cfg.CAP.TraceID != "trace-7" ||
+		cfg.CAP.ReplayPath != "/tmp/semops-cap.jsonl" {
 		t.Fatalf("CAP config = %+v", cfg.CAP)
 	}
 	if cfg.CAP.WriteTimeout != 975*time.Millisecond {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -256,6 +257,67 @@ func TestHTTPPollerNotModifiedTracksProviderContactWithoutPublishing(t *testing.
 	}
 	if !status.LastFreshData.IsZero() {
 		t.Fatalf("last fresh data = %s, want zero for 304", status.LastFreshData)
+	}
+}
+
+func TestHTTPPollerAndDecoderCaptureProviderReplayFixture(t *testing.T) {
+	now := time.Date(2026, 6, 20, 15, 50, 0, 0, time.UTC)
+	record := mustCAPFixtureRecord(t, now)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/cap+xml")
+		w.Header().Set("ETag", `"fixture-provider-1"`)
+		_, _ = w.Write(record.RawXML)
+	}))
+	defer server.Close()
+
+	bus := &recordingBus{}
+	poller, err := NewHTTPPollerComponent(HTTPPollerConfig{
+		Source: "cap:http:provider-fixture",
+		URL:    server.URL,
+		Client: server.Client(),
+		Clock:  func() time.Time { return now },
+	}, bus)
+	if err != nil {
+		t.Fatalf("new poller: %v", err)
+	}
+
+	replayPath := filepath.Join(t.TempDir(), "cap-provider.jsonl")
+	registry := payloadregistry.New()
+	decoder, err := NewDecoderComponent(DecoderConfig{
+		Source:   "cap:decoder:test",
+		Registry: registry,
+		Replay:   capcodec.NewReplayStore(replayPath),
+		Clock:    func() time.Time { return now },
+	}, bus)
+	if err != nil {
+		t.Fatalf("new decoder: %v", err)
+	}
+	if err := decoder.Initialize(); err != nil {
+		t.Fatalf("initialize decoder: %v", err)
+	}
+
+	if err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("poll once: %v", err)
+	}
+	raw := bus.singlePublished(t, DefaultRawSubject)
+	if err := decoder.HandleRawMessage(context.Background(), raw.data); err != nil {
+		t.Fatalf("decode provider raw message: %v", err)
+	}
+
+	records, err := capcodec.LoadReplay(replayPath)
+	if err != nil {
+		t.Fatalf("load provider replay: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("provider replay records = %d, want 1", len(records))
+	}
+	if records[0].Source != "cap:http:provider-fixture" ||
+		records[0].Identifier != "nws-demo-flood-warning" ||
+		records[0].MsgType != "Alert" {
+		t.Fatalf("provider replay record = %+v", records[0])
+	}
+	if _, err := records[0].Alert(); err != nil {
+		t.Fatalf("parse provider replay raw XML: %v", err)
 	}
 }
 
