@@ -11,6 +11,7 @@ import (
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
+	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
@@ -601,6 +602,107 @@ func TestADSBHTTPPollingBoundaryUsesSemStreamsComponentShape(t *testing.T) {
 	}
 }
 
+func TestSAPIENTPreflightBoundaryUsesSemStreamsComponentShapeWithoutGraphWrites(t *testing.T) {
+	var _ component.Portable = component.HTTPClientPort{}
+	var _ component.LifecycleComponent = (*sapientcomponent.HTTPInputComponent)(nil)
+	var _ component.LifecycleComponent = (*sapientcomponent.DecoderComponent)(nil)
+
+	bus := sapientContractBus{}
+	input, err := sapientcomponent.NewHTTPInputComponent(sapientcomponent.HTTPInputConfig{
+		URL:           "https://apex.example.invalid/sapient/messages",
+		PollInterval:  30 * time.Second,
+		AuthRef:       "sapient-apex",
+		ContactPolicy: "semops-demo@example.invalid",
+	}, bus)
+	if err != nil {
+		t.Fatalf("new SAPIENT HTTP input: %v", err)
+	}
+	decoder, err := sapientcomponent.NewDecoderComponent(sapientcomponent.DecoderConfig{}, bus)
+	if err != nil {
+		t.Fatalf("new SAPIENT decoder: %v", err)
+	}
+	for name, lifecycle := range map[string]component.LifecycleComponent{
+		"input":   input,
+		"decoder": decoder,
+	} {
+		if err := lifecycle.Initialize(); err != nil {
+			t.Fatalf("initialize %s: %v", name, err)
+		}
+		if err := lifecycle.Start(context.Background()); err != nil {
+			t.Fatalf("start %s: %v", name, err)
+		}
+		if err := lifecycle.Stop(time.Second); err != nil {
+			t.Fatalf("stop %s: %v", name, err)
+		}
+	}
+
+	if input.Meta().Type != "input" {
+		t.Fatalf("SAPIENT input component type = %q, want input", input.Meta().Type)
+	}
+	if decoder.Meta().Type != "processor" {
+		t.Fatalf("SAPIENT decoder component type = %q, want processor", decoder.Meta().Type)
+	}
+	feed, ok := input.InputPorts()[0].Config.(component.HTTPClientPort)
+	if !ok {
+		t.Fatalf("SAPIENT input sapient_feed config = %T, want HTTPClientPort", input.InputPorts()[0].Config)
+	}
+	if got, want := feed.Type(), "http-client"; got != want {
+		t.Fatalf("HTTP client port type = %q, want %q", got, want)
+	}
+	if got, want := feed.Interface.Compatible[0], sapientcomponent.RawMessageType.Key(); got != want {
+		t.Fatalf("HTTP client compatible payload = %q, want %q", got, want)
+	}
+	if got, want := input.InputPorts()[1].Config.Type(), "timer"; got != want {
+		t.Fatalf("timer port type = %q, want %q", got, want)
+	}
+	if got, want := input.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		sapientcomponent.DefaultRawSubject; got != want {
+		t.Fatalf("input raw subject = %q, want %q", got, want)
+	}
+	if got, want := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		sapientcomponent.DefaultDecodedSubject; got != want {
+		t.Fatalf("decoder decoded subject = %q, want %q", got, want)
+	}
+	for _, port := range decoder.OutputPorts() {
+		if got, want := port.Config.Type(), "nats"; got != want {
+			t.Fatalf("SAPIENT decoder output port %q type = %q, want %q", port.Name, got, want)
+		}
+	}
+
+	requireProperty(t, input.ConfigSchema(), "url")
+	requireProperty(t, input.ConfigSchema(), "encoding")
+	requireProperty(t, decoder.ConfigSchema(), "raw_max_records")
+	requireProperty(t, decoder.ConfigSchema(), "decoded_subject")
+
+	fg := flowgraph.NewFlowGraph()
+	if err := fg.AddComponentNode(input.Meta().Name, input); err != nil {
+		t.Fatalf("add SAPIENT HTTP input to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
+		t.Fatalf("add SAPIENT decoder to flow graph: %v", err)
+	}
+	if err := fg.ConnectComponentsByPatterns(); err != nil {
+		t.Fatalf("connect SAPIENT HTTP input flow graph: %v", err)
+	}
+	inputNode := fg.GetNodes()[input.Meta().Name]
+	if got, want := inputNode.InputPorts[0].Pattern, flowgraph.PatternHTTPClient; got != want {
+		t.Fatalf("HTTP input pattern = %q, want %q", got, want)
+	}
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: input.Meta().Name, PortName: "raw_messages"},
+		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_messages"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: sapientcomponent.DefaultRawSubject,
+	})
+
+	analysis := fg.AnalyzeConnectivity()
+	for _, orphan := range analysis.OrphanedPorts {
+		if orphan.ComponentName == input.Meta().Name && orphan.PortName == "sapient_feed" {
+			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
+		}
+	}
+}
+
 func TestRawFeedFlowUsesRegisteredBaseMessagePayload(t *testing.T) {
 	registry := payloadregistry.New()
 	if err := mavcomponent.RegisterPayloads(registry); err != nil {
@@ -798,4 +900,18 @@ type adsbContractPlanWriter struct{}
 
 func (adsbContractPlanWriter) Apply(context.Context, adsbprojector.Plan) error {
 	return nil
+}
+
+type sapientContractBus struct{}
+
+func (sapientContractBus) Publish(context.Context, string, []byte) error {
+	return nil
+}
+
+func (sapientContractBus) Subscribe(
+	context.Context,
+	string,
+	func(context.Context, *nats.Msg),
+) (sapientcomponent.Subscription, error) {
+	return contractSubscription{}, nil
 }

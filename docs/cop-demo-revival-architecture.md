@@ -72,6 +72,8 @@ evidence before live public-alert ingestion is claimed. SemStreams `v1.0.0-beta.
 `component.HTTPClientPort` for the outbound HTTP/polling dependency shape that CAP/NWS, OpenSky ADS-B, and possible
 SAPIENT/Apex integrations expose. ADS-B now has an OpenSky-compatible HTTP input -> decoder -> graph-projector
 component package proved against local provider fixtures, but it is not wired into the default runtime.
+SAPIENT now has a preflight-only HTTP input -> decoder component package for raw/decoded JSON or protobuf payload
+streams; it deliberately has no graph request ports or owner claim.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -132,10 +134,11 @@ SemOps has salvageable MAVLink depth:
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
 - The next hosted-feed hardening step is to decide whether ADS-B should wire its OpenSky-compatible HTTP components
-  into an opt-in runtime path or prioritize local receiver/readsb/dump1090 input components first, then repeat the
-  same treatment for SAPIENT after projection ownership, harness, and service-mode review. CAP now has an opt-in
-  input -> decoder -> projector component flow, component-level stale health, and optional provider-shaped replay
-  capture through `SEMOPS_CAP_REPLAY_PATH`, but real provider fixtures and lifecycle behavior remain open.
+  into an opt-in runtime path or prioritize local receiver/readsb/dump1090 input components first. SAPIENT has a
+  preflight-only input -> decoder component flow, but graph projection, `OwnerSAPIENT`, and product service hosting
+  remain blocked behind projection ownership, harness, and service-mode review. CAP now has an opt-in input ->
+  decoder -> projector component flow, component-level stale health, and optional provider-shaped replay capture
+  through `SEMOPS_CAP_REPLAY_PATH`, but real provider fixtures and lifecycle behavior remain open.
 
 SemOps now has TAK/CoT depth beyond prior-art replay:
 
@@ -393,6 +396,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 | `cmd/semops-scenario-runner` | Hosted one-shot scenario service | Runs HADR replay with active status polling |
 | `internal/adapters/adsb` | ADS-B adapter harness | OpenSky snapshot capture, replay, projection, health |
 | `internal/components/adsb` | ADS-B component package | OpenSky HTTP poller, decoder, projector ports |
+| `internal/components/sapient` | SAPIENT preflight components | HTTP raw input and decoder streams |
 | `internal/stack` | Testable service composition factories | Wires SemStreams clients, writers, adapters |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
@@ -468,9 +472,10 @@ profile semantics.
 - Add deterministic ADS-B replay, a hosted adapter seam, and an OpenSky-compatible SemStreams component package now
   that OpenSky-shaped parsing plus graph projection/readback exist.
 - Move SAPIENT from artifact discovery to parser/harness planning now that GOV.UK, BSI Flex 335 v2, Dstl protobufs,
-  the Dstl v2 Test Harness, and Apex middleware are identified.
-- Keep SAPIENT out of graph projection and demo compliance language until SemOps has local parser fixtures and a
-  documented harness result or an explicit non-compliance demo decision.
+  the Dstl v2 Test Harness, and Apex middleware are identified; keep the current SemStreams component work
+  preflight-only.
+- Keep SAPIENT out of graph projection and demo compliance language until SemOps has local parser fixtures, a
+  documented harness result or an explicit non-compliance demo decision, and an accepted source-owner model.
 - Add a statistical track association service for ambiguous air tracks.
 - Write association evidence back to the graph; add UI only if it helps operator decisions.
 

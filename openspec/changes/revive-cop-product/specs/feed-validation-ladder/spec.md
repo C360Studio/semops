@@ -87,9 +87,11 @@ public conformance suite, or documented interoperability test backs the claim.
 - **THEN** the parser may be used as developer preflight evidence before graph projection
 - **AND** SemOps may add descriptor-based binary protobuf preflight from official proto source without claiming
   full-message coverage, portable-suite authority, product support, or SAPIENT compliance
+- **AND** SemOps may run SAPIENT raw ingress and decoder preflight as SemStreams input and processor components only
+  when they publish raw/decoded streams and avoid graph mutation ports, owner claims, and product support wording
 - **AND** SemOps does not claim compliance until scoped Dstl harness evidence exists
-- **AND** SemOps does not add SAPIENT owner claims, graph projection, or hosted components until projection ownership,
-  indexing, service mode, and harness scope have been reviewed
+- **AND** SemOps does not add SAPIENT owner claims, graph projection, graph-producing hosted components, or product
+  service support until projection ownership, indexing, service mode, and harness scope have been reviewed
 
 #### Scenario: CS API conformance is standards-edge evidence
 
