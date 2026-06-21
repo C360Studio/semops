@@ -295,6 +295,12 @@ publish CS API, expose SemOps state to federated consumers, and provide a unifie
 tasking. Those benefits do not require making CS API the COP's internal language. If CS API mappings evolve, the bridge
 should absorb that change; the native adapters and COP model should not be hostage to an external standards lifecycle.
 
+Tasking through CS API needs a deliberate pause before implementation. The bridge should behave as an asynchronous
+command boundary: validate and accept or reject quickly, record governed desired state or command intent in the graph,
+and let native drivers reconcile actual tactical execution. Before live tasking, SemOps needs policies for
+TTL/deadline windows, priority and authority arbitration, local operator override, idempotency, cancellation,
+supersession, partial execution, stale commands after reconnect, and Command Status/System Event mapping.
+
 ## Adversarial Review Gates
 
 Run adversarial reviews before:

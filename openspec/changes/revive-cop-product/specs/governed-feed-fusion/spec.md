@@ -131,6 +131,8 @@ requests before triples or foreign edges are added.
   Property Definitions map through curated COP projections rather than raw feed payloads
 - **AND** dynamic resources such as Datastreams, Observations, ControlStreams, Commands, Command Status, System
   Events, streaming, and snapshots map through ownership-aware state, evidence, and command-authority boundaries
+- **AND** command ingress is asynchronous: the CS API boundary records governed intent or desired state with TTL,
+  priority, authority, idempotency, and cancellation semantics before native drivers reconcile actual execution
 - **AND** native adapters for MAVLink, TAK/CoT, CAP/EDXL, ADS-B, SAPIENT, and KLV remain first-class paths when their
   native protocols carry product-critical semantics
 - **AND** CS API interop MUST preserve SemStreams ownership, provenance, freshness, and indexing-profile decisions
