@@ -1,18 +1,22 @@
 # SAPIENT Feed Evidence
 
-Status: JSON and binary descriptor preflight, raw replay, and preflight input/decoder components exist; harness
-qualification is still required before product support or conformance claims.
+Status: JSON and binary descriptor preflight, raw replay, preflight input/decoder components, and opt-in app-runtime
+preflight wiring exist; harness qualification is still required before product support or conformance claims.
 
 ## Decision
 
 SAPIENT has moved from artifact discovery to a parser/harness planning lane. SemOps now has a dependency-light JSON
 preflight parser, a descriptor-based binary protobuf preflight, bounded raw replay, and a SemStreams raw HTTP
 input -> decoder processor component chain for representative BSI Flex 335 v2 message shapes. It must not claim
-SAPIENT product support or compliance until a documented Dstl harness run proves the boundary.
+SAPIENT product support or compliance until a documented Dstl harness run proves the boundary. `cmd/semops` may now
+compose that preflight input -> decoder chain behind `SEMOPS_SAPIENT_ENABLED=true`, but it still produces raw/decoded
+streams only.
 
 Graph projection remains blocked. SemOps has no SAPIENT owner constant, projection contract, graph-producing hosted
 component, or graph writer by design. The first graph slice needs a reviewed source identity model, entity choice,
 indexing profile, and harness or explicit non-compliance-demo scope before `OwnerSAPIENT` exists.
+See `openspec/changes/revive-cop-product/reviews/2026-06-21-sapient-runtime-preflight-review.md` for the runtime
+preflight boundary review.
 
 ## Local Evidence
 
@@ -30,6 +34,10 @@ indexing profile, and harness or explicit non-compliance-demo scope before `Owne
 - `internal/components/sapient` provides an HTTP raw input component and decoder processor for SAPIENT preflight
   payloads, with `HTTPClientPort`, `TimerPort`, registered raw/decoded `message.BaseMessage` payloads, stream ports,
   replay capture, stale-source health, and no graph request ports.
+- `cmd/semops` can opt into that preflight HTTP input -> decoder chain with `SEMOPS_SAPIENT_ENABLED=true`,
+  `SEMOPS_SAPIENT_HTTP_URL`, explicit encoding, stale-source config, raw-lane caps, and optional replay capture.
+- App-runtime SAPIENT preflight does not append ownership contracts, mint `OwnerSAPIENT`, or subscribe any decoded
+  graph projector path.
 - No SemOps SAPIENT generated Go bindings, product service adapter, or graph projector exists yet.
 - No local SAPIENT test harness run has been performed.
 - The feed ladder assigns detections/tracks to `signal`, tasking/collection state to `control`, and native decode
@@ -163,6 +171,25 @@ Acceptance:
 - Malformed messages are captured and replayed before parse failure, without graph writes. [done]
 - The component package exposes no graph request ports and does not introduce `OwnerSAPIENT`. [done]
 
+### App Runtime Preflight Gate
+
+Target command:
+
+```bash
+go test ./internal/app -run SAPIENT
+```
+
+Acceptance:
+
+- The hosted app composes SAPIENT as HTTP input -> decoder processor only when `SEMOPS_SAPIENT_ENABLED=true`. [done]
+- Runtime ownership does not add SAPIENT owner claims or graph-producing contracts. [done]
+- `SEMOPS_SAPIENT_REPLAY_PATH`, raw-lane bounds, HTTP URL, poll interval, stale-after, contact policy, and encoding
+  are config/env-driven. [done]
+- Local provider-shaped HTTP fixtures can drive raw -> decoded preflight streams and append replay without graph
+  writes. [done]
+- Compose passes SAPIENT runtime env through but defaults `SEMOPS_SAPIENT_ENABLED=false` and requires an explicit URL
+  when enabled. [done]
+
 ### Generated Binding Gate
 
 Target command if SemOps needs generated Go bindings rather than dynamic descriptors:
@@ -209,7 +236,8 @@ Acceptance:
   copies beyond trimmed test shapes.
 - No SemOps mapping exists for SAPIENT node identity, detection lifecycle, tasking, alert acknowledgements, or Apex
   middleware interop.
-- No product-hosted SAPIENT service, source-health policy, or graph projection path exists yet.
+- No product-hosted SAPIENT service or graph projection path exists yet; the opt-in app-runtime chain is preflight
+  only.
 - No `OwnerSAPIENT`, SAPIENT projection contract, graph-producing SAPIENT component, or SAPIENT graph writer exists
   yet; that is intentional until projection ownership and service mode are reviewed.
 

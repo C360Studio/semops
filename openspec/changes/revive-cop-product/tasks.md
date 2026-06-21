@@ -38,6 +38,8 @@
 - [x] 2.18 Add preflight-only SAPIENT HTTP input and decoder components without graph request ports or owner claims
 - [x] 2.19 Wire the ADS-B OpenSky-compatible HTTP poller -> decoder -> projector component chain into app runtime
       behind explicit opt-in config
+- [x] 2.20 Wire the SAPIENT preflight HTTP input -> decoder component chain into app runtime without graph ownership
+      claims
 
 ## 3. COP Model And Governance
 
@@ -109,6 +111,7 @@
 - [x] 5.40 Add ADS-B OpenSky HTTP component-promotion gate without claiming default live OpenSky service support
 - [x] 5.41 Add SAPIENT preflight component gate without claiming product support, conformance, or graph projection
 - [x] 5.42 Add ADS-B app-runtime component gate without claiming default live OpenSky reliability or receiver support
+- [x] 5.43 Add SAPIENT app-runtime preflight gate without claiming product support, conformance, or graph projection
 
 ## 6. Structural COP Stack
 
@@ -171,9 +174,11 @@
 - [x] 6.50 Thread optional `SEMOPS_CAP_REPLAY_PATH` into the opt-in Compose/runtime chain
 - [x] 6.51 Add initial ADS-B OpenSky HTTP poller, decoder, and projector components while keeping runtime hosting
       and receiver paths gated
-- [x] 6.52 Add initial SAPIENT preflight HTTP input and decoder components while keeping runtime hosting and graph
-      projection gated
+- [x] 6.52 Add initial SAPIENT preflight HTTP input and decoder components while keeping graph projection and product
+      service claims gated
 - [x] 6.53 Wire ADS-B HTTP components into hosted app composition behind `SEMOPS_ADSB_ENABLED=false` by default
+- [x] 6.54 Wire SAPIENT preflight HTTP components into hosted app composition behind `SEMOPS_SAPIENT_ENABLED=false`
+      by default
 
 ## 7. COP UI
 

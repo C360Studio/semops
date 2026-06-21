@@ -436,8 +436,8 @@ First acceptance gate:
 
 ### SAPIENT
 
-Status: JSON and binary descriptor preflight, raw replay, and preflight input/decoder components exist; harness
-qualification is still required before product support or conformance claims.
+Status: JSON and binary descriptor preflight, raw replay, preflight input/decoder components, and opt-in app-runtime
+preflight wiring exist; harness qualification is still required before product support or conformance claims.
 
 Compliance and sample evidence:
 
@@ -466,6 +466,8 @@ Local assets:
 - `internal/components/sapient` now provides a preflight-only SemStreams HTTP input and decoder processor with
   `HTTPClientPort`, `TimerPort`, registered raw/decoded payloads, stream ports, replay capture, stale-source health,
   and no graph request ports.
+- `cmd/semops` can run that HTTP input -> decoder preflight chain behind `SEMOPS_SAPIENT_ENABLED=true` with explicit
+  URL, encoding, stale-source settings, raw-lane caps, and optional replay capture.
 - No local SAPIENT harness run, generated Go bindings, product service adapter, or graph projector exists.
 - No `OwnerSAPIENT`, SAPIENT projection contract, graph writer, or graph-producing SAPIENT component exists yet. This
   is intentional until projection ownership, indexing, and product service mode are reviewed.
@@ -499,11 +501,13 @@ First acceptance gate:
   without writing graph state or claiming hosted SAPIENT support.
 - Given an HTTP source of SAPIENT JSON or protobuf bytes, SemOps can run a SemStreams input -> decoder processor chain
   against local fixtures, producing raw and decoded preflight streams without graph writes or owner claims.
+- Given `SEMOPS_SAPIENT_ENABLED=true`, the hosted app composes only the SAPIENT preflight HTTP input and decoder,
+  captures optional replay, and avoids SAPIENT owner registration or decoded graph projector subscriptions.
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
-- Given a future hosted SAPIENT feed, SemOps uses SemStreams input and processor components once service mode is
-  chosen, including `HTTPClientPort` for Apex or other outbound HTTP client integration modes. The current component
-  package is preflight-only and must not be read as product hosted-service support.
+- Given a future product-hosted SAPIENT feed, SemOps promotes beyond preflight only after service mode, projection
+  ownership, indexing, and harness scope are reviewed. The current runtime path is preflight-only and must not be read
+  as product hosted-service support.
 
 ### KLV/STANAG 4609
 
