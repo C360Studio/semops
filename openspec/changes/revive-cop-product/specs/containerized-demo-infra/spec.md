@@ -30,6 +30,8 @@ SemOps SHALL also prefer SemStreams shared utility packages for common runtime c
   and last activity
 - **AND** hosted components expose Prometheus metrics through SemStreams metric helpers where the component runtime
   provides a metrics registry
+- **AND** one-command stack smoke evidence scrapes SemOps component metrics through Caddy before any UI runtime-flow
+  panel is treated as backed by live component telemetry
 - **AND** durable stream backpressure, replay, redelivery, or ack behavior is represented as JetStream port
   configuration rather than hidden inside adapter code
 - **AND** SemOps adds bounded `pkg/buffer` queues or `pkg/cache` only when telemetry shows queue growth, drop pressure,

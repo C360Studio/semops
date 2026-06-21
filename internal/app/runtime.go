@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/c360studio/semops/internal/componentmetrics"
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
@@ -311,6 +312,59 @@ func (a *App) GraphRequester() GraphRequester {
 		return nil
 	}
 	return a.client
+}
+
+func (a *App) ComponentMetricSources() []componentmetrics.Source {
+	if a == nil {
+		return nil
+	}
+	sources := make([]componentmetrics.Source, 0, 15)
+	if a.mavlinkInput != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "input", Component: a.mavlinkInput})
+	}
+	if a.mavlinkDecoder != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "decoder", Component: a.mavlinkDecoder})
+	}
+	if a.mavlinkProjector != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "projector", Component: a.mavlinkProjector})
+	}
+	if a.cotUDPInput != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "tak-cot", Role: "udp-input", Component: a.cotUDPInput})
+	}
+	if a.cotTCPInput != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "tak-cot", Role: "tcp-input", Component: a.cotTCPInput})
+	}
+	if a.cotDecoder != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "tak-cot", Role: "decoder", Component: a.cotDecoder})
+	}
+	if a.cotProjector != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "tak-cot", Role: "projector", Component: a.cotProjector})
+	}
+	if a.capPoller != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "cap", Role: "http-poller", Component: a.capPoller})
+	}
+	if a.capDecoder != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "cap", Role: "decoder", Component: a.capDecoder})
+	}
+	if a.capProjector != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "cap", Role: "projector", Component: a.capProjector})
+	}
+	if a.adsbPoller != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "adsb", Role: "http-poller", Component: a.adsbPoller})
+	}
+	if a.adsbDecoder != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "adsb", Role: "decoder", Component: a.adsbDecoder})
+	}
+	if a.adsbProjector != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "adsb", Role: "projector", Component: a.adsbProjector})
+	}
+	if a.sapientInput != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "sapient", Role: "http-input", Component: a.sapientInput})
+	}
+	if a.sapientDecoder != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "sapient", Role: "decoder", Component: a.sapientDecoder})
+	}
+	return sources
 }
 
 func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {

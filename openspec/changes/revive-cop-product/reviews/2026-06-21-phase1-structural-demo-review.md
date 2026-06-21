@@ -44,6 +44,10 @@ We still do not assert SemStreams component `Health()`/`DataFlow()` metrics or P
 lag, drop pressure, retry pressure, or stale source behavior across all hosted components. The stack can fail faster,
 but it does not yet tell us whether high-rate operation needs JetStream ports, `pkg/buffer`, or `pkg/cache`.
 
+Update: `2026-06-21-component-prometheus-telemetry-review.md` closes the first-order hosted component health/flow gap
+with Caddy-routed `semops_component_*` Prometheus metrics and stack-smoke assertions. Queue depth, drop pressure,
+retry/redelivery pressure, and high-rate backpressure evidence remain open.
+
 ### Medium: Prefix discovery is working, but cardinality pressure is only first-order
 
 The COP API uses SemStreams prefix discovery and surfaces source/type cardinality plus at-limit pressure. That is the

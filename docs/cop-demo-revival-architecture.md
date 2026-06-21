@@ -240,9 +240,11 @@ The short rule is: ontology hydrates the inspector; SemOps owns the view.
    shared cache semantics; and `pkg/buffer` for bounded concurrent queues and raw lanes where its policies fit.
 9. Backpressure is a flow-level contract, not an afterthought inside adapters. Components expose SemStreams
    `Health()` and `DataFlow()` metrics first, then Prometheus counters/histograms/gauges through SemStreams metric
-   helpers where hosted. Plain NATS subjects are acceptable for first local smokes, but durable or high-rate feed
-   edges should promote to JetStream ports, bounded `pkg/buffer`, or `pkg/cache` only when telemetry shows lag,
-   drops, redelivery/retry pressure, replay need, or smoothing need.
+   helpers where hosted. SemOps exposes running component health and flow at `/metrics` using Prometheus samples
+   derived from SemStreams `Discoverable` components; any future UI summary should derive from that standard surface,
+   not a parallel SemOps telemetry API. Plain NATS subjects are acceptable for first local smokes, but durable or
+   high-rate feed edges should promote to JetStream ports, bounded `pkg/buffer`, or `pkg/cache` only when telemetry
+   shows lag, drops, redelivery/retry pressure, replay need, or smoothing need.
 10. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
 11. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
    architect, reviewer, and technical-writer roles have tried to break the assumptions and recorded the result.
@@ -272,6 +274,9 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - The first one-command graph smoke passes through `scripts/cop-stack-smoke.sh`; it starts the graph scaffold, polls
   health, metrics, API, UI, Svelte immutable asset caching, the hosted MAVLink UDP-to-snapshot path, and the direct
   MAVLink live graph smoke before tearing the stack down.
+- SemOps now exposes product-runtime component health and flow metrics at `/metrics` via Caddy. The one-command smoke
+  asserts `semops_component_*` Prometheus samples for the hosted MAVLink, TAK/CoT, ADS-B, and SAPIENT component flow
+  when those feeds are enabled.
 - SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.114`, retaining
   the beta.113 prefix-discovery contract and adding the beta.114 `HTTPClientPort` component boundary.
 - The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,
@@ -462,6 +467,9 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
 - A documented raw-lane plus current-state projection pattern for high-rate telemetry.
 - Component backpressure telemetry for hosted feed flows:
   [SemStreams issue #309](https://github.com/C360Studio/semstreams/issues/309).
+- A reusable SemStreams helper for exporting any `component.Discoverable` `Health()` and `DataFlow()` values as
+  Prometheus samples. SemOps carries the first local collector so the product can keep moving without inventing a
+  non-standard telemetry API.
 - External HTTP client/polling port metadata is now a shipped SemStreams contract:
   `component.HTTPClientPort` in `v1.0.0-beta.114`.
 - Edge/core sync guidance for structural edge nodes and inference-heavy core nodes.

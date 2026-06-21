@@ -133,6 +133,9 @@ Mock or harness:
   mismatch, and dropped-foreign-edge counters when a SemStreams metrics URL is provided.
 - The one-command hosted graph smoke now carries the same metrics URL and delta assertions through
   `scripts/cop-stack-smoke.sh`.
+- The one-command hosted stack smoke also scrapes the SemOps `/metrics` endpoint through Caddy and asserts
+  `semops_component_health_status`, `semops_component_flow_messages_per_second`, and
+  `semops_component_flow_last_activity_timestamp_seconds` for the hosted MAVLink input/decoder/projector chain.
 - Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 
 Indexing profile pressure:
@@ -186,6 +189,8 @@ Local assets:
 - SemOps now has `internal/components/cot`, a SemStreams flow component package with UDP/TCP input components,
   raw-event decoder processor, graph projector processor, registered raw/decoded `message.BaseMessage` payloads,
   config schemas, health, and flow metrics.
+- The one-command hosted stack smoke now asserts Prometheus component health and flow samples for the hosted CoT UDP
+  input, decoder, and projector chain through SemOps `/metrics`.
 - SemLink has a TAK bridge and `scripts/demo-up.sh` seeds UDP CoT events for operators, markers, and chat.
 
 Mock or harness:
@@ -401,6 +406,8 @@ Local assets:
   `SEMOPS_ADSB_HTTP_URL`, replay capture, raw-lane caps, stale-source config, and token-backed graph writes.
 - `cmd/semops-feed-fixtures` serves deterministic OpenSky-compatible `/adsb/states` JSON for local Compose smoke
   tests, and `scripts/cop-stack-smoke.sh` enables ADS-B against that fixture by default.
+- The one-command hosted stack smoke now asserts Prometheus component health and flow samples for the opt-in ADS-B
+  HTTP poller, decoder, and projector chain through SemOps `/metrics`.
 - `cmd/semops-scenario-runner` adds ADS-B snapshots only when `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose service
   passes that flag through but defaults it to false.
 - The scenario runner appends `semops.feed.adsb` ownership only for that opt-in path so structural ADS-B graph writes
@@ -523,6 +530,8 @@ First acceptance gate:
   captures optional replay, and avoids SAPIENT owner registration or decoded graph projector subscriptions.
 - Given the local Compose fixture provider, the one-command stack smoke enables SAPIENT and observes a typed decoded
   task-ack payload on `semops.feed.sapient.decoded` without adding SAPIENT graph ownership or projector subscriptions.
+- The same smoke asserts Prometheus component health and flow samples for the SAPIENT HTTP input and decoder through
+  SemOps `/metrics`; this remains preflight telemetry, not product support or conformance evidence.
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
 - Given a future product-hosted SAPIENT feed, SemOps promotes beyond preflight only after service mode, projection

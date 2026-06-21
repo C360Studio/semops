@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/c360studio/semops/internal/componentmetrics"
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
@@ -1247,6 +1248,39 @@ func TestRuntimeOwnedContractsIncludeADSBOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestComponentMetricSourcesExposeStartedRuntimeComponents(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	defer app.Close(context.Background())
+
+	sources := app.ComponentMetricSources()
+	if !hasComponentMetricSource(sources, "semops-processor-mavlink-decode", "mavlink", "decoder") {
+		t.Fatalf("missing MAVLink decoder metric source: %+v", componentMetricSourceNames(sources))
+	}
+	if !hasComponentMetricSource(sources, "semops-processor-mavlink-project", "mavlink", "projector") {
+		t.Fatalf("missing MAVLink projector metric source: %+v", componentMetricSourceNames(sources))
+	}
+	if hasComponentMetricSource(sources, "semops-input-mavlink-udp", "mavlink", "input") {
+		t.Fatalf("unexpected MAVLink UDP source without listen addr: %+v", componentMetricSourceNames(sources))
+	}
+}
+
 func TestConfigFromEnv(t *testing.T) {
 	env := map[string]string{
 		EnvNATSURL:                     "nats://semstreams:4222",
@@ -1992,6 +2026,30 @@ func hasOwnedContract(owned []cop.OwnedContract, owner string, contractName stri
 		}
 	}
 	return false
+}
+
+func hasComponentMetricSource(sources []componentmetrics.Source, name, feed, role string) bool {
+	for _, source := range sources {
+		if source.Component == nil {
+			continue
+		}
+		meta := source.Component.Meta()
+		if meta.Name == name && source.Feed == feed && source.Role == role {
+			return true
+		}
+	}
+	return false
+}
+
+func componentMetricSourceNames(sources []componentmetrics.Source) []string {
+	names := make([]string, 0, len(sources))
+	for _, source := range sources {
+		if source.Component == nil {
+			continue
+		}
+		names = append(names, source.Feed+"/"+source.Role+"/"+source.Component.Meta().Name)
+	}
+	return names
 }
 
 func mustRuntimeHeartbeatFrame(t *testing.T) []byte {

@@ -189,6 +189,8 @@
 - [ ] 6.58 Split broader EDXL beyond CAP into a later feed-validation gate if product needs justify it
 - [x] 6.59 Run full one-command stack smoke after Playwright, active-status polling, shared-airspace, and CAP scope
       updates
+- [x] 6.60 Expose hosted component health and flow through Prometheus `/metrics` and assert Caddy-routed
+      `semops_component_*` samples in the one-command stack smoke
 
 ## 7. COP UI
 

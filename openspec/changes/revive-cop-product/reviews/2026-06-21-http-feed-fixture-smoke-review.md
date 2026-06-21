@@ -40,8 +40,9 @@ conformance language.
 
 ## Follow-ups
 
-- Add component-runtime metrics assertions for ADS-B/SAPIENT once SemStreams exposes enough flow telemetry at the
-  hosted boundary.
+- Component-runtime health/flow metrics assertions for ADS-B/SAPIENT are now covered by
+  `2026-06-21-component-prometheus-telemetry-review.md`; keep queue/drop/retry/backpressure metrics open as the next
+  observability gate.
 - Decide whether ADS-B next needs authenticated OpenSky mode, local receiver/readsb/dump1090 input components, or
   ASTERIX fixtures.
 - Keep SAPIENT graph projection blocked behind ownership/indexing review and portable harness or official Dstl harness

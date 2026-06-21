@@ -6,7 +6,7 @@
 	encode zstd gzip
 
 	@semops_api {
-		path /api/* /healthz
+		path /api/* /healthz /metrics
 	}
 	reverse_proxy @semops_api semops:8088
 

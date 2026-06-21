@@ -14,6 +14,9 @@ import (
 	_ "github.com/c360studio/semops" // Import for documentation
 	copapi "github.com/c360studio/semops/internal/api/cop"
 	semopsapp "github.com/c360studio/semops/internal/app"
+	"github.com/c360studio/semops/internal/componentmetrics"
+	"github.com/c360studio/semstreams/metric"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Version information (set by build)
@@ -108,13 +111,24 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 	if err != nil {
 		return nil, err
 	}
+	metricsRegistry, err := newMetricsRegistry(runtime)
+	if err != nil {
+		return nil, err
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.HandlerFor(
+		metricsRegistry.PrometheusRegistry(),
+		promhttp.HandlerOpts{EnableOpenMetrics: true},
+	))
+	mux.Handle("/", handler.Routes())
+
 	listener, err := net.Listen("tcp", cfg.APIAddr)
 	if err != nil {
 		return nil, fmt.Errorf("listen %s: %w", cfg.APIAddr, err)
 	}
 	server := &http.Server{
 		Addr:              cfg.APIAddr,
-		Handler:           handler.Routes(),
+		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
@@ -124,6 +138,18 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 		}
 	}()
 	return server, nil
+}
+
+func newMetricsRegistry(runtime *semopsapp.App) (*metric.MetricsRegistry, error) {
+	registry := metric.NewMetricsRegistry()
+	registry.CoreMetrics().RecordServiceStatus("semops", 2)
+	registry.CoreMetrics().RecordHealthStatus("semops", true)
+	if runtime != nil {
+		if err := componentmetrics.Register(registry, runtime); err != nil {
+			return nil, err
+		}
+	}
+	return registry, nil
 }
 
 func closeAPIServer(server *http.Server, timeout time.Duration) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -20,6 +21,7 @@ import (
 const (
 	liveSnapshotURLEnv      = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
 	liveScenarioStatusEnv   = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
+	liveComponentMetricsEnv = "SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL"
 	liveSnapshotUDPAddrEnv  = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
 	liveSnapshotCoTAddrEnv  = "SEMOPS_COP_SMOKE_COT_UDP_ADDR"
 	liveSnapshotTrackIDEnv  = "SEMOPS_COP_SMOKE_EXPECTED_TRACK_ID"
@@ -29,6 +31,7 @@ const (
 	liveSnapshotHazardEnv   = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
 	liveScenarioADSBEnv     = "SEMOPS_SCENARIO_ADSB_FIXTURE"
 	liveSnapshotADSBHTTPEnv = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
+	liveSnapshotSAPIENTEnv  = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
 	defaultExpectedTrackID  = "c360.edge-compose.cop.mavlink.track.system-42"
 	defaultExpectedCoTTrack = "c360.edge-compose.cop.tak.track.android-alpha"
 	defaultExpectedCoTTask  = "c360.edge-compose.cop.tak.task.marker-north-gate"
@@ -290,6 +293,84 @@ func TestHostedCOPSnapshotReflectsHADRSharedAirspace(t *testing.T) {
 	}
 }
 
+func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
+	metricsURL := os.Getenv(liveComponentMetricsEnv)
+	mavlinkAddr := os.Getenv(liveSnapshotUDPAddrEnv)
+	cotAddr := os.Getenv(liveSnapshotCoTAddrEnv)
+	if metricsURL == "" || mavlinkAddr == "" || cotAddr == "" {
+		t.Skipf("set %s, %s, and %s to run the hosted component metrics smoke",
+			liveComponentMetricsEnv, liveSnapshotUDPAddrEnv, liveSnapshotCoTAddrEnv)
+	}
+	expectADSB, err := boolFromEnv(liveSnapshotADSBHTTPEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectSAPIENT, err := boolFromEnv(liveSnapshotSAPIENTEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	mavlinkFrames := generatedMAVLinkFrames(t)
+	cotEvents, err := cotcodec.MarshalEvents(cotcodec.SeedEvents(time.Now().UTC()))
+	if err != nil {
+		t.Fatalf("marshal cot seed events: %v", err)
+	}
+	expected := []componentMetricExpectation{
+		{Name: "semops-input-mavlink-udp", Feed: "mavlink", Role: "input"},
+		{Name: "semops-processor-mavlink-decode", Feed: "mavlink", Role: "decoder"},
+		{Name: "semops-processor-mavlink-project", Feed: "mavlink", Role: "projector"},
+		{Name: "semops-input-cot-udp", Feed: "tak-cot", Role: "udp-input"},
+		{Name: "semops-processor-cot-decode", Feed: "tak-cot", Role: "decoder"},
+		{Name: "semops-processor-cot-project", Feed: "tak-cot", Role: "projector"},
+	}
+	if expectADSB {
+		expected = append(expected,
+			componentMetricExpectation{Name: "semops-input-adsb-http", Feed: "adsb", Role: "http-poller"},
+			componentMetricExpectation{Name: "semops-processor-adsb-decode", Feed: "adsb", Role: "decoder"},
+			componentMetricExpectation{Name: "semops-processor-adsb-project", Feed: "adsb", Role: "projector"},
+		)
+	}
+	if expectSAPIENT {
+		expected = append(expected,
+			componentMetricExpectation{Name: "semops-input-sapient-http", Feed: "sapient", Role: "http-input"},
+			componentMetricExpectation{Name: "semops-processor-sapient-decode", Feed: "sapient", Role: "decoder"},
+		)
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		if err := sendMAVLinkFrames(ctx, mavlinkAddr, mavlinkFrames); err != nil {
+			lastErr = err
+		}
+		if err := sendCoTEvents(ctx, cotAddr, cotEvents); err != nil {
+			lastErr = err
+		}
+
+		metrics, err := fetchPrometheusMetrics(ctx, client, metricsURL)
+		if err != nil {
+			lastErr = err
+		} else if missing := missingComponentFlow(metrics, expected); len(missing) == 0 {
+			return
+		} else {
+			lastErr = fmt.Errorf("component metrics missing flow: %s", strings.Join(missing, ", "))
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted component Prometheus metrics did not reflect feed flow before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
 func generatedMAVLinkFrames(t *testing.T) [][]byte {
 	t.Helper()
 
@@ -505,6 +586,125 @@ func snapshotHasADSBTrack(snapshot copapi.Snapshot) bool {
 		return true
 	}
 	return false
+}
+
+type componentMetricExpectation struct {
+	Name string
+	Feed string
+	Role string
+}
+
+type prometheusSample struct {
+	Name   string
+	Labels map[string]string
+	Value  float64
+}
+
+type prometheusSnapshot []prometheusSample
+
+func fetchPrometheusMetrics(ctx context.Context, client *http.Client, metricsURL string) (prometheusSnapshot, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, metricsURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "text/plain")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("metrics status = %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read metrics: %w", err)
+	}
+	return parsePrometheusMetrics(string(body))
+}
+
+func parsePrometheusMetrics(body string) (prometheusSnapshot, error) {
+	var snapshot prometheusSnapshot
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		value, err := strconv.ParseFloat(fields[1], 64)
+		if err != nil {
+			continue
+		}
+		name, labels, err := parsePrometheusIdentity(fields[0])
+		if err != nil {
+			return nil, err
+		}
+		snapshot = append(snapshot, prometheusSample{Name: name, Labels: labels, Value: value})
+	}
+	return snapshot, nil
+}
+
+func parsePrometheusIdentity(identity string) (string, map[string]string, error) {
+	open := strings.IndexByte(identity, '{')
+	if open == -1 {
+		return identity, nil, nil
+	}
+	if !strings.HasSuffix(identity, "}") {
+		return "", nil, fmt.Errorf("metric labels missing closing brace")
+	}
+	labels := map[string]string{}
+	for _, part := range strings.Split(identity[open+1:len(identity)-1], ",") {
+		key, value, ok := strings.Cut(part, "=")
+		if !ok {
+			return "", nil, fmt.Errorf("metric label missing equals")
+		}
+		labels[key] = strings.Trim(value, `"`)
+	}
+	return identity[:open], labels, nil
+}
+
+func missingComponentFlow(snapshot prometheusSnapshot, expected []componentMetricExpectation) []string {
+	var missing []string
+	for _, item := range expected {
+		labels := map[string]string{"component": item.Name, "feed": item.Feed, "role": item.Role}
+		if snapshot.sum("semops_component_health_status", labels) <= 0 {
+			missing = append(missing, item.Name+":health")
+			continue
+		}
+		if snapshot.sum("semops_component_flow_messages_per_second", labels) <= 0 {
+			missing = append(missing, item.Name+":messages_per_second")
+			continue
+		}
+		if snapshot.sum("semops_component_flow_last_activity_timestamp_seconds", labels) <= 0 {
+			missing = append(missing, item.Name+":last_activity")
+		}
+	}
+	return missing
+}
+
+func (s prometheusSnapshot) sum(name string, labels map[string]string) float64 {
+	var total float64
+	for _, sample := range s {
+		if sample.Name != name {
+			continue
+		}
+		if prometheusLabelsMatch(sample.Labels, labels) {
+			total += sample.Value
+		}
+	}
+	return total
+}
+
+func prometheusLabelsMatch(got, want map[string]string) bool {
+	for key, value := range want {
+		if got[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 func scenarioADSBExpectedFromEnv() (bool, error) {
