@@ -102,7 +102,8 @@ func TestStartRegistersOwnershipBeforeComposingMAVLinkFlow(t *testing.T) {
 	if gotWriterDeps.NATS != client {
 		t.Fatal("MAVLink writer must reuse the connected SemStreams client")
 	}
-	if !client.hasSubscription(mavcomponent.DefaultDecodedSubject) || !client.hasSubscription(mavcomponent.DefaultRawSubject) {
+	if !client.hasSubscription(mavcomponent.DefaultDecodedSubject) ||
+		!client.hasSubscription(mavcomponent.DefaultRawSubject) {
 		t.Fatalf("MAVLink flow subscriptions = %+v", client.subscriptionSubjects())
 	}
 
@@ -224,7 +225,8 @@ func TestStartRegistersOwnershipBeforeComposingCoTFlow(t *testing.T) {
 	if gotWriterDeps.NATS != client {
 		t.Fatal("CoT writer must reuse the connected SemStreams client")
 	}
-	if !client.hasSubscription(cotcomponent.DefaultDecodedSubject) || !client.hasSubscription(cotcomponent.DefaultRawSubject) {
+	if !client.hasSubscription(cotcomponent.DefaultDecodedSubject) ||
+		!client.hasSubscription(cotcomponent.DefaultRawSubject) {
 		t.Fatalf("CoT flow subscriptions = %+v", client.subscriptionSubjects())
 	}
 
@@ -289,6 +291,7 @@ func TestStartRegistersOwnershipBeforeComposingCAPFlow(t *testing.T) {
 	cfg.CAP.WriteTimeout = 750 * time.Millisecond
 	cfg.CAP.HTTP.URL = "https://example.test/cap"
 	cfg.CAP.HTTP.PollInterval = time.Hour
+	cfg.CAP.HTTP.StaleAfter = 3 * time.Hour
 	cfg.CAP.HTTP.ContactPolicy = "semops-test@example.invalid"
 
 	var stoppedOwners bool
@@ -350,7 +353,11 @@ func TestStartRegistersOwnershipBeforeComposingCAPFlow(t *testing.T) {
 	if gotWriterDeps.NATS != client {
 		t.Fatal("CAP writer must reuse the connected SemStreams client")
 	}
-	if !client.hasSubscription(capcomponent.DefaultDecodedSubject) || !client.hasSubscription(capcomponent.DefaultRawSubject) {
+	if got := app.CAPHTTPPoller().DebugStatus().(capcomponent.HTTPPollerDebugStatus).StaleAfter; got != 3*time.Hour {
+		t.Fatalf("CAP poller stale_after = %s, want 3h", got)
+	}
+	if !client.hasSubscription(capcomponent.DefaultDecodedSubject) ||
+		!client.hasSubscription(capcomponent.DefaultRawSubject) {
 		t.Fatalf("CAP flow subscriptions = %+v", client.subscriptionSubjects())
 	}
 
@@ -541,7 +548,8 @@ func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	if app.MAVLinkInput().Addr() == nil {
 		t.Fatal("expected hosted MAVLink UDP input address")
 	}
-	if !client.hasSubscription(mavcomponent.DefaultRawSubject) || !client.hasSubscription(mavcomponent.DefaultDecodedSubject) {
+	if !client.hasSubscription(mavcomponent.DefaultRawSubject) ||
+		!client.hasSubscription(mavcomponent.DefaultDecodedSubject) {
 		t.Fatalf("subscriptions = %+v", client.subscriptionSubjects())
 	}
 
@@ -594,7 +602,8 @@ func TestStartHostsCoTInputFlowWhenConfigured(t *testing.T) {
 	if app.CoTUDPInput().Addr() == nil || app.CoTTCPInput().Addr() == nil {
 		t.Fatal("expected hosted CoT input addresses")
 	}
-	if !client.hasSubscription(cotcomponent.DefaultRawSubject) || !client.hasSubscription(cotcomponent.DefaultDecodedSubject) {
+	if !client.hasSubscription(cotcomponent.DefaultRawSubject) ||
+		!client.hasSubscription(cotcomponent.DefaultDecodedSubject) {
 		t.Fatalf("subscriptions = %+v", client.subscriptionSubjects())
 	}
 
@@ -650,6 +659,7 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvCAPHTTPURL:                 "https://example.test/cap",
 		EnvCAPHTTPMethod:              "POST",
 		EnvCAPHTTPPollInterval:        "45s",
+		EnvCAPHTTPStaleAfter:          "2m",
 		EnvCAPHTTPContactPolicy:       "semops-test@example.invalid",
 		EnvCAPHTTPAuthRef:             "cap-secret",
 		EnvCAPHTTPMaxResponseBytes:    "123456",
@@ -742,6 +752,7 @@ func TestConfigFromEnv(t *testing.T) {
 	if cfg.CAP.HTTP.URL != "https://example.test/cap" ||
 		cfg.CAP.HTTP.Method != "POST" ||
 		cfg.CAP.HTTP.PollInterval != 45*time.Second ||
+		cfg.CAP.HTTP.StaleAfter != 2*time.Minute ||
 		cfg.CAP.HTTP.ContactPolicy != "semops-test@example.invalid" ||
 		cfg.CAP.HTTP.AuthRef != "cap-secret" ||
 		cfg.CAP.HTTP.MaxResponseBytes != 123456 {
@@ -875,6 +886,11 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			want: EnvCAPHTTPPollInterval,
 		},
 		{
+			name: "bad cap stale after",
+			env:  map[string]string{EnvCAPHTTPStaleAfter: "later"},
+			want: EnvCAPHTTPStaleAfter,
+		},
+		{
 			name: "bad cap max response bytes",
 			env:  map[string]string{EnvCAPHTTPMaxResponseBytes: "huge"},
 			want: EnvCAPHTTPMaxResponseBytes,
@@ -912,6 +928,14 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvCAPHTTPMaxResponseBytes: "0",
 			},
 			want: EnvCAPHTTPMaxResponseBytes,
+		},
+		{
+			name: "zero cap stale after",
+			env: map[string]string{
+				EnvCAPEnabled:        "true",
+				EnvCAPHTTPStaleAfter: "0s",
+			},
+			want: EnvCAPHTTPStaleAfter,
 		},
 	}
 
@@ -983,7 +1007,12 @@ func (c *fakeSemStreamsClient) RequestWithRetry(
 	}
 }
 
-func (c *fakeSemStreamsClient) Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error) {
+func (c *fakeSemStreamsClient) Request(
+	ctx context.Context,
+	subject string,
+	data []byte,
+	timeout time.Duration,
+) ([]byte, error) {
 	return c.RequestWithRetry(ctx, subject, data, timeout, natsclient.DefaultRetryConfig())
 }
 

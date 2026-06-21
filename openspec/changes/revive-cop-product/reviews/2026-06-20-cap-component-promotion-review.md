@@ -57,8 +57,8 @@ fixtures can use file input.
 
 - CAP remains structurally visible in the current Compose smoke through scenario replay and direct graph smoke rather
   than through a default hosted live CAP feed service.
-- The first hosted CAP component chain now has opt-in product runtime wiring, but it still needs provider fixtures,
-  stale-source behavior, and alert lifecycle review before SemOps claims hosted CAP service support.
+- The first hosted CAP component chain now has opt-in product runtime wiring and component-level stale-source health,
+  but it still needs provider fixtures and alert lifecycle review before SemOps claims hosted CAP service support.
 - The external HTTP dependency now has a framework-visible port descriptor instead of living only in config schema;
   cadence visibility still needs SemStreams issue #312.
 
@@ -66,7 +66,7 @@ fixtures can use file input.
 
 - Keep CAP parser/projector/readback gates independent of hosted ingress.
 - Keep `internal/components/cap` scoped to hosted polling, decoding, and born-first projection, and keep hosted CAP
-  disabled by default until provider fixtures and stale-source behavior are proven.
+  disabled by default until provider fixtures and alert lifecycle behavior are proven.
 - Use `HTTPClientPort` plus `TimerPort` for hosted HTTP polling components and track SemStreams issue #312 for
   first-class timer/cadence flowgraph semantics.
 - Keep CAP schema and consumer-rule validation separate from hosted service claims.

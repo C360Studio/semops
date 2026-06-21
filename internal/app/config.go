@@ -39,6 +39,7 @@ const (
 	EnvCAPHTTPURL                 = "SEMOPS_CAP_HTTP_URL"
 	EnvCAPHTTPMethod              = "SEMOPS_CAP_HTTP_METHOD"
 	EnvCAPHTTPPollInterval        = "SEMOPS_CAP_HTTP_POLL_INTERVAL"
+	EnvCAPHTTPStaleAfter          = "SEMOPS_CAP_HTTP_STALE_AFTER"
 	EnvCAPHTTPContactPolicy       = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
 	EnvCAPHTTPAuthRef             = "SEMOPS_CAP_HTTP_AUTH_REF"
 	EnvCAPHTTPMaxResponseBytes    = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
@@ -120,6 +121,7 @@ type CAPHTTPConfig struct {
 	URL              string
 	Method           string
 	PollInterval     time.Duration
+	StaleAfter       time.Duration
 	ContactPolicy    string
 	AuthRef          string
 	MaxResponseBytes int
@@ -190,6 +192,7 @@ func DefaultConfig() Config {
 				URL:              capcomponent.DefaultHTTPPollURL,
 				Method:           "GET",
 				PollInterval:     capcomponent.DefaultHTTPPollInterval,
+				StaleAfter:       time.Duration(capcomponent.DefaultHTTPStaleMultiplier) * capcomponent.DefaultHTTPPollInterval,
 				MaxResponseBytes: capcomponent.DefaultHTTPMaxResponseBytes,
 			},
 			Retry: natsclient.RetryConfig{
@@ -276,6 +279,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.CAP.HTTP.StaleAfter, err = durationFromEnv(
+		getenv,
+		EnvCAPHTTPStaleAfter,
+		cfg.CAP.HTTP.StaleAfter,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.COP.GraphQueryTimeout, err = durationFromEnv(
 		getenv,
 		EnvCOPGraphQueryTimeout,
@@ -334,13 +344,21 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
-	if cfg.COP.MAVLinkSystemIDs, err = intListFromEnv(getenv, EnvCOPMAVLinkSystemIDs, cfg.COP.MAVLinkSystemIDs); err != nil {
+	if cfg.COP.MAVLinkSystemIDs, err = intListFromEnv(
+		getenv,
+		EnvCOPMAVLinkSystemIDs,
+		cfg.COP.MAVLinkSystemIDs,
+	); err != nil {
 		return Config{}, err
 	}
 	if cfg.COP.CoTUIDs, err = stringListFromEnv(getenv, EnvCOPCoTUIDs, cfg.COP.CoTUIDs); err != nil {
 		return Config{}, err
 	}
-	if cfg.COP.CAPAlertIDs, err = stringListFromEnv(getenv, EnvCOPCAPAlertIDs, cfg.COP.CAPAlertIDs); err != nil {
+	if cfg.COP.CAPAlertIDs, err = stringListFromEnv(
+		getenv,
+		EnvCOPCAPAlertIDs,
+		cfg.COP.CAPAlertIDs,
+	); err != nil {
 		return Config{}, err
 	}
 
@@ -375,10 +393,18 @@ func (c Config) Validate() error {
 		}
 	}
 	if !c.COP.GraphDiscoveryEnabled && len(c.COP.CoTUIDs) == 0 {
-		return fmt.Errorf("%s must include at least one UID when %s is false", EnvCOPCoTUIDs, EnvCOPGraphDiscoveryEnabled)
+		return fmt.Errorf(
+			"%s must include at least one UID when %s is false",
+			EnvCOPCoTUIDs,
+			EnvCOPGraphDiscoveryEnabled,
+		)
 	}
 	if !c.COP.GraphDiscoveryEnabled && len(c.COP.CAPAlertIDs) == 0 {
-		return fmt.Errorf("%s must include at least one alert identifier when %s is false", EnvCOPCAPAlertIDs, EnvCOPGraphDiscoveryEnabled)
+		return fmt.Errorf(
+			"%s must include at least one alert identifier when %s is false",
+			EnvCOPCAPAlertIDs,
+			EnvCOPGraphDiscoveryEnabled,
+		)
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("shutdown timeout must be greater than zero")
@@ -462,6 +488,9 @@ func (c CAPConfig) Validate() error {
 	}
 	if c.HTTP.PollInterval <= 0 {
 		return fmt.Errorf("%s must be greater than zero when CAP is enabled", EnvCAPHTTPPollInterval)
+	}
+	if c.HTTP.StaleAfter <= 0 {
+		return fmt.Errorf("%s must be greater than zero when CAP is enabled", EnvCAPHTTPStaleAfter)
 	}
 	if c.HTTP.MaxResponseBytes <= 0 {
 		return fmt.Errorf("%s must be greater than zero when CAP is enabled", EnvCAPHTTPMaxResponseBytes)

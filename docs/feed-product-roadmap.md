@@ -179,7 +179,8 @@ source facts. CAP now has an HTTP poller input component, raw decoder processor,
 processor for hosted-polling shape. The app runtime can opt into that flow with `SEMOPS_CAP_ENABLED=true`, but it is
 not wired as the default live service. The poller declares an `HTTPClientPort` for method, endpoint pattern, auth
 reference, contact policy, and interface, plus a sibling `TimerPort` for cadence. Alert lifecycle and provider health
-remain separate gates.
+remain separate gates, though component health now degrades to `stale` when no fresh provider payload arrives within
+the configured `stale_after` threshold.
 
 Not claimed yet:
 Full EDXL suite, default live NWS/IPAWS service, CAP consumer conformance, authoritative hazard truth, or
