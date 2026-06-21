@@ -47,6 +47,7 @@ type App struct {
 	adsbProjector    *adsbcomponent.ProjectorComponent
 	sapientInput     *sapientcomponent.HTTPInputComponent
 	sapientDecoder   *sapientcomponent.DecoderComponent
+	runtimeCancel    context.CancelFunc
 }
 
 type semstreamsClient interface {
@@ -102,6 +103,9 @@ func (a *App) Close(ctx context.Context) error {
 	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if a.runtimeCancel != nil {
+		a.runtimeCancel()
 	}
 	var errs []error
 	if a.mavlinkInput != nil {
@@ -323,7 +327,8 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 		return nil, fmt.Errorf("connect SemStreams NATS: %w", err)
 	}
 
-	app := &App{client: client}
+	runtimeCtx, runtimeCancel := context.WithCancel(context.Background())
+	app := &App{client: client, runtimeCancel: runtimeCancel}
 	cleanup := true
 	defer func() {
 		if cleanup {
@@ -344,31 +349,31 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 	app.ownershipStop = stopOwners
 
 	if cfg.MAVLink.Enabled {
-		if err := app.startMAVLinkFlow(ctx, cfg.MAVLink, bindings, deps); err != nil {
+		if err := app.startMAVLinkFlow(runtimeCtx, cfg.MAVLink, bindings, deps); err != nil {
 			return nil, err
 		}
 	}
 
 	if cfg.CoT.Enabled {
-		if err := app.startCoTFlow(ctx, cfg.CoT, bindings, deps); err != nil {
+		if err := app.startCoTFlow(runtimeCtx, cfg.CoT, bindings, deps); err != nil {
 			return nil, err
 		}
 	}
 
 	if cfg.CAP.Enabled {
-		if err := app.startCAPFlow(ctx, cfg.CAP, bindings, deps); err != nil {
+		if err := app.startCAPFlow(runtimeCtx, cfg.CAP, bindings, deps); err != nil {
 			return nil, err
 		}
 	}
 
 	if cfg.ADSB.Enabled {
-		if err := app.startADSBFlow(ctx, cfg.ADSB, bindings, deps); err != nil {
+		if err := app.startADSBFlow(runtimeCtx, cfg.ADSB, bindings, deps); err != nil {
 			return nil, err
 		}
 	}
 
 	if cfg.SAPIENT.Enabled {
-		if err := app.startSAPIENTFlow(ctx, cfg.SAPIENT, deps); err != nil {
+		if err := app.startSAPIENTFlow(runtimeCtx, cfg.SAPIENT, deps); err != nil {
 			return nil, err
 		}
 	}

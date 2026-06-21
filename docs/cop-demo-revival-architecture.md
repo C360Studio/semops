@@ -73,10 +73,16 @@ evidence before live public-alert ingestion is claimed. SemStreams `v1.0.0-beta.
 SAPIENT/Apex integrations expose. ADS-B now has an OpenSky-compatible HTTP input -> decoder -> graph-projector
 component package proved against local provider fixtures, and the hosted app can wire that chain behind
 `SEMOPS_ADSB_ENABLED=true` with replay, stale-source, and raw-lane configuration. The default runtime keeps ADS-B off,
-so this is not a live OpenSky reliability, receiver, or ASTERIX claim.
+so this is not a live OpenSky reliability, receiver, or ASTERIX claim. The Compose smoke now includes a
+`semops-feed-fixtures` service and enables ADS-B against its local `/adsb/states` endpoint to prove hosted HTTP
+component readback through the COP snapshot without live network access.
 SAPIENT now has a preflight-only HTTP input -> decoder component package for raw/decoded JSON or protobuf payload
 streams, and the hosted app can run it behind `SEMOPS_SAPIENT_ENABLED=true` with an explicit URL, encoding, and replay
-settings. It deliberately has no graph request ports or owner claim.
+settings. It deliberately has no graph request ports or owner claim. The stack smoke enables SAPIENT against the local
+fixture provider and only verifies the declared decoded output stream, not graph projection or conformance.
+The first SAPIENT smoke exposed a hosted lifecycle bug: components were inheriting the startup/connect timeout
+context and stopping after startup. Runtime components are now owned by `App.Close`, so connection deadlines no longer
+silently cancel long-running input and processor components.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -93,8 +99,9 @@ SemOps started materially stale; the first revival slices are correcting that:
   MAVLink UDP datagram ingestion with `SEMOPS_MAVLINK_UDP_LISTEN_ADDR`; it can also opt into TAK/CoT UDP/TCP component
   flow graph writes with `SEMOPS_COT_ENABLED`. Monitoring services, TCP/serial MAVLink transport, and dedicated
   adapter-process packaging remain open.
-- `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, Caddy, and the hosted
-  scenario runner for the current graph smoke scaffold plus first browser-facing COP path.
+- `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, Caddy, the hosted scenario
+  runner, and a local ADS-B/SAPIENT HTTP fixture provider for the current graph smoke scaffold plus first
+  browser-facing COP path.
 - `internal/scenario` now provides a deterministic HADR flood/evacuation runner core that exercises MAVLink,
   TAK/CoT, and CAP lifecycle replay through the same adapter/projector seams used by hosted graph writes. It can also
   opt into ADS-B snapshot replay through the hosted ADS-B adapter. Container packaging is now present through

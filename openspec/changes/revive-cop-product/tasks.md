@@ -17,7 +17,7 @@
 - [x] 2.6 Migrate SemOps runtime/projector wiring to SemStreams typed `ownership.OwnerToken` bind results
 - [x] 2.7 Add SemStreams flowgraph, lifecycle, port, payload-registry, and config-schema contract guard for feed
       components
-- [ ] 2.8 Wrap live ADS-B ingress, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and
+- [x] 2.8 Wrap live ADS-B ingress, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams input and
       processor components
 - [x] 2.9 Add the first concrete MAVLink input/decoder/projector component package using SemStreams payload registry
       and ports
@@ -40,6 +40,7 @@
       behind explicit opt-in config
 - [x] 2.20 Wire the SAPIENT preflight HTTP input -> decoder component chain into app runtime without graph ownership
       claims
+- [x] 2.21 Add local HTTP fixture-provider service evidence for ADS-B and SAPIENT component-flow smoke tests
 
 ## 3. COP Model And Governance
 
@@ -153,7 +154,7 @@
 - [x] 6.34 Adopt SemStreams typed prefix-query cursor pagination for graph-backed COP discovery
 - [x] 6.35 Bind ADS-B ownership for structural replay while keeping live ADS-B service out of the MVP default
 - [x] 6.36 Delete stale StreamKit-era robotics flow config so raw-subject topology does not pollute current context
-- [ ] 6.37 Move hosted feed service composition onto SemStreams input/processor component metadata, flowgraph,
+- [x] 6.37 Move hosted feed service composition onto SemStreams input/processor component metadata, flowgraph,
       registered-payload, and port/config surfaces
 - [x] 6.38 Add concrete MAVLink UDP input, decoder processor, and projector processor components before app runtime
       rewiring
@@ -179,6 +180,12 @@
 - [x] 6.53 Wire ADS-B HTTP components into hosted app composition behind `SEMOPS_ADSB_ENABLED=false` by default
 - [x] 6.54 Wire SAPIENT preflight HTTP components into hosted app composition behind `SEMOPS_SAPIENT_ENABLED=false`
       by default
+- [x] 6.55 Add a local ADS-B/SAPIENT HTTP fixture-provider service to the Compose stack without live network
+      dependencies
+- [x] 6.56 Add one-command stack smoke coverage for opt-in ADS-B HTTP graph readback and SAPIENT decoded-stream
+      preflight
+- [x] 6.57 Fix hosted component runtime lifecycle so startup/connect context deadlines do not cancel long-running
+      input and processor components
 
 ## 7. COP UI
 

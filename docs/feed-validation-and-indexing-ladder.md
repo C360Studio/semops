@@ -63,7 +63,9 @@ events, and CAP lifecycle XML records through the real adapter/projector seams a
 and advisory, and CAP hazard. This is replay infrastructure evidence, not a full shared-airspace vignette or operator
 scenario control surface. The runner can also opt into deterministic ADS-B fixture replay with
 `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; that path exercises the hosted ADS-B adapter and born-first owner token without
-making live ADS-B part of the default MVP stack.
+making live ADS-B part of the default MVP stack. The Compose stack also includes `cmd/semops-feed-fixtures`, a local
+HTTP provider simulator for ADS-B and SAPIENT smoke tests. That service is mock infrastructure only; it is not a
+SemOps-owned TAK, SAPIENT, OpenSky, or CS API product service.
 
 ## Indexing Pressure
 
@@ -369,8 +371,8 @@ First acceptance gate:
 ### ADS-B
 
 Status: later air-picture feed with OpenSky-shaped parser, deterministic replay, hosted-adapter seam, HTTP component
-package, opt-in app-runtime wiring, optional structural scenario replay, current-state projection, owner registration,
-and graph readback evidence.
+package, opt-in app-runtime wiring, optional structural scenario replay, local HTTP provider fixture smoke,
+current-state projection, owner registration, and graph readback evidence.
 
 Compliance and sample evidence:
 
@@ -397,6 +399,8 @@ Local assets:
   request ports, replay capture, stale-source health, and local provider-shaped HTTP fixture tests.
 - `cmd/semops` can wire ADS-B as an opt-in SemStreams component flow with `SEMOPS_ADSB_ENABLED=true`,
   `SEMOPS_ADSB_HTTP_URL`, replay capture, raw-lane caps, stale-source config, and token-backed graph writes.
+- `cmd/semops-feed-fixtures` serves deterministic OpenSky-compatible `/adsb/states` JSON for local Compose smoke
+  tests, and `scripts/cop-stack-smoke.sh` enables ADS-B against that fixture by default.
 - `cmd/semops-scenario-runner` adds ADS-B snapshots only when `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose service
   passes that flag through but defaults it to false.
 - The scenario runner appends `semops.feed.adsb` ownership only for that opt-in path so structural ADS-B graph writes
@@ -433,19 +437,22 @@ First acceptance gate:
   service claim.
 - Given `SEMOPS_ADSB_ENABLED=true`, the hosted app composes the ADS-B HTTP poller -> decoder -> graph-projector flow,
   captures optional replay, and mints `semops.feed.adsb` ownership through the runtime ownership registration path.
+- Given the local Compose fixture provider, the one-command stack smoke enables ADS-B, polls the Caddy-routed COP
+  snapshot, and verifies an ADS-B track written through the HTTP component path is visible by prefix discovery.
 - Given `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, the hosted scenario runner replays two ADS-B snapshots through the
   adapter seam and token-backed graph writes without live network access.
 - Given a projected ADS-B aircraft state, SemOps writes current-state track evidence without source-asset or
   cross-source association edges and reads it back through prefix discovery.
-- Next gate: prove the opt-in runtime path in the full Compose smoke or prioritize local receiver/readsb/dump1090
-  input components, without making live network access the default path.
+- Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
+  ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress
   still require separate input components when chosen.
 
 ### SAPIENT
 
-Status: JSON and binary descriptor preflight, raw replay, preflight input/decoder components, and opt-in app-runtime
-preflight wiring exist; harness qualification is still required before product support or conformance claims.
+Status: JSON and binary descriptor preflight, raw replay, preflight input/decoder components, opt-in app-runtime
+preflight wiring, and local decoded-stream smoke exist; harness qualification is still required before product support
+or conformance claims.
 
 Compliance and sample evidence:
 
@@ -476,6 +483,9 @@ Local assets:
   and no graph request ports.
 - `cmd/semops` can run that HTTP input -> decoder preflight chain behind `SEMOPS_SAPIENT_ENABLED=true` with explicit
   URL, encoding, stale-source settings, raw-lane caps, and optional replay capture.
+- `cmd/semops-feed-fixtures` serves deterministic SAPIENT task-ack JSON for local Compose smoke tests, and
+  `scripts/cop-stack-smoke.sh` verifies the hosted preflight chain publishes a typed decoded payload on the declared
+  SAPIENT output stream.
 - No local SAPIENT harness run, generated Go bindings, product service adapter, or graph projector exists.
 - No `OwnerSAPIENT`, SAPIENT projection contract, graph writer, or graph-producing SAPIENT component exists yet. This
   is intentional until projection ownership, indexing, and product service mode are reviewed.
@@ -511,6 +521,8 @@ First acceptance gate:
   against local fixtures, producing raw and decoded preflight streams without graph writes or owner claims.
 - Given `SEMOPS_SAPIENT_ENABLED=true`, the hosted app composes only the SAPIENT preflight HTTP input and decoder,
   captures optional replay, and avoids SAPIENT owner registration or decoded graph projector subscriptions.
+- Given the local Compose fixture provider, the one-command stack smoke enables SAPIENT and observes a typed decoded
+  task-ack payload on `semops.feed.sapient.decoded` without adding SAPIENT graph ownership or projector subscriptions.
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
 - Given a future product-hosted SAPIENT feed, SemOps promotes beyond preflight only after service mode, projection

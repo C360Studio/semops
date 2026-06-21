@@ -28,6 +28,7 @@ const (
 	liveSnapshotCoTChatEnv  = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
 	liveSnapshotHazardEnv   = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
 	liveScenarioADSBEnv     = "SEMOPS_SCENARIO_ADSB_FIXTURE"
+	liveSnapshotADSBHTTPEnv = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
 	defaultExpectedTrackID  = "c360.edge-compose.cop.mavlink.track.system-42"
 	defaultExpectedCoTTrack = "c360.edge-compose.cop.tak.track.android-alpha"
 	defaultExpectedCoTTask  = "c360.edge-compose.cop.tak.task.marker-north-gate"
@@ -180,6 +181,47 @@ func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			t.Fatalf("hosted COP snapshot did not reflect scenario runner before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
+func TestHostedCOPSnapshotReflectsADSBHTTPProvider(t *testing.T) {
+	snapshotURL := os.Getenv(liveSnapshotURLEnv)
+	if snapshotURL == "" {
+		t.Skipf("set %s to run the hosted COP ADS-B snapshot smoke", liveSnapshotURLEnv)
+	}
+	expectADSB, err := boolFromEnv(liveSnapshotADSBHTTPEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !expectADSB {
+		t.Skipf("set %s=true to run the hosted COP ADS-B snapshot smoke", liveSnapshotADSBHTTPEnv)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
+		if err != nil {
+			lastErr = err
+		} else if snapshotHasADSBTrack(snapshot) {
+			return
+		} else {
+			lastErr = fmt.Errorf("snapshot missing ADS-B HTTP track: scenario=%s tracks=%d",
+				snapshot.Scenario, len(snapshot.Tracks))
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted COP snapshot did not reflect ADS-B HTTP provider before timeout: %v; last error: %v",
 				ctx.Err(), lastErr)
 		case <-ticker.C:
 		}
@@ -404,13 +446,17 @@ func snapshotHasADSBTrack(snapshot copapi.Snapshot) bool {
 }
 
 func scenarioADSBExpectedFromEnv() (bool, error) {
-	value := strings.TrimSpace(os.Getenv(liveScenarioADSBEnv))
+	return boolFromEnv(liveScenarioADSBEnv)
+}
+
+func boolFromEnv(name string) (bool, error) {
+	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {
 		return false, nil
 	}
 	enabled, err := strconv.ParseBool(value)
 	if err != nil {
-		return false, fmt.Errorf("parse %s: %w", liveScenarioADSBEnv, err)
+		return false, fmt.Errorf("parse %s: %w", name, err)
 	}
 	return enabled, nil
 }
