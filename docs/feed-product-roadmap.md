@@ -176,9 +176,10 @@ info/resources, geocode/circle/polygon handling, EDXL variants, retention, and a
 Boundary to preserve now:
 Keep tolerant ingest separate from strict hazard/advisory projection and never let CAP overwrite stricter tactical
 source facts. CAP now has an HTTP poller input component, raw decoder processor, and born-first graph-projector
-processor for hosted-polling shape, but it is not wired as the default live service. The poller declares an
-`HTTPClientPort` for method, endpoint pattern, auth reference, contact policy, and interface, plus a sibling
-`TimerPort` for cadence. Alert lifecycle and provider health remain separate gates.
+processor for hosted-polling shape. The app runtime can opt into that flow with `SEMOPS_CAP_ENABLED=true`, but it is
+not wired as the default live service. The poller declares an `HTTPClientPort` for method, endpoint pattern, auth
+reference, contact policy, and interface, plus a sibling `TimerPort` for cadence. Alert lifecycle and provider health
+remain separate gates.
 
 Not claimed yet:
 Full EDXL suite, default live NWS/IPAWS service, CAP consumer conformance, authoritative hazard truth, or

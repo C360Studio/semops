@@ -290,6 +290,7 @@ func testOwnerTokens(incarnation string) map[string]ownership.OwnerToken {
 		cop.OwnerAsset:   ownership.ExpectedOwnerToken(cop.OwnerAsset, incarnation),
 		cop.OwnerMAVLink: ownership.ExpectedOwnerToken(cop.OwnerMAVLink, incarnation),
 		cop.OwnerTAK:     ownership.ExpectedOwnerToken(cop.OwnerTAK, incarnation),
+		cop.OwnerCAP:     ownership.ExpectedOwnerToken(cop.OwnerCAP, incarnation),
 		cop.OwnerADSB:    ownership.ExpectedOwnerToken(cop.OwnerADSB, incarnation),
 	}
 }

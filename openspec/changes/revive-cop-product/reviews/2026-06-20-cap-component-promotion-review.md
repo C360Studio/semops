@@ -9,8 +9,8 @@ component package.
 
 The current CAP slice is valid parser, projection, replay, readback, born-first append-evidence proof, and now a
 deterministic local HTTP poller/decoder/projector component proof. It is still not a default live CAP feed service,
-NWS/IPAWS integration, or CAP conformance claim. SemOps should keep default-stack hosting, webhook ingestion, vendor
-integration, and continuous alert-source health behind later product gates.
+NWS/IPAWS integration, or CAP conformance claim. SemOps should keep default live-provider enablement, webhook
+ingestion, vendor integration, and continuous alert-source health behind later product gates.
 
 When promoted, the CAP boundary must follow SemStreams lifecycle rules:
 
@@ -57,7 +57,7 @@ fixtures can use file input.
 
 - CAP remains structurally visible in the current Compose smoke through scenario replay and direct graph smoke rather
   than through a default hosted live CAP feed service.
-- The first hosted CAP component chain exists as code, but it still needs product runtime wiring, provider fixtures,
+- The first hosted CAP component chain now has opt-in product runtime wiring, but it still needs provider fixtures,
   stale-source behavior, and alert lifecycle review before SemOps claims hosted CAP service support.
 - The external HTTP dependency now has a framework-visible port descriptor instead of living only in config schema;
   cadence visibility still needs SemStreams issue #312.
@@ -65,8 +65,8 @@ fixtures can use file input.
 ## Follow-Up Tasks
 
 - Keep CAP parser/projector/readback gates independent of hosted ingress.
-- Keep `internal/components/cap` scoped to hosted polling, decoding, and born-first projection until runtime hosting
-  is explicitly promoted.
+- Keep `internal/components/cap` scoped to hosted polling, decoding, and born-first projection, and keep hosted CAP
+  disabled by default until provider fixtures and stale-source behavior are proven.
 - Use `HTTPClientPort` plus `TimerPort` for hosted HTTP polling components and track SemStreams issue #312 for
   first-class timer/cadence flowgraph semantics.
 - Keep CAP schema and consumer-rule validation separate from hosted service claims.

@@ -67,9 +67,10 @@ and the stack smoke asserts the Caddy-routed COP snapshot contains the scenario 
 and CAP hazard. The runner can also opt into deterministic ADS-B fixture replay with
 `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, using the hosted ADS-B adapter and `semops.feed.adsb` owner token; the default
 stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence is shared-airspace
-playback, operator scenario controls, durable checkpoint/read-back reconciliation, and hosted CAP polling only if
-Phase 1 chooses live public-alert ingestion. SemStreams `v1.0.0-beta.114` now provides `component.HTTPClientPort` for
-the outbound HTTP/polling dependency shape that CAP/NWS, OpenSky ADS-B, and possible SAPIENT/Apex integrations expose.
+playback, operator scenario controls, durable checkpoint/read-back reconciliation, and provider-backed CAP
+polling/stale-source evidence before live public-alert ingestion is claimed. SemStreams `v1.0.0-beta.114` now provides
+`component.HTTPClientPort` for the outbound HTTP/polling dependency shape that CAP/NWS, OpenSky ADS-B, and possible
+SAPIENT/Apex integrations expose.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -129,8 +130,9 @@ SemOps has salvageable MAVLink depth:
   framework's mutation retry rule for transient responder startup races.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
-- The next hosted-feed hardening step is to repeat the same input/processor treatment for live ADS-B, hosted CAP only
-  if promoted, and SAPIENT after projection ownership, harness, and service-mode review.
+- The next hosted-feed hardening step is to repeat the same input/processor treatment for live ADS-B and SAPIENT after
+  projection ownership, harness, and service-mode review. CAP now has an opt-in input -> decoder -> projector
+  component flow, but provider fixtures and stale-source behavior remain open.
 
 SemOps now has TAK/CoT depth beyond prior-art replay:
 

@@ -28,6 +28,8 @@
       `HTTPClientPort`, `TimerPort`, payload registry, and ports
 - [x] 2.13 Add the first concrete CAP graph projector processor component using SemStreams request ports and
       born-first restart reconciliation
+- [x] 2.14 Wire the CAP HTTP poller -> decoder -> graph-projector chain into the app runtime as an explicit opt-in
+      SemStreams component flow
 
 ## 3. COP Model And Governance
 
@@ -93,6 +95,7 @@
 - [x] 5.34 Record CAP component-promotion gate so scenario replay is not mistaken for hosted polling/webhook service
 - [x] 5.35 Add CAP HTTP poller/decoder component gate without claiming live NWS service or CAP conformance
 - [x] 5.36 Add CAP graph-projector component gate without claiming default hosted CAP service
+- [x] 5.37 Record opt-in CAP runtime composition while keeping default live NWS/IPAWS provider claims gated
 
 ## 6. Structural COP Stack
 
@@ -150,6 +153,7 @@
 - [x] 6.46 Add initial CAP hosted HTTP poller and raw decoder component package while keeping default-stack live
       provider wiring open
 - [x] 6.47 Add initial CAP born-first graph projector component package while keeping default-stack hosting open
+- [x] 6.48 Wire CAP HTTP polling through the hosted app composition root behind `SEMOPS_CAP_ENABLED=false` by default
 
 ## 7. COP UI
 
