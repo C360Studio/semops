@@ -347,6 +347,8 @@ Indexing profile pressure:
 
 - CS API projection targets should not drive indexing directly. The SemOps graph owner decides profile at entity
   birth; the bridge is an interface.
+- CS API tasking is an impedance-mismatch boundary. The bridge should accept or reject quickly, persist governed
+  command intent or desired state, and let native drivers reconcile tactical execution asynchronously.
 
 First acceptance gate:
 
@@ -356,6 +358,12 @@ First acceptance gate:
   provenance, freshness, or command authority.
 - Tasking: CS API command/control input routes through SemOps command authority and native safety controls rather
   than directly mutating feed-owned state.
+- Tasking edge cases: desired-state records include source authority, priority, TTL/deadline, idempotency key,
+  correlation ID, local-operator override policy, cancellation/supersession semantics, and status mapping before any
+  live native driver is connected.
+- Tasking status: native acknowledgements, partial execution, timeout, stale-command rejection, duplicate-command
+  rejection, link loss, and upstream polling/subscription status are modeled as graph-backed state or evidence rather
+  than an open HTTP request.
 - Replay: the same fixture can be replayed deterministically so bridge drift is visible before conformance claims.
 
 ### ADS-B

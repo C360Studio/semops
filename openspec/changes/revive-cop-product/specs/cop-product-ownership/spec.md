@@ -70,8 +70,16 @@ explicitly rechartered to own that gateway product.
 #### Scenario: Standards tasking does not bypass command authority
 
 - **WHEN** CS API ControlStream, Command, or command-status input reaches SemOps
-- **THEN** SemOps routes the request through product command authority, native safety checks, and audit/replay
-  evidence before any feed-owned state changes
+- **THEN** SemOps validates the request, returns a bounded standards-facing accept/reject response, and records
+  governed command intent or desired state before any native actuation is attempted
+- **AND** SemOps routes the intent through product command authority, native safety checks, and audit/replay evidence
+  before any feed-owned state changes
+- **AND** command intent records carry source authority, priority, TTL/deadline, idempotency key, correlation ID,
+  target entity, local override policy, and cancellation/supersession semantics
+- **AND** native drivers reconcile actual execution asynchronously and publish command acknowledgements, progress,
+  timeout, rejection, partial execution, or failure as graph-backed status evidence
+- **AND** stale, duplicate, conflicting, or superseded upstream commands cannot become native actions after reconnect
+  or replay unless the command authority policy explicitly renews them
 - **AND** SemConnect or any CS API bridge remains a standards interface, not the authority that decides whether a
   vehicle, sensor, alerting, or collaboration command is safe to issue
 

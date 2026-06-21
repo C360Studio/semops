@@ -209,9 +209,12 @@
 - [x] 8.1 Add ADS-B and SAPIENT feed boundaries
 - [ ] 8.2 Add statistical track association for ambiguous air tracks
 - [ ] 8.3 Add KLV footprint extraction
-- [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge
+- [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge after the command-impedance gate is
+      reviewed
 - [ ] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory
 - [ ] 8.6 Run adversarial review before SAPIENT, KLV, semantic, or standards-conformance claims are demoed
+- [x] 8.7 Record CS API tasking impedance gate for TTL, priority, authority, local override, and async status edge
+      cases before command/control implementation
 
 ## 9. Upstream SemStreams Asks
 

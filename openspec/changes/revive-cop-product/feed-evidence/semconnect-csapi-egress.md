@@ -33,6 +33,8 @@ without forcing disaster-response feed ingestion through a standards driver befo
   adapter for systems that already speak CS API.
 - CS API tasking or actuation must route through SemOps command authority and governance rather than bypassing native
   command safety.
+- CS API tasking must be asynchronous at the SemOps boundary: accept or reject the external request quickly, persist a
+  governed desired-state or command-intent record, and let native drivers reconcile actual tactical execution.
 - SemConnect remains the conformance anchor unless the organization explicitly recharters SemOps to own a CS API
   gateway product.
 
@@ -72,6 +74,32 @@ Acceptance:
 - Indexing profiles are selected by SemOps entity semantics, not by the fact that the transport was CS API.
 - CS API Command or ControlStream input routes through SemOps command authority rather than directly mutating
   feed-owned state.
+
+### Command Impedance Gate
+
+Target command after SemOps has command-intent graph contracts:
+
+```bash
+go test ./internal/commands ./internal/adapters/csapi -run Command
+```
+
+Acceptance:
+
+- CS API Command or ControlStream POST handling validates the request and returns an immediate standards-shaped
+  accepted or rejected response without opening a synchronous native radio/session dependency.
+- Accepted tasking becomes a governed desired-state or command-intent record with source, authority, priority,
+  TTL/deadline, target entity, idempotency key, correlation ID, and audit provenance.
+- Native MAVLink, TAK/CoT, SAPIENT, or future feed-specific drivers reconcile command intent into protocol-specific
+  action only after command authority, safety, and local operator override rules pass.
+- Actual state, command acknowledgement, execution progress, timeout, cancellation, rejection, supersession, and
+  failure are recorded as graph state or evidence that the CS API bridge can translate back to Command Status or
+  System Event surfaces.
+- Local SemOps operator intent, upstream federated intent, stale commands, duplicate commands, conflicting priorities,
+  lost native links, and partial execution all have deterministic policies before live tasking is demonstrated.
+- Command TTL windows and freshness checks prevent old upstream instructions from becoming live native actions after
+  reconnect or replay.
+- The bridge remains a standards interface; it does not decide native safety, priority arbitration, or actuation
+  eligibility on its own.
 
 ### Egress Gate
 
@@ -118,6 +146,8 @@ Acceptance:
 ## Known Gaps
 
 - SemOps does not yet expose the canonical graph state needed for meaningful CS API ingress or egress.
+- SemOps does not yet define command-intent graph contracts, TTL/deadline semantics, priority/authority arbitration,
+  local override policy, cancellation/supersession semantics, or native actuation reconciliation.
 - CS API interop should not block Phase 1 structural COP.
 - Native adapter support can be strong while CS API projection is still incomplete; keep those claims separate.
 - CS API conformance can be green while a native feed remains only fixture/replay-tested; keep those claims separate.
@@ -128,6 +158,8 @@ Acceptance:
 - Does native ingestion preserve operational velocity for HADR-style data arriving in the format agencies brought?
 - Does the bridge preserve ownership, provenance, freshness, and indexing decisions made by SemOps graph contracts?
 - Does tasking through CS API route through command authority rather than bypassing native safety controls?
+- Are TTL, priority, idempotency, cancellation, supersession, local override, and partial-execution cases specified
+  before any CS API command reaches a native driver?
 - Does the conformance result come from the actual harness output?
 
 ## Source Links
