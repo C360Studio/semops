@@ -13,14 +13,17 @@ import (
 	"testing"
 	"time"
 
+	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	"github.com/c360studio/semops/internal/copownership"
+	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
+	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
@@ -55,6 +58,7 @@ func TestStartRegistersOwnershipBeforeComposingMAVLinkFlow(t *testing.T) {
 			_ context.Context,
 			gotClient semstreamsClient,
 			heartbeat time.Duration,
+			_ []cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			if gotClient != client {
 				t.Fatal("ownership registration got unexpected client")
@@ -136,6 +140,7 @@ func TestStartCleansUpWhenMAVLinkCompositionFails(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {
 				stoppedOwners = true
@@ -181,6 +186,7 @@ func TestStartRegistersOwnershipBeforeComposingCoTFlow(t *testing.T) {
 			_ context.Context,
 			gotClient semstreamsClient,
 			heartbeat time.Duration,
+			_ []cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			if gotClient != client {
 				t.Fatal("ownership registration got unexpected client")
@@ -261,6 +267,7 @@ func TestStartCleansUpWhenCoTCompositionFails(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {
 				stoppedOwners = true
@@ -310,6 +317,7 @@ func TestStartRegistersOwnershipBeforeComposingCAPFlow(t *testing.T) {
 			_ context.Context,
 			gotClient semstreamsClient,
 			heartbeat time.Duration,
+			_ []cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			if gotClient != client {
 				t.Fatal("ownership registration got unexpected client")
@@ -406,6 +414,7 @@ func TestStartCAPFlowCapturesProviderReplayWhenConfigured(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{
 				Incarnation: "lease-123",
@@ -450,6 +459,183 @@ func TestStartCAPFlowCapturesProviderReplayWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestStartRegistersOwnershipBeforeComposingADSBFlow(t *testing.T) {
+	ctx := context.Background()
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.ADSB.Enabled = true
+	cfg.ADSB.Platform = "edge-alpha"
+	cfg.ADSB.Source = "adsb:opensky:test"
+	cfg.ADSB.WriteTimeout = 750 * time.Millisecond
+	cfg.ADSB.HTTP.URL = "https://example.test/opensky"
+	cfg.ADSB.HTTP.PollInterval = time.Hour
+	cfg.ADSB.HTTP.StaleAfter = 3 * time.Hour
+	cfg.ADSB.HTTP.ContactPolicy = "semops-test@example.invalid"
+
+	var stoppedOwners bool
+	var gotWriterCfg stack.ADSBAdapterConfig
+	var gotWriterDeps stack.ADSBAdapterDeps
+
+	app, err := start(ctx, cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			_ context.Context,
+			gotClient semstreamsClient,
+			heartbeat time.Duration,
+			owned []cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			if gotClient != client {
+				t.Fatal("ownership registration got unexpected client")
+			}
+			if !client.connected {
+				t.Fatal("ownership registration must run after NATS connect")
+			}
+			if heartbeat != cfg.OwnershipHeartbeatInterval {
+				t.Fatalf("heartbeat interval = %s, want %s", heartbeat, cfg.OwnershipHeartbeatInterval)
+			}
+			if !hasOwnedContract(owned, cop.OwnerADSB, cop.ADSBTrackContract().Name) {
+				t.Fatalf("runtime owned contracts did not include ADS-B when enabled: %+v", owned)
+			}
+			return copownership.BindingResult{
+					Incarnation: "lease-123",
+					Owners:      []string{cop.OwnerADSB},
+					Tokens: map[string]ownership.OwnerToken{
+						cop.OwnerADSB: ownership.ExpectedOwnerToken(cop.OwnerADSB, "lease-123"),
+					},
+				}, func() {
+					stoppedOwners = true
+				}, nil
+		},
+		newADSBPlanWriter: func(
+			writerCfg stack.ADSBAdapterConfig,
+			writerDeps stack.ADSBAdapterDeps,
+		) (adsbcomponent.PlanWriter, error) {
+			gotWriterCfg = writerCfg
+			gotWriterDeps = writerDeps
+			return &recordingADSBAppPlanWriter{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if app.ADSBHTTPPoller() == nil || app.ADSBDecoder() == nil || app.ADSBProjector() == nil {
+		t.Fatal("expected hosted ADS-B poller, decoder, and projector components")
+	}
+	if got, want := gotWriterCfg.OwnerTokens[cop.OwnerADSB].Wire(), "semops.feed.adsb#lease-123"; got != want {
+		t.Fatalf("writer ADS-B owner token = %q, want %q", got, want)
+	}
+	if gotWriterCfg.Platform != "edge-alpha" || gotWriterCfg.Source != "adsb:opensky:test" {
+		t.Fatalf("writer config = %+v", gotWriterCfg)
+	}
+	if gotWriterCfg.WriteTimeout != 750*time.Millisecond {
+		t.Fatalf("writer timeout = %s", gotWriterCfg.WriteTimeout)
+	}
+	if gotWriterDeps.NATS != client {
+		t.Fatal("ADS-B writer must reuse the connected SemStreams client")
+	}
+	if got := app.ADSBHTTPPoller().DebugStatus().(adsbcomponent.HTTPPollerDebugStatus).StaleAfter; got != 3*time.Hour {
+		t.Fatalf("ADS-B poller stale_after = %s, want 3h", got)
+	}
+	if !client.hasSubscription(adsbcomponent.DefaultDecodedSubject) ||
+		!client.hasSubscription(adsbcomponent.DefaultRawSubject) {
+		t.Fatalf("ADS-B flow subscriptions = %+v", client.subscriptionSubjects())
+	}
+
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatalf("close app: %v", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("close must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("close must close SemStreams client")
+	}
+}
+
+func TestStartADSBFlowCapturesProviderReplayWhenConfigured(t *testing.T) {
+	now := time.Date(2026, 6, 20, 19, 0, 0, 0, time.UTC)
+	records, err := adsbcodec.OpenSkyFixtureRecords(now)
+	if err != nil {
+		t.Fatalf("adsb fixtures: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(records[0].RawJSON)
+	}))
+	defer server.Close()
+
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.ADSB.Enabled = true
+	cfg.ADSB.Source = "adsb:opensky:runtime-provider-fixture"
+	cfg.ADSB.ReplayPath = filepath.Join(t.TempDir(), "adsb-provider.jsonl")
+	cfg.ADSB.HTTP.URL = server.URL
+	cfg.ADSB.HTTP.PollInterval = time.Hour
+	writer := &recordingADSBAppPlanWriter{}
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{
+				Incarnation: "lease-123",
+				Owners:      []string{cop.OwnerADSB},
+				Tokens: map[string]ownership.OwnerToken{
+					cop.OwnerADSB: ownership.ExpectedOwnerToken(cop.OwnerADSB, "lease-123"),
+				},
+			}, func() {}, nil
+		},
+		newADSBPlanWriter: func(
+			stack.ADSBAdapterConfig,
+			stack.ADSBAdapterDeps,
+		) (adsbcomponent.PlanWriter, error) {
+			return writer, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := app.Close(context.Background()); err != nil {
+			t.Fatalf("close app: %v", err)
+		}
+	})
+
+	if err := app.ADSBHTTPPoller().PollOnce(context.Background()); err != nil {
+		t.Fatalf("poll ADS-B provider fixture: %v", err)
+	}
+	loaded, err := adsbcodec.LoadReplay(cfg.ADSB.ReplayPath)
+	if err != nil {
+		t.Fatalf("load runtime ADS-B replay: %v", err)
+	}
+	if len(loaded) != 1 {
+		t.Fatalf("runtime ADS-B replay records = %d, want 1", len(loaded))
+	}
+	if loaded[0].Source != "adsb-opensky-runtime-provider-fixture" {
+		t.Fatalf("runtime ADS-B replay record source = %q", loaded[0].Source)
+	}
+	snapshot, err := loaded[0].Snapshot()
+	if err != nil {
+		t.Fatalf("decode runtime ADS-B replay snapshot: %v", err)
+	}
+	if len(snapshot.States) != 2 || snapshot.States[0].ICAO24 != "a1b2c3" {
+		t.Fatalf("runtime ADS-B replay snapshot = %+v", snapshot)
+	}
+	if len(writer.plans) != 1 {
+		t.Fatalf("ADS-B graph plans = %d, want aircraft projection", len(writer.plans))
+	}
+}
+
 func TestStartCleansUpWhenCAPCompositionFails(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -466,6 +652,7 @@ func TestStartCleansUpWhenCAPCompositionFails(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {
 				stoppedOwners = true
@@ -489,6 +676,46 @@ func TestStartCleansUpWhenCAPCompositionFails(t *testing.T) {
 	}
 }
 
+func TestStartCleansUpWhenADSBCompositionFails(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.ADSB.Enabled = true
+	writerErr := errors.New("bad adsb writer")
+	var stoppedOwners bool
+
+	_, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {
+				stoppedOwners = true
+			}, nil
+		},
+		newADSBPlanWriter: func(
+			stack.ADSBAdapterConfig,
+			stack.ADSBAdapterDeps,
+		) (adsbcomponent.PlanWriter, error) {
+			return nil, writerErr
+		},
+	})
+	if !errors.Is(err, writerErr) {
+		t.Fatalf("error = %v, want adsb writer error", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("failed startup must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("failed startup must close SemStreams client")
+	}
+}
+
 func TestStartCanDisableHostedMAVLinkFlow(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -503,6 +730,7 @@ func TestStartCanDisableHostedMAVLinkFlow(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
@@ -540,6 +768,7 @@ func TestStartCanDisableHostedCoTFlow(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
@@ -577,6 +806,7 @@ func TestStartCanDisableHostedCAPFlow(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
@@ -599,6 +829,44 @@ func TestStartCanDisableHostedCAPFlow(t *testing.T) {
 	}
 }
 
+func TestStartCanDisableHostedADSBFlow(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.ADSB.Enabled = false
+	var composed bool
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+		newADSBPlanWriter: func(
+			stack.ADSBAdapterConfig,
+			stack.ADSBAdapterDeps,
+		) (adsbcomponent.PlanWriter, error) {
+			composed = true
+			return &recordingADSBAppPlanWriter{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if composed {
+		t.Fatal("ADS-B flow should not be composed when disabled")
+	}
+	if app.ADSBHTTPPoller() != nil || app.ADSBDecoder() != nil || app.ADSBProjector() != nil {
+		t.Fatal("ADS-B components should be nil when disabled")
+	}
+}
+
 func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -613,6 +881,7 @@ func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
@@ -667,6 +936,7 @@ func TestStartHostsCoTInputFlowWhenConfigured(t *testing.T) {
 			context.Context,
 			semstreamsClient,
 			time.Duration,
+			[]cop.OwnedContract,
 		) (copownership.BindingResult, func(), error) {
 			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
 		},
@@ -700,6 +970,19 @@ func TestStartHostsCoTInputFlowWhenConfigured(t *testing.T) {
 	}
 	if !client.closed {
 		t.Fatal("close must close SemStreams client")
+	}
+}
+
+func TestRuntimeOwnedContractsIncludeADSBOnlyWhenEnabled(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.ADSB.Enabled = false
+	if hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerADSB, cop.ADSBTrackContract().Name) {
+		t.Fatal("runtime ownership should not include ADS-B when the hosted ADS-B flow is disabled")
+	}
+
+	cfg.ADSB.Enabled = true
+	if !hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerADSB, cop.ADSBTrackContract().Name) {
+		t.Fatal("runtime ownership should include ADS-B when the hosted ADS-B flow is enabled")
 	}
 }
 
@@ -742,6 +1025,19 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvCAPHTTPContactPolicy:       "semops-test@example.invalid",
 		EnvCAPHTTPAuthRef:             "cap-secret",
 		EnvCAPHTTPMaxResponseBytes:    "123456",
+		EnvADSBEnabled:                "true",
+		EnvADSBSource:                 "adsb:opensky",
+		EnvADSBReplayPath:             "/tmp/semops-adsb.jsonl",
+		EnvADSBRawMaxRecords:          "32",
+		EnvADSBRawMaxBytes:            "65536",
+		EnvADSBWriteTimeout:           "980ms",
+		EnvADSBHTTPURL:                "https://example.test/opensky",
+		EnvADSBHTTPMethod:             "POST",
+		EnvADSBHTTPPollInterval:       "40s",
+		EnvADSBHTTPStaleAfter:         "3m",
+		EnvADSBHTTPContactPolicy:      "semops-adsb-test@example.invalid",
+		EnvADSBHTTPAuthRef:            "adsb-secret",
+		EnvADSBHTTPMaxResponseBytes:   "234567",
 	}
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
@@ -837,6 +1133,31 @@ func TestConfigFromEnv(t *testing.T) {
 		cfg.CAP.HTTP.AuthRef != "cap-secret" ||
 		cfg.CAP.HTTP.MaxResponseBytes != 123456 {
 		t.Fatalf("CAP HTTP config = %+v", cfg.CAP.HTTP)
+	}
+	if !cfg.ADSB.Enabled {
+		t.Fatal("ADS-B enabled = false, want true")
+	}
+	if cfg.ADSB.Source != "adsb:opensky" ||
+		cfg.ADSB.Org != "lab" ||
+		cfg.ADSB.Platform != "edge-7" ||
+		cfg.ADSB.TraceID != "trace-7" ||
+		cfg.ADSB.ReplayPath != "/tmp/semops-adsb.jsonl" {
+		t.Fatalf("ADS-B config = %+v", cfg.ADSB)
+	}
+	if cfg.ADSB.RawMaxRecords != 32 || cfg.ADSB.RawMaxBytes != 65536 {
+		t.Fatalf("ADS-B raw lane config = records %d bytes %d", cfg.ADSB.RawMaxRecords, cfg.ADSB.RawMaxBytes)
+	}
+	if cfg.ADSB.WriteTimeout != 980*time.Millisecond {
+		t.Fatalf("ADS-B write timeout = %s", cfg.ADSB.WriteTimeout)
+	}
+	if cfg.ADSB.HTTP.URL != "https://example.test/opensky" ||
+		cfg.ADSB.HTTP.Method != "POST" ||
+		cfg.ADSB.HTTP.PollInterval != 40*time.Second ||
+		cfg.ADSB.HTTP.StaleAfter != 3*time.Minute ||
+		cfg.ADSB.HTTP.ContactPolicy != "semops-adsb-test@example.invalid" ||
+		cfg.ADSB.HTTP.AuthRef != "adsb-secret" ||
+		cfg.ADSB.HTTP.MaxResponseBytes != 234567 {
+		t.Fatalf("ADS-B HTTP config = %+v", cfg.ADSB.HTTP)
 	}
 }
 
@@ -976,6 +1297,41 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			want: EnvCAPHTTPMaxResponseBytes,
 		},
 		{
+			name: "bad adsb enabled",
+			env:  map[string]string{EnvADSBEnabled: "sometimes"},
+			want: EnvADSBEnabled,
+		},
+		{
+			name: "bad adsb write timeout",
+			env:  map[string]string{EnvADSBWriteTimeout: "forever"},
+			want: EnvADSBWriteTimeout,
+		},
+		{
+			name: "bad adsb poll interval",
+			env:  map[string]string{EnvADSBHTTPPollInterval: "soon"},
+			want: EnvADSBHTTPPollInterval,
+		},
+		{
+			name: "bad adsb stale after",
+			env:  map[string]string{EnvADSBHTTPStaleAfter: "later"},
+			want: EnvADSBHTTPStaleAfter,
+		},
+		{
+			name: "bad adsb raw max records",
+			env:  map[string]string{EnvADSBRawMaxRecords: "many"},
+			want: EnvADSBRawMaxRecords,
+		},
+		{
+			name: "bad adsb raw max bytes",
+			env:  map[string]string{EnvADSBRawMaxBytes: "huge"},
+			want: EnvADSBRawMaxBytes,
+		},
+		{
+			name: "bad adsb max response bytes",
+			env:  map[string]string{EnvADSBHTTPMaxResponseBytes: "huge"},
+			want: EnvADSBHTTPMaxResponseBytes,
+		},
+		{
 			name: "zero udp max datagram",
 			env: map[string]string{
 				EnvMAVLinkUDPListenAddr:       "127.0.0.1:14550",
@@ -1016,6 +1372,38 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvCAPHTTPStaleAfter: "0s",
 			},
 			want: EnvCAPHTTPStaleAfter,
+		},
+		{
+			name: "zero adsb raw max records",
+			env: map[string]string{
+				EnvADSBEnabled:       "true",
+				EnvADSBRawMaxRecords: "0",
+			},
+			want: EnvADSBRawMaxRecords,
+		},
+		{
+			name: "zero adsb raw max bytes",
+			env: map[string]string{
+				EnvADSBEnabled:     "true",
+				EnvADSBRawMaxBytes: "0",
+			},
+			want: EnvADSBRawMaxBytes,
+		},
+		{
+			name: "zero adsb max response bytes",
+			env: map[string]string{
+				EnvADSBEnabled:              "true",
+				EnvADSBHTTPMaxResponseBytes: "0",
+			},
+			want: EnvADSBHTTPMaxResponseBytes,
+		},
+		{
+			name: "zero adsb stale after",
+			env: map[string]string{
+				EnvADSBEnabled:        "true",
+				EnvADSBHTTPStaleAfter: "0s",
+			},
+			want: EnvADSBHTTPStaleAfter,
 		},
 	}
 
@@ -1188,6 +1576,24 @@ type recordingCAPAppPlanWriter struct {
 func (w *recordingCAPAppPlanWriter) Apply(_ context.Context, plan capprojector.Plan) error {
 	w.plans = append(w.plans, plan)
 	return nil
+}
+
+type recordingADSBAppPlanWriter struct {
+	plans []adsbprojector.Plan
+}
+
+func (w *recordingADSBAppPlanWriter) Apply(_ context.Context, plan adsbprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	return nil
+}
+
+func hasOwnedContract(owned []cop.OwnedContract, owner string, contractName string) bool {
+	for _, item := range owned {
+		if item.Owner == owner && item.Contract.Name == contractName {
+			return true
+		}
+	}
+	return false
 }
 
 func mustRuntimeHeartbeatFrame(t *testing.T) []byte {

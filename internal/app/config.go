@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
+	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/pkg/ownership"
 )
@@ -44,6 +46,19 @@ const (
 	EnvCAPHTTPContactPolicy       = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
 	EnvCAPHTTPAuthRef             = "SEMOPS_CAP_HTTP_AUTH_REF"
 	EnvCAPHTTPMaxResponseBytes    = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
+	EnvADSBEnabled                = "SEMOPS_ADSB_ENABLED"
+	EnvADSBSource                 = "SEMOPS_ADSB_SOURCE"
+	EnvADSBReplayPath             = "SEMOPS_ADSB_REPLAY_PATH"
+	EnvADSBRawMaxRecords          = "SEMOPS_ADSB_RAW_MAX_RECORDS"
+	EnvADSBRawMaxBytes            = "SEMOPS_ADSB_RAW_MAX_BYTES"
+	EnvADSBWriteTimeout           = "SEMOPS_ADSB_WRITE_TIMEOUT"
+	EnvADSBHTTPURL                = "SEMOPS_ADSB_HTTP_URL"
+	EnvADSBHTTPMethod             = "SEMOPS_ADSB_HTTP_METHOD"
+	EnvADSBHTTPPollInterval       = "SEMOPS_ADSB_HTTP_POLL_INTERVAL"
+	EnvADSBHTTPStaleAfter         = "SEMOPS_ADSB_HTTP_STALE_AFTER"
+	EnvADSBHTTPContactPolicy      = "SEMOPS_ADSB_HTTP_CONTACT_POLICY"
+	EnvADSBHTTPAuthRef            = "SEMOPS_ADSB_HTTP_AUTH_REF"
+	EnvADSBHTTPMaxResponseBytes   = "SEMOPS_ADSB_HTTP_MAX_RESPONSE_BYTES"
 	EnvCOPGraphQueryTimeout       = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
 	EnvCOPGraphDiscoveryEnabled   = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
 	EnvCOPGraphDiscoveryLimit     = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
@@ -62,6 +77,7 @@ type Config struct {
 	MAVLink                    MAVLinkConfig
 	CoT                        CoTConfig
 	CAP                        CAPConfig
+	ADSB                       ADSBConfig
 	COP                        COPConfig
 }
 
@@ -120,6 +136,30 @@ type CAPConfig struct {
 }
 
 type CAPHTTPConfig struct {
+	URL              string
+	Method           string
+	PollInterval     time.Duration
+	StaleAfter       time.Duration
+	ContactPolicy    string
+	AuthRef          string
+	MaxResponseBytes int
+}
+
+type ADSBConfig struct {
+	Enabled       bool
+	Source        string
+	Org           string
+	Platform      string
+	TraceID       string
+	ReplayPath    string
+	RawMaxRecords int
+	RawMaxBytes   int
+	WriteTimeout  time.Duration
+	Retry         natsclient.RetryConfig
+	HTTP          ADSBHTTPConfig
+}
+
+type ADSBHTTPConfig struct {
 	URL              string
 	Method           string
 	PollInterval     time.Duration
@@ -204,6 +244,29 @@ func DefaultConfig() Config {
 				BackoffMultiplier: 2,
 			},
 		},
+		ADSB: ADSBConfig{
+			Enabled:       false,
+			Source:        "adsb:opensky:inprocess",
+			Org:           "c360",
+			Platform:      "edge",
+			TraceID:       "semops-adsb-hosted",
+			RawMaxRecords: adsbcodec.DefaultRawLaneMaxRecords,
+			RawMaxBytes:   adsbcodec.DefaultRawLaneMaxBytes,
+			WriteTimeout:  2 * time.Second,
+			HTTP: ADSBHTTPConfig{
+				URL:              adsbcomponent.DefaultOpenSkyPollURL,
+				Method:           "GET",
+				PollInterval:     adsbcomponent.DefaultHTTPPollInterval,
+				StaleAfter:       time.Duration(adsbcomponent.DefaultHTTPStaleMultiplier) * adsbcomponent.DefaultHTTPPollInterval,
+				MaxResponseBytes: adsbcomponent.DefaultHTTPMaxResponseBytes,
+			},
+			Retry: natsclient.RetryConfig{
+				MaxRetries:        5,
+				InitialBackoff:    50 * time.Millisecond,
+				MaxBackoff:        500 * time.Millisecond,
+				BackoffMultiplier: 2,
+			},
+		},
 		COP: COPConfig{
 			GraphQueryTimeout:     2 * time.Second,
 			GraphDiscoveryEnabled: true,
@@ -226,15 +289,20 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvCoTSource, &cfg.CoT.Source)
 	setString(getenv, EnvCAPSource, &cfg.CAP.Source)
 	setString(getenv, EnvCAPReplayPath, &cfg.CAP.ReplayPath)
+	setString(getenv, EnvADSBSource, &cfg.ADSB.Source)
+	setString(getenv, EnvADSBReplayPath, &cfg.ADSB.ReplayPath)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)
+	setString(getenv, EnvOrg, &cfg.ADSB.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
 	setString(getenv, EnvPlatform, &cfg.CoT.Platform)
 	setString(getenv, EnvPlatform, &cfg.CAP.Platform)
+	setString(getenv, EnvPlatform, &cfg.ADSB.Platform)
 	setString(getenv, EnvTraceID, &cfg.MAVLink.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CoT.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CAP.TraceID)
+	setString(getenv, EnvTraceID, &cfg.ADSB.TraceID)
 	setString(getenv, EnvMAVLinkUDPListenAddr, &cfg.MAVLink.UDP.ListenAddr)
 	setString(getenv, EnvCoTUDPListenAddr, &cfg.CoT.UDP.ListenAddr)
 	setString(getenv, EnvCoTTCPListenAddr, &cfg.CoT.TCP.ListenAddr)
@@ -242,6 +310,10 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvCAPHTTPMethod, &cfg.CAP.HTTP.Method)
 	setString(getenv, EnvCAPHTTPContactPolicy, &cfg.CAP.HTTP.ContactPolicy)
 	setString(getenv, EnvCAPHTTPAuthRef, &cfg.CAP.HTTP.AuthRef)
+	setString(getenv, EnvADSBHTTPURL, &cfg.ADSB.HTTP.URL)
+	setString(getenv, EnvADSBHTTPMethod, &cfg.ADSB.HTTP.Method)
+	setString(getenv, EnvADSBHTTPContactPolicy, &cfg.ADSB.HTTP.ContactPolicy)
+	setString(getenv, EnvADSBHTTPAuthRef, &cfg.ADSB.HTTP.AuthRef)
 
 	var err error
 	if cfg.NATSConnectTimeout, err = durationFromEnv(getenv, EnvNATSConnectTimeout, cfg.NATSConnectTimeout); err != nil {
@@ -275,6 +347,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.ADSB.WriteTimeout, err = durationFromEnv(
+		getenv,
+		EnvADSBWriteTimeout,
+		cfg.ADSB.WriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.CAP.HTTP.PollInterval, err = durationFromEnv(
 		getenv,
 		EnvCAPHTTPPollInterval,
@@ -286,6 +365,20 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvCAPHTTPStaleAfter,
 		cfg.CAP.HTTP.StaleAfter,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.ADSB.HTTP.PollInterval, err = durationFromEnv(
+		getenv,
+		EnvADSBHTTPPollInterval,
+		cfg.ADSB.HTTP.PollInterval,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.ADSB.HTTP.StaleAfter, err = durationFromEnv(
+		getenv,
+		EnvADSBHTTPStaleAfter,
+		cfg.ADSB.HTTP.StaleAfter,
 	); err != nil {
 		return Config{}, err
 	}
@@ -310,6 +403,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.CAP.Enabled, err = boolFromEnv(getenv, EnvCAPEnabled, cfg.CAP.Enabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.ADSB.Enabled, err = boolFromEnv(getenv, EnvADSBEnabled, cfg.ADSB.Enabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
@@ -337,6 +433,27 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvCAPHTTPMaxResponseBytes,
 		cfg.CAP.HTTP.MaxResponseBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.ADSB.RawMaxRecords, err = intFromEnv(
+		getenv,
+		EnvADSBRawMaxRecords,
+		cfg.ADSB.RawMaxRecords,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.ADSB.RawMaxBytes, err = intFromEnv(
+		getenv,
+		EnvADSBRawMaxBytes,
+		cfg.ADSB.RawMaxBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.ADSB.HTTP.MaxResponseBytes, err = intFromEnv(
+		getenv,
+		EnvADSBHTTPMaxResponseBytes,
+		cfg.ADSB.HTTP.MaxResponseBytes,
 	); err != nil {
 		return Config{}, err
 	}
@@ -421,6 +538,9 @@ func (c Config) Validate() error {
 	if err := c.CAP.Validate(); err != nil {
 		return err
 	}
+	if err := c.ADSB.Validate(); err != nil {
+		return err
+	}
 	if !c.MAVLink.Enabled {
 		return nil
 	}
@@ -438,6 +558,46 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.MAVLink.UDP.ListenAddr) != "" && c.MAVLink.UDP.MaxDatagramBytes <= 0 {
 		return fmt.Errorf("%s must be greater than zero when MAVLink UDP is enabled", EnvMAVLinkUDPMaxDatagramBytes)
+	}
+	return nil
+}
+
+func (c ADSBConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(c.Source) == "" {
+		return fmt.Errorf("%s is required when ADS-B is enabled", EnvADSBSource)
+	}
+	if strings.TrimSpace(c.Org) == "" {
+		return fmt.Errorf("%s is required when ADS-B is enabled", EnvOrg)
+	}
+	if strings.TrimSpace(c.Platform) == "" {
+		return fmt.Errorf("%s is required when ADS-B is enabled", EnvPlatform)
+	}
+	if c.RawMaxRecords <= 0 {
+		return fmt.Errorf("%s must be greater than zero when ADS-B is enabled", EnvADSBRawMaxRecords)
+	}
+	if c.RawMaxBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when ADS-B is enabled", EnvADSBRawMaxBytes)
+	}
+	if c.WriteTimeout <= 0 {
+		return fmt.Errorf("%s must be greater than zero when ADS-B is enabled", EnvADSBWriteTimeout)
+	}
+	if strings.TrimSpace(c.HTTP.URL) == "" {
+		return fmt.Errorf("%s is required when ADS-B is enabled", EnvADSBHTTPURL)
+	}
+	if strings.TrimSpace(c.HTTP.Method) == "" {
+		return fmt.Errorf("%s is required when ADS-B is enabled", EnvADSBHTTPMethod)
+	}
+	if c.HTTP.PollInterval <= 0 {
+		return fmt.Errorf("%s must be greater than zero when ADS-B is enabled", EnvADSBHTTPPollInterval)
+	}
+	if c.HTTP.StaleAfter <= 0 {
+		return fmt.Errorf("%s must be greater than zero when ADS-B is enabled", EnvADSBHTTPStaleAfter)
+	}
+	if c.HTTP.MaxResponseBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when ADS-B is enabled", EnvADSBHTTPMaxResponseBytes)
 	}
 	return nil
 }

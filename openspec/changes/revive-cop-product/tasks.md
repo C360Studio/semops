@@ -36,6 +36,8 @@
 - [x] 2.17 Add the first concrete ADS-B OpenSky HTTP poller, decoder, and projector component package using
       SemStreams ports, payload registry, health, and flow metrics
 - [x] 2.18 Add preflight-only SAPIENT HTTP input and decoder components without graph request ports or owner claims
+- [x] 2.19 Wire the ADS-B OpenSky-compatible HTTP poller -> decoder -> projector component chain into app runtime
+      behind explicit opt-in config
 
 ## 3. COP Model And Governance
 
@@ -106,6 +108,7 @@
 - [x] 5.39 Add deterministic provider-shaped CAP HTTP capture/replay evidence before live NWS sample capture
 - [x] 5.40 Add ADS-B OpenSky HTTP component-promotion gate without claiming default live OpenSky service support
 - [x] 5.41 Add SAPIENT preflight component gate without claiming product support, conformance, or graph projection
+- [x] 5.42 Add ADS-B app-runtime component gate without claiming default live OpenSky reliability or receiver support
 
 ## 6. Structural COP Stack
 
@@ -170,6 +173,7 @@
       and receiver paths gated
 - [x] 6.52 Add initial SAPIENT preflight HTTP input and decoder components while keeping runtime hosting and graph
       projection gated
+- [x] 6.53 Wire ADS-B HTTP components into hosted app composition behind `SEMOPS_ADSB_ENABLED=false` by default
 
 ## 7. COP UI
 
