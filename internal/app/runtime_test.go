@@ -773,6 +773,51 @@ func TestStartSAPIENTPreflightCapturesProviderReplayWhenConfigured(t *testing.T)
 	}
 }
 
+func TestStartComponentRuntimeOutlivesStartupContextCancellation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(sapientcodec.TaskAckFixtureJSON())
+	}))
+	defer server.Close()
+
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.SAPIENT.Enabled = true
+	cfg.SAPIENT.Source = "sapient-fixture"
+	cfg.SAPIENT.HTTP.URL = server.URL
+	cfg.SAPIENT.HTTP.PollInterval = 10 * time.Millisecond
+	cfg.SAPIENT.HTTP.StaleAfter = time.Second
+
+	startCtx, cancelStartup := context.WithCancel(context.Background())
+	app, err := start(startCtx, cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := app.Close(context.Background()); err != nil {
+			t.Fatalf("close app: %v", err)
+		}
+	})
+
+	cancelStartup()
+	pollUntil(t, 500*time.Millisecond, func() bool {
+		return client.publishedCount(sapientcomponent.DefaultDecodedSubject) > 0
+	})
+}
+
 func TestStartCleansUpWhenCAPCompositionFails(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1878,6 +1923,18 @@ func (c *fakeSemStreamsClient) publishedCount(subject string) int {
 		}
 	}
 	return count
+}
+
+func pollUntil(t *testing.T, timeout time.Duration, ready func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if ready() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("condition was not satisfied before %s", timeout)
 }
 
 type publishedRuntimeMessage struct {
