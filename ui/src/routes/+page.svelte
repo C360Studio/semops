@@ -40,7 +40,8 @@
     const sourceByFeed: Record<string, string> = {
       'feed.mavlink': 'mavlink',
       'feed.tak': 'tak',
-      'feed.cap': 'cap'
+      'feed.cap': 'cap',
+      'feed.adsb': 'adsb'
     };
     const source = sourceByFeed[feedID];
     if (!source) return [];

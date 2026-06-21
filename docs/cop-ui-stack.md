@@ -88,6 +88,12 @@ In local development, Caddy is the browser-facing entrypoint. It serves the Svel
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
 diagnostics and smoke tests.
 
+The first browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts
+`GET /api/cop/snapshot`, serves an API-shaped snapshot containing ADS-B track and discovery evidence, and verifies the
+operator surface renders source cards, prefix-discovery counts, map selection controls, and provenance for the selected
+ADS-B aircraft. This complements the Docker stack smoke: Playwright proves the browser contract and interaction path,
+while `scripts/cop-stack-smoke.sh` proves the live SemOps/SemStreams/Caddy plumbing.
+
 ## Dynamic UI Scope Gate
 
 Dynamic ontology-generated UI is a research idea, not a Phase 1 feature.

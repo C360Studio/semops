@@ -210,6 +210,8 @@
 - [x] 7.19 Surface compact prefix-discovery counts in source cards
 - [x] 7.20 Surface prefix discovery pressure in the alert list
 - [x] 7.21 Surface ADS-B prefix-discovered aircraft tracks in the COP API contract
+- [x] 7.22 Add fixture-backed Playwright browser smoke for API-backed ADS-B feed/discovery readback and selection
+      provenance
 
 ## 8. Tier Escalation And Egress
 
