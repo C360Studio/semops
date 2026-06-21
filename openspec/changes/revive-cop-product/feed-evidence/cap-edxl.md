@@ -3,8 +3,9 @@
 Status: initial Phase 1 parser/projection/readback slice exists, with deterministic raw XML lifecycle fixture replay,
 derived lifecycle-status readback, a skipped-by-default live graph smoke for born-first append-evidence behavior, and
 the first hosted HTTP poller, decoder, and graph-projector component package. The app runtime can compose that chain
-behind `SEMOPS_CAP_ENABLED=true`, while default live-provider enablement remains off. Live NWS fixture capture, XML
-schema validation, and consumer-rule coverage remain open.
+behind `SEMOPS_CAP_ENABLED=true`, and `SEMOPS_CAP_REPLAY_PATH` can capture provider-shaped raw CAP XML replay records,
+while default live-provider enablement remains off. Live NWS fixture capture, XML schema validation, and consumer-rule
+coverage remain open.
 
 ## Decision
 
@@ -39,6 +40,8 @@ semantics.
 - The CAP HTTP poller records provider contact separately from fresh payload data, preserves `ETag`/`Last-Modified`,
   treats `304 Not Modified` as contact without duplicate raw publish, and reports `stale` health after `stale_after`
   elapses without fresh CAP XML.
+- The hosted app runtime can attach a CAP replay store with `SEMOPS_CAP_REPLAY_PATH`; local HTTP tests prove poller
+  output flows through the decoder into native `RawAlertRecord` JSONL and then parses back as CAP XML.
 - The COP model reserves `hazard_area`, `alert`, and `advisory` as first-slice entities.
 - The feed ladder assigns current CAP evidence to `content`, future authoritative alert lifecycle to `control`, and
   fetch/replay detail to `trace`.
@@ -163,7 +166,7 @@ Acceptance:
 Current target command:
 
 ```bash
-go test ./pkg/adapters/cap ./internal/projectors/cap
+go test ./pkg/adapters/cap ./internal/components/cap ./internal/app ./internal/projectors/cap
 ```
 
 Acceptance:
@@ -171,6 +174,10 @@ Acceptance:
 - Replaying the raw XML lifecycle fixture yields deterministic alert/update/cancel/expired alert parse output.
 - Projecting the lifecycle fixture births the first hazard, appends update/cancel evidence to that hazard, and births
   a separate expired hazard without relying on auto-vivify.
+- Provider-shaped HTTP CAP responses can be captured through the poller and decoder into replay JSONL without live NWS
+  access.
+- The hosted runtime honors `SEMOPS_CAP_REPLAY_PATH` for opt-in CAP replay capture while keeping
+  `SEMOPS_CAP_ENABLED=false` by default.
 
 ## Known Gaps
 
@@ -179,6 +186,8 @@ Acceptance:
 - CAP conformance should be stated as schema/consumer-rule evidence until we implement a proper consumer profile.
 - The initial `internal/components/cap` package is wired into the app runtime and Compose as an explicit opt-in, but
   `SEMOPS_CAP_ENABLED` defaults to `false` and does not fetch live NWS alerts by default.
+- `SEMOPS_CAP_REPLAY_PATH` is optional and empty by default; setting it captures decoded CAP raw XML records from the
+  opt-in runtime path.
 - Captured NWS update/cancel/expire fixture replay is still missing.
 - Provider-specific stale-source review is still needed after captured NWS/IPAWS/vendor fixtures exist; the current
   stale-source gate is component-level health behavior with deterministic local HTTP tests.

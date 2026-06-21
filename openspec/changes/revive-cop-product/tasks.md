@@ -32,6 +32,7 @@
       SemStreams component flow
 - [x] 2.15 Add CAP HTTP poller stale-source health and provider-contact debug state to the SemStreams component
       contract surface
+- [x] 2.16 Add optional CAP replay-store capture to the opt-in runtime component chain
 
 ## 3. COP Model And Governance
 
@@ -99,6 +100,7 @@
 - [x] 5.36 Add CAP graph-projector component gate without claiming default hosted CAP service
 - [x] 5.37 Record opt-in CAP runtime composition while keeping default live NWS/IPAWS provider claims gated
 - [x] 5.38 Add deterministic CAP poller stale-source health evidence without claiming provider-specific stale policy
+- [x] 5.39 Add deterministic provider-shaped CAP HTTP capture/replay evidence before live NWS sample capture
 
 ## 6. Structural COP Stack
 
@@ -158,6 +160,7 @@
 - [x] 6.47 Add initial CAP born-first graph projector component package while keeping default-stack hosting open
 - [x] 6.48 Wire CAP HTTP polling through the hosted app composition root behind `SEMOPS_CAP_ENABLED=false` by default
 - [x] 6.49 Thread CAP `stale_after` runtime config into the opt-in Compose/runtime chain
+- [x] 6.50 Thread optional `SEMOPS_CAP_REPLAY_PATH` into the opt-in Compose/runtime chain
 
 ## 7. COP UI
 
