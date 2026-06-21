@@ -26,6 +26,7 @@ const (
 	DefaultHTTPPollURL          = "https://api.weather.gov/alerts/active"
 	DefaultHTTPPollInterval     = 5 * time.Minute
 	DefaultHTTPMaxResponseBytes = 4 * 1024 * 1024
+	DefaultHTTPStaleMultiplier  = 3
 )
 
 type Subscription interface {
@@ -74,6 +75,7 @@ type HTTPPollerConfig struct {
 	Method           string
 	RawSubject       string
 	PollInterval     time.Duration
+	StaleAfter       time.Duration
 	ContactPolicy    string
 	AuthRef          string
 	MaxResponseBytes int
@@ -92,6 +94,21 @@ type HTTPPollerComponent struct {
 	cancel  context.CancelFunc
 	done    chan error
 	metrics flowCounters
+
+	lastProviderContact time.Time
+	lastFreshData       time.Time
+	lastStatusCode      int
+}
+
+type HTTPPollerDebugStatus struct {
+	Endpoint            string        `json:"endpoint"`
+	PollInterval        time.Duration `json:"poll_interval"`
+	StaleAfter          time.Duration `json:"stale_after"`
+	LastProviderContact time.Time     `json:"last_provider_contact,omitempty"`
+	LastFreshData       time.Time     `json:"last_fresh_data,omitempty"`
+	LastStatusCode      int           `json:"last_status_code,omitempty"`
+	ETag                string        `json:"etag,omitempty"`
+	LastModified        string        `json:"last_modified,omitempty"`
 }
 
 func NewHTTPPollerComponent(cfg HTTPPollerConfig, bus Bus) (*HTTPPollerComponent, error) {
@@ -116,6 +133,12 @@ func NewHTTPPollerComponent(cfg HTTPPollerConfig, bus Bus) (*HTTPPollerComponent
 	}
 	if cfg.PollInterval < 0 {
 		return nil, fmt.Errorf("cap HTTP poll interval must be greater than zero")
+	}
+	if cfg.StaleAfter == 0 {
+		cfg.StaleAfter = time.Duration(DefaultHTTPStaleMultiplier) * cfg.PollInterval
+	}
+	if cfg.StaleAfter < 0 {
+		return nil, fmt.Errorf("cap HTTP stale_after must be greater than zero")
 	}
 	if cfg.MaxResponseBytes == 0 {
 		cfg.MaxResponseBytes = DefaultHTTPMaxResponseBytes
@@ -231,6 +254,8 @@ func (c *HTTPPollerComponent) PollOnce(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
+	now := c.cfg.Clock().UTC()
+	c.recordProviderContact(resp.StatusCode, now)
 	if resp.StatusCode == http.StatusNotModified {
 		return nil
 	}
@@ -241,7 +266,6 @@ func (c *HTTPPollerComponent) PollOnce(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	now := c.cfg.Clock().UTC()
 	payload := NewRawAlertPayload(c.cfg.Source, c.cfg.URL, now, resp.StatusCode, body)
 	payload.ETag = resp.Header.Get("ETag")
 	payload.LastModified = resp.Header.Get("Last-Modified")
@@ -316,11 +340,15 @@ func (c *HTTPPollerComponent) OutputPorts() []component.Port {
 func (c *HTTPPollerComponent) ConfigSchema() component.ConfigSchema {
 	return component.ConfigSchema{
 		Properties: map[string]component.PropertySchema{
-			"url":                stringProperty("CAP HTTP endpoint URL", c.cfg.URL),
-			"method":             stringProperty("HTTP method for CAP polling", c.cfg.Method),
-			"raw_subject":        stringProperty("SemStreams subject carrying raw CAP alerts", c.cfg.RawSubject),
-			"source":             stringProperty("Source label recorded in raw CAP payloads", c.cfg.Source),
-			"poll_interval":      stringProperty("Timer cadence for CAP HTTP polling", c.cfg.PollInterval.String()),
+			"url":           stringProperty("CAP HTTP endpoint URL", c.cfg.URL),
+			"method":        stringProperty("HTTP method for CAP polling", c.cfg.Method),
+			"raw_subject":   stringProperty("SemStreams subject carrying raw CAP alerts", c.cfg.RawSubject),
+			"source":        stringProperty("Source label recorded in raw CAP payloads", c.cfg.Source),
+			"poll_interval": stringProperty("Timer cadence for CAP HTTP polling", c.cfg.PollInterval.String()),
+			"stale_after": stringProperty(
+				"Maximum age of the last fresh CAP payload before health degrades",
+				c.cfg.StaleAfter.String(),
+			),
 			"contact_policy":     stringProperty("Public User-Agent/contact identity for feed providers", c.cfg.ContactPolicy),
 			"auth_ref":           stringProperty("Secret reference for authenticated CAP feeds", c.cfg.AuthRef),
 			"max_response_bytes": intProperty("Maximum accepted CAP HTTP response size", c.cfg.MaxResponseBytes),
@@ -330,11 +358,51 @@ func (c *HTTPPollerComponent) ConfigSchema() component.ConfigSchema {
 }
 
 func (c *HTTPPollerComponent) Health() component.HealthStatus {
-	return c.metrics.health(c.state)
+	c.mu.Lock()
+	state := c.state
+	staleAfter := c.cfg.StaleAfter
+	clock := c.cfg.Clock
+	lastFreshData := c.lastFreshData
+	c.mu.Unlock()
+
+	now := clock().UTC()
+	health := c.metrics.healthAt(state, now)
+	if staleAfter <= 0 || !health.Healthy {
+		return health
+	}
+	if lastFreshData.IsZero() {
+		lastFreshData = c.metrics.startedTime()
+	}
+	if lastFreshData.IsZero() {
+		return health
+	}
+	age := now.Sub(lastFreshData)
+	if age <= staleAfter {
+		return health
+	}
+	health.Healthy = false
+	health.Status = "stale"
+	health.LastError = fmt.Sprintf("CAP HTTP feed stale: no fresh payload for %s", age.Round(time.Second))
+	return health
 }
 
 func (c *HTTPPollerComponent) DataFlow() component.FlowMetrics {
 	return c.metrics.flow()
+}
+
+func (c *HTTPPollerComponent) DebugStatus() any {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return HTTPPollerDebugStatus{
+		Endpoint:            c.cfg.URL,
+		PollInterval:        c.cfg.PollInterval,
+		StaleAfter:          c.cfg.StaleAfter,
+		LastProviderContact: c.lastProviderContact,
+		LastFreshData:       c.lastFreshData,
+		LastStatusCode:      c.lastStatusCode,
+		ETag:                c.cfg.ETag,
+		LastModified:        c.cfg.LastModified,
+	}
 }
 
 type DecoderConfig struct {
@@ -840,17 +908,27 @@ func (m *flowCounters) recordError(err error) {
 }
 
 func (m *flowCounters) health(state component.State) component.HealthStatus {
+	return m.healthAt(state, time.Now().UTC())
+}
+
+func (m *flowCounters) healthAt(state component.State, now time.Time) component.HealthStatus {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	healthy := state == component.StateStarted || state == component.StateInitialized
 	return component.HealthStatus{
 		Healthy:    healthy && m.lastError == "",
-		LastCheck:  time.Now().UTC(),
+		LastCheck:  now.UTC(),
 		ErrorCount: m.errors,
 		LastError:  m.lastError,
-		Uptime:     uptimeSince(m.startedAt),
+		Uptime:     uptimeSinceAt(m.startedAt, now),
 		Status:     state.String(),
 	}
+}
+
+func (m *flowCounters) startedTime() time.Time {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.startedAt
 }
 
 func (m *flowCounters) flow() component.FlowMetrics {
@@ -870,10 +948,20 @@ func (m *flowCounters) flow() component.FlowMetrics {
 
 func (c *HTTPPollerComponent) recordMessage(size int, now time.Time) {
 	c.metrics.recordMessage(size, now)
+	c.mu.Lock()
+	c.lastFreshData = now.UTC()
+	c.mu.Unlock()
 }
 
 func (c *HTTPPollerComponent) recordError(err error) {
 	c.metrics.recordError(err)
+}
+
+func (c *HTTPPollerComponent) recordProviderContact(statusCode int, now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.lastProviderContact = now.UTC()
+	c.lastStatusCode = statusCode
 }
 
 func (c *DecoderComponent) recordMessage(size int, now time.Time) {
@@ -1005,10 +1093,14 @@ func waitDone(done <-chan error, timeout time.Duration, action string) error {
 }
 
 func uptimeSince(startedAt time.Time) time.Duration {
+	return uptimeSinceAt(startedAt, time.Now().UTC())
+}
+
+func uptimeSinceAt(startedAt time.Time, now time.Time) time.Duration {
 	if startedAt.IsZero() {
 		return 0
 	}
-	return time.Since(startedAt)
+	return now.Sub(startedAt)
 }
 
 func entityAlreadyExists(err error) (string, bool) {

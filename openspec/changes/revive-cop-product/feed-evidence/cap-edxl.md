@@ -14,11 +14,12 @@ track or asset facts.
 
 The current CAP slice now has the first SemStreams component package for a hosted HTTP poller, raw-alert decoder, and
 born-first graph projector. That is a component-contract and deterministic local-polling gate, not a default live NWS
-service claim. CAP remains parser, projection, scenario-replay, readback, opt-in runtime, and live graph smoke
-evidence until SemOps proves provider fixtures, webhook ingestion, NWS/IPAWS/vendor integration, stale-source behavior,
-and alert-source health. SemStreams `v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP
-pollers, while SemStreams issue #309 tracks richer component backpressure telemetry and issue #312 tracks first-class
-`TimerPort` flowgraph cadence semantics.
+service claim. CAP remains parser, projection, scenario-replay, readback, opt-in runtime, component stale-source
+health, and live graph smoke evidence until SemOps proves provider fixtures, webhook ingestion,
+NWS/IPAWS/vendor integration, provider lifecycle behavior, and alert-source operations. SemStreams
+`v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP pollers, while SemStreams issue #309
+tracks richer component backpressure telemetry and issue #312 tracks first-class `TimerPort` flowgraph cadence
+semantics.
 
 ## Local Evidence
 
@@ -35,6 +36,9 @@ pollers, while SemStreams issue #309 tracks richer component backpressure teleme
 - `internal/components/cap` adds a SemStreams lifecycle `HTTPPollerComponent` with `HTTPClientPort` plus sibling
   `TimerPort`, a raw-alert decoder processor, a born-first graph-projector processor, registered raw/decoded
   `message.BaseMessage` payloads, graph request ports, config schemas, health, and flow metrics.
+- The CAP HTTP poller records provider contact separately from fresh payload data, preserves `ETag`/`Last-Modified`,
+  treats `304 Not Modified` as contact without duplicate raw publish, and reports `stale` health after `stale_after`
+  elapses without fresh CAP XML.
 - The COP model reserves `hazard_area`, `alert`, and `advisory` as first-slice entities.
 - The feed ladder assigns current CAP evidence to `content`, future authoritative alert lifecycle to `control`, and
   fetch/replay detail to `trace`.
@@ -109,6 +113,9 @@ Acceptance:
   raw-alert interface metadata.
 - The poller declares a sibling `TimerPort` referenced by `HTTPClientPort.TriggerPort` so polling cadence is visible
   as a component contract.
+- The poller config schema exposes `stale_after`; component health degrades to `stale` after no fresh provider payload
+  arrives within that threshold.
+- `304 Not Modified` provider responses update provider-contact debug state without publishing duplicate raw CAP XML.
 - Raw and decoded CAP payloads register with the SemStreams `PayloadRegistry` and round-trip through
   `message.BaseMessage`.
 - Deterministic local HTTP tests publish raw CAP XML without calling live NWS.
@@ -173,6 +180,8 @@ Acceptance:
 - The initial `internal/components/cap` package is wired into the app runtime and Compose as an explicit opt-in, but
   `SEMOPS_CAP_ENABLED` defaults to `false` and does not fetch live NWS alerts by default.
 - Captured NWS update/cancel/expire fixture replay is still missing.
+- Provider-specific stale-source review is still needed after captured NWS/IPAWS/vendor fixtures exist; the current
+  stale-source gate is component-level health behavior with deterministic local HTTP tests.
 - Default live-provider CAP polling is still not enabled in the default Compose stack.
 - The current projector intentionally does not own `cop.hazard.geometry`, `cop.hazard.severity`, or
   `cop.hazard.status`.

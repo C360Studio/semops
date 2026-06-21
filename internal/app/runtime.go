@@ -563,6 +563,7 @@ func (a *App) startCAPFlow(
 		Method:           cfg.HTTP.Method,
 		RawSubject:       capcomponent.DefaultRawSubject,
 		PollInterval:     cfg.HTTP.PollInterval,
+		StaleAfter:       cfg.HTTP.StaleAfter,
 		ContactPolicy:    cfg.HTTP.ContactPolicy,
 		AuthRef:          cfg.HTTP.AuthRef,
 		MaxResponseBytes: cfg.HTTP.MaxResponseBytes,

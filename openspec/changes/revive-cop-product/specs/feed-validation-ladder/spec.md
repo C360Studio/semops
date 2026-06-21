@@ -52,9 +52,10 @@ become dead-end architecture.
 - **THEN** SemOps treats the result as parser/projection/readback evidence
 - **AND** the first CAP HTTP poller, decoder, and projector components are treated as component-contract evidence, not
   default live NWS/IPAWS service evidence
+- **AND** component health can report stale CAP polling when no fresh payload arrives within the configured
+  `stale_after` threshold
 - **AND** SemOps does not claim hosted CAP polling, webhook, NWS/IPAWS integration, or alert feed service support until
-  opt-in runtime wiring is backed by provider fixtures, stale-source behavior, and alert lifecycle gates for that
-  boundary
+  opt-in runtime wiring is backed by provider fixtures and alert lifecycle gates for that boundary
 
 ### Requirement: Compliance claims require reproducible evidence
 

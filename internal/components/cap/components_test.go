@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,6 +58,7 @@ func TestPayloadRegistryRoundTripsRawAndDecodedPayloads(t *testing.T) {
 
 func TestCAPComponentsExposeHTTPTimerAndStreamPorts(t *testing.T) {
 	var _ component.LifecycleComponent = (*HTTPPollerComponent)(nil)
+	var _ component.DebugStatusProvider = (*HTTPPollerComponent)(nil)
 	var _ component.LifecycleComponent = (*DecoderComponent)(nil)
 	var _ component.LifecycleComponent = (*ProjectorComponent)(nil)
 
@@ -111,6 +113,9 @@ func TestCAPComponentsExposeHTTPTimerAndStreamPorts(t *testing.T) {
 	}
 	if got, want := poller.OutputPorts()[0].Config.(component.NATSPort).Subject, DefaultRawSubject; got != want {
 		t.Fatalf("poller raw subject = %q, want %q", got, want)
+	}
+	if got, want := poller.ConfigSchema().Properties["stale_after"].Default, "1m30s"; got != want {
+		t.Fatalf("poller stale_after default = %v, want %s", got, want)
 	}
 	if got, want := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject, DefaultDecodedSubject; got != want {
 		t.Fatalf("decoder decoded subject = %q, want %q", got, want)
@@ -208,6 +213,90 @@ func TestHTTPPollerPollOncePublishesRawBaseMessage(t *testing.T) {
 	}
 	if string(payload.RawXML) != string(record.RawXML) {
 		t.Fatalf("raw XML changed across raw publish")
+	}
+	status := poller.DebugStatus().(HTTPPollerDebugStatus)
+	if !status.LastFreshData.Equal(now) {
+		t.Fatalf("last fresh data = %s, want %s", status.LastFreshData, now)
+	}
+	if !status.LastProviderContact.Equal(now) || status.LastStatusCode != http.StatusOK {
+		t.Fatalf("provider contact status = %+v", status)
+	}
+}
+
+func TestHTTPPollerNotModifiedTracksProviderContactWithoutPublishing(t *testing.T) {
+	now := time.Date(2026, 6, 20, 15, 45, 0, 0, time.UTC)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got, want := r.Header.Get("If-None-Match"), `"fixture-1"`; got != want {
+			t.Fatalf("If-None-Match = %q, want %q", got, want)
+		}
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	defer server.Close()
+
+	bus := &recordingBus{}
+	poller, err := NewHTTPPollerComponent(HTTPPollerConfig{
+		Source: "cap:http:test",
+		URL:    server.URL,
+		ETag:   `"fixture-1"`,
+		Client: server.Client(),
+		Clock:  func() time.Time { return now },
+	}, bus)
+	if err != nil {
+		t.Fatalf("new poller: %v", err)
+	}
+	if err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("poll once: %v", err)
+	}
+	if len(bus.published) != 0 {
+		t.Fatalf("published messages = %+v, want none for 304", bus.published)
+	}
+	status := poller.DebugStatus().(HTTPPollerDebugStatus)
+	if status.LastStatusCode != http.StatusNotModified || !status.LastProviderContact.Equal(now) {
+		t.Fatalf("provider contact status = %+v", status)
+	}
+	if !status.LastFreshData.IsZero() {
+		t.Fatalf("last fresh data = %s, want zero for 304", status.LastFreshData)
+	}
+}
+
+func TestHTTPPollerHealthReportsStaleWhenFreshDataAgesPastThreshold(t *testing.T) {
+	now := time.Date(2026, 6, 20, 16, 0, 0, 0, time.UTC)
+	current := now
+	poller, err := NewHTTPPollerComponent(HTTPPollerConfig{
+		URL:          "https://example.test/cap",
+		PollInterval: time.Hour,
+		StaleAfter:   10 * time.Minute,
+		Clock:        func() time.Time { return current },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new poller: %v", err)
+	}
+	if err := poller.Initialize(); err != nil {
+		t.Fatalf("initialize poller: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := poller.Start(ctx); err != nil {
+		t.Fatalf("start poller: %v", err)
+	}
+	t.Cleanup(func() {
+		cancel()
+		if err := poller.Stop(time.Second); err != nil {
+			t.Fatalf("stop poller: %v", err)
+		}
+	})
+
+	health := poller.Health()
+	if !health.Healthy || health.Status != "started" {
+		t.Fatalf("initial health = %+v, want healthy started", health)
+	}
+	current = now.Add(11 * time.Minute)
+	health = poller.Health()
+	if health.Healthy || health.Status != "stale" {
+		t.Fatalf("stale health = %+v, want unhealthy stale", health)
+	}
+	if !strings.Contains(health.LastError, "no fresh payload") {
+		t.Fatalf("stale health error = %q", health.LastError)
 	}
 }
 

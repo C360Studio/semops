@@ -292,8 +292,10 @@ go test ./internal/components/cap ./internal/contracts
 This gate proves the CAP HTTP poller, decoder, and projector are real SemStreams components with registered payloads,
 declared ports, config schema, health, and flow metrics. The poller uses `HTTPClientPort` for the external feed
 dependency and a sibling `TimerPort` referenced by `TriggerPort` for cadence. The projector declares graph mutation
-request ports and reconciles restart-time create conflicts. Tests use a local HTTP server; live NWS remains a separate
-optional gate. SemStreams issue #312 tracks first-class flowgraph cadence semantics for `TimerPort`.
+request ports and reconciles restart-time create conflicts. The poller now exposes `stale_after`, treats
+`304 Not Modified` as provider contact without duplicate publish, and reports stale health when fresh provider payloads
+age out. Tests use a local HTTP server; live NWS remains a separate optional gate. SemStreams issue #312 tracks
+first-class flowgraph cadence semantics for `TimerPort`.
 
 Live graph gate:
 
@@ -310,11 +312,11 @@ Remaining gates:
 - NWS samples captured as deterministic fixtures.
 - XML schema and CAP consumer-rule validation.
 - NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
-- Provider fixture and stale-source proof for the opt-in `SEMOPS_CAP_ENABLED=true` runtime chain.
+- Provider fixture proof for the opt-in `SEMOPS_CAP_ENABLED=true` runtime chain.
 - Default live-provider enablement; Compose exposes CAP knobs but keeps hosted public-alert polling disabled by default.
 - Webhook, watched-file, or vendor feed service boundaries.
-- Telemetry-driven backpressure decisions once hosted CAP polling has real provider cadence, stale-source, retry,
-  retention, and audit pressure.
+- Telemetry-driven backpressure decisions once hosted CAP polling has real provider cadence, retry, retention, and
+  audit pressure.
 
 ### CS API Bidirectional Interop
 
