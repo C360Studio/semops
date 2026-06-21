@@ -53,7 +53,7 @@ Adapters that own external protocols or different runtime placement can run as s
 
 - MAVLink over UDP/TCP/SITL.
 - TAK/CoT over UDP/TCP/XML.
-- CAP/EDXL ingestion.
+- CAP ingestion, with broader EDXL variants deferred until a concrete product gate selects them.
 - SAPIENT protobuf.
 - ADS-B raw JSON first, ASTERIX later.
 - KLV subset extraction.
@@ -80,8 +80,8 @@ SemOps also follows SemStreams ADR-055/056 explicitly:
 
 ### 4. Phase 1 stays structural and complete
 
-The first demo should not wait for seven feeds and three tiers. Phase 1 is complete when MAVLink, TAK/CoT, and
-CAP/EDXL produce live governed graph state and the COP shows map, source, provenance, feed health, and alerts.
+The first demo should not wait for seven feeds and three tiers. Phase 1 is complete when MAVLink, TAK/CoT, and CAP
+produce live governed graph state and the COP shows map, source, provenance, feed health, and alerts.
 
 The first Phase 1 graph milestone is narrower: generated or replay MAVLink must prove born-first create/update
 behavior against the live SemStreams graph path with no `entity_not_found` failures or dropped foreign-edge evidence.
@@ -126,7 +126,8 @@ Each ask must cite a SemOps workflow, failing test, missing primitive, or demo c
 
 ### 8. Feeds enter one at a time through evidence gates
 
-Feed order is MAVLink, TAK/CoT, CAP/EDXL, CS API bidirectional interop, ADS-B, SAPIENT, then KLV/STANAG 4609.
+Feed order is MAVLink, TAK/CoT, CAP, CS API bidirectional interop, ADS-B, SAPIENT, then KLV/STANAG 4609. Broader
+EDXL variants remain out of Phase 1 until a separate product force, fixture set, and projection contract justify them.
 
 Every feed needs a parser gate, mock or simulator gate, projection gate, replay gate, and demo gate. Compliance gates
 are required where a public suite, official schema, or documented interoperability test exists. If no compliance

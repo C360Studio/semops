@@ -24,7 +24,7 @@ Recommended order:
 
 1. MAVLink.
 2. TAK/CoT.
-3. CAP/EDXL.
+3. CAP, with broader EDXL held for later feed-validation gates.
 4. CS API bidirectional interop.
 5. ADS-B.
 6. SAPIENT.
@@ -234,9 +234,9 @@ Current component and graph-wiring gate:
 
 ### CAP/EDXL
 
-Status: third feed; parser, deterministic raw XML lifecycle fixture replay, append-evidence projection, graph writer,
-COP readback, first lifecycle-status readback, skipped-by-default live graph smoke, and initial HTTP poller, decoder,
-and graph-projector component package exist.
+Status: third feed. CAP has parser, deterministic raw XML lifecycle fixture replay, append-evidence projection, graph
+writer, COP readback, first lifecycle-status readback, skipped-by-default live graph smoke, and initial HTTP poller,
+decoder, and graph-projector component package. Broader EDXL is not Phase 1 scope.
 
 Compliance and sample evidence:
 

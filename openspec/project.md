@@ -38,7 +38,7 @@ current SemStreams projection, ownership, indexing, rule, and tiering patterns.
 
 The first product slice is a structural HA/DR COP:
 
-- MAVLink, TAK/CoT, and CAP/EDXL feed boundaries.
+- MAVLink, TAK/CoT, and CAP feed boundaries, with broader EDXL handled as later feed-validation scope.
 - Canonical entities for tracks, assets, hazard areas, sensor footprints, alerts, tasks, and advisories.
 - A SemOps API and Svelte 5 COP product surface with map, source, provenance, and alert lenses.
 - A scripted scenario runner so the demo is repeatable.
