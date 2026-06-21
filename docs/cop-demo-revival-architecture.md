@@ -299,7 +299,7 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 
 SemOps should use a native core plus standards bridge posture.
 
-Native adapters are the fast path for operational feeds: MAVLink, TAK/CoT, CAP/EDXL, ADS-B, SAPIENT, and KLV can
+Native adapters are the fast path for operational feeds: MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, and KLV can
 arrive in disaster-response environments without a standards driver in front of them. SemOps should decode those
 formats at the boundary, preserve their native semantics where they matter, and project governed current state,
 evidence, provenance, freshness, and confidence into SemStreams.
@@ -336,7 +336,7 @@ flowchart LR
     subgraph Edge["Edge node"]
         MAV["MAVLink adapter"]
         COT["TAK/CoT adapter"]
-        CAP["CAP/EDXL adapter"]
+        CAP["CAP adapter"]
         RAW["Bounded raw lanes"]
         PROJ["Structural projectors"]
     end
@@ -395,7 +395,7 @@ stack, then split edge/core only after the deployment metadata has real value.
 | `semops-scenario-runner` | SemOps | Scripted HA/DR feed playback, deterministic demo clock | Phase 1 |
 | `semops-adapter-mavlink` | SemOps | External UDP now; TCP/serial/SITL boundary and raw lane producer later | Phase 1 |
 | `semops-adapter-cot` | SemOps | TAK UDP/TCP/XML boundary and operator/marker/message projection | Phase 1 |
-| `semops-adapter-cap` | SemOps | Tolerant CAP/EDXL reader and hazard/advisory projection | Phase 1 |
+| `semops-adapter-cap` | SemOps | Tolerant CAP reader and hazard/advisory projection; broader EDXL later | Phase 1 |
 | `semops-adapter-adsb` | SemOps | Air-track source, raw JSON first, ASTERIX later | Phase 2 |
 | `semops-adapter-sapient` | SemOps | Protobuf boundary and strict detection/track projection | Phase 2 |
 | `semops-adapter-klv` | SemOps | Video metadata/footprint extraction from STANAG 4609 KLV subset | Phase 3 |

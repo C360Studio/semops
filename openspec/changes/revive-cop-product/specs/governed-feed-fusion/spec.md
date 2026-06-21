@@ -11,7 +11,7 @@ Each feed adapter SHALL decode, validate or tolerate, and project native message
 
 #### Scenario: Loose feed writes best-effort evidence
 
-- **WHEN** a loose feed such as CAP/EDXL or raw ADS-B has partial but usable data
+- **WHEN** a loose feed such as CAP evidence or raw ADS-B has partial but usable data
 - **THEN** the adapter writes best-effort governed evidence with provenance and confidence
 
 ### Requirement: Ownership prevents silent clobbering
@@ -133,7 +133,7 @@ requests before triples or foreign edges are added.
   Events, streaming, and snapshots map through ownership-aware state, evidence, and command-authority boundaries
 - **AND** command ingress is asynchronous: the CS API boundary records governed intent or desired state with TTL,
   priority, authority, idempotency, and cancellation semantics before native drivers reconcile actual execution
-- **AND** native adapters for MAVLink, TAK/CoT, CAP/EDXL, ADS-B, SAPIENT, and KLV remain first-class paths when their
+- **AND** native adapters for MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, and KLV remain first-class paths when their
   native protocols carry product-critical semantics
 - **AND** CS API interop MUST preserve SemStreams ownership, provenance, freshness, and indexing-profile decisions
   rather than becoming a bypass around governed feed fusion

@@ -117,7 +117,7 @@
 ## 6. Structural COP Stack
 
 - [x] 6.1 Add Compose stack for NATS, SemStreams, SemOps API, SemOps UI, and scenario runner
-- [ ] 6.2 Add MAVLink, TAK/CoT, and CAP/EDXL structural adapters
+- [x] 6.2 Add MAVLink, TAK/CoT, and CAP structural adapters while keeping broader EDXL out of Phase 1
 - [x] 6.3 Add service health and active state polling for long-running demo runs
 - [x] 6.4 Add scenario playback for a flood/evacuation and shared-airspace vignette
 - [x] 6.5 Add smoke test that verifies graph state from at least two feed types
@@ -186,6 +186,7 @@
       preflight
 - [x] 6.57 Fix hosted component runtime lifecycle so startup/connect context deadlines do not cancel long-running
       input and processor components
+- [ ] 6.58 Split broader EDXL beyond CAP into a later feed-validation gate if product needs justify it
 
 ## 7. COP UI
 

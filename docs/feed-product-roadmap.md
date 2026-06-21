@@ -84,7 +84,8 @@ CAP/EDXL:
 - Guardrail: CAP evidence does not become authoritative hazard truth. The first component package proves hosted HTTP
   polling, decoding, and born-first graph projection contracts with local tests, but it is not a default live NWS
   service or CAP conformance claim. Hosted CAP pollers use SemStreams `HTTPClientPort` plus a sibling `TimerPort` when
-  cadence-driven.
+  cadence-driven. Broader EDXL remains a separate roadmap lane until a product need selects a concrete EDXL family
+  member and fixture set.
 
 CS API:
 
@@ -169,6 +170,7 @@ conformance.
 Demo/MVP lane:
 CAP XML parser with local lifecycle fixtures, deterministic HTTP poller, decoder, and projector components, NWS
 samples, schema/consumer-rule validation, hazard/advisory evidence, expiry/staleness, and append-evidence ownership.
+This lane is CAP-specific; broader EDXL variants stay out of Phase 1 unless a separate feed gate promotes them.
 
 Full product lane:
 Polling and webhook adapters for NWS/IPAWS/vendor feeds, alert update/cancel/expire lifecycle, multilingual

@@ -12,7 +12,9 @@ Each feed SHALL pass documented validation gates before it is treated as a SemOp
 #### Scenario: Feed order is explicit
 
 - **WHEN** the revival plan sequences feed work
-- **THEN** it starts with MAVLink, then TAK/CoT, then CAP/EDXL before ADS-B, SAPIENT, KLV, or CS API interop
+- **THEN** it starts with MAVLink, then TAK/CoT, then CAP before ADS-B, SAPIENT, KLV, or CS API interop
+- **AND** broader EDXL formats beyond CAP require separate product need, fixture, projection, and review gates before
+  they enter Phase 1 scope
 
 ### Requirement: Feed roadmaps distinguish demo scope from full product scope
 
