@@ -235,7 +235,7 @@
 - [x] 7.12 Add first MapLibre/deck.gl tactical layer for tracks, assets, hazards, labels, and picking
 - [x] 7.13 Add tested selection reconciliation and pressed-state affordances for map/alert controls
 - [x] 7.14 Add TAK/CoT task and advisory readback to the COP API/UI contract
-- [ ] 7.15 Add sensor footprints and alert geometry after their graph contracts have evidence
+- [x] 7.15 Add sensor footprints and alert geometry after their graph contracts have evidence
 - [x] 7.16 Add CAP hazard evidence readback to the COP API contract
 - [x] 7.17 Record SemConnect/SemLink graph visualization prior art for future graph lenses
 - [x] 7.18 Surface derived CAP hazard lifecycle status in the COP view model

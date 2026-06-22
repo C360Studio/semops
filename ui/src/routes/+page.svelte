@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { Activity, AlertTriangle, Database, RefreshCcw } from '@lucide/svelte';
   import { loadRuntime, loadSnapshot, freshnessLabel } from '$lib/cop/client';
-  import { reconcileSelection, resolveEntity, type SelectableEntity } from '$lib/cop/selection';
+  import { reconcileSelection, resolveEntity, resolveMapSelection, type SelectableEntity } from '$lib/cop/selection';
   import SourceCard from '$lib/cop/SourceCard.svelte';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
   import { buildFeedRows, discoveryDiagnosticsForFeed } from '$lib/cop/sourceHealth';
@@ -27,6 +27,7 @@
   let loading = $state(true);
 
   const selectedEntity = $derived(resolveEntity(snapshot, selected));
+  const mapSelected = $derived(resolveMapSelection(snapshot, selected) ?? selected);
   const feedRows = $derived(buildFeedRows(snapshot, runtime));
 
   async function refresh() {
@@ -104,7 +105,7 @@
           {/if}
         </div>
 
-        <TacticalMap {snapshot} {selected} onSelect={(next) => selectEntity(next.kind, next.id)} />
+        <TacticalMap {snapshot} selected={mapSelected} onSelect={(next) => selectEntity(next.kind, next.id)} />
       </section>
 
       <aside class="side-panel" aria-label="Entity inspector">
@@ -276,6 +277,12 @@
   {/if}
 
   {#if 'reason' in entity}
+    <dl class="detail-list">
+      <div>
+        <dt>Target</dt>
+        <dd>{entity.entity_id}</dd>
+      </div>
+    </dl>
     <p class="reason">{entity.reason}</p>
   {/if}
 {/snippet}

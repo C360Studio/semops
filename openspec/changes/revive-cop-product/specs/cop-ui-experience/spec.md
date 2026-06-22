@@ -20,10 +20,12 @@ deck.gl for high-rate tactical overlays.
 #### Scenario: First tactical map layer is bounded
 
 - **WHEN** the first MapLibre/deck.gl implementation is present
-- **THEN** it renders snapshot tracks, assets, TAK/CoT tasks, TAK/CoT advisories, and hazard areas through deck.gl
-  point, polygon, label, and picking overlays
-- **AND** it does not claim finished basemap tiles, terrain, track trails, footprints, alert geometry, full task
-  workflow geometry, or temporal scrubbing until those layers have their own evidence
+- **THEN** it renders snapshot tracks, assets, TAK/CoT tasks, TAK/CoT advisories, hazard areas, and KLV
+  sensor/frame-center footprints through deck.gl point, polygon, line, label, and picking overlays
+- **AND** when an alert references an existing spatial entity, selecting the alert highlights the referenced map
+  geometry while keeping the alert itself selected in the inspector
+- **AND** it does not claim finished basemap tiles, terrain, track trails, an independent alert geometry model, full
+  footprint polygons, full task workflow geometry, or temporal scrubbing until those layers have their own evidence
 
 ### Requirement: Core operator loop is test guarded
 
@@ -40,7 +42,7 @@ SemOps SHALL keep the first COP operator loop covered by focused component/helpe
 
 - **WHEN** Playwright exercises the first COP screen
 - **THEN** it verifies named source cards, map entity controls, alert controls, selected-entity provenance, keyboard
-  activation, and a narrow viewport without horizontal overflow
+  activation, alert-to-map target highlighting, and a narrow viewport without horizontal overflow
 
 ### Requirement: Browser state comes through SemOps API
 

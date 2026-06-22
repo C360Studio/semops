@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixtureSnapshot } from './fixture';
-import { reconcileSelection, resolveEntity } from './selection';
+import { reconcileSelection, resolveEntity, resolveMapSelection } from './selection';
 import type { Snapshot } from './types';
 
 describe('COP selection helpers', () => {
@@ -26,6 +26,31 @@ describe('COP selection helpers', () => {
     const selected = { kind: 'hazard' as const, id: fixtureSnapshot.hazards[0].id };
 
     expect(reconcileSelection(fixtureSnapshot, selected)).toEqual(selected);
+  });
+
+  it('uses an alert target as the effective map selection without replacing the alert inspector selection', () => {
+    const alert = fixtureSnapshot.alerts[0];
+
+    expect(resolveEntity(fixtureSnapshot, { kind: 'alert', id: alert.id })?.label).toBe(alert.label);
+    expect(resolveMapSelection(fixtureSnapshot, { kind: 'alert', id: alert.id })).toEqual({
+      kind: 'track',
+      id: alert.entity_id
+    });
+  });
+
+  it('leaves source-health alerts without spatial targets unprojected onto the map', () => {
+    const sourceHealthAlert = {
+      ...fixtureSnapshot.alerts[0],
+      id: 'alert.discovery.feed',
+      entity_id: 'feed.mavlink'
+    };
+
+    expect(
+      resolveMapSelection(
+        { ...fixtureSnapshot, alerts: [sourceHealthAlert] },
+        { kind: 'alert', id: sourceHealthAlert.id }
+      )
+    ).toBeUndefined();
   });
 
   it('falls back to the first available operator entity when the selection goes stale', () => {

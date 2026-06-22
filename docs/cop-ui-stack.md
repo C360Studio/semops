@@ -52,12 +52,14 @@ MapLibre plus deck.gl is the default COP map path. Threlte is not the default ta
 selected entity needs a richer 3D inspection surface than a map symbol, footprint, or trail can provide.
 
 The first implemented map layer uses a local empty MapLibre style so the demo does not depend on external tiles while
-the API and graph spine are still moving. deck.gl currently owns point, polygon, label, and picking overlays for the
-snapshot's tracks, assets, TAK/CoT tasks, TAK/CoT advisories, and hazard areas. That proves the rendering integration
-and selection path, not a finished cartographic basemap, temporal trail layer, alert geometry model, or full tasking
-workflow. Vite pins deck/luma/math/probe packages into a single renderer chunk to avoid luma's circular re-export
-warning in production builds; the remaining large renderer chunks are accepted while the first screen is inherently
-map-first.
+the API and graph spine are still moving. deck.gl currently owns point, polygon, line, label, and picking overlays for
+the snapshot's tracks, assets, TAK/CoT tasks, TAK/CoT advisories, hazard areas, and KLV sensor/frame-center evidence.
+Selecting an alert can highlight the referenced map entity when `entity_id` points at a track, asset, task, advisory,
+hazard, or sensor footprint; the alert itself remains the selected inspector object. That proves the rendering and
+selection path, not a finished cartographic basemap, temporal trail layer, independent alert geometry model, full
+footprint polygon, or full tasking workflow. Vite pins deck/luma/math/probe packages into a single renderer chunk to
+avoid luma's circular re-export warning in production builds; the remaining large renderer chunks are accepted while
+the first screen is inherently map-first.
 
 ## Browser Contract
 
@@ -101,9 +103,9 @@ diagnostics and smoke tests.
 The browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts `GET /api/cop/snapshot` and
 `GET /api/cop/runtime`, serves API-shaped ADS-B discovery plus runtime-flow evidence, and verifies the operator
 surface renders source cards, prefix-discovery counts, runtime flow, map selection controls, keyboard selection,
-selected-entity provenance, and a narrow viewport without horizontal overflow. This complements the Docker stack
-smoke: Playwright proves the browser contract and interaction path, while `scripts/cop-stack-smoke.sh` proves the live
-SemOps/SemStreams/Caddy plumbing.
+selected-entity provenance, alert-to-map target highlighting, and a narrow viewport without horizontal overflow. This
+complements the Docker stack smoke: Playwright proves the browser contract and interaction path, while
+`scripts/cop-stack-smoke.sh` proves the live SemOps/SemStreams/Caddy plumbing.
 
 ## KLV Sensor-Footprint UI Gate
 

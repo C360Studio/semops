@@ -229,5 +229,8 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await expect(alertButton).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Track freshness nominal' })).toBeVisible();
+  await expect(page.getByText('c360.edge.cop.mavlink.track.system-42')).toBeVisible();
+  await expect(alertButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Select UAS 42' })).toHaveAttribute('aria-pressed', 'true');
   await expectNoHorizontalOverflow(page);
 });

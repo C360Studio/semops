@@ -27,6 +27,20 @@ export function resolveEntity(snapshot: Snapshot | null, selected: EntityRef): S
   return snapshot.alerts.find((alert) => alert.id === selected.id);
 }
 
+export function resolveMapSelection(snapshot: Snapshot | null, selected: EntityRef): EntityRef | undefined {
+  if (!snapshot) {
+    return undefined;
+  }
+  if (selected.kind !== 'alert') {
+    return selected;
+  }
+  const alert = snapshot.alerts.find((candidate) => candidate.id === selected.id);
+  if (!alert) {
+    return undefined;
+  }
+  return resolveEntityRefByID(snapshot, alert.entity_id);
+}
+
 export function reconcileSelection(snapshot: Snapshot | null, selected: EntityRef): EntityRef {
   if (!snapshot || resolveEntity(snapshot, selected)) {
     return selected;
@@ -53,4 +67,26 @@ export function reconcileSelection(snapshot: Snapshot | null, selected: EntityRe
     return { kind: 'alert', id: snapshot.alerts[0].id };
   }
   return selected;
+}
+
+function resolveEntityRefByID(snapshot: Snapshot, id: string): EntityRef | undefined {
+  if (snapshot.tracks.some((track) => track.id === id)) {
+    return { kind: 'track', id };
+  }
+  if (snapshot.assets.some((asset) => asset.id === id)) {
+    return { kind: 'asset', id };
+  }
+  if (snapshot.tasks.some((task) => task.id === id)) {
+    return { kind: 'task', id };
+  }
+  if (snapshot.advisories.some((advisory) => advisory.id === id)) {
+    return { kind: 'advisory', id };
+  }
+  if (snapshot.hazards.some((hazard) => hazard.id === id)) {
+    return { kind: 'hazard', id };
+  }
+  if ((snapshot.sensor_footprints ?? []).some((footprint) => footprint.id === id)) {
+    return { kind: 'sensor-footprint', id };
+  }
+  return undefined;
 }
