@@ -10,7 +10,7 @@ binary-by-reference storage, and memory-bounded handling.
 
 ## Local Evidence
 
-- No production SemOps KLV adapter or MPEG-TS demuxer exists in the current checkout.
+- No production SemOps KLV adapter or live MPEG-TS demuxer exists in the current checkout.
 - SemSource has video-source and video-handler code that extracts metadata and keyframes with ffprobe/ffmpeg.
 - SemSource video handling streams hashing, but when a storage backend is configured it currently reads the full
   video file into memory before storage.
@@ -22,7 +22,11 @@ binary-by-reference storage, and memory-bounded handling.
   MISB ST 0601 decode, and governed projector stages with declared file, stream, and graph request ports.
 - `internal/components/klv` now includes the first Go-native deterministic MISB ST 0601 local-set decoder for bounded
   packet bytes. The decoder component can consume registered packet BaseMessages and publish registered decoded-frame
-  BaseMessages when configured with a SemStreams bus. MPEG-TS demux and graph projection remain follow-ups.
+  BaseMessages when configured with a SemStreams bus.
+- `internal/components/klv` now includes a fixture-grade FFmpeg/ffprobe demux worker path. The demux component can
+  consume registered media-ref BaseMessages, select an explicit data stream with ffprobe, extract bounded KLV bytes
+  with FFmpeg `-map`, and publish registered packet BaseMessages. This is not a live media or production STANAG
+  demux claim.
 
 ## SemSource Fixture Handoff
 
@@ -84,13 +88,15 @@ The first KLV/MISB spike should stay Go-native and deterministic:
   graph writes.
 - Publish decoded-frame BaseMessages only through the declared frame output port when a bus is provided.
 - Keep MPEG-TS demux behind the demux component boundary.
-- Defer FFmpeg/GStreamer, `klvdata`, jMISB, or a Rust worker until public-sample smoke or throughput requirements
+- Use FFmpeg/ffprobe as the first fixture-grade demux implementation, with explicit data-stream selection and bounded
+  output. Defer GStreamer, `klvdata`, jMISB, or a Rust worker until public-sample smoke or throughput requirements
   justify the sidecar/toolchain cost.
 - Do not vendor or download public media samples until license, provenance, cache, and CI policy are recorded.
 
 ## Next Slice
 
-Add bounded media-ref and MPEG-TS demux behavior before projection code or vendored public fixtures.
+Add deterministic truth-to-MPEG-TS fixture generation or a legally reviewed public sample smoke before projection code
+or support language.
 
 The worker should:
 
@@ -216,6 +222,24 @@ Acceptance:
 - The worker publishes a registered `semops.klv_misb0601_frame.v1` BaseMessage to the declared frame subject. [done]
 - The decoder worker does not publish graph mutation subjects. [done]
 
+### FFmpeg Demux Worker Gate
+
+Target command:
+
+```bash
+go test ./internal/components/klv
+```
+
+Acceptance:
+
+- Demux runtime is opt-in through an explicit SemStreams bus dependency. [done]
+- A registered `semops.klv_media_ref.v1` BaseMessage is decoded through the payload registry. [done]
+- ffprobe is invoked with explicit data-stream selection instead of assuming FFmpeg auto-selects data streams. [done]
+- FFmpeg extracts the selected stream with explicit `-map 0:<stream-index>` and bounded stdout. [done]
+- The worker publishes a registered `semops.klv_packet.v1` BaseMessage to the declared packet subject. [done]
+- The demux worker does not publish graph mutation subjects. [done]
+- Storage-reference-only and remote URI demux are explicitly rejected until bounded materialization exists. [done]
+
 ### Fixture Gate
 
 Target artifact:
@@ -280,13 +304,12 @@ Acceptance:
 ## Known Gaps
 
 - No small legal fixture identified yet.
-- No production MPEG-TS demux strategy chosen: FFmpeg/GStreamer, Java sidecar, Python sidecar, Rust worker, or
-  SemSource extension.
+- No production MPEG-TS/live-media demux strategy chosen beyond the fixture-grade FFmpeg/ffprobe worker path.
 - No public KLV sample has passed SemOps license/provenance review yet.
 - No deterministic truth-to-KLV-to-MPEG-TS generation path has been chosen.
-- Media-reference input, demux, and projector stages are topology skeletons only.
-- The decoder worker exists for bounded packet bytes, but no media-ref input, MPEG-TS demux, or graph projection
-  runtime exists yet.
+- Media-reference input and projector stages are topology skeletons only.
+- Demux and decoder workers exist for local file URI fixtures and bounded packet bytes, but no storage-ref
+  materialization, live media, public sample, or graph projection runtime exists yet.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 

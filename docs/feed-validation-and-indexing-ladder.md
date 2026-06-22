@@ -665,7 +665,11 @@ Local assets:
   MISB ST 0601 decode processor, and governed projector processor with file, stream, and graph request ports.
 - `internal/components/klv` includes the first Go-native deterministic MISB ST 0601 local-set decoder for bounded
   packet bytes, and the decoder component can publish decoded-frame BaseMessages when configured with a SemStreams
-  bus. No MPEG-TS demux path or graph projection is implemented.
+  bus.
+- `internal/components/klv` includes a fixture-grade FFmpeg/ffprobe demux worker path. The demux component can consume
+  registered media-ref BaseMessages, select an explicit data stream with ffprobe, extract bounded KLV bytes with
+  FFmpeg `-map`, and publish registered packet BaseMessages. This is not a production live-media or STANAG
+  conformance claim.
 
 Mock or harness:
 
@@ -693,8 +697,9 @@ Mock or harness:
   demo-grade engineering support. Official STANAG 4609 conformance or certification stays blocked until someone funds
   a validator or lab effort with proper access.
 - First parser strategy: keep the first spike Go-native and deterministic for the supported MISB ST 0601 local-set
-  subset. Keep MPEG-TS demux behind the demux component boundary and defer FFmpeg/GStreamer, `klvdata`, jMISB, or a
-  Rust worker until public-sample smoke or production throughput proves the need.
+  subset. Keep MPEG-TS demux behind the demux component boundary, use FFmpeg/ffprobe for the first fixture-grade
+  extraction path, and defer GStreamer, `klvdata`, jMISB, or a Rust worker until public-sample smoke or production
+  throughput proves the need.
 
 Indexing profile pressure:
 
@@ -720,6 +725,9 @@ First acceptance gate:
   graph writes.
 - Given the opt-in decoder worker path, a registered `semops.klv_packet.v1` BaseMessage produces a registered
   `semops.klv_misb0601_frame.v1` BaseMessage on the declared frame subject, not a graph mutation subject.
+- Given the opt-in demux worker path, a registered `semops.klv_media_ref.v1` BaseMessage for a local file URI invokes
+  ffprobe data-stream discovery, extracts bounded bytes with FFmpeg explicit `-map`, and publishes a registered
+  `semops.klv_packet.v1` BaseMessage on the declared packet subject.
 - Given a public video-plus-KLV smoke sample with documented license and provenance, the demo extracts plausible
   KLV metadata without calling the result deterministic correctness or conformance evidence.
 - Given a deterministic MISB ST 0601 fixture, parsed platform/sensor position, frame time, frame center, and footprint

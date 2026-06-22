@@ -338,7 +338,9 @@ inferred schema compatibility.
 
 Demo/MVP lane:
 Proof spike with tiny video-plus-KLV fixture, extracted platform/sensor position or footprint,
-binary-by-reference storage, and memory-bounded handling.
+binary-by-reference storage, and memory-bounded handling. The first implemented media path is fixture-grade:
+registered media-ref BaseMessage to FFmpeg/ffprobe demux worker to bounded KLV packet BaseMessage to Go-native
+MISB ST 0601 local-set decoder, with no graph writes until projector evidence exists.
 
 Full product lane:
 Production media/KLV pipeline with demux, parser sidecar or native parser, object storage, frame/keyframe evidence,
@@ -350,7 +352,7 @@ reinforces the need for generic media references and optional shared media-track
 KLV/STANAG demux a SemSource responsibility or turn DJI metadata into MISB/KLV evidence.
 
 Not claimed yet:
-Streaming-binary support, STANAG 4609 conformance, or production video exploitation.
+Streaming-binary support, live media support, STANAG 4609 conformance, or production video exploitation.
 
 ## TAK Server Roadmap
 

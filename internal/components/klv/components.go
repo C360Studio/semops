@@ -153,21 +153,35 @@ func (c *MediaRefInputComponent) DataFlow() component.FlowMetrics {
 }
 
 type DemuxConfig struct {
-	Name            string
-	MediaRefSubject string
-	PacketSubject   string
-	MaxPacketBytes  int
-	Clock           func() time.Time
+	Name                string
+	Source              string
+	MediaRefSubject     string
+	PacketSubject       string
+	MaxPacketBytes      int
+	ProbeOutputMaxBytes int
+	FFmpegPath          string
+	FFprobePath         string
+	Registry            *payloadregistry.Registry
+	Bus                 Bus
+	Runner              CommandRunner
+	Clock               func() time.Time
 }
 
 type DemuxComponent struct {
-	cfg   DemuxConfig
-	state componentState
+	cfg     DemuxConfig
+	state   componentState
+	decoder *message.Decoder
+
+	mu           sync.Mutex
+	subscription Subscription
 }
 
 func NewDemuxComponent(cfg DemuxConfig) (*DemuxComponent, error) {
 	if cfg.Name == "" {
 		cfg.Name = "semops-processor-klv-demux"
+	}
+	if cfg.Source == "" {
+		cfg.Source = DefaultDemuxSource
 	}
 	if cfg.MediaRefSubject == "" {
 		cfg.MediaRefSubject = DefaultMediaRefSubject
@@ -181,6 +195,24 @@ func NewDemuxComponent(cfg DemuxConfig) (*DemuxComponent, error) {
 	if cfg.MaxPacketBytes < 0 {
 		return nil, fmt.Errorf("KLV demux max_packet_bytes must be greater than zero")
 	}
+	if cfg.ProbeOutputMaxBytes == 0 {
+		cfg.ProbeOutputMaxBytes = DefaultProbeOutputMaxBytes
+	}
+	if cfg.ProbeOutputMaxBytes < 0 {
+		return nil, fmt.Errorf("KLV demux probe_output_max_bytes must be greater than zero")
+	}
+	if cfg.FFmpegPath == "" {
+		cfg.FFmpegPath = DefaultFFmpegPath
+	}
+	if cfg.FFprobePath == "" {
+		cfg.FFprobePath = DefaultFFprobePath
+	}
+	if cfg.Registry == nil {
+		cfg.Registry = payloadregistry.New()
+	}
+	if cfg.Runner == nil {
+		cfg.Runner = OSCommandRunner{}
+	}
 	if cfg.Clock == nil {
 		cfg.Clock = time.Now
 	}
@@ -188,14 +220,51 @@ func NewDemuxComponent(cfg DemuxConfig) (*DemuxComponent, error) {
 }
 
 func (c *DemuxComponent) Initialize() error {
+	if err := RegisterPayloads(c.cfg.Registry); err != nil {
+		return err
+	}
+	c.decoder = message.NewDecoder(c.cfg.Registry)
 	return c.state.Initialize()
 }
 
 func (c *DemuxComponent) Start(ctx context.Context) error {
+	if c.cfg.Bus == nil {
+		return c.state.Start(ctx)
+	}
+	if c.decoder == nil {
+		if err := c.Initialize(); err != nil {
+			return err
+		}
+	}
+	if c.state.Current() == component.StateStarted {
+		return nil
+	}
+	sub, err := c.cfg.Bus.Subscribe(ctx, c.cfg.MediaRefSubject, func(msgCtx context.Context, msg *nats.Msg) {
+		if err := c.HandleMediaRefMessage(msgCtx, msg.Data); err != nil {
+			c.state.metrics.recordError(err)
+		}
+	})
+	if err != nil {
+		c.state.metrics.recordError(err)
+		return fmt.Errorf("subscribe KLV demux media-ref subject: %w", err)
+	}
+	c.mu.Lock()
+	c.subscription = sub
+	c.mu.Unlock()
 	return c.state.Start(ctx)
 }
 
 func (c *DemuxComponent) Stop(timeout time.Duration) error {
+	c.mu.Lock()
+	sub := c.subscription
+	c.subscription = nil
+	c.mu.Unlock()
+	if sub != nil {
+		if err := sub.Unsubscribe(); err != nil {
+			c.state.metrics.recordError(err)
+			return err
+		}
+	}
 	return c.state.Stop(timeout)
 }
 
@@ -221,9 +290,24 @@ func (c *DemuxComponent) ConfigSchema() component.ConfigSchema {
 		Properties: map[string]component.PropertySchema{
 			"media_ref_subject": stringProperty("SemStreams subject carrying KLV media-reference payloads", c.cfg.MediaRefSubject),
 			"packet_subject":    stringProperty("SemStreams subject carrying demuxed KLV packet payloads", c.cfg.PacketSubject),
+			"source":            stringProperty("Source label recorded in demuxed KLV packet payloads", c.cfg.Source),
 			"max_packet_bytes":  intProperty("Maximum bounded KLV packet bytes carried in stream payloads", c.cfg.MaxPacketBytes),
+			"probe_output_max_bytes": intProperty(
+				"Maximum accepted ffprobe JSON output bytes while discovering KLV data streams",
+				c.cfg.ProbeOutputMaxBytes,
+			),
+			"ffmpeg_path":  stringProperty("Path or executable name for FFmpeg extraction", c.cfg.FFmpegPath),
+			"ffprobe_path": stringProperty("Path or executable name for ffprobe stream discovery", c.cfg.FFprobePath),
 		},
-		Required: []string{"media_ref_subject", "packet_subject", "max_packet_bytes"},
+		Required: []string{
+			"media_ref_subject",
+			"packet_subject",
+			"source",
+			"max_packet_bytes",
+			"probe_output_max_bytes",
+			"ffmpeg_path",
+			"ffprobe_path",
+		},
 	}
 }
 
@@ -233,6 +317,47 @@ func (c *DemuxComponent) Health() component.HealthStatus {
 
 func (c *DemuxComponent) DataFlow() component.FlowMetrics {
 	return c.state.DataFlow()
+}
+
+func (c *DemuxComponent) HandleMediaRefMessage(ctx context.Context, data []byte) error {
+	if c.decoder == nil {
+		if err := c.Initialize(); err != nil {
+			return err
+		}
+	}
+	envelope, err := c.decoder.Decode(data)
+	if err != nil {
+		return fmt.Errorf("decode KLV media-ref BaseMessage: %w", err)
+	}
+	payload, ok := envelope.Payload().(*MediaRefPayload)
+	if !ok {
+		return fmt.Errorf("KLV demux received payload %T, want *MediaRefPayload", envelope.Payload())
+	}
+	return c.HandleMediaRefPayload(ctx, payload)
+}
+
+func (c *DemuxComponent) HandleMediaRefPayload(ctx context.Context, payload *MediaRefPayload) error {
+	packet, err := demuxKLVPacket(ctx, c.cfg, payload)
+	if err != nil {
+		c.state.metrics.recordError(err)
+		return err
+	}
+	data, err := marshalBaseMessage(PacketType, packet, c.cfg.Name, packet.ReceivedAt)
+	if err != nil {
+		c.state.metrics.recordError(err)
+		return err
+	}
+	if c.cfg.Bus == nil {
+		err := errors.New("KLV demux component requires a bus to publish packet payloads")
+		c.state.metrics.recordError(err)
+		return err
+	}
+	if err := c.cfg.Bus.Publish(ctx, c.cfg.PacketSubject, data); err != nil {
+		c.state.metrics.recordError(err)
+		return err
+	}
+	c.state.metrics.recordMessage(len(packet.PacketBytes), c.cfg.Clock().UTC())
+	return nil
 }
 
 type DecoderConfig struct {

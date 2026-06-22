@@ -31,6 +31,9 @@ or a new Python/JVM/Rust sidecar in the critical path.
 - `internal/components/klv/components_test.go` proves the opt-in decoder worker consumes a registered packet
   BaseMessage and publishes a registered decoded-frame BaseMessage to the declared frame subject without graph
   mutation publication.
+- `internal/components/klv/demux_test.go` proves the fixture-grade FFmpeg/ffprobe demux worker consumes a registered
+  media-ref BaseMessage, selects an explicit data stream, bounds extracted bytes, and publishes a registered packet
+  BaseMessage without graph mutation publication.
 - `go test ./internal/components/klv` passes for the parser core, payload registry tests, and component skeleton.
 
 ## Risks
