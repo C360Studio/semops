@@ -343,9 +343,11 @@ registered media-ref BaseMessage to FFmpeg/ffprobe demux worker to bounded KLV p
 MISB ST 0601 local-set decoder, with a SemOps-owned truth JSON fixture that generates deterministic KLV packet bytes
 and an optional local FFmpeg smoke that wraps those bytes in MPEG-TS before demuxing and decoding them back to truth.
 The demux worker can split concatenated MISB ST 0601 local sets into distinct packet messages and can use an explicit
-bounded materializer for storage-reference-only media refs. Decoded fields are asserted within MISB integer
-quantization tolerance. The first graph projection contract covers KLV-owned sensor/frame-center state only; footprint
-polygons, media packages, and hosted live runtime wiring remain later gates.
+bounded materializer for storage-reference-only media refs. The decoder component can also materialize
+storage-reference-only packet payloads, but only through an explicit bounded packet materializer. Decoded fields are
+asserted within MISB integer quantization tolerance. The first graph projection contract covers KLV-owned
+sensor/frame-center state only; footprint polygons, media packages, and hosted live runtime wiring remain later
+gates.
 
 Full product lane:
 Production media/KLV pipeline with demux, parser sidecar or native parser, object storage, frame/keyframe evidence,

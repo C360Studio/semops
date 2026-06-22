@@ -2,13 +2,27 @@ package klv
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
 )
 
-const DefaultDecodeSource = "klv:decode"
+const (
+	DefaultDecodeSource                  = "klv:decode"
+	DefaultMaxMaterializedPacketBytes    = DefaultMaxPacketBytes
+	storageRefPacketRequiresMaterializer = "decode MISB ST 0601 packet: packet_bytes are required; storage_ref-only decode requires a bounded packet materializer"
+)
+
+type PacketMaterializer interface {
+	MaterializePacket(ctx context.Context, packet *PacketPayload, maxBytes int) (MaterializedPacket, error)
+}
+
+type MaterializedPacket struct {
+	Bytes   []byte
+	Cleanup func() error
+}
 
 var misb0601UASLocalSetKey = []byte{
 	0x06, 0x0e, 0x2b, 0x34,
@@ -65,6 +79,58 @@ func DecodeMISB0601Packet(packet *PacketPayload) (*MISB0601FramePayload, error) 
 		return nil, fmt.Errorf("decode MISB ST 0601 packet: %w", err)
 	}
 	return frame, nil
+}
+
+func materializedPacketPayload(
+	ctx context.Context,
+	packet *PacketPayload,
+	materializer PacketMaterializer,
+	maxBytes int,
+) (*PacketPayload, int, func() error, error) {
+	if packet == nil {
+		return nil, 0, nil, errors.New("decode MISB ST 0601 packet: packet is nil")
+	}
+	if err := packet.Validate(); err != nil {
+		return nil, 0, nil, fmt.Errorf("decode MISB ST 0601 packet: %w", err)
+	}
+	if packet.PacketRef == "" {
+		return nil, 0, nil, errors.New("decode MISB ST 0601 packet: packet_ref is required")
+	}
+	if maxBytes <= 0 {
+		return nil, 0, nil, errors.New("decode MISB ST 0601 packet: max_packet_bytes must be greater than zero")
+	}
+	if len(packet.PacketBytes) > 0 {
+		if len(packet.PacketBytes) > maxBytes {
+			return nil, 0, nil, fmt.Errorf("decode MISB ST 0601 packet: packet_bytes length %d exceeds max_packet_bytes=%d", len(packet.PacketBytes), maxBytes)
+		}
+		return packet, len(packet.PacketBytes), nil, nil
+	}
+	if packet.ByteLength > maxBytes {
+		return nil, 0, nil, fmt.Errorf("decode MISB ST 0601 packet: byte_length %d exceeds max_packet_bytes=%d", packet.ByteLength, maxBytes)
+	}
+	if materializer == nil {
+		return nil, 0, nil, errors.New(storageRefPacketRequiresMaterializer)
+	}
+	materialized, err := materializer.MaterializePacket(ctx, packet, maxBytes)
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("materialize KLV packet storage_ref: %w", err)
+	}
+	if len(materialized.Bytes) == 0 {
+		if materialized.Cleanup != nil {
+			_ = materialized.Cleanup()
+		}
+		return nil, 0, nil, errors.New("materialize KLV packet storage_ref: packet bytes are required")
+	}
+	if len(materialized.Bytes) > maxBytes {
+		if materialized.Cleanup != nil {
+			_ = materialized.Cleanup()
+		}
+		return nil, 0, nil, fmt.Errorf("materialize KLV packet storage_ref: size %d exceeds max_packet_bytes=%d", len(materialized.Bytes), maxBytes)
+	}
+	decodePacket := *packet
+	decodePacket.PacketBytes = append([]byte(nil), materialized.Bytes...)
+	decodePacket.ByteLength = len(decodePacket.PacketBytes)
+	return &decodePacket, len(decodePacket.PacketBytes), materialized.Cleanup, nil
 }
 
 func extractMISB0601LocalSet(packetBytes []byte) ([]byte, error) {

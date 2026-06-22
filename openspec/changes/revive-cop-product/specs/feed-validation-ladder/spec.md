@@ -241,6 +241,7 @@ binary-by-reference storage, and memory-bounded handling.
 
 - **WHEN** the first decoder worker path is enabled
 - **THEN** it consumes registered `semops.klv_packet.v1` BaseMessages from the declared packet input
+- **AND** storage-reference-only packet payloads are accepted only through an explicit bounded packet materializer
 - **AND** it publishes registered `semops.klv_misb0601_frame.v1` BaseMessages to the declared frame output
 - **AND** it does not publish graph mutation requests
 

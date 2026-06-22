@@ -728,6 +728,8 @@ First acceptance gate:
   graph writes.
 - Given the opt-in decoder worker path, a registered `semops.klv_packet.v1` BaseMessage produces a registered
   `semops.klv_misb0601_frame.v1` BaseMessage on the declared frame subject, not a graph mutation subject.
+- Given a storage-reference-only packet payload, decode proceeds only when a configured packet materializer provides
+  packet bytes under `max_packet_bytes`; the parser core remains bounded-byte only.
 - Given the opt-in demux worker path, a registered `semops.klv_media_ref.v1` BaseMessage for a local file URI invokes
   ffprobe data-stream discovery, extracts bounded bytes with FFmpeg explicit `-map`, and publishes a registered
   `semops.klv_packet.v1` BaseMessage on the declared packet subject for each split MISB ST 0601 local set.

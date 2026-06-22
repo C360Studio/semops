@@ -210,7 +210,8 @@ Acceptance:
 - Bounded packet bytes decode into `semops.klv_misb0601_frame.v1` fields without graph writes. [done]
 - Frame time, platform designation, sensor position, sensor azimuth/elevation, and frame center decode from the
   fixture packet. [done]
-- Storage-reference-only packet decode fails explicitly until a bounded packet materializer exists. [done]
+- The parser core remains bounded-packet-bytes only; storage-reference-only packets are resolved at the decoder
+  component boundary. [done]
 - Unsupported tags are warning evidence, not current-state projection. [done]
 
 ### Decoder Worker Gate
@@ -225,6 +226,8 @@ Acceptance:
 
 - Decoder runtime is opt-in through an explicit SemStreams bus dependency. [done]
 - A registered `semops.klv_packet.v1` BaseMessage is decoded through the payload registry. [done]
+- Storage-reference-only packet payloads are decoded only through an explicit bounded packet materializer with
+  `max_packet_bytes` and cleanup. [done]
 - The worker publishes a registered `semops.klv_misb0601_frame.v1` BaseMessage to the declared frame subject. [done]
 - The decoder worker does not publish graph mutation subjects. [done]
 
@@ -331,8 +334,9 @@ Acceptance:
   fixture when FFmpeg tooling is present.
 - Media-reference input remains a topology skeleton; the projector now has contract-tested plan writing for
   sensor/frame-center state but is not wired into the hosted runtime.
-- Demux and decoder workers exist for local file URI fixtures, bounded storage-ref materialization, split packet
-  payloads, and bounded packet bytes, but no live media, public sample, or graph projection runtime exists yet.
+- Demux and decoder workers exist for local file URI fixtures, bounded media and packet storage-ref materialization,
+  split packet payloads, and bounded packet bytes, but no live media, public sample, or graph projection runtime
+  exists yet.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 

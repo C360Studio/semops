@@ -401,14 +401,16 @@ func (c *DemuxComponent) HandleMediaRefPayload(ctx context.Context, payload *Med
 }
 
 type DecoderConfig struct {
-	Name            string
-	Source          string
-	PacketSubject   string
-	FrameSubject    string
-	SupportedSubset string
-	Registry        *payloadregistry.Registry
-	Bus             Bus
-	Clock           func() time.Time
+	Name               string
+	Source             string
+	PacketSubject      string
+	FrameSubject       string
+	SupportedSubset    string
+	MaxPacketBytes     int
+	Registry           *payloadregistry.Registry
+	Bus                Bus
+	PacketMaterializer PacketMaterializer
+	Clock              func() time.Time
 }
 
 type DecoderComponent struct {
@@ -435,6 +437,12 @@ func NewDecoderComponent(cfg DecoderConfig) (*DecoderComponent, error) {
 	}
 	if cfg.SupportedSubset == "" {
 		cfg.SupportedSubset = DefaultSupportedSubset
+	}
+	if cfg.MaxPacketBytes == 0 {
+		cfg.MaxPacketBytes = DefaultMaxMaterializedPacketBytes
+	}
+	if cfg.MaxPacketBytes < 0 {
+		return nil, fmt.Errorf("KLV decoder max_packet_bytes must be greater than zero")
 	}
 	if cfg.Registry == nil {
 		cfg.Registry = payloadregistry.New()
@@ -518,8 +526,9 @@ func (c *DecoderComponent) ConfigSchema() component.ConfigSchema {
 			"frame_subject":    stringProperty("SemStreams subject carrying decoded MISB ST 0601 frame payloads", c.cfg.FrameSubject),
 			"source":           stringProperty("Source label recorded in decoded MISB ST 0601 frame payloads", c.cfg.Source),
 			"supported_subset": stringProperty("Named MISB ST 0601 field subset for the first decoder slice", c.cfg.SupportedSubset),
+			"max_packet_bytes": intProperty("Maximum KLV packet bytes accepted or materialized before decode", c.cfg.MaxPacketBytes),
 		},
-		Required: []string{"packet_subject", "frame_subject", "source", "supported_subset"},
+		Required: []string{"packet_subject", "frame_subject", "source", "supported_subset", "max_packet_bytes"},
 	}
 }
 
@@ -548,8 +557,21 @@ func (c *DecoderComponent) HandlePacketMessage(ctx context.Context, data []byte)
 	return c.HandlePacketPayload(ctx, payload)
 }
 
-func (c *DecoderComponent) HandlePacketPayload(ctx context.Context, payload *PacketPayload) error {
-	frame, err := DecodeMISB0601Packet(payload)
+func (c *DecoderComponent) HandlePacketPayload(ctx context.Context, payload *PacketPayload) (err error) {
+	decodePayload, packetSize, cleanup, err := materializedPacketPayload(ctx, payload, c.cfg.PacketMaterializer, c.cfg.MaxPacketBytes)
+	if err != nil {
+		c.state.metrics.recordError(err)
+		return err
+	}
+	if cleanup != nil {
+		defer func() {
+			if cleanupErr := cleanup(); err == nil && cleanupErr != nil {
+				err = fmt.Errorf("cleanup materialized KLV packet: %w", cleanupErr)
+				c.state.metrics.recordError(err)
+			}
+		}()
+	}
+	frame, err := DecodeMISB0601Packet(decodePayload)
 	if err != nil {
 		c.state.metrics.recordError(err)
 		return err
@@ -569,7 +591,7 @@ func (c *DecoderComponent) HandlePacketPayload(ctx context.Context, payload *Pac
 		c.state.metrics.recordError(err)
 		return err
 	}
-	c.state.metrics.recordMessage(len(payload.PacketBytes), c.cfg.Clock().UTC())
+	c.state.metrics.recordMessage(packetSize, c.cfg.Clock().UTC())
 	return nil
 }
 

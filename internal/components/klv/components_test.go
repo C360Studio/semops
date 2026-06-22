@@ -2,6 +2,7 @@ package klv
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,6 +93,7 @@ func TestKLVComponentsExposeFlowgraphPorts(t *testing.T) {
 	requireProperty(t, input.ConfigSchema(), "media_ref_subject")
 	requireProperty(t, demux.ConfigSchema(), "max_packet_bytes")
 	requireProperty(t, decoder.ConfigSchema(), "supported_subset")
+	requireProperty(t, decoder.ConfigSchema(), "max_packet_bytes")
 	requireProperty(t, projector.ConfigSchema(), "owner")
 
 	fg := flowgraph.NewFlowGraph()
@@ -111,6 +113,9 @@ func TestKLVComponentsExposeFlowgraphPorts(t *testing.T) {
 func TestKLVComponentConstructorsValidateNegativeBounds(t *testing.T) {
 	if _, err := NewDemuxComponent(DemuxConfig{MaxPacketBytes: -1}); err == nil {
 		t.Fatal("expected negative max_packet_bytes to fail")
+	}
+	if _, err := NewDecoderComponent(DecoderConfig{MaxPacketBytes: -1}); err == nil {
+		t.Fatal("expected negative decoder max_packet_bytes to fail")
 	}
 	if _, err := NewProjectorComponent(ProjectorConfig{WriteTimeout: -time.Second}); err == nil {
 		t.Fatal("expected negative write_timeout to fail")
@@ -187,11 +192,169 @@ func TestKLVDecoderComponentPublishesDecodedFrameFromPacketMessage(t *testing.T)
 	}
 }
 
+func TestKLVDecoderComponentMaterializesStorageRefPacketMessage(t *testing.T) {
+	registry := payloadregistry.New()
+	if err := RegisterPayloads(registry); err != nil {
+		t.Fatalf("register payloads: %v", err)
+	}
+	bus := &klvRecordingBus{}
+	receivedAt := time.Date(2026, 6, 22, 16, 30, 0, 0, time.UTC)
+	frameTime := time.Date(2026, 6, 22, 16, 29, 58, 0, time.UTC)
+	packetBytes := buildMISB0601Packet(
+		misbField(misbTagPrecisionTimeStamp, beU64(uint64(frameTime.UnixMicro()))),
+		misbField(misbTagPlatformDesignation, []byte("SYNTHETIC-UAS-STORAGE")),
+		misbField(misbTagFrameCenterLatitude, beI32(-0x10000000)),
+		misbField(misbTagFrameCenterLongitude, beI32(0x20000000)),
+	)
+	materializer := &recordingPacketMaterializer{
+		result: MaterializedPacket{Bytes: packetBytes},
+	}
+	decoder, err := NewDecoderComponent(DecoderConfig{
+		Registry:           registry,
+		Bus:                bus,
+		PacketMaterializer: materializer,
+		MaxPacketBytes:     len(packetBytes) + 1,
+	})
+	if err != nil {
+		t.Fatalf("new decoder: %v", err)
+	}
+	if err := decoder.Initialize(); err != nil {
+		t.Fatalf("initialize decoder: %v", err)
+	}
+	packet := NewPacketPayload("klv:demux", "object://semops/klv/deterministic.ts", receivedAt, nil)
+	packet.PacketRef = "klv://packet/deterministic/00000002"
+	packet.StorageRef = "object://semops/klv/packets/00000002.bin"
+	packet.ByteLength = len(packetBytes)
+	packetWire, err := marshalBaseMessage(PacketType, packet, "semops-processor-klv-demux", receivedAt)
+	if err != nil {
+		t.Fatalf("marshal packet: %v", err)
+	}
+
+	if err := decoder.HandlePacketMessage(context.Background(), packetWire); err != nil {
+		t.Fatalf("handle storage-ref packet message: %v", err)
+	}
+	if materializer.maxBytes != len(packetBytes)+1 {
+		t.Fatalf("materializer max bytes = %d, want %d", materializer.maxBytes, len(packetBytes)+1)
+	}
+	if materializer.packet.StorageRef != packet.StorageRef {
+		t.Fatalf("materializer storage ref = %q, want %q", materializer.packet.StorageRef, packet.StorageRef)
+	}
+	if !materializer.cleaned {
+		t.Fatal("expected materialized packet cleanup to run")
+	}
+	if len(bus.published) != 1 {
+		t.Fatalf("published %d messages, want 1", len(bus.published))
+	}
+	envelope, err := message.NewDecoder(registry).Decode(bus.published[0].data)
+	if err != nil {
+		t.Fatalf("decode published frame: %v", err)
+	}
+	frame, ok := envelope.Payload().(*MISB0601FramePayload)
+	if !ok {
+		t.Fatalf("published payload = %T, want *MISB0601FramePayload", envelope.Payload())
+	}
+	if frame.PlatformDesignation != "SYNTHETIC-UAS-STORAGE" {
+		t.Fatalf("platform designation = %q", frame.PlatformDesignation)
+	}
+	if !frame.FrameTime.Equal(frameTime) {
+		t.Fatalf("frame time = %s, want %s", frame.FrameTime, frameTime)
+	}
+}
+
+func TestKLVDecoderComponentRejectsUnboundedStorageRefPackets(t *testing.T) {
+	now := time.Now().UTC()
+	packetBytes := buildMISB0601Packet(misbField(misbTagPlatformDesignation, []byte("SYNTHETIC-UAS-1")))
+	tests := []struct {
+		name string
+		cfg  DecoderConfig
+		pkt  *PacketPayload
+		want string
+	}{
+		{
+			name: "missing materializer",
+			cfg:  DecoderConfig{Bus: &klvRecordingBus{}},
+			pkt: func() *PacketPayload {
+				packet := NewPacketPayload("klv:demux", "object://semops/klv/deterministic.ts", now, nil)
+				packet.PacketRef = "klv://packet/deterministic/00000003"
+				packet.StorageRef = "object://semops/klv/packets/00000003.bin"
+				return packet
+			}(),
+			want: "storage_ref-only decode requires a bounded packet materializer",
+		},
+		{
+			name: "metadata byte length",
+			cfg:  DecoderConfig{Bus: &klvRecordingBus{}, MaxPacketBytes: len(packetBytes) - 1},
+			pkt: func() *PacketPayload {
+				packet := NewPacketPayload("klv:demux", "object://semops/klv/deterministic.ts", now, nil)
+				packet.PacketRef = "klv://packet/deterministic/00000004"
+				packet.StorageRef = "object://semops/klv/packets/00000004.bin"
+				packet.ByteLength = len(packetBytes)
+				return packet
+			}(),
+			want: "byte_length",
+		},
+		{
+			name: "materialized bytes",
+			cfg: DecoderConfig{
+				Bus: &klvRecordingBus{},
+				PacketMaterializer: &recordingPacketMaterializer{
+					result: MaterializedPacket{Bytes: packetBytes},
+				},
+				MaxPacketBytes: len(packetBytes) - 1,
+			},
+			pkt: func() *PacketPayload {
+				packet := NewPacketPayload("klv:demux", "object://semops/klv/deterministic.ts", now, nil)
+				packet.PacketRef = "klv://packet/deterministic/00000005"
+				packet.StorageRef = "object://semops/klv/packets/00000005.bin"
+				return packet
+			}(),
+			want: "exceeds max_packet_bytes",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decoder, err := NewDecoderComponent(tt.cfg)
+			if err != nil {
+				t.Fatalf("new decoder: %v", err)
+			}
+			if err := decoder.HandlePacketPayload(context.Background(), tt.pkt); err == nil {
+				t.Fatal("expected storage-ref packet decode to fail")
+			} else if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %q, want substring %q", err, tt.want)
+			}
+		})
+	}
+}
+
 func requireProperty(t *testing.T, schema component.ConfigSchema, name string) {
 	t.Helper()
 	if _, ok := schema.Properties[name]; !ok {
 		t.Fatalf("schema missing property %q", name)
 	}
+}
+
+type recordingPacketMaterializer struct {
+	packet   *PacketPayload
+	maxBytes int
+	result   MaterializedPacket
+	err      error
+	cleaned  bool
+}
+
+func (m *recordingPacketMaterializer) MaterializePacket(_ context.Context, packet *PacketPayload, maxBytes int) (MaterializedPacket, error) {
+	m.packet = packet
+	m.maxBytes = maxBytes
+	if m.err != nil {
+		return MaterializedPacket{}, m.err
+	}
+	result := m.result
+	if result.Cleanup == nil {
+		result.Cleanup = func() error {
+			m.cleaned = true
+			return nil
+		}
+	}
+	return result, nil
 }
 
 func requireEdge(
