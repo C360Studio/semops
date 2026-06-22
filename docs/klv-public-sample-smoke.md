@@ -56,3 +56,23 @@ The smoke passes only if:
 Passing this smoke means "real-world demux/parser path exercised once." It does not mean deterministic correctness,
 official STANAG 4609 conformance, public-sample redistribution clearance, live media support, or streaming-binary
 product support.
+
+## Recorded Runs
+
+2026-06-22 local candidate smoke:
+
+- Source URL: <https://samples.ffmpeg.org/MPEG2/mpegts-klv/Day%20Flight.mpg>
+- Local file: `fixtures/klv/public-samples/day-flight.mpg`
+- Size: `102004664` bytes
+- SHA-256: `a491ceff524b0008e3076d9eb30782badac2d53053731accc0a4e1226177260e`
+- Tools: FFmpeg `8.1.1`, ffprobe `8.1.1`
+- Command:
+
+```bash
+SEMOPS_KLV_PUBLIC_SAMPLE_PATH="fixtures/klv/public-samples/day-flight.mpg" \
+SEMOPS_KLV_PUBLIC_SAMPLE_SOURCE_URL="https://samples.ffmpeg.org/MPEG2/mpegts-klv/Day%20Flight.mpg" \
+SEMOPS_KLV_PUBLIC_SAMPLE_PROVENANCE="local-download-from-ffmpeg-sample-archive-2026-06-22-sha256-a491ceff524b0008e3076d9eb30782badac2d53053731accc0a4e1226177260e" \
+go test ./internal/components/klv -run TestPublicKLVSampleSmokeWithLocalPath -count=1 -v
+```
+
+Result: passed. The downloaded MPG remains ignored and local only.

@@ -2,6 +2,7 @@ package klv
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,8 +38,9 @@ func TestPublicKLVSampleSmokeWithLocalPath(t *testing.T) {
 			envKLVPublicSamplePath,
 		)
 	}
-	if _, err := os.Stat(samplePath); err != nil {
-		t.Fatalf("stat public KLV sample %q: %v", samplePath, err)
+	samplePath, err := resolvePublicSamplePath(samplePath)
+	if err != nil {
+		t.Fatalf("resolve public KLV sample path: %v", err)
 	}
 	ffmpegPath, ok := requireToolForTest(t, DefaultFFmpegPath)
 	if !ok {
@@ -132,6 +134,27 @@ func intEnvForTest(t *testing.T, name string, defaultValue int) int {
 		t.Fatalf("%s=%q must be a positive integer", name, raw)
 	}
 	return value
+}
+
+func resolvePublicSamplePath(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("path is required")
+	}
+	if _, err := os.Stat(path); err == nil {
+		return path, nil
+	}
+	if filepath.IsAbs(path) {
+		return "", fmt.Errorf("stat %q: %w", path, os.ErrNotExist)
+	}
+	repoRootPath := filepath.Join("..", "..", "..", path)
+	if _, err := os.Stat(repoRootPath); err != nil {
+		return "", fmt.Errorf("stat %q or repo-root relative %q: %w", path, repoRootPath, err)
+	}
+	absPath, err := filepath.Abs(repoRootPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve absolute path for %q: %w", repoRootPath, err)
+	}
+	return absPath, nil
 }
 
 func decodeFramePayloads(t *testing.T, registry *payloadregistry.Registry, published []klvPublishedMessage) []*MISB0601FramePayload {

@@ -272,6 +272,9 @@ Acceptance:
 - Opt-in local public-sample smoke requires `SEMOPS_KLV_PUBLIC_SAMPLE_PATH`,
   `SEMOPS_KLV_PUBLIC_SAMPLE_SOURCE_URL`, and `SEMOPS_KLV_PUBLIC_SAMPLE_PROVENANCE`; it is skipped by default and never
   downloads or vendors media. [done]
+- The 2026-06-22 local `Day Flight.mpg` candidate smoke passed with SHA-256
+  `a491ceff524b0008e3076d9eb30782badac2d53053731accc0a4e1226177260e`, size `102004664` bytes, FFmpeg `8.1.1`, and
+  ffprobe `8.1.1`. This is real-world smoke evidence only, not redistribution clearance or conformance. [done]
 - Deterministic fixture output matches the source truth field set and numeric values within MISB integer quantization
   tolerances for the supported fields. [done]
 - Deterministic MPEG-TS wrapping proves generated KLV packet bytes survive a local media-container mux/demux cycle
@@ -335,7 +338,8 @@ Acceptance:
 - No public small legal KLV MPEG-TS sample has passed SemOps redistribution/license review yet; the opt-in smoke gate
   now exists for local candidate samples with explicit provenance notes.
 - No production MPEG-TS/live-media demux strategy chosen beyond the fixture-grade FFmpeg/ffprobe worker path.
-- No public KLV sample smoke has been run and recorded as SemOps evidence yet.
+- Public `Day Flight.mpg` candidate smoke has passed locally, but no public KLV sample has passed SemOps
+  redistribution/license review.
 - No committed MPEG-TS binary is vendored; deterministic MPEG-TS wrapping is generated in local tests from the truth
   fixture when FFmpeg tooling is present.
 - Media-reference input remains a topology skeleton; the projector now has contract-tested plan writing for

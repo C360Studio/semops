@@ -29,8 +29,23 @@ provenance notes. The test does not download, cache, or vendor public media.
 ## Evidence
 
 - `go test ./internal/components/klv` skips the opt-in public smoke when `SEMOPS_KLV_PUBLIC_SAMPLE_PATH` is unset.
+- Downloaded `Day Flight.mpg` locally to ignored `fixtures/klv/public-samples/day-flight.mpg`.
+- Size: `102004664` bytes.
+- SHA-256: `a491ceff524b0008e3076d9eb30782badac2d53053731accc0a4e1226177260e`.
+- Tools: FFmpeg `8.1.1`, ffprobe `8.1.1`.
+- Passing smoke command:
+
+```bash
+SEMOPS_KLV_PUBLIC_SAMPLE_PATH=fixtures/klv/public-samples/day-flight.mpg \
+SEMOPS_KLV_PUBLIC_SAMPLE_SOURCE_URL=https://samples.ffmpeg.org/MPEG2/mpegts-klv/Day%20Flight.mpg \
+SEMOPS_KLV_PUBLIC_SAMPLE_PROVENANCE=local-download-from-ffmpeg-sample-archive-2026-06-22-sha256-a491ceff524b0008e3076d9eb30782badac2d53053731accc0a4e1226177260e \
+go test ./internal/components/klv -run TestPublicKLVSampleSmokeWithLocalPath -count=1 -v
+```
+
+Result: passed. Two initial failed runs exposed path-resolution bugs in the smoke harness; the test now accepts
+repo-root relative paths by resolving them to absolute local file URIs before demux.
 
 ## Follow-Ups
 
-- Run the smoke locally with a candidate sample and record exact source, hash, size, FFmpeg version, and result.
 - Keep deterministic SemOps truth fixtures as the engineering-support acceptance gate.
+- Redistribution/license review remains open before any public media can be vendored or treated as a cleared fixture.
