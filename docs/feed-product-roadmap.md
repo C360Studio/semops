@@ -239,7 +239,8 @@ emergency-alerting authority.
 Demo/MVP lane:
 Three separate layers: visual weather context in the browser, public alerts through the CAP lane, and localized
 tactical weather telemetry for points, incident areas, or routes. The first backend slice should use deterministic
-fixtures or a provider-shaped HTTP response before live provider claims.
+fixtures or a provider-shaped HTTP response before live provider claims. SemOps now has the first Open-Meteo-shaped
+point forecast parser fixture for tactical weather variables, without graph writes or live provider support.
 
 Full product lane:
 OGC API EDR and provider-specific weather gateway with point, area, trajectory, and corridor query support; cache and
@@ -249,7 +250,9 @@ to drone safety and routing; and optional visual tile configuration for the UI.
 Boundary to preserve now:
 Visual raster or tile layers can stay browser-only unless they produce operator decisions or evidence. Tactical
 weather that affects routing, safety, alerts, or fusion must become governed graph evidence with freshness and
-provenance. CAP-style alerts remain append-evidence and must not overwrite stricter hazard truth.
+provenance. CAP-style alerts remain append-evidence and must not overwrite stricter hazard truth. The current
+Open-Meteo-shaped parser fixture is provider-shaped tactical telemetry evidence only; it is not a weather gateway,
+OGC EDR conformance claim, or route-safety rule.
 
 Not claimed yet:
 Default live weather service reliability, weather-routing authority, provider conformance, or radar product hosting.

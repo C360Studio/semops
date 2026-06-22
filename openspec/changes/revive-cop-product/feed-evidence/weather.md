@@ -1,6 +1,6 @@
 # Weather Feed Evidence
 
-Status: critical COP layer, not yet implemented as a SemOps backend component.
+Status: critical COP layer with first parser fixture evidence; not yet implemented as a SemOps backend component.
 
 ## Decision
 
@@ -20,6 +20,11 @@ affects assets, operators, hazards, or routes.
   supports position, area, trajectory, and corridor retrieval patterns.
 - MSC GeoMet is a strong public interoperability target because it exposes ECCC/MSC data through OGC APIs and WMS/WCS.
 - Open-Meteo is a useful JSON source for early fixtures and non-compliance demo telemetry.
+- `fixtures/weather/open-meteo-point.json` is the first selected provider-shaped fixture. It is deterministic point
+  forecast telemetry for parser acceptance only, not a live provider or service-reliability claim.
+- `pkg/adapters/weather` now parses Open-Meteo-shaped point forecasts and preserves provider, query shape, position,
+  elevation, units, sample time, temperature, precipitation, visibility, surface pressure, wind speed, gusts, wind
+  direction, and weather code without graph writes.
 - NWS API remains valuable for alerts, forecasts, and observations. Its alert endpoints fit the current CAP lane, and
   CAP can be requested through content negotiation.
 - Radar and raster display data should not be assumed to come from `api.weather.gov`; visual products need their own
@@ -35,19 +40,27 @@ affects assets, operators, hazards, or routes.
 
 ## First Acceptance Gates
 
-- Parse deterministic Open-Meteo-shaped or OGC EDR-shaped JSON without graph writes.
+- Parse deterministic Open-Meteo-shaped or OGC EDR-shaped JSON without graph writes. [partial: Open-Meteo-shaped point
+  forecast fixture done; OGC EDR-shaped fixture still open]
 - Preserve wind, gusts, visibility, pressure, precipitation, temperature, weather code, source time, provider, query
-  geometry, and freshness.
+  geometry, and freshness. [partial: Open-Meteo point forecast variables, provider, point geometry, units, and sample
+  time done; stale/freshness policy remains a component/projection gate]
 - Project localized tactical weather as `signal`, route/weather decision state as `control`, advisory text as
   `content`, and provider/replay diagnostics as `trace`.
 - Keep browser-only visual layers out of graph state unless an operator workflow turns them into evidence.
 
 ## Known Gaps
 
-- No first weather provider fixture has been selected.
 - No SemStreams component package exists for weather.
+- No OGC EDR-shaped fixture or standards-facing bridge test exists yet.
+- No live Open-Meteo, NWS forecast/observation, MSC GeoMet, or radar/tile provider integration exists yet.
 - No weather routing/safety rule is accepted yet.
 - No tile/radar source has passed license, cache, or reliability review.
+
+## Verification
+
+- `go test ./pkg/adapters/weather`
+- `go test ./...`
 
 ## Source Links
 

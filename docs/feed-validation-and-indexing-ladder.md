@@ -346,6 +346,11 @@ Compliance and source evidence:
   weather interoperability.
 - Open-Meteo is a useful developer-friendly JSON source for deterministic provider-shaped fixtures and early
   tactical variables such as wind, precipitation, visibility, pressure, and temperature.
+- SemOps now carries `fixtures/weather/open-meteo-point.json` as the first deterministic provider-shaped tactical
+  weather fixture.
+- `pkg/adapters/weather` parses Open-Meteo-shaped point forecasts and preserves provider, query shape, position,
+  elevation, units, sample time, temperature, precipitation, visibility, surface pressure, wind speed, gusts, wind
+  direction, and weather code without graph writes.
 - NWS API already fits the CAP lane for alerts and can return CAP content via content negotiation. NWS API explicitly
   points radar display users to separate radar/OGC services rather than treating `/api.weather.gov` as a radar tile
   source.
@@ -367,8 +372,11 @@ Indexing profile pressure:
 
 First acceptance gate:
 
-- Given a deterministic Open-Meteo-shaped or OGC EDR-shaped fixture, SemOps parses wind, precipitation, visibility,
-  pressure, temperature, timestamp, location/area/route, provider, and freshness without graph writes.
+- Given the deterministic Open-Meteo-shaped point fixture, SemOps parses wind, gusts, precipitation, visibility,
+  pressure, temperature, weather code, timestamp, point location, provider, query shape, and units without graph
+  writes.
+- Given a future OGC EDR-shaped fixture, SemOps should parse the equivalent tactical weather variables for position,
+  area, trajectory, or corridor query shapes before claiming standards-facing tactical weather interop.
 - Given projection, localized tactical weather writes source-partitioned governed evidence and does not overwrite CAP
   hazard or operator task state.
 - Given UI rendering, visual weather tiles may be configured in the browser without implying backend weather
@@ -379,7 +387,8 @@ First acceptance gate:
 Known gaps:
 
 - No weather component package exists yet.
-- No selected first provider fixture exists yet.
+- No OGC EDR-shaped fixture exists yet.
+- No live weather provider integration exists yet.
 - No weather routing/safety rule is accepted yet.
 - No visual tile source has passed license/cache/reliability review.
 
