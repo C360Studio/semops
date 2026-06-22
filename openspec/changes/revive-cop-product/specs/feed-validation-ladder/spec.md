@@ -213,7 +213,8 @@ binary-by-reference storage, and memory-bounded handling.
 
 - **WHEN** SemOps claims MISB ST 0601 engineering support
 - **THEN** a deterministic fixture traces truth JSON through encoded KLV and optional MPEG-TS wrapping to parsed output
-- **AND** acceptance asserts parsed values against the original truth data for the supported field subset
+- **AND** acceptance asserts the parsed field set and parsed numeric values against the original truth data within MISB
+  integer quantization tolerances for the supported field subset
 
 #### Scenario: First KLV parser spike is deterministic and local
 

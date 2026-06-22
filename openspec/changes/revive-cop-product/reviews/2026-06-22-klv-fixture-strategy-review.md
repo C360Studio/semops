@@ -9,7 +9,7 @@ Accept the fixture strategy as a four-step ladder:
 1. Opaque SemSource synthetic binary fixture for storage/governance proof only.
 2. Public KLV MPEG-TS sample smoke in SemOps after license and provenance review.
 3. Deterministic MISB ST 0601 fixture in SemOps with truth JSON, encoded KLV, optional MPEG-TS wrapping, and exact
-   parsed-output assertions.
+   field-set assertions plus numeric assertions within MISB integer quantization tolerances.
 4. Formal STANAG 4609 conformance as a separate validator or lab track.
 
 The immediate next slice is not "claim STANAG." It is to design the SemOps-owned KLV/MISB worker boundary and fixture
@@ -44,6 +44,8 @@ component telemetry, and memory/backpressure posture.
 - A deterministic encoder path may take longer than wiring a parser against an existing `.bin` payload, but it gives
   much stronger acceptance evidence.
 - Parser choice is still open: Go-native, jMISB sidecar, Python `klvdata` sidecar, Rust worker, or another library.
+- The first deterministic fixture proves sensor position and frame-center evidence, not full footprint polygon
+  extraction or STANAG 4609 stream conformance.
 
 ## Follow-Up Tasks
 

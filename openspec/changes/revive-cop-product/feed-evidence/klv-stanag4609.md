@@ -71,8 +71,9 @@ Recommended SemOps fixture ladder:
 1. Opaque synthetic binary fixture from SemSource for storage/governance proof only.
 2. Public KLV sample smoke in SemOps, after license and provenance review. This proves real-world demux/parser
    plumbing, not deterministic correctness or conformance.
-3. Deterministic MISB ST 0601 fixture in SemOps, ideally truth JSON to encoded KLV to MPEG-TS to parsed output.
-   This is the first credible engineering-support gate because assertions can compare parsed output to known truth.
+3. Deterministic MISB ST 0601 fixture in SemOps: truth JSON to generated KLV packet bytes to parsed output, with
+   optional MPEG-TS wrapping as a later container-proof step. This is the first credible engineering-support gate
+   because assertions can compare parsed output to known truth within MISB integer quantization tolerances.
 4. Formal STANAG 4609 conformance as a separate validator or lab track.
 
 Engineering support language may cite public examples commonly used by open-source FMV/KLV tooling plus deterministic
@@ -96,14 +97,14 @@ The first KLV/MISB spike should stay Go-native and deterministic:
 ## Next Slice
 
 Add deterministic truth-to-MPEG-TS fixture generation or a legally reviewed public sample smoke before projection code
-or support language.
+or broader support language. The current deterministic packet fixture is parser-core evidence only.
 
 The worker should:
 
 - Accept either a SemSource storage reference or native media ingress reference as input.
 - Demux KLV from MPEG-TS without requiring raw video bytes in graph triples.
-- Parse the first MISB ST 0601 subset needed for platform position, sensor position, frame time, frame center, and
-  footprint inputs.
+- Parse the first MISB ST 0601 subset needed for sensor position, frame time, frame center, azimuth, elevation, and
+  later footprint inputs.
 - Emit governed derived facts through SemStreams contracts, with `signal` for projected sensor geometry, `trace` for
   packet/decode diagnostics, and `control` for clip/evidence package lifecycle.
 - Publish CoT or CS API JSON only as derived interop outputs, not as the internal KLV model.
@@ -252,9 +253,11 @@ Acceptance:
 
 - Fixture licensing is clear.
 - Public sample smoke extracts plausible ST 0601 metadata from a real MPEG-TS stream without claiming conformance.
-- Deterministic fixture output exactly matches the source truth data for supported fields.
-- The deterministic fixture contains enough ST 0601 metadata to extract platform/sensor position and sensor footprint.
-- The fixture is small enough for local tests.
+- Deterministic fixture output matches the source truth field set and numeric values within MISB integer quantization
+  tolerances for the supported fields. [done]
+- The deterministic fixture contains enough ST 0601 metadata to extract sensor position and frame-center evidence;
+  full footprint polygon extraction remains a projector/parser extension. [partial]
+- The fixture is small enough for local tests. [done]
 - CI does not depend on large network downloads.
 
 ### Media Gate
@@ -276,13 +279,15 @@ Acceptance:
 Target command after choosing a parser strategy:
 
 ```bash
-go test ./internal/klv
+go test ./internal/components/klv
 ```
 
 Acceptance:
 
 - ST 0601 metadata extracts deterministically from the fixture.
-- Platform position, sensor position, frame time, and footprint evidence are represented in a typed model.
+- Sensor position, frame time, frame center, azimuth, elevation, and platform designation are represented in a typed
+  model.
+- Footprint polygon extraction remains a separate extension gate.
 - Parser errors produce trace evidence without corrupting current COP state.
 
 ### Projection Gate
@@ -303,10 +308,11 @@ Acceptance:
 
 ## Known Gaps
 
-- No small legal fixture identified yet.
+- No public small legal KLV MPEG-TS sample has passed SemOps license/provenance review yet.
 - No production MPEG-TS/live-media demux strategy chosen beyond the fixture-grade FFmpeg/ffprobe worker path.
 - No public KLV sample has passed SemOps license/provenance review yet.
-- No deterministic truth-to-KLV-to-MPEG-TS generation path has been chosen.
+- No deterministic truth-to-KLV-to-MPEG-TS generation path has been chosen; the current deterministic fixture covers
+  truth JSON to generated KLV packet bytes to decoded frame output.
 - Media-reference input and projector stages are topology skeletons only.
 - Demux and decoder workers exist for local file URI fixtures and bounded packet bytes, but no storage-ref
   materialization, live media, public sample, or graph projection runtime exists yet.

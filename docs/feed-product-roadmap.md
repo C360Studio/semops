@@ -340,7 +340,9 @@ Demo/MVP lane:
 Proof spike with tiny video-plus-KLV fixture, extracted platform/sensor position or footprint,
 binary-by-reference storage, and memory-bounded handling. The first implemented media path is fixture-grade:
 registered media-ref BaseMessage to FFmpeg/ffprobe demux worker to bounded KLV packet BaseMessage to Go-native
-MISB ST 0601 local-set decoder, with no graph writes until projector evidence exists.
+MISB ST 0601 local-set decoder, with a SemOps-owned truth JSON fixture that generates deterministic KLV packet bytes
+and asserts decoded fields within MISB integer quantization tolerance. There are no graph writes until projector
+evidence exists.
 
 Full product lane:
 Production media/KLV pipeline with demux, parser sidecar or native parser, object storage, frame/keyframe evidence,

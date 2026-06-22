@@ -1,0 +1,16 @@
+{
+  "id": "semops-klv-deterministic-001",
+  "media_ref": "object://semops/klv/deterministic-001.ts",
+  "packet_ref": "klv://packet/deterministic/00000001",
+  "received_at": "2026-06-22T18:00:00Z",
+  "frame_time": "2026-06-22T17:59:58.123456Z",
+  "platform_designation": "SYNTHETIC-UAS-1",
+  "sensor_latitude": 34.123456,
+  "sensor_longitude": -117.123456,
+  "sensor_altitude_meters": 1420.25,
+  "sensor_azimuth_degrees": 87.5,
+  "sensor_elevation_degrees": -12.25,
+  "frame_center_latitude": 34.125001,
+  "frame_center_longitude": -117.120222,
+  "frame_center_elevation_meters": 905.5
+}

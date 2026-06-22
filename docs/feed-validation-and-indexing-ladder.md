@@ -96,7 +96,8 @@ The risky cases are mixed-shape entities:
 - A CAP alert may be both a hazard polygon and a text advisory.
 - A weather layer may be browser-only raster context, a tactical point/route observation, or an alert/advisory.
 - DJI may be a vehicle track, gimbal/sensor state, command authority, media reference, and vendor-specific evidence.
-- A KLV frame may be video metadata, sensor footprint, evidence reference, and binary artifact pointer.
+- A KLV frame may be video metadata, sensor/frame-center evidence, sensor footprint, evidence reference, and binary
+  artifact pointer.
 - A fused track may aggregate high-rate source state while also becoming an operator-relevant entity.
 
 SemOps should not solve this by inventing more profiles immediately. The first pressure test is whether entity
@@ -691,8 +692,9 @@ Mock or harness:
   STANAG 4609 conformance path.
 - First prove video metadata and keyframe ingestion on a small synthetic or public fixture.
 - Then use a public KLV sample only as demux/parser smoke after license and provenance review.
-- Use a deterministic MISB ST 0601 fixture, ideally truth JSON to encoded KLV to MPEG-TS to parsed output, as the
-  first engineering-support acceptance gate.
+- Use the deterministic MISB ST 0601 fixture as the first engineering-support acceptance gate: truth JSON to generated
+  KLV packet bytes to decoded output. MPEG-TS wrapping is the next container-proof step, not a prerequisite for the
+  parser-core gate.
 - Public examples commonly used by open-source FMV/KLV tooling plus deterministic fixtures are acceptable for
   demo-grade engineering support. Official STANAG 4609 conformance or certification stays blocked until someone funds
   a validator or lab effort with proper access.
@@ -730,8 +732,8 @@ First acceptance gate:
   `semops.klv_packet.v1` BaseMessage on the declared packet subject.
 - Given a public video-plus-KLV smoke sample with documented license and provenance, the demo extracts plausible
   KLV metadata without calling the result deterministic correctness or conformance evidence.
-- Given a deterministic MISB ST 0601 fixture, parsed platform/sensor position, frame time, frame center, and footprint
-  inputs exactly match the source truth data.
+- Given a deterministic MISB ST 0601 fixture, parsed sensor position, frame time, frame center, azimuth, elevation,
+  and supported field presence match the source truth data within MISB integer quantization tolerances.
 - Given any video-plus-KLV path, binary is stored by reference and memory-bounded behavior is proven before any
   "streaming binary" product claim.
 
