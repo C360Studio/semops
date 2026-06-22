@@ -91,6 +91,20 @@ Phase 1.
 - **THEN** those details stay behind SemOps API unless a specific operator or diagnostic workflow exposes them through
   a deliberate lens
 
+#### Scenario: KLV sensor-footprint UI proves binary-derived evidence
+
+- **WHEN** KLV decoded-frame state has been projected into governed `sensor_footprint` graph entities
+- **THEN** the SemOps COP API exposes a curated sensor-footprint view model with sensor position, frame center,
+  sensor-to-frame-center ray geometry, frame time, observed time, confidence, freshness, source, media reference,
+  packet reference, and claim posture
+- **AND** the browser renders the sensor point, frame-center point, and ray as a selectable tactical layer
+- **AND** the selected-entity inspector shows platform designation, decoded-field inventory, warnings, media
+  provenance, packet provenance, source hash/provenance when available, and component-flow evidence
+- **AND** the UI labels public-sample evidence as smoke only and deterministic fixtures as engineering-support
+  evidence for the tested MISB ST 0601 subset
+- **AND** the UI does not show a footprint polygon, video player, thumbnail wall, 3D frustum, or STANAG conformance
+  claim until those gates have separate graph, media, and review evidence
+
 ### Requirement: Ontology hydrates inspectors, not the whole UI
 
 SemOps MUST NOT treat dynamic ontology-generated UI as a Phase 1 feature.

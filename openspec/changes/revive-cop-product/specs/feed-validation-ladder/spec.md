@@ -263,6 +263,16 @@ binary-by-reference storage, and memory-bounded handling.
 - **AND** the first projector contract writes only source-partitioned KLV `sensor_footprint` sensor/frame-center state
   with `indexing_profile=signal`, leaving footprint polygon extraction as a later gate
 
+#### Scenario: KLV UI proof uses graph readback
+
+- **WHEN** SemOps makes KLV visible in the operator COP
+- **THEN** the visible state comes from governed `sensor_footprint` graph readback through the SemOps COP API
+- **AND** the first UI layer renders sensor position, frame center, and the sensor-to-frame-center ray only after the
+  API exposes media reference, packet reference, decoded field inventory, warning evidence, source provenance, and
+  claim posture
+- **AND** the UI does not treat public-sample smoke, local media availability, or decoded packet bytes as footprint
+  polygon, streaming-binary, video-service, or STANAG 4609 conformance evidence
+
 #### Scenario: Streaming-binary claim is blocked by memory-bound evidence
 
 - **WHEN** binary storage requires reading whole video files into memory

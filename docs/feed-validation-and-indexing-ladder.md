@@ -674,6 +674,10 @@ Local assets:
   FFmpeg `-map`, split concatenated MISB ST 0601 local sets into bounded packet BaseMessages, and publish each
   packet on the declared stream. Storage-reference-only media refs are accepted only when an explicit bounded
   materializer is supplied. This is not a production live-media or STANAG conformance claim.
+- `internal/projectors/klv` can plan born-first, owner-token-fenced graph writes for source-partitioned
+  `sensor_footprint` sensor/frame-center state. The contract includes sensor position, frame center,
+  azimuth/elevation, media reference, packet reference, platform designation, and provenance, but not footprint
+  polygons, video service support, or conformance claims.
 
 Mock or harness:
 
@@ -750,6 +754,12 @@ First acceptance gate:
 - Given `go test ./internal/projectors/klv ./internal/components/klv`, decoded KLV frames project born-first
   source-partitioned `sensor_footprint` state with `indexing_profile=signal`, owner token fencing, sensor position,
   frame center, media reference, packet reference, and no footprint polygon claim yet.
+- Given KLV is made visible in the COP, the API/UI first reads back governed `sensor_footprint` graph state and renders
+  only the sensor point, frame-center point, and sensor-to-frame-center ray with provenance for media reference,
+  packet reference, decoded field inventory, warnings, source hash/provenance, and claim posture.
+- Given the KLV layer is selected, the inspector labels public samples as smoke evidence and deterministic fixtures as
+  engineering-support evidence for the tested MISB ST 0601 subset; it does not imply footprint polygon extraction,
+  video service support, streaming-binary support, or STANAG 4609 conformance.
 - Given any video-plus-KLV path, binary is stored by reference and memory-bounded behavior is proven before any
   "streaming binary" product claim.
 

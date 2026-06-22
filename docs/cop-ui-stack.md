@@ -104,6 +104,31 @@ selected-entity provenance, and a narrow viewport without horizontal overflow. T
 smoke: Playwright proves the browser contract and interaction path, while `scripts/cop-stack-smoke.sh` proves the live
 SemOps/SemStreams/Caddy plumbing.
 
+## KLV Sensor-Footprint UI Gate
+
+The next KLV product-visible slice should prove binary-derived evidence through the graph and COP API, not by showing a
+raw video file in the browser. The current KLV projector contract can write source-partitioned `sensor_footprint`
+state for sensor position, frame center, azimuth/elevation, media reference, packet reference, platform designation,
+and provenance. The UI proof should read that governed state back through `GET /api/cop/snapshot` before adding richer
+media surfaces.
+
+The first visible layer should include:
+
+- a sensor-position point;
+- a frame-center point;
+- a ray or line between the sensor and frame center;
+- selected-entity provenance with frame time, observed time, platform designation, decoded field inventory, warnings,
+  media reference, packet reference, source hash/provenance when available, and component-flow status.
+
+This is the "eye candy with teeth" gate: the operator sees something spatial and selectable, but every visible detail
+is tied back to governed graph state, packet/media references, and the validation ladder. Public sample evidence should
+be labeled as smoke only. Deterministic fixtures may support engineering-support language only for the tested MISB ST
+0601 subset.
+
+Do not add a video player, thumbnail strip, 3D frustum, footprint polygon, or STANAG 4609 conformance language as part
+of this slice. Those remain separate gates because each adds a different failure mode: media serving and cache policy,
+operator attention load, footprint computation policy, and formal standards evidence.
+
 ## Dynamic UI Scope Gate
 
 Dynamic ontology-generated UI is a research idea, not a Phase 1 feature.

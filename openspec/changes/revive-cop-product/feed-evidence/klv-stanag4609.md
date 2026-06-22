@@ -28,6 +28,10 @@ binary-by-reference storage, and memory-bounded handling.
   with FFmpeg `-map`, split concatenated MISB ST 0601 local sets, and publish one registered packet BaseMessage per
   split packet. Storage-reference-only media refs require an explicit bounded materializer. This is not a live media
   or production STANAG demux claim.
+- `internal/projectors/klv` now plans born-first, owner-token-fenced `sensor_footprint` graph writes for sensor
+  position, frame center, azimuth/elevation, media reference, packet reference, platform designation, and provenance.
+  This is graph contract evidence only; hosted runtime readback, footprint polygons, video serving, and conformance
+  remain gated.
 
 ## SemSource Fixture Handoff
 
@@ -99,12 +103,26 @@ The first KLV/MISB spike should stay Go-native and deterministic:
   `max_materialized_bytes` enforcement.
 - Do not vendor or download public media samples until license, provenance, cache, and CI policy are recorded.
 
-## Next Slice
+## Next UI Gate
 
-Add deterministic truth-to-MPEG-TS fixture generation or a legally reviewed public sample smoke before projection code
-or broader support language. The current deterministic packet fixture is parser-core evidence only.
+Add COP API and UI readback for the existing KLV `sensor_footprint` graph contract before footprint polygons, video
+players, thumbnails, or broader support language. The current deterministic packet fixture, deterministic MPEG-TS
+wrap/demux smoke, public-sample smoke, and projector contract are enough to build a visible proof, but not enough to
+claim STANAG 4609 conformance or production video service support.
 
-The worker should:
+The visible proof should:
+
+- Read source-partitioned KLV `sensor_footprint` state from SemStreams through the SemOps COP API.
+- Expose sensor position, frame center, a sensor-to-frame-center ray, frame time, observed time, confidence,
+  freshness, media reference, packet reference, decoded field inventory, warnings, source hash/provenance when
+  available, and component-flow status.
+- Render the sensor point, frame-center point, and ray as selectable deck.gl layers.
+- Label public-sample evidence as smoke only and deterministic fixtures as engineering-support evidence for the
+  tested MISB ST 0601 subset.
+- Keep footprint polygon extraction, video playback, thumbnail/keyframe browsing, 3D frustum inspection, streaming
+  binary claims, and STANAG 4609 conformance as separate gates.
+
+The component flow should continue to:
 
 - Accept either a SemSource storage reference or native media ingress reference as input.
 - Demux KLV from MPEG-TS without requiring raw video bytes in graph triples.
@@ -333,6 +351,30 @@ Acceptance:
 - Packet/frame decode events use `indexing_profile=trace`.
 - Raw binary never goes into graph triples.
 
+### UI Readback Gate
+
+Target commands after the API/UI implementation exists:
+
+```bash
+go test ./internal/api/cop
+npm --prefix ui run test
+npm --prefix ui run test:e2e
+```
+
+Acceptance:
+
+- The COP API maps governed KLV `sensor_footprint` triples into a bounded view model with sensor point, frame center,
+  ray geometry, frame/observed time, confidence, freshness, media reference, packet reference, decoded-field
+  inventory, warning evidence, and claim posture.
+- The browser renders the sensor point, frame-center point, and ray without reading raw KLV bytes or local media files.
+- Selecting the KLV layer opens a provenance inspector that names the media reference, packet reference, source
+  provenance, public-sample smoke posture if applicable, deterministic fixture posture if applicable, and component
+  runtime flow state.
+- The Playwright smoke proves the layer, keyboard selection, inspector, and narrow viewport path without requiring a
+  video asset.
+- No UI copy or iconography implies footprint polygon extraction, video service support, streaming-binary support, or
+  STANAG 4609 conformance.
+
 ## Known Gaps
 
 - No public small legal KLV MPEG-TS sample has passed SemOps redistribution/license review yet; the opt-in smoke gate
@@ -347,6 +389,7 @@ Acceptance:
 - Demux and decoder workers exist for local file URI fixtures, bounded media and packet storage-ref materialization,
   split packet payloads, and bounded packet bytes, but no live media, public sample, or graph projection runtime
   exists yet.
+- No COP API or UI readback exists yet for KLV `sensor_footprint` graph state; that is the next product-visible proof.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 
