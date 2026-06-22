@@ -25,8 +25,9 @@ binary-by-reference storage, and memory-bounded handling.
   BaseMessages when configured with a SemStreams bus.
 - `internal/components/klv` now includes a fixture-grade FFmpeg/ffprobe demux worker path. The demux component can
   consume registered media-ref BaseMessages, select an explicit data stream with ffprobe, extract bounded KLV bytes
-  with FFmpeg `-map`, and publish registered packet BaseMessages. This is not a live media or production STANAG
-  demux claim.
+  with FFmpeg `-map`, split concatenated MISB ST 0601 local sets, and publish one registered packet BaseMessage per
+  split packet. Storage-reference-only media refs require an explicit bounded materializer. This is not a live media
+  or production STANAG demux claim.
 
 ## SemSource Fixture Handoff
 
@@ -92,6 +93,10 @@ The first KLV/MISB spike should stay Go-native and deterministic:
 - Use FFmpeg/ffprobe as the first fixture-grade demux implementation, with explicit data-stream selection and bounded
   output. Defer GStreamer, `klvdata`, jMISB, or a Rust worker until public-sample smoke or throughput requirements
   justify the sidecar/toolchain cost.
+- Split concatenated MISB ST 0601 local sets after extraction so each packet has its own packet ref, byte offset, and
+  trace payload.
+- Accept storage-reference-only media refs only through an explicit bounded materializer with cleanup and
+  `max_materialized_bytes` enforcement.
 - Do not vendor or download public media samples until license, provenance, cache, and CI policy are recorded.
 
 ## Next Slice
@@ -205,7 +210,7 @@ Acceptance:
 - Bounded packet bytes decode into `semops.klv_misb0601_frame.v1` fields without graph writes. [done]
 - Frame time, platform designation, sensor position, sensor azimuth/elevation, and frame center decode from the
   fixture packet. [done]
-- Storage-reference-only packets fail explicitly until the demux/materialization path exists. [done]
+- Storage-reference-only packet decode fails explicitly until a bounded packet materializer exists. [done]
 - Unsupported tags are warning evidence, not current-state projection. [done]
 
 ### Decoder Worker Gate
@@ -237,11 +242,15 @@ Acceptance:
 - A registered `semops.klv_media_ref.v1` BaseMessage is decoded through the payload registry. [done]
 - ffprobe is invoked with explicit data-stream selection instead of assuming FFmpeg auto-selects data streams. [done]
 - FFmpeg extracts the selected stream with explicit `-map 0:<stream-index>` and bounded stdout. [done]
+- Extracted data streams are split into distinct bounded MISB ST 0601 packet payloads with packet refs and byte
+  offsets. [done]
+- Storage-reference-only media refs are accepted only through an explicit bounded materializer with
+  `max_materialized_bytes` and cleanup. [done]
 - Optional local FFmpeg fixture generation wraps the deterministic KLV packet in MPEG-TS, then demuxes and decodes it
   back to the truth fixture when `ffmpeg` and `ffprobe` are installed. [done]
 - The worker publishes a registered `semops.klv_packet.v1` BaseMessage to the declared packet subject. [done]
 - The demux worker does not publish graph mutation subjects. [done]
-- Storage-reference-only and remote URI demux are explicitly rejected until bounded materialization exists. [done]
+- Remote URI demux remains rejected until a separate network/media ingress boundary is chosen. [done]
 
 ### Fixture Gate
 
@@ -322,8 +331,8 @@ Acceptance:
   fixture when FFmpeg tooling is present.
 - Media-reference input remains a topology skeleton; the projector now has contract-tested plan writing for
   sensor/frame-center state but is not wired into the hosted runtime.
-- Demux and decoder workers exist for local file URI fixtures and bounded packet bytes, but no storage-ref
-  materialization, live media, public sample, or graph projection runtime exists yet.
+- Demux and decoder workers exist for local file URI fixtures, bounded storage-ref materialization, split packet
+  payloads, and bounded packet bytes, but no live media, public sample, or graph projection runtime exists yet.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 

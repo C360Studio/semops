@@ -157,18 +157,22 @@ func (c *MediaRefInputComponent) DataFlow() component.FlowMetrics {
 }
 
 type DemuxConfig struct {
-	Name                string
-	Source              string
-	MediaRefSubject     string
-	PacketSubject       string
-	MaxPacketBytes      int
-	ProbeOutputMaxBytes int
-	FFmpegPath          string
-	FFprobePath         string
-	Registry            *payloadregistry.Registry
-	Bus                 Bus
-	Runner              CommandRunner
-	Clock               func() time.Time
+	Name                 string
+	Source               string
+	MediaRefSubject      string
+	PacketSubject        string
+	MaxPacketBytes       int
+	MaxExtractBytes      int
+	MaxPackets           int
+	MaxMaterializedBytes int
+	ProbeOutputMaxBytes  int
+	FFmpegPath           string
+	FFprobePath          string
+	Registry             *payloadregistry.Registry
+	Bus                  Bus
+	Runner               CommandRunner
+	Materializer         MediaMaterializer
+	Clock                func() time.Time
 }
 
 type DemuxComponent struct {
@@ -198,6 +202,27 @@ func NewDemuxComponent(cfg DemuxConfig) (*DemuxComponent, error) {
 	}
 	if cfg.MaxPacketBytes < 0 {
 		return nil, fmt.Errorf("KLV demux max_packet_bytes must be greater than zero")
+	}
+	if cfg.MaxExtractBytes == 0 {
+		cfg.MaxExtractBytes = cfg.MaxPacketBytes * 4
+	}
+	if cfg.MaxExtractBytes < 0 {
+		return nil, fmt.Errorf("KLV demux max_extract_bytes must be greater than zero")
+	}
+	if cfg.MaxExtractBytes < cfg.MaxPacketBytes {
+		return nil, fmt.Errorf("KLV demux max_extract_bytes must be greater than or equal to max_packet_bytes")
+	}
+	if cfg.MaxPackets == 0 {
+		cfg.MaxPackets = DefaultMaxPackets
+	}
+	if cfg.MaxPackets < 0 {
+		return nil, fmt.Errorf("KLV demux max_packets must be greater than zero")
+	}
+	if cfg.MaxMaterializedBytes == 0 {
+		cfg.MaxMaterializedBytes = DefaultMaxMaterializedBytes
+	}
+	if cfg.MaxMaterializedBytes < 0 {
+		return nil, fmt.Errorf("KLV demux max_materialized_bytes must be greater than zero")
 	}
 	if cfg.ProbeOutputMaxBytes == 0 {
 		cfg.ProbeOutputMaxBytes = DefaultProbeOutputMaxBytes
@@ -296,6 +321,12 @@ func (c *DemuxComponent) ConfigSchema() component.ConfigSchema {
 			"packet_subject":    stringProperty("SemStreams subject carrying demuxed KLV packet payloads", c.cfg.PacketSubject),
 			"source":            stringProperty("Source label recorded in demuxed KLV packet payloads", c.cfg.Source),
 			"max_packet_bytes":  intProperty("Maximum bounded KLV packet bytes carried in stream payloads", c.cfg.MaxPacketBytes),
+			"max_extract_bytes": intProperty("Maximum bounded FFmpeg data-stream output bytes accepted per media ref", c.cfg.MaxExtractBytes),
+			"max_packets":       intProperty("Maximum KLV local-set packets emitted per media ref", c.cfg.MaxPackets),
+			"max_materialized_bytes": intProperty(
+				"Maximum bytes a storage materializer may stage for storage_ref-only media",
+				c.cfg.MaxMaterializedBytes,
+			),
 			"probe_output_max_bytes": intProperty(
 				"Maximum accepted ffprobe JSON output bytes while discovering KLV data streams",
 				c.cfg.ProbeOutputMaxBytes,
@@ -308,6 +339,9 @@ func (c *DemuxComponent) ConfigSchema() component.ConfigSchema {
 			"packet_subject",
 			"source",
 			"max_packet_bytes",
+			"max_extract_bytes",
+			"max_packets",
+			"max_materialized_bytes",
 			"probe_output_max_bytes",
 			"ffmpeg_path",
 			"ffprobe_path",
@@ -341,12 +375,7 @@ func (c *DemuxComponent) HandleMediaRefMessage(ctx context.Context, data []byte)
 }
 
 func (c *DemuxComponent) HandleMediaRefPayload(ctx context.Context, payload *MediaRefPayload) error {
-	packet, err := demuxKLVPacket(ctx, c.cfg, payload)
-	if err != nil {
-		c.state.metrics.recordError(err)
-		return err
-	}
-	data, err := marshalBaseMessage(PacketType, packet, c.cfg.Name, packet.ReceivedAt)
+	packets, err := demuxKLVPackets(ctx, c.cfg, payload)
 	if err != nil {
 		c.state.metrics.recordError(err)
 		return err
@@ -356,11 +385,18 @@ func (c *DemuxComponent) HandleMediaRefPayload(ctx context.Context, payload *Med
 		c.state.metrics.recordError(err)
 		return err
 	}
-	if err := c.cfg.Bus.Publish(ctx, c.cfg.PacketSubject, data); err != nil {
-		c.state.metrics.recordError(err)
-		return err
+	for _, packet := range packets {
+		data, err := marshalBaseMessage(PacketType, packet, c.cfg.Name, packet.ReceivedAt)
+		if err != nil {
+			c.state.metrics.recordError(err)
+			return err
+		}
+		if err := c.cfg.Bus.Publish(ctx, c.cfg.PacketSubject, data); err != nil {
+			c.state.metrics.recordError(err)
+			return err
+		}
+		c.state.metrics.recordMessage(len(packet.PacketBytes), c.cfg.Clock().UTC())
 	}
-	c.state.metrics.recordMessage(len(packet.PacketBytes), c.cfg.Clock().UTC())
 	return nil
 }
 

@@ -231,6 +231,9 @@ binary-by-reference storage, and memory-bounded handling.
 - **WHEN** the first demux worker path is enabled
 - **THEN** it consumes registered `semops.klv_media_ref.v1` BaseMessages from the declared media-ref input
 - **AND** it uses explicit data-stream selection and bounded byte extraction for local file URI fixtures
+- **AND** storage-reference-only media refs are accepted only through an explicit bounded materializer
+- **AND** it splits concatenated MISB ST 0601 local sets into distinct bounded packet payloads with packet refs and
+  byte offsets
 - **AND** it publishes registered `semops.klv_packet.v1` BaseMessages to the declared packet output
 - **AND** it does not publish graph mutation requests
 

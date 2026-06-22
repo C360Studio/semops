@@ -669,8 +669,9 @@ Local assets:
   bus.
 - `internal/components/klv` includes a fixture-grade FFmpeg/ffprobe demux worker path. The demux component can consume
   registered media-ref BaseMessages, select an explicit data stream with ffprobe, extract bounded KLV bytes with
-  FFmpeg `-map`, and publish registered packet BaseMessages. This is not a production live-media or STANAG
-  conformance claim.
+  FFmpeg `-map`, split concatenated MISB ST 0601 local sets into bounded packet BaseMessages, and publish each
+  packet on the declared stream. Storage-reference-only media refs are accepted only when an explicit bounded
+  materializer is supplied. This is not a production live-media or STANAG conformance claim.
 
 Mock or harness:
 
@@ -729,7 +730,10 @@ First acceptance gate:
   `semops.klv_misb0601_frame.v1` BaseMessage on the declared frame subject, not a graph mutation subject.
 - Given the opt-in demux worker path, a registered `semops.klv_media_ref.v1` BaseMessage for a local file URI invokes
   ffprobe data-stream discovery, extracts bounded bytes with FFmpeg explicit `-map`, and publishes a registered
-  `semops.klv_packet.v1` BaseMessage on the declared packet subject.
+  `semops.klv_packet.v1` BaseMessage on the declared packet subject for each split MISB ST 0601 local set.
+- Given a storage-reference-only media ref, demux proceeds only when a configured materializer stages the media under
+  `max_materialized_bytes`; the demux worker still enforces `max_extract_bytes`, `max_packet_bytes`, and
+  `max_packets` before publishing packet payloads.
 - Given local FFmpeg tooling is available, the deterministic KLV truth packet can be wrapped into MPEG-TS, demuxed
   back through the SemOps demux worker, and decoded to the original truth without network downloads or vendored media.
 - Given a public video-plus-KLV smoke sample with documented license and provenance, the demo extracts plausible

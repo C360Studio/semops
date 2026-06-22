@@ -133,6 +133,7 @@
 - [x] 5.61 Add deterministic MISB ST 0601 truth JSON to generated-packet to decoded-frame fixture acceptance
 - [x] 5.62 Add optional deterministic truth-to-MPEG-TS demux smoke using local FFmpeg tooling
 - [x] 5.63 Add KLV sensor/frame-center projection contract without footprint polygon claims
+- [x] 5.64 Add bounded KLV packet splitting and opt-in storage-ref materialization gate
 
 ## 6. Structural COP Stack
 

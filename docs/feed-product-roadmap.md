@@ -342,13 +342,15 @@ binary-by-reference storage, and memory-bounded handling. The first implemented 
 registered media-ref BaseMessage to FFmpeg/ffprobe demux worker to bounded KLV packet BaseMessage to Go-native
 MISB ST 0601 local-set decoder, with a SemOps-owned truth JSON fixture that generates deterministic KLV packet bytes
 and an optional local FFmpeg smoke that wraps those bytes in MPEG-TS before demuxing and decoding them back to truth.
-Decoded fields are asserted within MISB integer quantization tolerance. The first graph projection contract covers
-KLV-owned sensor/frame-center state only; footprint polygons, media packages, and hosted live runtime wiring remain
-later gates.
+The demux worker can split concatenated MISB ST 0601 local sets into distinct packet messages and can use an explicit
+bounded materializer for storage-reference-only media refs. Decoded fields are asserted within MISB integer
+quantization tolerance. The first graph projection contract covers KLV-owned sensor/frame-center state only; footprint
+polygons, media packages, and hosted live runtime wiring remain later gates.
 
 Full product lane:
 Production media/KLV pipeline with demux, parser sidecar or native parser, object storage, frame/keyframe evidence,
-sensor footprints, security review for binary handling, replay, and retention.
+sensor footprints, streaming/media relay where needed, storage materialization policies, security review for binary
+handling, replay, and retention.
 
 Boundary to preserve now:
 Treat SemSource as a candidate media sidecar, not a proven answer; keep binary bytes out of graph triples. DJI video
