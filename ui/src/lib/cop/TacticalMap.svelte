@@ -6,6 +6,7 @@
     tacticalMapView,
     tacticalPoints,
     tacticalPolygons,
+    tacticalRays,
     tacticalSelectionItems,
     type TacticalEntityKind
   } from './mapLayers';
@@ -30,6 +31,7 @@
   let resizeObserver: ResizeObserver | undefined;
   let constructors: {
     ScatterplotLayer: any;
+    LineLayer: any;
     PolygonLayer: any;
     TextLayer: any;
   };
@@ -73,6 +75,7 @@
 
       constructors = {
         ScatterplotLayer: layers.ScatterplotLayer,
+        LineLayer: layers.LineLayer,
         PolygonLayer: layers.PolygonLayer,
         TextLayer: layers.TextLayer
       };
@@ -125,9 +128,10 @@
   }
 
   function deckLayers() {
-    const { ScatterplotLayer, PolygonLayer, TextLayer } = constructors;
+    const { ScatterplotLayer, LineLayer, PolygonLayer, TextLayer } = constructors;
     const points = tacticalPoints(snapshot, selected);
     const polygons = tacticalPolygons(snapshot, selected);
+    const rays = tacticalRays(snapshot, selected);
     const labels = tacticalLabels(snapshot);
     return [
       new PolygonLayer({
@@ -141,6 +145,18 @@
         getLineColor: (item: (typeof polygons)[number]) => item.lineColor,
         getLineWidth: (item: (typeof polygons)[number]) => (item.selected ? 3 : 2),
         lineWidthMinPixels: 2,
+        onClick: selectPicked
+      }),
+      new LineLayer({
+        id: 'semops-klv-rays',
+        data: rays,
+        pickable: true,
+        getSourcePosition: (item: (typeof rays)[number]) => item.source,
+        getTargetPosition: (item: (typeof rays)[number]) => item.target,
+        getColor: (item: (typeof rays)[number]) => item.color,
+        getWidth: (item: (typeof rays)[number]) => item.width,
+        widthUnits: 'pixels',
+        widthMinPixels: 2,
         onClick: selectPicked
       }),
       new ScatterplotLayer({
@@ -210,6 +226,8 @@
         onclick={() => selectEntity(item.kind, item.id)}
       >
         {#if item.kind === 'track'}
+          <Crosshair size={16} />
+        {:else if item.kind === 'sensor-footprint'}
           <Crosshair size={16} />
         {:else if item.kind === 'asset'}
           <ShieldCheck size={16} />

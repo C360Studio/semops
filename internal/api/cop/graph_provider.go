@@ -235,11 +235,20 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	tasksByID := make(map[string]graph.EntityState)
 	advisoriesByID := make(map[string]graph.EntityState)
 	hazardsByID := make(map[string]graph.EntityState)
+	footprintsByID := make(map[string]graph.EntityState)
 	var firstErr error
 
 	var discovered graphDiscoveryResult
 	if p.discovery.Enabled {
-		if result, err := p.discoverInto(ctx, assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID); err != nil {
+		if result, err := p.discoverInto(
+			ctx,
+			assetsByID,
+			tracksByID,
+			tasksByID,
+			advisoriesByID,
+			hazardsByID,
+			footprintsByID,
+		); err != nil {
 			firstErr = errors.Join(firstErr, err)
 			discovered = result
 		} else {
@@ -301,7 +310,8 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		len(tracksByID) == 0 &&
 		len(tasksByID) == 0 &&
 		len(advisoriesByID) == 0 &&
-		len(hazardsByID) == 0 {
+		len(hazardsByID) == 0 &&
+		len(footprintsByID) == 0 {
 		if p.fallback != nil {
 			return p.fallback.Snapshot(ctx)
 		}
@@ -310,7 +320,15 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		}
 	}
 
-	return p.snapshotFromGraph(assetsByID, tracksByID, tasksByID, advisoriesByID, hazardsByID, discovered.diagnostics), nil
+	return p.snapshotFromGraph(
+		assetsByID,
+		tracksByID,
+		tasksByID,
+		advisoriesByID,
+		hazardsByID,
+		footprintsByID,
+		discovered.diagnostics,
+	), nil
 }
 
 type graphDiscoveryTarget struct {
@@ -326,6 +344,7 @@ type graphDiscoveryResult struct {
 	mavlink     bool
 	cot         bool
 	cap         bool
+	klv         bool
 	diagnostics []DiscoveryDiagnostic
 }
 
@@ -336,6 +355,7 @@ func (p *GraphProvider) discoverInto(
 	tasksByID map[string]graph.EntityState,
 	advisoriesByID map[string]graph.EntityState,
 	hazardsByID map[string]graph.EntityState,
+	footprintsByID map[string]graph.EntityState,
 ) (graphDiscoveryResult, error) {
 	var result graphDiscoveryResult
 	var firstErr error
@@ -359,6 +379,8 @@ func (p *GraphProvider) discoverInto(
 				result.cot = true
 			case "cap":
 				result.cap = true
+			case "klv":
+				result.klv = true
 			}
 			switch target.Kind {
 			case copmodel.EntityAsset:
@@ -371,6 +393,8 @@ func (p *GraphProvider) discoverInto(
 				advisoriesByID[entity.ID] = entity
 			case copmodel.EntityHazardArea:
 				hazardsByID[entity.ID] = entity
+			case copmodel.EntitySensorFootprint:
+				footprintsByID[entity.ID] = entity
 			}
 		}
 		result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, count, truncated, nil))
@@ -390,6 +414,7 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityAdvisory, "cot"),
 			newGraphDiscoveryTarget(scope, "cap", copmodel.EntityHazardArea, "cap"),
 			newGraphDiscoveryTarget(scope, "adsb", copmodel.EntityTrack, "adsb"),
+			newGraphDiscoveryTarget(scope, "klv", copmodel.EntitySensorFootprint, "klv"),
 		)
 	}
 	return targets
@@ -579,6 +604,7 @@ func (p *GraphProvider) snapshotFromGraph(
 	tasksByID map[string]graph.EntityState,
 	advisoriesByID map[string]graph.EntityState,
 	hazardsByID map[string]graph.EntityState,
+	footprintsByID map[string]graph.EntityState,
 	discoveryDiagnostics []DiscoveryDiagnostic,
 ) Snapshot {
 	now := p.now().UTC()
@@ -629,29 +655,39 @@ func (p *GraphProvider) snapshotFromGraph(
 		}
 	}
 
-	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories, hazards)
+	footprints := make([]SensorFootprint, 0, len(footprintsByID))
+	for _, entity := range sortedEntities(footprintsByID) {
+		footprint, ok := sensorFootprintFromEntity(entity, now, p.freshness)
+		if ok {
+			footprints = append(footprints, footprint)
+		}
+	}
+
+	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories, hazards, footprints)
 	discoveryDiagnostics = normalizeDiscoveryDiagnostics(discoveryDiagnostics)
 	alerts := diagnosticAlertsFromDiscovery(discoveryDiagnostics, now)
 	return Snapshot{
 		GeneratedAt: now,
 		Scenario:    "phase-1-live-graph",
 		Summary: Summary{
-			ActiveTracks:     len(tracks),
-			ActiveTasks:      len(tasks),
-			ActiveAdvisories: len(advisories),
-			ActiveAlerts:     len(alerts),
-			StaleFeeds:       countFeeds(feeds, "stale"),
+			ActiveTracks:           len(tracks),
+			ActiveTasks:            len(tasks),
+			ActiveAdvisories:       len(advisories),
+			ActiveSensorFootprints: len(footprints),
+			ActiveAlerts:           len(alerts),
+			StaleFeeds:             countFeeds(feeds, "stale"),
 		},
 		Diagnostics: SnapshotDiagnostics{
 			Discovery: discoveryDiagnostics,
 		},
-		Feeds:      feeds,
-		Assets:     assets,
-		Tracks:     tracks,
-		Tasks:      tasks,
-		Advisories: advisories,
-		Hazards:    hazards,
-		Alerts:     alerts,
+		Feeds:            feeds,
+		Assets:           assets,
+		Tracks:           tracks,
+		Tasks:            tasks,
+		Advisories:       advisories,
+		Hazards:          hazards,
+		SensorFootprints: footprints,
+		Alerts:           alerts,
 	}
 }
 
@@ -723,6 +759,8 @@ func sourceLabel(source string) string {
 		return "CAP"
 	case "adsb":
 		return "ADS-B"
+	case "klv":
+		return "KLV"
 	default:
 		return source
 	}
@@ -742,6 +780,8 @@ func feedIDForDiscoverySource(source string) string {
 		return "feed.cap"
 	case "adsb":
 		return "feed.adsb"
+	case "klv":
+		return "feed.klv"
 	default:
 		return "feed." + alertIDSegment(source)
 	}
@@ -754,6 +794,7 @@ func firstPhaseFeedHealth(
 	tasks []Task,
 	advisories []Advisory,
 	hazards []Hazard,
+	footprints []SensorFootprint,
 ) []FeedHealth {
 	mavlink := feedHealthFromObservations(
 		now,
@@ -809,7 +850,21 @@ func firstPhaseFeedHealth(
 		adsb.Status = "planned"
 		adsb.LastEventAt = now.Add(-45 * time.Minute)
 	}
-	return []FeedHealth{mavlink, tak, cap, adsb}
+	klv := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.klv",
+		"KLV",
+		"sensor-footprint",
+		"KLV sensor/frame-center graph proof pending",
+		"Graph-backed KLV sensor/frame-center state",
+		sensorFootprintObservationTimes(footprints),
+	)
+	if len(footprints) == 0 {
+		klv.Status = "planned"
+		klv.LastEventAt = now.Add(-50 * time.Minute)
+	}
+	return []FeedHealth{mavlink, tak, cap, adsb, klv}
 }
 
 func feedHealthFromObservations(
@@ -882,6 +937,14 @@ func hazardObservationTimes(hazards []Hazard) []time.Time {
 	times := make([]time.Time, 0, len(hazards))
 	for _, hazard := range hazards {
 		times = append(times, hazard.UpdatedAt)
+	}
+	return times
+}
+
+func sensorFootprintObservationTimes(footprints []SensorFootprint) []time.Time {
+	times := make([]time.Time, 0, len(footprints))
+	for _, footprint := range footprints {
+		times = append(times, footprint.UpdatedAt)
 	}
 	return times
 }
@@ -1029,6 +1092,94 @@ func hazardFromEntity(entity graph.EntityState, now time.Time, freshness time.Du
 			Observed:  updatedAt,
 		},
 	}, true
+}
+
+func sensorFootprintFromEntity(entity graph.EntityState, now time.Time, freshness time.Duration) (SensorFootprint, bool) {
+	sensorPosition, ok := latestPoint(entity, copmodel.SensorFootprintSensorPosition)
+	if !ok {
+		return SensorFootprint{}, false
+	}
+	frameCenter, ok := latestPoint(entity, copmodel.SensorFootprintFrameCenter)
+	if !ok {
+		return SensorFootprint{}, false
+	}
+	updatedAt := latestObservedAt(entity, copmodel.SensorFootprintObservedAt, copmodel.ProvenanceObservedAt)
+	source := stringProperty(entity, copmodel.SensorFootprintSource, stringProperty(entity, copmodel.ProvenanceSource, "klv"))
+	mediaRef := latestStringProperty(entity, copmodel.SensorFootprintMediaRef, "")
+	packetRef := latestStringProperty(entity, copmodel.SensorFootprintPacketRef, "")
+	platformDesignation := latestStringProperty(entity, copmodel.SensorFootprintPlatformDesignation, "")
+	return SensorFootprint{
+		ID:                         entity.ID,
+		Label:                      sensorFootprintLabel(entity, platformDesignation),
+		Source:                     source,
+		Status:                     freshnessStatus("active.sensor-frame-center", now, updatedAt, freshness),
+		SensorPosition:             sensorPosition,
+		FrameCenter:                frameCenter,
+		Ray:                        []GeoPoint{sensorPosition, frameCenter},
+		SensorAltitudeMeters:       optionalFloat(entity, copmodel.SensorFootprintSensorAltitude),
+		SensorAzimuthDegrees:       optionalFloat(entity, copmodel.SensorFootprintSensorAzimuth),
+		SensorElevationDegrees:     optionalFloat(entity, copmodel.SensorFootprintSensorElevation),
+		FrameCenterElevationMeters: optionalFloat(entity, copmodel.SensorFootprintFrameCenterElevation),
+		MediaRef:                   mediaRef,
+		PacketRef:                  packetRef,
+		FrameTime:                  updatedAt,
+		PlatformDesignation:        platformDesignation,
+		ClaimPosture:               "sensor-frame-center graph readback; no footprint polygon; no STANAG conformance",
+		DecodedFields:              sensorFootprintDecodedFields(entity),
+		Warnings:                   sensorFootprintWarnings(entity, mediaRef, packetRef),
+		Confidence:                 confidence(entity),
+		UpdatedAt:                  updatedAt,
+		Provenance: Provenance{
+			Owner:     ownerForSource(source),
+			SourceRef: latestStringProperty(entity, copmodel.ProvenanceSourceRef, packetRef),
+			Observed:  updatedAt,
+		},
+	}, true
+}
+
+func sensorFootprintLabel(entity graph.EntityState, platformDesignation string) string {
+	if strings.TrimSpace(platformDesignation) != "" {
+		return platformDesignation + " sensor footprint"
+	}
+	return "KLV " + instanceLabel(entity.ID)
+}
+
+func sensorFootprintDecodedFields(entity graph.EntityState) []string {
+	fields := make([]string, 0, 10)
+	for _, field := range []struct {
+		name      string
+		predicate string
+	}{
+		{name: "media_ref", predicate: copmodel.SensorFootprintMediaRef},
+		{name: "packet_ref", predicate: copmodel.SensorFootprintPacketRef},
+		{name: "observed_at", predicate: copmodel.SensorFootprintObservedAt},
+		{name: "platform_designation", predicate: copmodel.SensorFootprintPlatformDesignation},
+		{name: "sensor_position", predicate: copmodel.SensorFootprintSensorPosition},
+		{name: "sensor_altitude_meters", predicate: copmodel.SensorFootprintSensorAltitude},
+		{name: "sensor_azimuth_degrees", predicate: copmodel.SensorFootprintSensorAzimuth},
+		{name: "sensor_elevation_degrees", predicate: copmodel.SensorFootprintSensorElevation},
+		{name: "frame_center", predicate: copmodel.SensorFootprintFrameCenter},
+		{name: "frame_center_elevation_meters", predicate: copmodel.SensorFootprintFrameCenterElevation},
+	} {
+		if _, ok := latestPropertyValue(entity, field.predicate); ok {
+			fields = append(fields, field.name)
+		}
+	}
+	return fields
+}
+
+func sensorFootprintWarnings(entity graph.EntityState, mediaRef string, packetRef string) []string {
+	warnings := make([]string, 0, 3)
+	if strings.TrimSpace(mediaRef) == "" {
+		warnings = append(warnings, "media reference missing")
+	}
+	if strings.TrimSpace(packetRef) == "" {
+		warnings = append(warnings, "packet reference missing")
+	}
+	if _, ok := latestPropertyValue(entity, "cop.sensor_footprint.geometry"); !ok {
+		warnings = append(warnings, "footprint polygon not computed")
+	}
+	return warnings
 }
 
 func hazardEvidenceDocument(entity graph.EntityState) (copmodel.HazardEvidenceDocument, bool) {
@@ -1185,6 +1336,26 @@ func optionalPoint(entity graph.EntityState, predicate string) *GeoPoint {
 	return &point
 }
 
+func latestPoint(entity graph.EntityState, predicate string) (GeoPoint, bool) {
+	value, ok := latestPropertyValue(entity, predicate)
+	if !ok {
+		return GeoPoint{}, false
+	}
+	return geoPointFromWKT(value)
+}
+
+func optionalFloat(entity graph.EntityState, predicate string) *float64 {
+	value, ok := latestPropertyValue(entity, predicate)
+	if !ok {
+		return nil
+	}
+	parsed, ok := floatFromAny(value)
+	if !ok {
+		return nil
+	}
+	return &parsed
+}
+
 func freshnessStatus(status string, now time.Time, updatedAt time.Time, freshness time.Duration) string {
 	if status == "" {
 		status = "unknown"
@@ -1211,6 +1382,9 @@ func sourceFromEntityID(entityID string) string {
 	if strings.Contains(entityID, ".cop.adsb.") {
 		return "adsb"
 	}
+	if strings.Contains(entityID, ".cop.klv.") {
+		return "klv"
+	}
 	return "graph"
 }
 
@@ -1224,6 +1398,8 @@ func ownerForSource(source string) string {
 		return copmodel.OwnerCAP
 	case "adsb":
 		return copmodel.OwnerADSB
+	case "klv":
+		return copmodel.OwnerKLV
 	default:
 		return copmodel.OwnerFusion
 	}

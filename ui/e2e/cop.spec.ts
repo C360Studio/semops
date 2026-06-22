@@ -40,6 +40,17 @@ const snapshotWithADSB: Snapshot = {
         count: 1,
         limit: 500,
         at_limit: false
+      },
+      {
+        org: 'c360',
+        platform: 'edge-compose',
+        source: 'klv',
+        family: 'klv',
+        entity_type: 'sensor_footprint',
+        prefix: 'c360.edge-compose.cop.klv.sensor_footprint',
+        count: 1,
+        limit: 500,
+        at_limit: false
       }
     ]
   },
@@ -92,6 +103,17 @@ const runtimeSnapshot: RuntimeSnapshot = {
       messages_per_second: 4.5,
       last_activity: '2026-06-21T16:20:59Z',
       last_activity_age_seconds: 1
+    },
+    {
+      id: 'feed.klv',
+      name: 'KLV',
+      status: 'flowing',
+      message: 'component flow active',
+      healthy_components: 4,
+      total_components: 4,
+      messages_per_second: 1.25,
+      last_activity: '2026-06-21T16:20:54Z',
+      last_activity_age_seconds: 6
     },
     {
       id: 'feed.sapient',
@@ -151,6 +173,10 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('ADS-B discovery counts')).toContainText('track 1');
   await expect(page.getByLabel('ADS-B runtime flow')).toContainText('4.5 msg/s');
   await expect(page.getByLabel('ADS-B runtime flow')).toContainText('3/3 healthy');
+  await expect(page.getByLabel('KLV source state')).toBeVisible();
+  await expect(page.getByLabel('KLV discovery counts')).toContainText('sensor footprint 1');
+  await expect(page.getByLabel('KLV runtime flow')).toContainText('1.3 msg/s');
+  await expect(page.getByRole('button', { name: 'Select TEST-UAS-01 sensor footprint' })).toBeVisible();
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT runtime flow')).toContainText('2/2 healthy');
   await expect(page.getByRole('button', { name: 'Select N123AB' })).toBeVisible();
@@ -159,6 +185,12 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByRole('heading', { name: 'N123AB' })).toBeVisible();
   await expect(page.getByText('semops.feed.adsb')).toBeVisible();
   await expect(page.getByText('adsb://opensky/a1b2c3/2026-06-21T16:20:00Z')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Select TEST-UAS-01 sensor footprint' }).click();
+  await expect(page.getByRole('heading', { name: 'TEST-UAS-01 sensor footprint' })).toBeVisible();
+  await expect(page.getByText('object://semops/klv/deterministic-001.ts')).toBeVisible();
+  await expect(page.getByText('klv://packet/deterministic/00000001').first()).toBeVisible();
+  await expect(page.getByText(/no footprint polygon/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Refresh COP snapshot' }).click();
   await expect.poll(routes.snapshotRequests).toBeGreaterThanOrEqual(2);
@@ -174,6 +206,7 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await expect(page.getByLabel('Tactical map')).toBeVisible();
   await expect(page.getByLabel('Map entities')).toBeVisible();
   await expect(page.getByLabel('ADS-B source state')).toBeVisible();
+  await expect(page.getByLabel('KLV source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
@@ -183,6 +216,13 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'N123AB' })).toBeVisible();
   await expect(page.getByLabel('Entity inspector')).toContainText('semops.feed.adsb');
+
+  const klvButton = page.getByRole('button', { name: 'Select TEST-UAS-01 sensor footprint' });
+  await klvButton.focus();
+  await expect(klvButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'TEST-UAS-01 sensor footprint' })).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('no STANAG conformance');
 
   const alertButton = page.getByRole('button', { name: /Track freshness nominal/ });
   await alertButton.focus();

@@ -7,6 +7,7 @@ const sourceByFeed: Record<string, string> = {
   'feed.tak': 'tak',
   'feed.cap': 'cap',
   'feed.adsb': 'adsb',
+  'feed.klv': 'klv',
   'feed.sapient': 'sapient'
 };
 

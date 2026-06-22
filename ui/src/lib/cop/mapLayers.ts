@@ -1,15 +1,16 @@
 import type { EntityRef, GeoPoint, Hazard, Snapshot } from './types';
 
-export type TacticalEntityKind = 'track' | 'asset' | 'task' | 'advisory' | 'hazard';
+export type TacticalEntityKind = 'track' | 'asset' | 'task' | 'advisory' | 'hazard' | 'sensor-footprint';
 
 export type TacticalPoint = {
   id: string;
-  kind: Extract<TacticalEntityKind, 'track' | 'asset' | 'task' | 'advisory'>;
+  kind: Extract<TacticalEntityKind, 'track' | 'asset' | 'task' | 'advisory' | 'sensor-footprint'>;
   label: string;
   position: [number, number];
   selected: boolean;
   color: [number, number, number, number];
   radius: number;
+  role?: 'sensor' | 'frame-center';
 };
 
 export type TacticalPolygon = {
@@ -20,6 +21,17 @@ export type TacticalPolygon = {
   selected: boolean;
   fillColor: [number, number, number, number];
   lineColor: [number, number, number, number];
+};
+
+export type TacticalRay = {
+  id: string;
+  kind: 'sensor-footprint';
+  label: string;
+  source: [number, number];
+  target: [number, number];
+  selected: boolean;
+  color: [number, number, number, number];
+  width: number;
 };
 
 export type TacticalSelectionItem = {
@@ -108,7 +120,33 @@ export function tacticalPoints(snapshot: Snapshot, selected: EntityRef): Tactica
     ];
   });
 
-  return [...assetPoints, ...trackPoints, ...taskPoints, ...advisoryPoints];
+  const footprintPoints = (snapshot.sensor_footprints ?? []).flatMap((footprint): TacticalPoint[] => {
+    const isSelected = selected.kind === 'sensor-footprint' && selected.id === footprint.id;
+    return [
+      {
+        id: footprint.id,
+        kind: 'sensor-footprint',
+        label: `${footprint.label} sensor`,
+        position: lngLat(footprint.sensor_position),
+        selected: isSelected,
+        color: isSelected ? [18, 92, 113, 250] : [23, 103, 122, 224],
+        radius: isSelected ? 86 : 62,
+        role: 'sensor'
+      },
+      {
+        id: footprint.id,
+        kind: 'sensor-footprint',
+        label: `${footprint.label} frame center`,
+        position: lngLat(footprint.frame_center),
+        selected: isSelected,
+        color: isSelected ? [211, 126, 44, 250] : [204, 137, 59, 224],
+        radius: isSelected ? 72 : 50,
+        role: 'frame-center'
+      }
+    ];
+  });
+
+  return [...assetPoints, ...trackPoints, ...taskPoints, ...advisoryPoints, ...footprintPoints];
 }
 
 export function tacticalPolygons(snapshot: Snapshot, selected: EntityRef): TacticalPolygon[] {
@@ -126,6 +164,22 @@ export function tacticalPolygons(snapshot: Snapshot, selected: EntityRef): Tacti
         lineColor: isSelected ? [145, 45, 35, 235] : [168, 79, 40, 205]
       };
     });
+}
+
+export function tacticalRays(snapshot: Snapshot, selected: EntityRef): TacticalRay[] {
+  return (snapshot.sensor_footprints ?? []).map((footprint) => {
+    const isSelected = selected.kind === 'sensor-footprint' && selected.id === footprint.id;
+    return {
+      id: footprint.id,
+      kind: 'sensor-footprint',
+      label: footprint.label,
+      source: lngLat(footprint.sensor_position),
+      target: lngLat(footprint.frame_center),
+      selected: isSelected,
+      color: isSelected ? [20, 86, 99, 235] : [42, 104, 113, 180],
+      width: isSelected ? 4 : 2
+    };
+  });
 }
 
 export function tacticalLabels(snapshot: Snapshot): TacticalLabel[] {
@@ -192,7 +246,16 @@ export function tacticalLabels(snapshot: Snapshot): TacticalLabel[] {
       anchor: 'middle' as const
     }));
 
-  return [...pointLabels, ...hazardLabels];
+  const footprintLabels = (snapshot.sensor_footprints ?? []).map((footprint) => ({
+    id: footprint.id,
+    kind: 'sensor-footprint' as const,
+    label: footprint.label,
+    position: lngLat(footprint.frame_center),
+    offset: [18, 20] as [number, number],
+    anchor: 'start' as const
+  }));
+
+  return [...pointLabels, ...hazardLabels, ...footprintLabels];
 }
 
 export function tacticalSelectionItems(snapshot: Snapshot): TacticalSelectionItem[] {
@@ -201,7 +264,12 @@ export function tacticalSelectionItems(snapshot: Snapshot): TacticalSelectionIte
     ...snapshot.assets.map((asset) => ({ id: asset.id, kind: 'asset' as const, label: asset.label })),
     ...snapshot.tasks.map((task) => ({ id: task.id, kind: 'task' as const, label: task.label })),
     ...snapshot.advisories.map((advisory) => ({ id: advisory.id, kind: 'advisory' as const, label: advisory.label })),
-    ...snapshot.hazards.map((hazard) => ({ id: hazard.id, kind: 'hazard' as const, label: hazard.label }))
+    ...snapshot.hazards.map((hazard) => ({ id: hazard.id, kind: 'hazard' as const, label: hazard.label })),
+    ...(snapshot.sensor_footprints ?? []).map((footprint) => ({
+      id: footprint.id,
+      kind: 'sensor-footprint' as const,
+      label: footprint.label
+    }))
   ];
 }
 
@@ -211,7 +279,8 @@ export function tacticalMapView(snapshot: Snapshot): TacticalMapView {
     ...snapshot.assets.flatMap((asset) => (asset.position ? [asset.position] : [])),
     ...snapshot.tasks.flatMap((task) => (task.position ? [task.position] : [])),
     ...snapshot.advisories.flatMap((advisory) => (advisory.position ? [advisory.position] : [])),
-    ...snapshot.hazards.flatMap((hazard) => hazard.geometry)
+    ...snapshot.hazards.flatMap((hazard) => hazard.geometry),
+    ...(snapshot.sensor_footprints ?? []).flatMap((footprint) => [footprint.sensor_position, footprint.frame_center])
   ];
   if (points.length === 0) {
     return {

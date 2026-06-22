@@ -21,6 +21,11 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 	observed := now.Add(-18 * time.Second)
 	takObserved := now.Add(-46 * time.Second)
 	hazardObserved := now.Add(-2 * time.Minute)
+	klvObserved := now.Add(-75 * time.Second)
+	sensorAltitude := 1250.5
+	sensorAzimuth := 90.25
+	sensorElevation := -12.5
+	frameCenterElevation := 932.2
 
 	snapshot := Snapshot{
 		GeneratedAt: now,
@@ -52,6 +57,14 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 				Status:      "planned",
 				LastEventAt: now.Add(-33 * time.Minute),
 				Message:     "Schema/sample gate pending",
+			},
+			{
+				ID:          "feed.klv",
+				Name:        "KLV",
+				Kind:        "sensor-footprint",
+				Status:      "live",
+				LastEventAt: klvObserved,
+				Message:     "Graph-backed KLV sensor/frame-center proof",
 			},
 		},
 		Assets: []Asset{
@@ -162,6 +175,46 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 				},
 			},
 		},
+		SensorFootprints: []SensorFootprint{
+			{
+				ID:                         "c360.edge.cop.klv.sensor_footprint.object-semops-klv-deterministic-001-ts",
+				Label:                      "TEST-UAS-01 sensor footprint",
+				Source:                     "klv",
+				Status:                     "active.sensor-frame-center",
+				SensorPosition:             GeoPoint{Lat: 38.9022, Lon: -77.0254},
+				FrameCenter:                GeoPoint{Lat: 38.8956, Lon: -77.0108},
+				Ray:                        []GeoPoint{{Lat: 38.9022, Lon: -77.0254}, {Lat: 38.8956, Lon: -77.0108}},
+				SensorAltitudeMeters:       &sensorAltitude,
+				SensorAzimuthDegrees:       &sensorAzimuth,
+				SensorElevationDegrees:     &sensorElevation,
+				FrameCenterElevationMeters: &frameCenterElevation,
+				MediaRef:                   "object://semops/klv/deterministic-001.ts",
+				PacketRef:                  "klv://packet/deterministic/00000001",
+				FrameTime:                  klvObserved,
+				PlatformDesignation:        "TEST-UAS-01",
+				ClaimPosture:               "sensor-frame-center graph readback; no footprint polygon; no STANAG conformance",
+				DecodedFields: []string{
+					"media_ref",
+					"packet_ref",
+					"observed_at",
+					"platform_designation",
+					"sensor_position",
+					"sensor_altitude_meters",
+					"sensor_azimuth_degrees",
+					"sensor_elevation_degrees",
+					"frame_center",
+					"frame_center_elevation_meters",
+				},
+				Warnings:   []string{"footprint polygon not computed"},
+				Confidence: 0.82,
+				UpdatedAt:  klvObserved,
+				Provenance: Provenance{
+					Owner:     "semops.feed.klv",
+					SourceRef: "klv://packet/deterministic/00000001",
+					Observed:  klvObserved,
+				},
+			},
+		},
 		Alerts: []Alert{
 			{
 				ID:        "alert.mavlink.track-freshness",
@@ -175,11 +228,12 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 		},
 	}
 	snapshot.Summary = Summary{
-		ActiveTracks:     len(snapshot.Tracks),
-		ActiveTasks:      len(snapshot.Tasks),
-		ActiveAdvisories: len(snapshot.Advisories),
-		ActiveAlerts:     len(snapshot.Alerts),
-		StaleFeeds:       countFeeds(snapshot.Feeds, "stale"),
+		ActiveTracks:           len(snapshot.Tracks),
+		ActiveTasks:            len(snapshot.Tasks),
+		ActiveAdvisories:       len(snapshot.Advisories),
+		ActiveSensorFootprints: len(snapshot.SensorFootprints),
+		ActiveAlerts:           len(snapshot.Alerts),
+		StaleFeeds:             countFeeds(snapshot.Feeds, "stale"),
 	}
 	return snapshot, nil
 }

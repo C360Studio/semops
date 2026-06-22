@@ -32,6 +32,10 @@ binary-by-reference storage, and memory-bounded handling.
   position, frame center, azimuth/elevation, media reference, packet reference, platform designation, and provenance.
   This is graph contract evidence only; hosted runtime readback, footprint polygons, video serving, and conformance
   remain gated.
+- `internal/api/cop` now maps governed KLV `sensor_footprint` graph state into the COP snapshot view model. The UI
+  renders selectable sensor points, frame-center points, and rays with KLV evidence in the inspector. This is
+  product-visible sensor/frame-center readback, not footprint polygon extraction, video service support, streaming
+  binary support, or STANAG 4609 conformance.
 
 ## SemSource Fixture Handoff
 
@@ -103,24 +107,24 @@ The first KLV/MISB spike should stay Go-native and deterministic:
   `max_materialized_bytes` enforcement.
 - Do not vendor or download public media samples until license, provenance, cache, and CI policy are recorded.
 
-## Next UI Gate
+## Current UI Gate
 
-Add COP API and UI readback for the existing KLV `sensor_footprint` graph contract before footprint polygons, video
-players, thumbnails, or broader support language. The current deterministic packet fixture, deterministic MPEG-TS
-wrap/demux smoke, public-sample smoke, and projector contract are enough to build a visible proof, but not enough to
-claim STANAG 4609 conformance or production video service support.
+COP API and UI readback for the existing KLV `sensor_footprint` graph contract now exists before footprint polygons,
+video players, thumbnails, or broader support language. The current deterministic packet fixture, deterministic MPEG-TS
+wrap/demux smoke, public-sample smoke, projector contract, and UI readback are enough to build a visible proof, but not
+enough to claim STANAG 4609 conformance or production video service support.
 
 The visible proof should:
 
-- Read source-partitioned KLV `sensor_footprint` state from SemStreams through the SemOps COP API.
+- Read source-partitioned KLV `sensor_footprint` state from SemStreams through the SemOps COP API. [done]
 - Expose sensor position, frame center, a sensor-to-frame-center ray, frame time, observed time, confidence,
   freshness, media reference, packet reference, decoded field inventory, warnings, source hash/provenance when
-  available, and component-flow status.
-- Render the sensor point, frame-center point, and ray as selectable deck.gl layers.
+  available, and component-flow status. [partial: source hash/provenance class awaits explicit graph predicates]
+- Render the sensor point, frame-center point, and ray as selectable deck.gl layers. [done]
 - Label public-sample evidence as smoke only and deterministic fixtures as engineering-support evidence for the
-  tested MISB ST 0601 subset.
+  tested MISB ST 0601 subset. [done through claim posture and review docs]
 - Keep footprint polygon extraction, video playback, thumbnail/keyframe browsing, 3D frustum inspection, streaming
-  binary claims, and STANAG 4609 conformance as separate gates.
+  binary claims, and STANAG 4609 conformance as separate gates. [done]
 
 The component flow should continue to:
 
@@ -365,15 +369,17 @@ Acceptance:
 
 - The COP API maps governed KLV `sensor_footprint` triples into a bounded view model with sensor point, frame center,
   ray geometry, frame/observed time, confidence, freshness, media reference, packet reference, decoded-field
-  inventory, warning evidence, and claim posture.
+  inventory, warning evidence, and claim posture. [done]
 - The browser renders the sensor point, frame-center point, and ray without reading raw KLV bytes or local media files.
+  [done]
 - Selecting the KLV layer opens a provenance inspector that names the media reference, packet reference, source
   provenance, public-sample smoke posture if applicable, deterministic fixture posture if applicable, and component
-  runtime flow state.
+  runtime flow state. [partial: public-sample and deterministic posture are captured in claim posture; richer
+  source-hash predicates remain future vocabulary]
 - The Playwright smoke proves the layer, keyboard selection, inspector, and narrow viewport path without requiring a
-  video asset.
+  video asset. [done]
 - No UI copy or iconography implies footprint polygon extraction, video service support, streaming-binary support, or
-  STANAG 4609 conformance.
+  STANAG 4609 conformance. [done]
 
 ## Known Gaps
 
@@ -389,7 +395,8 @@ Acceptance:
 - Demux and decoder workers exist for local file URI fixtures, bounded media and packet storage-ref materialization,
   split packet payloads, and bounded packet bytes, but no live media, public sample, or graph projection runtime
   exists yet.
-- No COP API or UI readback exists yet for KLV `sensor_footprint` graph state; that is the next product-visible proof.
+- COP API/UI readback exists for KLV `sensor_footprint` graph state, but hosted KLV runtime composition is still not
+  wired into the default stack.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 

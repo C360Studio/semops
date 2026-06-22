@@ -3,25 +3,27 @@ package cop
 import "time"
 
 type Snapshot struct {
-	GeneratedAt time.Time           `json:"generated_at"`
-	Scenario    string              `json:"scenario"`
-	Summary     Summary             `json:"summary"`
-	Diagnostics SnapshotDiagnostics `json:"diagnostics"`
-	Feeds       []FeedHealth        `json:"feeds"`
-	Assets      []Asset             `json:"assets"`
-	Tracks      []Track             `json:"tracks"`
-	Tasks       []Task              `json:"tasks"`
-	Advisories  []Advisory          `json:"advisories"`
-	Hazards     []Hazard            `json:"hazards"`
-	Alerts      []Alert             `json:"alerts"`
+	GeneratedAt      time.Time           `json:"generated_at"`
+	Scenario         string              `json:"scenario"`
+	Summary          Summary             `json:"summary"`
+	Diagnostics      SnapshotDiagnostics `json:"diagnostics"`
+	Feeds            []FeedHealth        `json:"feeds"`
+	Assets           []Asset             `json:"assets"`
+	Tracks           []Track             `json:"tracks"`
+	Tasks            []Task              `json:"tasks"`
+	Advisories       []Advisory          `json:"advisories"`
+	Hazards          []Hazard            `json:"hazards"`
+	SensorFootprints []SensorFootprint   `json:"sensor_footprints"`
+	Alerts           []Alert             `json:"alerts"`
 }
 
 type Summary struct {
-	ActiveTracks     int `json:"active_tracks"`
-	ActiveTasks      int `json:"active_tasks"`
-	ActiveAdvisories int `json:"active_advisories"`
-	ActiveAlerts     int `json:"active_alerts"`
-	StaleFeeds       int `json:"stale_feeds"`
+	ActiveTracks           int `json:"active_tracks"`
+	ActiveTasks            int `json:"active_tasks"`
+	ActiveAdvisories       int `json:"active_advisories"`
+	ActiveSensorFootprints int `json:"active_sensor_footprints"`
+	ActiveAlerts           int `json:"active_alerts"`
+	StaleFeeds             int `json:"stale_feeds"`
 }
 
 type SnapshotDiagnostics struct {
@@ -111,6 +113,30 @@ type Hazard struct {
 	Confidence float64    `json:"confidence"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 	Provenance Provenance `json:"provenance"`
+}
+
+type SensorFootprint struct {
+	ID                         string     `json:"id"`
+	Label                      string     `json:"label"`
+	Source                     string     `json:"source"`
+	Status                     string     `json:"status"`
+	SensorPosition             GeoPoint   `json:"sensor_position"`
+	FrameCenter                GeoPoint   `json:"frame_center"`
+	Ray                        []GeoPoint `json:"ray"`
+	SensorAltitudeMeters       *float64   `json:"sensor_altitude_meters,omitempty"`
+	SensorAzimuthDegrees       *float64   `json:"sensor_azimuth_degrees,omitempty"`
+	SensorElevationDegrees     *float64   `json:"sensor_elevation_degrees,omitempty"`
+	FrameCenterElevationMeters *float64   `json:"frame_center_elevation_meters,omitempty"`
+	MediaRef                   string     `json:"media_ref"`
+	PacketRef                  string     `json:"packet_ref"`
+	FrameTime                  time.Time  `json:"frame_time"`
+	PlatformDesignation        string     `json:"platform_designation,omitempty"`
+	ClaimPosture               string     `json:"claim_posture"`
+	DecodedFields              []string   `json:"decoded_fields"`
+	Warnings                   []string   `json:"warnings"`
+	Confidence                 float64    `json:"confidence"`
+	UpdatedAt                  time.Time  `json:"updated_at"`
+	Provenance                 Provenance `json:"provenance"`
 }
 
 type Alert struct {

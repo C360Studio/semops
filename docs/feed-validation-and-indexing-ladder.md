@@ -678,6 +678,10 @@ Local assets:
   `sensor_footprint` sensor/frame-center state. The contract includes sensor position, frame center,
   azimuth/elevation, media reference, packet reference, platform designation, and provenance, but not footprint
   polygons, video service support, or conformance claims.
+- `internal/api/cop` and the Svelte COP UI now read back that governed KLV `sensor_footprint` state as selectable
+  sensor points, frame-center points, and rays with a provenance inspector. This is the product-visible proof for
+  sensor/frame-center evidence only, not a video player, footprint polygon, streaming-binary, or STANAG conformance
+  claim.
 
 Mock or harness:
 
@@ -756,7 +760,7 @@ First acceptance gate:
   frame center, media reference, packet reference, and no footprint polygon claim yet.
 - Given KLV is made visible in the COP, the API/UI first reads back governed `sensor_footprint` graph state and renders
   only the sensor point, frame-center point, and sensor-to-frame-center ray with provenance for media reference,
-  packet reference, decoded field inventory, warnings, source hash/provenance, and claim posture.
+  packet reference, decoded field inventory, warnings, provenance, and claim posture.
 - Given the KLV layer is selected, the inspector labels public samples as smoke evidence and deterministic fixtures as
   engineering-support evidence for the tested MISB ST 0601 subset; it does not imply footprint polygon extraction,
   video service support, streaming-binary support, or STANAG 4609 conformance.

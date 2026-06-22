@@ -13,6 +13,7 @@
     EntityRef,
     Hazard,
     RuntimeSnapshot,
+    SensorFootprint,
     Snapshot,
     Task,
     Track
@@ -155,7 +156,7 @@
   {/if}
 </main>
 
-{#snippet entityInspector(entity: Track | Asset | Task | Advisory | Hazard | Alert)}
+{#snippet entityInspector(entity: Track | Asset | Task | Advisory | Hazard | SensorFootprint | Alert)}
   <div class="inspector-grid">
     {#if 'source' in entity}
       <div>
@@ -194,6 +195,60 @@
         <dd>{entity.position.lon.toFixed(5)}</dd>
       </div>
     </dl>
+  {/if}
+
+  {#if 'sensor_position' in entity}
+    <section class="provenance">
+      <h3>KLV Evidence</h3>
+      <dl class="detail-list">
+        {#if entity.platform_designation}
+          <div>
+            <dt>Platform</dt>
+            <dd>{entity.platform_designation}</dd>
+          </div>
+        {/if}
+        <div>
+          <dt>Sensor point</dt>
+          <dd>{entity.sensor_position.lat.toFixed(5)}, {entity.sensor_position.lon.toFixed(5)}</dd>
+        </div>
+        <div>
+          <dt>Frame center</dt>
+          <dd>{entity.frame_center.lat.toFixed(5)}, {entity.frame_center.lon.toFixed(5)}</dd>
+        </div>
+        {#if entity.sensor_azimuth_degrees !== undefined}
+          <div>
+            <dt>Azimuth</dt>
+            <dd>{entity.sensor_azimuth_degrees.toFixed(2)} deg</dd>
+          </div>
+        {/if}
+        {#if entity.sensor_elevation_degrees !== undefined}
+          <div>
+            <dt>Elevation</dt>
+            <dd>{entity.sensor_elevation_degrees.toFixed(2)} deg</dd>
+          </div>
+        {/if}
+        <div>
+          <dt>Frame time</dt>
+          <dd>{freshnessLabel(entity.frame_time)}</dd>
+        </div>
+        <div>
+          <dt>Media ref</dt>
+          <dd>{entity.media_ref}</dd>
+        </div>
+        <div>
+          <dt>Packet ref</dt>
+          <dd>{entity.packet_ref}</dd>
+        </div>
+        <div>
+          <dt>Decoded fields</dt>
+          <dd>{entity.decoded_fields.join(', ')}</dd>
+        </div>
+      </dl>
+      <p class="reason">{entity.claim_posture}</p>
+      {#if entity.warnings.length > 0}
+        <p class="reason">{entity.warnings.join('; ')}</p>
+      {/if}
+    </section>
   {/if}
 
   {#if 'provenance' in entity}

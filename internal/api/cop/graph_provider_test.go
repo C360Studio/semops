@@ -11,6 +11,7 @@ import (
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
+	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
@@ -343,7 +344,7 @@ func TestGraphProviderDiscoversADSBTracksByPrefix(t *testing.T) {
 	if track.Position.Lat != 38.9 || track.Position.Lon != -77.04 {
 		t.Fatalf("ADS-B track position = %+v", track.Position)
 	}
-	if len(snapshot.Feeds) != 4 ||
+	if len(snapshot.Feeds) != 5 ||
 		snapshot.Feeds[3].ID != "feed.adsb" ||
 		snapshot.Feeds[3].Status != "live" {
 		t.Fatalf("ADS-B feed = %+v", snapshot.Feeds)
@@ -356,6 +357,109 @@ func TestGraphProviderDiscoversADSBTracksByPrefix(t *testing.T) {
 		diagnostic.Count != 1 ||
 		diagnostic.AtLimit {
 		t.Fatalf("ADS-B diagnostic = %+v", diagnostic)
+	}
+}
+
+func TestGraphProviderMapsKLVSensorFootprints(t *testing.T) {
+	now := time.Date(2026, 6, 22, 18, 30, 0, 0, time.UTC)
+	observed := now.Add(-14 * time.Second)
+	platform := "edge-klv"
+	mediaRef := "object://semops/klv/deterministic-001.ts"
+	packetRef := "klv://packet/deterministic/00000001"
+	footprintID := klvprojector.EntityID("c360", platform, mediaRef)
+	requester := &fakeGraphSnapshotRequester{
+		prefixEntities: map[string][]graph.EntityState{
+			graphEntityPrefix("c360", platform, "klv", copmodel.EntitySensorFootprint): {{
+				ID:        footprintID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(footprintID, copmodel.SensorFootprintSource, "klv", observed),
+					testTriple(footprintID, copmodel.SensorFootprintMediaRef, mediaRef, observed),
+					testTriple(footprintID, copmodel.SensorFootprintPacketRef, packetRef, observed),
+					testTriple(footprintID, copmodel.SensorFootprintObservedAt, observed, observed),
+					testTriple(footprintID, copmodel.SensorFootprintPlatformDesignation, "TEST-UAS-01", observed),
+					testTriple(footprintID, copmodel.SensorFootprintSensorPosition, "POINT(-117.1234560 34.1234560)", observed),
+					testTriple(footprintID, copmodel.SensorFootprintSensorAltitude, 1250.5, observed),
+					testTriple(footprintID, copmodel.SensorFootprintSensorAzimuth, 90.25, observed),
+					testTriple(footprintID, copmodel.SensorFootprintSensorElevation, -12.5, observed),
+					testTriple(footprintID, copmodel.SensorFootprintFrameCenter, "POINT(-117.1202220 34.1250010)", observed),
+					testTriple(footprintID, copmodel.SensorFootprintFrameCenterElevation, 932.2, observed),
+					testTriple(footprintID, copmodel.ProvenanceSource, "klv", observed),
+					testTriple(footprintID, copmodel.ProvenanceConfidence, 0.82, observed),
+					testTriple(footprintID, copmodel.ProvenanceObservedAt, observed, observed),
+					testTriple(footprintID, copmodel.ProvenanceSourceRef, packetRef, observed),
+				},
+			}},
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithGraphDiscoveryScopes([]GraphDiscoveryScope{{Org: "c360", Platform: platform}}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveSensorFootprints != 1 || len(snapshot.SensorFootprints) != 1 {
+		t.Fatalf("sensor-footprint summary/list = %d/%d", snapshot.Summary.ActiveSensorFootprints, len(snapshot.SensorFootprints))
+	}
+	footprint := snapshot.SensorFootprints[0]
+	if footprint.ID != footprintID ||
+		footprint.Label != "TEST-UAS-01 sensor footprint" ||
+		footprint.Source != "klv" ||
+		footprint.Provenance.Owner != copmodel.OwnerKLV ||
+		footprint.Provenance.SourceRef != packetRef ||
+		footprint.MediaRef != mediaRef ||
+		footprint.PacketRef != packetRef ||
+		footprint.FrameTime != observed {
+		t.Fatalf("KLV footprint = %+v", footprint)
+	}
+	if footprint.SensorPosition.Lat != 34.123456 ||
+		footprint.SensorPosition.Lon != -117.123456 ||
+		footprint.FrameCenter.Lat != 34.125001 ||
+		footprint.FrameCenter.Lon != -117.120222 {
+		t.Fatalf("KLV footprint geometry = sensor %+v frame %+v", footprint.SensorPosition, footprint.FrameCenter)
+	}
+	if len(footprint.Ray) != 2 ||
+		footprint.Ray[0] != footprint.SensorPosition ||
+		footprint.Ray[1] != footprint.FrameCenter {
+		t.Fatalf("KLV ray = %+v", footprint.Ray)
+	}
+	if footprint.SensorAltitudeMeters == nil || *footprint.SensorAltitudeMeters != 1250.5 ||
+		footprint.SensorAzimuthDegrees == nil || *footprint.SensorAzimuthDegrees != 90.25 ||
+		footprint.SensorElevationDegrees == nil || *footprint.SensorElevationDegrees != -12.5 ||
+		footprint.FrameCenterElevationMeters == nil || *footprint.FrameCenterElevationMeters != 932.2 {
+		t.Fatalf("KLV scalar fields = %+v", footprint)
+	}
+	for _, field := range []string{"media_ref", "packet_ref", "sensor_position", "frame_center"} {
+		if !hasString(footprint.DecodedFields, field) {
+			t.Fatalf("decoded fields = %+v, missing %s", footprint.DecodedFields, field)
+		}
+	}
+	if !hasString(footprint.Warnings, "footprint polygon not computed") ||
+		!strings.Contains(footprint.ClaimPosture, "no footprint polygon") ||
+		!strings.Contains(footprint.ClaimPosture, "no STANAG conformance") {
+		t.Fatalf("claim posture/warnings = %q / %+v", footprint.ClaimPosture, footprint.Warnings)
+	}
+	if len(snapshot.Feeds) != 5 ||
+		snapshot.Feeds[4].ID != "feed.klv" ||
+		snapshot.Feeds[4].Status != "live" {
+		t.Fatalf("KLV feed = %+v", snapshot.Feeds)
+	}
+	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "klv", copmodel.EntitySensorFootprint)
+	if !ok {
+		t.Fatalf("missing KLV sensor-footprint diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if diagnostic.Family != "klv" ||
+		diagnostic.Count != 1 ||
+		diagnostic.AtLimit {
+		t.Fatalf("KLV diagnostic = %+v", diagnostic)
 	}
 }
 
@@ -595,7 +699,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if snapshot.Hazards[0].ID != hazardID || snapshot.Hazards[0].Source != "cap" {
 		t.Fatalf("hazard = %+v", snapshot.Hazards[0])
 	}
-	if len(requester.prefixRequests) != 8 {
+	if len(requester.prefixRequests) != 9 {
 		t.Fatalf("prefix requests = %+v", requester.prefixRequests)
 	}
 	for _, subject := range requester.subjects {
@@ -606,7 +710,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
-	if len(snapshot.Diagnostics.Discovery) != 8 {
+	if len(snapshot.Diagnostics.Discovery) != 9 {
 		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
 	}
 	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)

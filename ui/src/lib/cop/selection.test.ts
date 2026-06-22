@@ -14,6 +14,9 @@ describe('COP selection helpers', () => {
     expect(resolveEntity(fixtureSnapshot, { kind: 'hazard', id: fixtureSnapshot.hazards[0].id })?.label).toBe(
       'Flood watch sector'
     );
+    expect(
+      resolveEntity(fixtureSnapshot, { kind: 'sensor-footprint', id: fixtureSnapshot.sensor_footprints[0].id })?.label
+    ).toBe('TEST-UAS-01 sensor footprint');
     expect(resolveEntity(fixtureSnapshot, { kind: 'alert', id: fixtureSnapshot.alerts[0].id })?.label).toBe(
       'Track freshness nominal'
     );
@@ -64,13 +67,30 @@ describe('COP selection helpers', () => {
         stale
       )
     ).toEqual({
+      kind: 'sensor-footprint',
+      id: fixtureSnapshot.sensor_footprints[0].id
+    });
+    expect(
+      reconcileSelection(
+        without(
+          without(
+            without(without(without(without(fixtureSnapshot, 'tracks'), 'assets'), 'tasks'), 'advisories'),
+            'hazards'
+          ),
+          'sensor_footprints'
+        ),
+        stale
+      )
+    ).toEqual({
       kind: 'alert',
       id: fixtureSnapshot.alerts[0].id
     });
   });
 });
 
-function without<K extends keyof Pick<Snapshot, 'tracks' | 'assets' | 'tasks' | 'advisories' | 'hazards' | 'alerts'>>(
+function without<
+  K extends keyof Pick<Snapshot, 'tracks' | 'assets' | 'tasks' | 'advisories' | 'hazards' | 'sensor_footprints' | 'alerts'>
+>(
   snapshot: Snapshot,
   key: K
 ): Snapshot {

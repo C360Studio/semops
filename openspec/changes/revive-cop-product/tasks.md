@@ -242,9 +242,9 @@
 - [x] 7.22 Add fixture-backed Playwright browser smoke for API-backed ADS-B feed/discovery readback and selection
       provenance
 - [x] 7.23 Surface SemStreams component runtime health and flow in source cards without adding topology controls
-- [ ] 7.24 Add KLV sensor-footprint COP API readback for sensor point, frame center, ray geometry, media/packet
+- [x] 7.24 Add KLV sensor-footprint COP API readback for sensor point, frame center, ray geometry, media/packet
       provenance, and claim posture
-- [ ] 7.25 Add KLV sensor-footprint map layer, selected-entity provenance inspector, and Playwright smoke without
+- [x] 7.25 Add KLV sensor-footprint map layer, selected-entity provenance inspector, and Playwright smoke without
       footprint polygon or video-player claims
 
 ## 8. Tier Escalation And Egress

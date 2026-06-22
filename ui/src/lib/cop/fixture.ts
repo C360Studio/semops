@@ -4,6 +4,7 @@ const now = '2026-06-19T12:00:00Z';
 const observed = '2026-06-19T11:59:42Z';
 const takObserved = '2026-06-19T11:59:14Z';
 const advisoryObserved = '2026-06-19T11:58:00Z';
+const klvObserved = '2026-06-19T11:58:45Z';
 
 export const fixtureSnapshot: Snapshot = {
   generated_at: now,
@@ -12,6 +13,7 @@ export const fixtureSnapshot: Snapshot = {
     active_tracks: 2,
     active_tasks: 1,
     active_advisories: 1,
+    active_sensor_footprints: 1,
     active_alerts: 1,
     stale_feeds: 0
   },
@@ -42,6 +44,14 @@ export const fixtureSnapshot: Snapshot = {
       status: 'planned',
       last_event_at: '2026-06-19T11:27:00Z',
       message: 'Schema/sample gate pending'
+    },
+    {
+      id: 'feed.klv',
+      name: 'KLV',
+      kind: 'sensor-footprint',
+      status: 'live',
+      last_event_at: klvObserved,
+      message: 'Graph-backed KLV sensor/frame-center proof'
     }
   ],
   assets: [
@@ -149,6 +159,49 @@ export const fixtureSnapshot: Snapshot = {
         owner: 'semops.feed.cap',
         source_ref: 'fixture:cap:flood-watch-1',
         observed_at: advisoryObserved
+      }
+    }
+  ],
+  sensor_footprints: [
+    {
+      id: 'c360.edge.cop.klv.sensor_footprint.object-semops-klv-deterministic-001-ts',
+      label: 'TEST-UAS-01 sensor footprint',
+      source: 'klv',
+      status: 'active.sensor-frame-center',
+      sensor_position: { lat: 38.9022, lon: -77.0254 },
+      frame_center: { lat: 38.8956, lon: -77.0108 },
+      ray: [
+        { lat: 38.9022, lon: -77.0254 },
+        { lat: 38.8956, lon: -77.0108 }
+      ],
+      sensor_altitude_meters: 1250.5,
+      sensor_azimuth_degrees: 90.25,
+      sensor_elevation_degrees: -12.5,
+      frame_center_elevation_meters: 932.2,
+      media_ref: 'object://semops/klv/deterministic-001.ts',
+      packet_ref: 'klv://packet/deterministic/00000001',
+      frame_time: klvObserved,
+      platform_designation: 'TEST-UAS-01',
+      claim_posture: 'sensor-frame-center graph readback; no footprint polygon; no STANAG conformance',
+      decoded_fields: [
+        'media_ref',
+        'packet_ref',
+        'observed_at',
+        'platform_designation',
+        'sensor_position',
+        'sensor_altitude_meters',
+        'sensor_azimuth_degrees',
+        'sensor_elevation_degrees',
+        'frame_center',
+        'frame_center_elevation_meters'
+      ],
+      warnings: ['footprint polygon not computed'],
+      confidence: 0.82,
+      updated_at: klvObserved,
+      provenance: {
+        owner: 'semops.feed.klv',
+        source_ref: 'klv://packet/deterministic/00000001',
+        observed_at: klvObserved
       }
     }
   ],

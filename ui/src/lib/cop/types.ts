@@ -9,6 +9,7 @@ export type Snapshot = {
   tasks: Task[];
   advisories: Advisory[];
   hazards: Hazard[];
+  sensor_footprints: SensorFootprint[];
   alerts: Alert[];
 };
 
@@ -16,6 +17,7 @@ export type Summary = {
   active_tracks: number;
   active_tasks: number;
   active_advisories: number;
+  active_sensor_footprints: number;
   active_alerts: number;
   stale_feeds: number;
 };
@@ -143,6 +145,30 @@ export type Hazard = {
   provenance: Provenance;
 };
 
+export type SensorFootprint = {
+  id: string;
+  label: string;
+  source: string;
+  status: string;
+  sensor_position: GeoPoint;
+  frame_center: GeoPoint;
+  ray: GeoPoint[];
+  sensor_altitude_meters?: number;
+  sensor_azimuth_degrees?: number;
+  sensor_elevation_degrees?: number;
+  frame_center_elevation_meters?: number;
+  media_ref: string;
+  packet_ref: string;
+  frame_time: string;
+  platform_designation?: string;
+  claim_posture: string;
+  decoded_fields: string[];
+  warnings: string[];
+  confidence: number;
+  updated_at: string;
+  provenance: Provenance;
+};
+
 export type Alert = {
   id: string;
   label: string;
@@ -170,4 +196,5 @@ export type EntityRef =
   | { kind: 'task'; id: string }
   | { kind: 'advisory'; id: string }
   | { kind: 'hazard'; id: string }
+  | { kind: 'sensor-footprint'; id: string }
   | { kind: 'alert'; id: string };

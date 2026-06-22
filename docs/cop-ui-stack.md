@@ -18,10 +18,11 @@ The current implementation is intentionally narrow:
   component health and flow sources.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
 - The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, TAK/CoT tasks,
-  TAK/CoT advisories, hazards, labels, and picking, plus alert, feed state, runtime flow, and provenance panels.
+  TAK/CoT advisories, hazards, KLV sensor/frame-center rays, labels, and picking, plus alert, feed state, runtime
+  flow, and provenance panels.
 
 This is the first full-stack spine, not the final map implementation. Bounded deltas, real basemap/terrain sources,
-footprints, alert geometry, discovery total-count tuning, and scenario playback remain next gates.
+footprint polygons, alert geometry, discovery total-count tuning, and scenario playback remain next gates.
 
 ## Direction
 
@@ -106,11 +107,10 @@ SemOps/SemStreams/Caddy plumbing.
 
 ## KLV Sensor-Footprint UI Gate
 
-The next KLV product-visible slice should prove binary-derived evidence through the graph and COP API, not by showing a
-raw video file in the browser. The current KLV projector contract can write source-partitioned `sensor_footprint`
-state for sensor position, frame center, azimuth/elevation, media reference, packet reference, platform designation,
-and provenance. The UI proof should read that governed state back through `GET /api/cop/snapshot` before adding richer
-media surfaces.
+The first KLV product-visible slice proves binary-derived evidence through the graph and COP API, not by showing a raw
+video file in the browser. The current KLV projector contract can write source-partitioned `sensor_footprint` state for
+sensor position, frame center, azimuth/elevation, media reference, packet reference, platform designation, and
+provenance. `GET /api/cop/snapshot` now reads that governed state back before any richer media surfaces exist.
 
 The first visible layer should include:
 
@@ -125,8 +125,13 @@ is tied back to governed graph state, packet/media references, and the validatio
 be labeled as smoke only. Deterministic fixtures may support engineering-support language only for the tested MISB ST
 0601 subset.
 
+The implemented UI renders the sensor-position point, frame-center point, and ray as a selectable deck.gl layer. The
+selected inspector shows KLV evidence, media reference, packet reference, decoded-field inventory, warning evidence,
+claim posture, and provenance. Playwright covers the selector, inspector, source card, runtime flow, and narrow
+viewport path.
+
 Do not add a video player, thumbnail strip, 3D frustum, footprint polygon, or STANAG 4609 conformance language as part
-of this slice. Those remain separate gates because each adds a different failure mode: media serving and cache policy,
+of this gate. Those remain separate gates because each adds a different failure mode: media serving and cache policy,
 operator attention load, footprint computation policy, and formal standards evidence.
 
 ## Dynamic UI Scope Gate

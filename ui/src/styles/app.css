@@ -287,6 +287,11 @@ h3 {
   background: #c35c34;
 }
 
+.map-selector-button.sensor-footprint {
+  border-color: #135c70;
+  background: #1a7588;
+}
+
 .map-selector-button.selected {
   outline: 3px solid rgba(255, 255, 255, 0.9);
   box-shadow:
