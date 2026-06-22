@@ -53,4 +53,5 @@ blob-report/
 
 # Local large KLV/FMVs used by opt-in smoke tests
 fixtures/klv/public-samples/
+fixtures/klv/generated/
 fixtures/klv/.cache/

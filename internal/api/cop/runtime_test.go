@@ -129,6 +129,36 @@ func TestBuildRuntimeSnapshotMarksStaleBeforeGenericDegraded(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeSnapshotLabelsKLVFeed(t *testing.T) {
+	now := time.Date(2026, 6, 22, 19, 0, 0, 0, time.UTC)
+	provider := runtimeProviderStub{sources: []componentmetrics.Source{{
+		Feed: "klv",
+		Role: "projector",
+		Component: runtimeComponentStub{
+			meta: component.Metadata{Name: "klv-projector", Type: "processor"},
+			health: component.HealthStatus{
+				Healthy: true,
+				Status:  "running",
+			},
+			flow: component.FlowMetrics{
+				MessagesPerSecond: 1,
+				LastActivity:      now.Add(-time.Second),
+			},
+		},
+	}}}
+
+	snapshot := BuildRuntimeSnapshot(now, provider)
+
+	if len(snapshot.Feeds) != 1 {
+		t.Fatalf("feed count = %d, want 1", len(snapshot.Feeds))
+	}
+	if snapshot.Feeds[0].ID != "feed.klv" ||
+		snapshot.Feeds[0].Name != "KLV" ||
+		snapshot.Feeds[0].Status != "flowing" {
+		t.Fatalf("KLV runtime feed = %+v", snapshot.Feeds[0])
+	}
+}
+
 type runtimeProviderStub struct {
 	sources []componentmetrics.Source
 }

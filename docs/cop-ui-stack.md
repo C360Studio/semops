@@ -90,9 +90,9 @@ without exposing raw graph triples as an operator workflow.
 
 `GET /api/cop/runtime` rolls up SemStreams component `Health()` and `DataFlow()` into feed-level status,
 throughput, healthy component counts, and last activity. The source cards merge this runtime evidence with snapshot
-feed state, so the UI can show whether a hosted MAVLink, TAK/CoT, CAP, ADS-B, or SAPIENT component flow is active,
-idle, stale, or degraded. Prometheus remains the operational metrics standard; the browser runtime endpoint is a
-curated product view and should not grow into a topology editor or orchestration shell.
+feed state, so the UI can show whether a hosted MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, or KLV component flow is
+active, idle, stale, or degraded. Prometheus remains the operational metrics standard; the browser runtime endpoint is
+a curated product view and should not grow into a topology editor or orchestration shell.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
@@ -128,7 +128,9 @@ be labeled as smoke only. Deterministic fixtures may support engineering-support
 The implemented UI renders the sensor-position point, frame-center point, and ray as a selectable deck.gl layer. The
 selected inspector shows KLV evidence, media reference, packet reference, decoded-field inventory, warning evidence,
 claim posture, and provenance. Playwright covers the selector, inspector, source card, runtime flow, and narrow
-viewport path.
+viewport path. The one-command Docker smoke can additionally opt into the hosted KLV local-media flow with
+`SEMOPS_COP_SMOKE_KLV_ENABLED=true`, proving generated deterministic MPEG-TS media through the SemStreams component
+chain and Caddy-routed COP readback without enabling KLV in the default stack.
 
 Do not add a video player, thumbnail strip, 3D frustum, footprint polygon, or STANAG 4609 conformance language as part
 of this gate. Those remain separate gates because each adds a different failure mode: media serving and cache policy,

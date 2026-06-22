@@ -33,6 +33,7 @@ const (
 	liveScenarioADSBEnv     = "SEMOPS_SCENARIO_ADSB_FIXTURE"
 	liveSnapshotADSBHTTPEnv = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
 	liveSnapshotSAPIENTEnv  = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
+	liveSnapshotKLVEnv      = "SEMOPS_COP_SMOKE_KLV_ENABLED"
 	defaultExpectedTrackID  = "c360.edge-compose.cop.mavlink.track.system-42"
 	defaultExpectedCoTTrack = "c360.edge-compose.cop.tak.track.android-alpha"
 	defaultExpectedCoTTask  = "c360.edge-compose.cop.tak.task.marker-north-gate"
@@ -294,6 +295,47 @@ func TestHostedCOPSnapshotReflectsHADRSharedAirspace(t *testing.T) {
 	}
 }
 
+func TestHostedCOPSnapshotReflectsKLVLocalMedia(t *testing.T) {
+	snapshotURL := os.Getenv(liveSnapshotURLEnv)
+	if snapshotURL == "" {
+		t.Skipf("set %s to run the hosted COP KLV snapshot smoke", liveSnapshotURLEnv)
+	}
+	expectKLV, err := boolFromEnv(liveSnapshotKLVEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !expectKLV {
+		t.Skipf("set %s=true to run the hosted COP KLV snapshot smoke", liveSnapshotKLVEnv)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
+		if err != nil {
+			lastErr = err
+		} else if snapshotHasKLVSensorFootprint(snapshot) {
+			return
+		} else {
+			lastErr = fmt.Errorf("snapshot missing KLV local-media sensor footprint: scenario=%s footprints=%d",
+				snapshot.Scenario, len(snapshot.SensorFootprints))
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted COP snapshot did not reflect KLV local media before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
 func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 	metricsURL := os.Getenv(liveComponentMetricsEnv)
 	mavlinkAddr := os.Getenv(liveSnapshotUDPAddrEnv)
@@ -307,6 +349,10 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectSAPIENT, err := boolFromEnv(liveSnapshotSAPIENTEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectKLV, err := boolFromEnv(liveSnapshotKLVEnv)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,6 +384,14 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 		expected = append(expected,
 			componentMetricExpectation{Name: "semops-input-sapient-http", Feed: "sapient", Role: "http-input"},
 			componentMetricExpectation{Name: "semops-processor-sapient-decode", Feed: "sapient", Role: "decoder"},
+		)
+	}
+	if expectKLV {
+		expected = append(expected,
+			componentMetricExpectation{Name: "semops-input-klv-media-ref", Feed: "klv", Role: "media-ref-input"},
+			componentMetricExpectation{Name: "semops-processor-klv-demux", Feed: "klv", Role: "demux"},
+			componentMetricExpectation{Name: "semops-processor-klv-decode", Feed: "klv", Role: "decoder"},
+			componentMetricExpectation{Name: "semops-processor-klv-project", Feed: "klv", Role: "projector"},
 		)
 	}
 
@@ -388,6 +442,10 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	expectKLV, err := boolFromEnv(liveSnapshotKLVEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
 	defer cancel()
@@ -406,6 +464,9 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 	}
 	if expectSAPIENT {
 		expected = append(expected, runtimeFeedExpectation{ID: "feed.sapient", Healthy: 2, Total: 2, RequireFlow: true})
+	}
+	if expectKLV {
+		expected = append(expected, runtimeFeedExpectation{ID: "feed.klv", Healthy: 4, Total: 4, RequireFlow: true})
 	}
 
 	client := &http.Client{Timeout: 2 * time.Second}
@@ -677,6 +738,42 @@ func snapshotHasADSBTrack(snapshot copapi.Snapshot) bool {
 	return false
 }
 
+func snapshotHasKLVSensorFootprint(snapshot copapi.Snapshot) bool {
+	if snapshot.Scenario != "phase-1-live-graph" {
+		return false
+	}
+	for _, footprint := range snapshot.SensorFootprints {
+		if footprint.Source != "klv" {
+			continue
+		}
+		if footprint.SensorPosition.Lat == 0 || footprint.SensorPosition.Lon == 0 ||
+			footprint.FrameCenter.Lat == 0 || footprint.FrameCenter.Lon == 0 {
+			return false
+		}
+		if len(footprint.Ray) != 2 {
+			return false
+		}
+		if footprint.MediaRef == "" || footprint.PacketRef == "" {
+			return false
+		}
+		if footprint.PlatformDesignation == "" {
+			return false
+		}
+		if footprint.Provenance.Owner != "semops.feed.klv" {
+			return false
+		}
+		if !hasString(footprint.DecodedFields, "sensor_position") ||
+			!hasString(footprint.DecodedFields, "frame_center") {
+			return false
+		}
+		if !strings.Contains(footprint.ClaimPosture, "no STANAG conformance") {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
 type componentMetricExpectation struct {
 	Name string
 	Feed string
@@ -848,6 +945,15 @@ func boolFromEnv(name string) (bool, error) {
 		return false, fmt.Errorf("parse %s: %w", name, err)
 	}
 	return enabled, nil
+}
+
+func hasString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func firstNonEmpty(values ...string) string {

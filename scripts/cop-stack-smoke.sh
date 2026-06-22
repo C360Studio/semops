@@ -34,6 +34,35 @@ SCENARIO_STATUS_STALE_AFTER="${SEMOPS_SCENARIO_STATUS_STALE_AFTER:-30}"
 FEED_FIXTURES_HEALTH_URL="${SEMOPS_FEED_FIXTURES_HEALTH_URL:-http://127.0.0.1:${FEED_FIXTURES_HOST_PORT}/healthz}"
 MAVLINK_UDP_ADDR="${SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR:-127.0.0.1:${MAVLINK_UDP_HOST_PORT}}"
 COT_UDP_ADDR="${SEMOPS_COP_SMOKE_COT_UDP_ADDR:-127.0.0.1:${COT_UDP_HOST_PORT}}"
+KLV_SMOKE_ENABLED="${SEMOPS_COP_SMOKE_KLV_ENABLED:-${SEMOPS_KLV_ENABLED:-false}}"
+KLV_MEDIA_HOST_PATH="${SEMOPS_KLV_MEDIA_HOST_PATH:-$ROOT/fixtures/klv/generated}"
+KLV_FIXTURE_PATH="${SEMOPS_KLV_FIXTURE_PATH:-$KLV_MEDIA_HOST_PATH/deterministic.ts}"
+
+bool_is_true() {
+  case "${1:-}" in
+    1|true|TRUE|True|yes|YES|Yes|on|ON|On)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+prepare_klv_fixture() {
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    echo "KLV smoke requires ffmpeg on the host to generate the deterministic MPEG-TS fixture." >&2
+    return 1
+  fi
+  mkdir -p "$(dirname "$KLV_FIXTURE_PATH")"
+  (
+    cd "$ROOT"
+    go run ./cmd/semops-klv-fixture \
+      -truth "$ROOT/fixtures/klv/misb0601-truth.json" \
+      -out "$KLV_FIXTURE_PATH" \
+      -overwrite
+  )
+}
 
 export SEMOPS_ADSB_ENABLED="${SEMOPS_ADSB_ENABLED:-true}"
 export SEMOPS_ADSB_HTTP_URL="${SEMOPS_ADSB_HTTP_URL:-http://semops-feed-fixtures:8091/adsb/states}"
@@ -44,6 +73,19 @@ export SEMOPS_SAPIENT_HTTP_URL="${SEMOPS_SAPIENT_HTTP_URL:-http://semops-feed-fi
 export SEMOPS_SAPIENT_HTTP_POLL_INTERVAL="${SEMOPS_SAPIENT_HTTP_POLL_INTERVAL:-1s}"
 export SEMOPS_SAPIENT_HTTP_STALE_AFTER="${SEMOPS_SAPIENT_HTTP_STALE_AFTER:-10s}"
 export SEMOPS_SAPIENT_HTTP_ENCODING="${SEMOPS_SAPIENT_HTTP_ENCODING:-json}"
+
+if bool_is_true "$KLV_SMOKE_ENABLED"; then
+  prepare_klv_fixture
+  export SEMOPS_DOCKER_TARGET="${SEMOPS_DOCKER_TARGET:-media-tools}"
+  export SEMOPS_KLV_ENABLED=true
+  export SEMOPS_KLV_MEDIA_HOST_PATH="${SEMOPS_KLV_MEDIA_HOST_PATH:-$KLV_MEDIA_HOST_PATH}"
+  export SEMOPS_KLV_MEDIA_PATH="${SEMOPS_KLV_MEDIA_PATH:-/var/lib/semops/klv}"
+  export SEMOPS_KLV_MEDIA_PATTERN="${SEMOPS_KLV_MEDIA_PATTERN:-$(basename "$KLV_FIXTURE_PATH")}"
+  export SEMOPS_KLV_DEMUX_MAX_EXTRACT_BYTES="${SEMOPS_KLV_DEMUX_MAX_EXTRACT_BYTES:-262144}"
+  export SEMOPS_KLV_DEMUX_MAX_PACKETS="${SEMOPS_KLV_DEMUX_MAX_PACKETS:-16}"
+else
+  export SEMOPS_KLV_ENABLED="${SEMOPS_KLV_ENABLED:-false}"
+fi
 
 cleanup() {
   if [[ "${SEMOPS_COP_KEEP_STACK:-false}" == "true" ]]; then
@@ -226,7 +268,8 @@ SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR="$MAVLINK_UDP_ADDR" \
 SEMOPS_COP_SMOKE_COT_UDP_ADDR="$COT_UDP_ADDR" \
 SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED="$SEMOPS_ADSB_ENABLED" \
 SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED="$SEMOPS_SAPIENT_ENABLED" \
-  go test ./internal/smoke/cop -run 'TestHostedCOP(SnapshotReflects(MAVLinkUDP|CoTUDP|ScenarioRunner|ADSBHTTPProvider|HADRSharedAirspace)|ComponentPrometheusMetricsReflectFeedFlow|RuntimeReflectsFeedFlow)' -count=1 -v
+SEMOPS_COP_SMOKE_KLV_ENABLED="$KLV_SMOKE_ENABLED" \
+  go test ./internal/smoke/cop -run 'TestHostedCOP(SnapshotReflects(MAVLinkUDP|CoTUDP|ScenarioRunner|ADSBHTTPProvider|HADRSharedAirspace|KLVLocalMedia)|ComponentPrometheusMetricsReflectFeedFlow|RuntimeReflectsFeedFlow)' -count=1 -v
 
 SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL="$NATS_URL" \
 SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL="$METRICS_URL" \

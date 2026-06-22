@@ -682,6 +682,11 @@ Local assets:
   sensor points, frame-center points, and rays with a provenance inspector. This is the product-visible proof for
   sensor/frame-center evidence only, not a video player, footprint polygon, streaming-binary, or STANAG conformance
   claim.
+- `cmd/semops-klv-fixture` can generate a tiny deterministic MPEG-TS fixture from SemOps-owned MISB ST 0601 truth
+  data, and the generated media output is ignored rather than vendored.
+- The one-command hosted stack smoke can opt into KLV with `SEMOPS_COP_SMOKE_KLV_ENABLED=true`, building the
+  `media-tools` image target with FFmpeg, running the local-media KLV component flow, and verifying COP snapshot plus
+  Prometheus/runtime readback. The default stack keeps KLV disabled and uses the production image target.
 
 Mock or harness:
 
@@ -704,8 +709,8 @@ Mock or harness:
 - First prove video metadata and keyframe ingestion on a small synthetic or public fixture.
 - Then use a public KLV sample only as demux/parser smoke after license and provenance review.
 - Use the deterministic MISB ST 0601 fixture as the first engineering-support acceptance gate: truth JSON to generated
-  KLV packet bytes to decoded output. MPEG-TS wrapping is the next container-proof step, not a prerequisite for the
-  parser-core gate.
+  KLV packet bytes to decoded output. MPEG-TS wrapping is now the local container-proof step, not a broader live-media
+  or conformance claim.
 - Public examples commonly used by open-source FMV/KLV tooling plus deterministic fixtures are acceptable for
   demo-grade engineering support. Official STANAG 4609 conformance or certification stays blocked until someone funds
   a validator or lab effort with proper access.
@@ -751,6 +756,9 @@ First acceptance gate:
   `max_packets` before publishing packet payloads.
 - Given local FFmpeg tooling is available, the deterministic KLV truth packet can be wrapped into MPEG-TS, demuxed
   back through the SemOps demux worker, and decoded to the original truth without network downloads or vendored media.
+- Given `SEMOPS_COP_SMOKE_KLV_ENABLED=true bash scripts/cop-stack-smoke.sh`, the hosted stack generates a local
+  deterministic MPEG-TS fixture, runs the opt-in KLV component flow through media-ref input, demux, decode, and graph
+  projector stages, and asserts Caddy-routed COP snapshot readback plus Prometheus/runtime flow samples.
 - Given a public video-plus-KLV smoke sample with documented license and provenance, the demo extracts plausible
   KLV metadata without calling the result deterministic correctness or conformance evidence.
 - Given `SEMOPS_KLV_PUBLIC_SAMPLE_PATH`, `SEMOPS_KLV_PUBLIC_SAMPLE_SOURCE_URL`, and

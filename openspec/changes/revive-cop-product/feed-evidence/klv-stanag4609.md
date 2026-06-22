@@ -36,6 +36,12 @@ binary-by-reference storage, and memory-bounded handling.
   renders selectable sensor points, frame-center points, and rays with KLV evidence in the inspector. This is
   product-visible sensor/frame-center readback, not footprint polygon extraction, video service support, streaming
   binary support, or STANAG 4609 conformance.
+- `cmd/semops-klv-fixture` can generate a tiny deterministic MPEG-TS fixture from the committed MISB ST 0601 truth
+  JSON using local FFmpeg tooling. The generated media lives under ignored fixture output paths and is not vendored.
+- `scripts/cop-stack-smoke.sh` now supports `SEMOPS_COP_SMOKE_KLV_ENABLED=true`, which generates the deterministic
+  MPEG-TS fixture, builds the opt-in `media-tools` container target with FFmpeg, enables the local-media KLV
+  component flow, and asserts COP snapshot readback plus shared Prometheus/runtime flow evidence through Caddy. The
+  default Compose target remains the production image with KLV disabled.
 
 ## SemSource Fixture Handoff
 
@@ -309,6 +315,28 @@ Acceptance:
 - The fixture is small enough for local tests. [done]
 - CI does not depend on large network downloads or require FFmpeg to be installed.
 
+### Hosted Stack Smoke Gate
+
+Target command:
+
+```bash
+SEMOPS_COP_SMOKE_KLV_ENABLED=true bash scripts/cop-stack-smoke.sh
+```
+
+Acceptance:
+
+- The smoke generates the deterministic MPEG-TS fixture under an ignored local output path. [done]
+- The Compose build uses the opt-in `media-tools` target with FFmpeg while the default target remains production.
+  [done]
+- The hosted KLV media-ref input, demux, decode, and projector components run through declared SemStreams ports and
+  write governed `sensor_footprint` state through the graph request writer. [done]
+- Caddy-routed COP snapshot readback exposes the KLV sensor point, frame-center point, ray, and claim posture.
+  [done]
+- Caddy-routed Prometheus/runtime readback exposes shared component health and flow samples for the hosted KLV
+  component chain. [done]
+- Passing this smoke does not imply live media ingress, video service support, public-sample redistribution clearance,
+  footprint polygon extraction, streaming-binary support, or formal STANAG 4609 conformance. [done]
+
 ### Media Gate
 
 Target command in SemSource or a SemOps sidecar:
@@ -399,6 +427,9 @@ Acceptance:
   split packet payloads, and bounded packet bytes, but no live media or redistributable public sample claim exists yet.
 - COP API/UI readback exists for KLV `sensor_footprint` graph state, and opt-in hosted KLV runtime composition can
   project local media-derived frames into the graph, but the default stack still does not enable KLV.
+- The opt-in KLV stack smoke proves one deterministic local media fixture through the hosted stack. It does not prove
+  live media ingress, long-running video service behavior, public-sample redistribution clearance, footprint polygons,
+  or formal STANAG 4609 conformance.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 
