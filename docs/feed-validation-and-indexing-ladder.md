@@ -736,6 +736,9 @@ First acceptance gate:
   KLV metadata without calling the result deterministic correctness or conformance evidence.
 - Given a deterministic MISB ST 0601 fixture, parsed sensor position, frame time, frame center, azimuth, elevation,
   and supported field presence match the source truth data within MISB integer quantization tolerances.
+- Given `go test ./internal/projectors/klv ./internal/components/klv`, decoded KLV frames project born-first
+  source-partitioned `sensor_footprint` state with `indexing_profile=signal`, owner token fencing, sensor position,
+  frame center, media reference, packet reference, and no footprint polygon claim yet.
 - Given any video-plus-KLV path, binary is stored by reference and memory-bounded behavior is proven before any
   "streaming binary" product claim.
 

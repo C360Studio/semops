@@ -132,6 +132,7 @@
 - [x] 5.60 Add fixture-grade FFmpeg/ffprobe KLV demux worker path with explicit stream selection and bounded output
 - [x] 5.61 Add deterministic MISB ST 0601 truth JSON to generated-packet to decoded-frame fixture acceptance
 - [x] 5.62 Add optional deterministic truth-to-MPEG-TS demux smoke using local FFmpeg tooling
+- [x] 5.63 Add KLV sensor/frame-center projection contract without footprint polygon claims
 
 ## 6. Structural COP Stack
 
@@ -243,7 +244,7 @@
 
 - [x] 8.1 Add ADS-B and SAPIENT feed boundaries
 - [ ] 8.2 Add statistical track association for ambiguous air tracks
-- [ ] 8.3 Add KLV footprint extraction
+- [ ] 8.3 Add KLV footprint polygon extraction beyond current sensor/frame-center projection
 - [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge after the command-impedance gate is
       reviewed
 - [ ] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory

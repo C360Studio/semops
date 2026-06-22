@@ -104,6 +104,27 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 		t.Fatalf("ADS-B derived foreign edges = %+v, want none", adsbRegistration.ForeignEdges)
 	}
 
+	klv := KLVSensorFootprintContract()
+	if err := klv.Validate(); err != nil {
+		t.Fatalf("KLV sensor-footprint contract should validate: %v", err)
+	}
+	if got := klv.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("KLV sensor-footprint mode = %q, want replace-owned", got)
+	}
+	if klv.IndexingProfile != "signal" {
+		t.Fatalf("KLV sensor-footprint indexing profile = %q, want signal", klv.IndexingProfile)
+	}
+	if klv.EntityPattern == mavlink.EntityPattern || klv.EntityPattern == tak.EntityPattern || klv.EntityPattern == adsb.EntityPattern {
+		t.Fatalf("KLV sensor-footprint contract must be source-partitioned")
+	}
+	klvRegistration, err := projection.Derive(OwnerKLV, klv)
+	if err != nil {
+		t.Fatalf("derive KLV ownership: %v", err)
+	}
+	if len(klvRegistration.ForeignEdges) != 0 {
+		t.Fatalf("KLV derived foreign edges = %+v, want none before footprint association claims", klvRegistration.ForeignEdges)
+	}
+
 	takTask := TAKTaskContract()
 	if got := takTask.Groups[0].Mode; got != ownership.ModeReplaceOwned {
 		t.Fatalf("TAK task mode = %q, want replace-owned", got)

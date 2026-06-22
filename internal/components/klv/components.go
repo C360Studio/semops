@@ -8,17 +8,21 @@ import (
 	"sync"
 	"time"
 
+	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/component"
+	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/payloadregistry"
+	"github.com/c360studio/semstreams/pkg/ownership"
 	"github.com/nats-io/nats.go"
 )
 
 const (
 	DefaultMediaPath       = "fixtures/klv"
 	DefaultMediaPattern    = "*.ts"
-	DefaultOwner           = "semops.feed.klv"
+	DefaultOwner           = cop.OwnerKLV
 	DefaultWriteTimeout    = 5 * time.Second
 	DefaultMaxPacketBytes  = 64 * 1024
 	DefaultSupportedSubset = "misb-st-0601-platform-sensor-frame"
@@ -537,14 +541,27 @@ type ProjectorConfig struct {
 	Name         string
 	FrameSubject string
 	Owner        string
+	OwnerTokens  map[string]ownership.OwnerToken
 	WriteTimeout time.Duration
 	WriteRetries int
+	Registry     *payloadregistry.Registry
+	Bus          Bus
+	Projector    *klvprojector.Projector
+	Writer       ProjectorPlanWriter
 	Clock        func() time.Time
 }
 
+type ProjectorPlanWriter interface {
+	Apply(ctx context.Context, plan klvprojector.Plan) error
+}
+
 type ProjectorComponent struct {
-	cfg   ProjectorConfig
-	state componentState
+	cfg     ProjectorConfig
+	state   componentState
+	decoder *message.Decoder
+
+	mu           sync.Mutex
+	subscription Subscription
 }
 
 func NewProjectorComponent(cfg ProjectorConfig) (*ProjectorComponent, error) {
@@ -556,6 +573,12 @@ func NewProjectorComponent(cfg ProjectorConfig) (*ProjectorComponent, error) {
 	}
 	if cfg.Owner == "" {
 		cfg.Owner = DefaultOwner
+	}
+	if cfg.Registry == nil {
+		cfg.Registry = payloadregistry.New()
+	}
+	if cfg.Projector == nil {
+		cfg.Projector = klvprojector.NewProjector(klvprojector.Config{OwnerTokens: cfg.OwnerTokens})
 	}
 	if cfg.WriteTimeout == 0 {
 		cfg.WriteTimeout = DefaultWriteTimeout
@@ -570,14 +593,56 @@ func NewProjectorComponent(cfg ProjectorConfig) (*ProjectorComponent, error) {
 }
 
 func (c *ProjectorComponent) Initialize() error {
+	if err := RegisterPayloads(c.cfg.Registry); err != nil {
+		return err
+	}
+	c.decoder = message.NewDecoder(c.cfg.Registry)
 	return c.state.Initialize()
 }
 
 func (c *ProjectorComponent) Start(ctx context.Context) error {
+	if c.cfg.Bus == nil {
+		return c.state.Start(ctx)
+	}
+	if c.cfg.Writer == nil {
+		err := errors.New("KLV projector component requires a plan writer when bus is configured")
+		c.state.metrics.recordError(err)
+		return err
+	}
+	if c.decoder == nil {
+		if err := c.Initialize(); err != nil {
+			return err
+		}
+	}
+	if c.state.Current() == component.StateStarted {
+		return nil
+	}
+	sub, err := c.cfg.Bus.Subscribe(ctx, c.cfg.FrameSubject, func(msgCtx context.Context, msg *nats.Msg) {
+		if err := c.HandleFrameMessage(msgCtx, msg.Data); err != nil {
+			c.state.metrics.recordError(err)
+		}
+	})
+	if err != nil {
+		c.state.metrics.recordError(err)
+		return fmt.Errorf("subscribe KLV projector frame subject: %w", err)
+	}
+	c.mu.Lock()
+	c.subscription = sub
+	c.mu.Unlock()
 	return c.state.Start(ctx)
 }
 
 func (c *ProjectorComponent) Stop(timeout time.Duration) error {
+	c.mu.Lock()
+	sub := c.subscription
+	c.subscription = nil
+	c.mu.Unlock()
+	if sub != nil {
+		if err := sub.Unsubscribe(); err != nil {
+			c.state.metrics.recordError(err)
+			return err
+		}
+	}
 	return c.state.Stop(timeout)
 }
 
@@ -649,11 +714,126 @@ func (c *ProjectorComponent) DataFlow() component.FlowMetrics {
 	return c.state.DataFlow()
 }
 
+func (c *ProjectorComponent) HandleFrameMessage(ctx context.Context, data []byte) error {
+	if c.decoder == nil {
+		if err := c.Initialize(); err != nil {
+			return err
+		}
+	}
+	envelope, err := c.decoder.Decode(data)
+	if err != nil {
+		return fmt.Errorf("decode KLV frame BaseMessage: %w", err)
+	}
+	payload, ok := envelope.Payload().(*MISB0601FramePayload)
+	if !ok {
+		return fmt.Errorf("KLV projector received payload %T, want *MISB0601FramePayload", envelope.Payload())
+	}
+	return c.HandleFramePayload(ctx, payload)
+}
+
+func (c *ProjectorComponent) HandleFramePayload(ctx context.Context, payload *MISB0601FramePayload) error {
+	frame, err := projectorFrame(payload)
+	if err != nil {
+		c.state.metrics.recordError(err)
+		return err
+	}
+	plan, err := c.cfg.Projector.ProjectFrame(frame)
+	if err != nil {
+		c.state.metrics.recordError(err)
+		return fmt.Errorf("project KLV frame: %w", err)
+	}
+	if len(plan.Mutations) == 0 {
+		c.state.metrics.recordMessage(framePayloadSize(payload), c.cfg.Clock().UTC())
+		return nil
+	}
+	if err := c.writePlan(ctx, frame, plan); err != nil {
+		c.state.metrics.recordError(err)
+		return err
+	}
+	c.state.metrics.recordMessage(framePayloadSize(payload), c.cfg.Clock().UTC())
+	return nil
+}
+
+func (c *ProjectorComponent) writePlan(ctx context.Context, frame klvprojector.Frame, plan klvprojector.Plan) error {
+	if c.cfg.Writer == nil {
+		return errors.New("KLV projector component requires a plan writer")
+	}
+	attempts := c.cfg.WriteRetries
+	if attempts <= 0 {
+		attempts = 1
+	}
+	for attempt := 0; attempt < attempts; attempt++ {
+		if err := c.cfg.Writer.Apply(ctx, plan); err != nil {
+			entityID, ok := klvEntityAlreadyExists(err)
+			if !ok || !c.cfg.Projector.MarkBornForFrame(frame, entityID) {
+				return fmt.Errorf("write KLV graph plan: %w", err)
+			}
+			next, projectErr := c.cfg.Projector.ProjectFrame(frame)
+			if projectErr != nil {
+				return fmt.Errorf("reproject KLV frame after birth reconciliation: %w", projectErr)
+			}
+			plan = next
+			if len(plan.Mutations) == 0 {
+				return nil
+			}
+			continue
+		}
+		c.cfg.Projector.MarkBornForPlan(plan)
+		return nil
+	}
+	return errors.New("KLV graph birth reconciliation exceeded retry limit")
+}
+
 func (c *ProjectorComponent) outputTimeout() time.Duration {
 	if c.cfg.WriteTimeout > 0 {
 		return c.cfg.WriteTimeout
 	}
 	return DefaultWriteTimeout
+}
+
+func projectorFrame(payload *MISB0601FramePayload) (klvprojector.Frame, error) {
+	if payload == nil {
+		return klvprojector.Frame{}, errors.New("KLV frame payload is nil")
+	}
+	if err := payload.Validate(); err != nil {
+		return klvprojector.Frame{}, err
+	}
+	return klvprojector.Frame{
+		Source:                     payload.Source,
+		MediaRef:                   payload.MediaRef,
+		PacketRef:                  payload.PacketRef,
+		ReceivedAt:                 payload.ReceivedAt,
+		FrameTime:                  payload.FrameTime,
+		PlatformDesignation:        payload.PlatformDesignation,
+		SensorLatitude:             payload.SensorLatitude,
+		SensorLongitude:            payload.SensorLongitude,
+		SensorAltitudeMeters:       payload.SensorAltitudeMeters,
+		SensorAzimuthDegrees:       payload.SensorAzimuthDegrees,
+		SensorElevationDegrees:     payload.SensorElevationDegrees,
+		FrameCenterLatitude:        payload.FrameCenterLatitude,
+		FrameCenterLongitude:       payload.FrameCenterLongitude,
+		FrameCenterElevationMeters: payload.FrameCenterElevationMeters,
+	}, nil
+}
+
+func framePayloadSize(payload *MISB0601FramePayload) int {
+	if payload == nil {
+		return 0
+	}
+	return len(payload.MediaRef) + len(payload.PacketRef) + len(payload.Fields)
+}
+
+func klvEntityAlreadyExists(err error) (string, bool) {
+	var mutationErr *klvprojector.MutationFailureError
+	if !errors.As(err, &mutationErr) {
+		return "", false
+	}
+	if mutationErr.Kind != klvprojector.MutationCreate ||
+		mutationErr.ErrorCode != graph.ErrorCodeEntityExists ||
+		mutationErr.EntityID == "" {
+		return "", false
+	}
+	return mutationErr.EntityID, true
 }
 
 type componentState struct {

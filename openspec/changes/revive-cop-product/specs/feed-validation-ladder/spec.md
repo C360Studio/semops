@@ -255,6 +255,8 @@ binary-by-reference storage, and memory-bounded handling.
   optional interop processors
 - **AND** every stage uses declared ports, registered payloads, health, flow metrics, and config schema
 - **AND** graph writes occur only in the projector through declared SemStreams graph request ports
+- **AND** the first projector contract writes only source-partitioned KLV `sensor_footprint` sensor/frame-center state
+  with `indexing_profile=signal`, leaving footprint polygon extraction as a later gate
 
 #### Scenario: Streaming-binary claim is blocked by memory-bound evidence
 

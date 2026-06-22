@@ -304,7 +304,10 @@ go test ./internal/projectors/klv
 
 Acceptance:
 
-- Sensor footprints and extracted platform/sensor coordinates use `indexing_profile=signal`.
+- KLV-owned source-partitioned `sensor_footprint` current state uses `indexing_profile=signal`. [done]
+- Sensor position, frame center, azimuth, elevation, media reference, packet reference, and provenance source are
+  projected through born-first graph plans with owner-token fencing. [done]
+- Footprint polygon extraction remains a separate extension gate. [not done]
 - Clip/evidence package lifecycle uses `indexing_profile=control`.
 - Frame/keyframe descriptions or operator annotations use `indexing_profile=content` when present.
 - Packet/frame decode events use `indexing_profile=trace`.
@@ -317,7 +320,8 @@ Acceptance:
 - No public KLV sample has passed SemOps license/provenance review yet.
 - No committed MPEG-TS binary is vendored; deterministic MPEG-TS wrapping is generated in local tests from the truth
   fixture when FFmpeg tooling is present.
-- Media-reference input and projector stages are topology skeletons only.
+- Media-reference input remains a topology skeleton; the projector now has contract-tested plan writing for
+  sensor/frame-center state but is not wired into the hosted runtime.
 - Demux and decoder workers exist for local file URI fixtures and bounded packet bytes, but no storage-ref
   materialization, live media, public sample, or graph projection runtime exists yet.
 - SemSource media path is promising but not proven for KLV or streaming binary.

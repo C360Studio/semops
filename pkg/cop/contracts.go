@@ -23,6 +23,7 @@ const (
 	OwnerADSB    = "semops.feed.adsb"
 	OwnerAsset   = "semops.feed.asset"
 	OwnerCAP     = "semops.feed.cap"
+	OwnerKLV     = "semops.feed.klv"
 	OwnerFusion  = "semops.fusion.structural"
 )
 
@@ -69,6 +70,19 @@ const (
 	AdvisorySender   = "cop.advisory.sender"
 	AdvisoryPosition = "cop.advisory.position"
 	AdvisoryNativeID = "cop.advisory.native_id"
+
+	SensorFootprintNativeID             = "cop.sensor_footprint.native_id"
+	SensorFootprintSource               = "cop.sensor_footprint.source"
+	SensorFootprintMediaRef             = "cop.sensor_footprint.media_ref"
+	SensorFootprintPacketRef            = "cop.sensor_footprint.packet_ref"
+	SensorFootprintObservedAt           = "cop.sensor_footprint.observed_at"
+	SensorFootprintSensorPosition       = "cop.sensor_footprint.sensor_position"
+	SensorFootprintSensorAltitude       = "cop.sensor_footprint.sensor_altitude_meters"
+	SensorFootprintSensorAzimuth        = "cop.sensor_footprint.sensor_azimuth_degrees"
+	SensorFootprintSensorElevation      = "cop.sensor_footprint.sensor_elevation_degrees"
+	SensorFootprintFrameCenter          = "cop.sensor_footprint.frame_center"
+	SensorFootprintFrameCenterElevation = "cop.sensor_footprint.frame_center_elevation_meters"
+	SensorFootprintPlatformDesignation  = "cop.sensor_footprint.platform_designation"
 
 	ProvenanceSource     = "cop.provenance.source"
 	ProvenanceConfidence = "cop.provenance.confidence"
@@ -209,6 +223,39 @@ func ADSBTrackContract() projection.Contract {
 				TrackStatus,
 				TrackObservedAt,
 				TrackNativeID,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+	}
+}
+
+// KLVSensorFootprintContract owns current video-derived sensor geometry for the
+// supported MISB ST 0601 subset. Full footprint polygons remain a later
+// contract extension.
+func KLVSensorFootprintContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.sensor-footprint.klv-current-state",
+		MessageType:     "semops.klv.sensor_footprint.v1",
+		EntityPattern:   SourceEntityPattern("klv", EntitySensorFootprint),
+		IndexingProfile: "signal",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				SensorFootprintNativeID,
+				SensorFootprintSource,
+				SensorFootprintMediaRef,
+				SensorFootprintPacketRef,
+				SensorFootprintObservedAt,
+				SensorFootprintSensorPosition,
+				SensorFootprintSensorAltitude,
+				SensorFootprintSensorAzimuth,
+				SensorFootprintSensorElevation,
+				SensorFootprintFrameCenter,
+				SensorFootprintFrameCenterElevation,
+				SensorFootprintPlatformDesignation,
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,

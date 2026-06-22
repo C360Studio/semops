@@ -342,8 +342,9 @@ binary-by-reference storage, and memory-bounded handling. The first implemented 
 registered media-ref BaseMessage to FFmpeg/ffprobe demux worker to bounded KLV packet BaseMessage to Go-native
 MISB ST 0601 local-set decoder, with a SemOps-owned truth JSON fixture that generates deterministic KLV packet bytes
 and an optional local FFmpeg smoke that wraps those bytes in MPEG-TS before demuxing and decoding them back to truth.
-Decoded fields are asserted within MISB integer quantization tolerance. There are no graph writes until projector
-evidence exists.
+Decoded fields are asserted within MISB integer quantization tolerance. The first graph projection contract covers
+KLV-owned sensor/frame-center state only; footprint polygons, media packages, and hosted live runtime wiring remain
+later gates.
 
 Full product lane:
 Production media/KLV pipeline with demux, parser sidecar or native parser, object storage, frame/keyframe evidence,
