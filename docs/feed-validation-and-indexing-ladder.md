@@ -730,6 +730,8 @@ First acceptance gate:
 - Given the opt-in demux worker path, a registered `semops.klv_media_ref.v1` BaseMessage for a local file URI invokes
   ffprobe data-stream discovery, extracts bounded bytes with FFmpeg explicit `-map`, and publishes a registered
   `semops.klv_packet.v1` BaseMessage on the declared packet subject.
+- Given local FFmpeg tooling is available, the deterministic KLV truth packet can be wrapped into MPEG-TS, demuxed
+  back through the SemOps demux worker, and decoded to the original truth without network downloads or vendored media.
 - Given a public video-plus-KLV smoke sample with documented license and provenance, the demo extracts plausible
   KLV metadata without calling the result deterministic correctness or conformance evidence.
 - Given a deterministic MISB ST 0601 fixture, parsed sensor position, frame time, frame center, azimuth, elevation,

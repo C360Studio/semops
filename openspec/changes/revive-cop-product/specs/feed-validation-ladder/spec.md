@@ -215,6 +215,8 @@ binary-by-reference storage, and memory-bounded handling.
 - **THEN** a deterministic fixture traces truth JSON through encoded KLV and optional MPEG-TS wrapping to parsed output
 - **AND** acceptance asserts the parsed field set and parsed numeric values against the original truth data within MISB
   integer quantization tolerances for the supported field subset
+- **AND** MPEG-TS wrapping is generated locally from the truth fixture and skipped when FFmpeg tooling is unavailable,
+  instead of vendoring large binary media into the repo
 
 #### Scenario: First KLV parser spike is deterministic and local
 

@@ -131,6 +131,7 @@
 - [ ] 5.59 Add DJI feed evidence for telemetry, command authority, media references, and replay fixtures
 - [x] 5.60 Add fixture-grade FFmpeg/ffprobe KLV demux worker path with explicit stream selection and bounded output
 - [x] 5.61 Add deterministic MISB ST 0601 truth JSON to generated-packet to decoded-frame fixture acceptance
+- [x] 5.62 Add optional deterministic truth-to-MPEG-TS demux smoke using local FFmpeg tooling
 
 ## 6. Structural COP Stack
 

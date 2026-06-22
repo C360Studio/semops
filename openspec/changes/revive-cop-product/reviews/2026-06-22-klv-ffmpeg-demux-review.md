@@ -25,15 +25,16 @@ state.
 - Shelling out to FFmpeg is less elegant than linking a parser. Accepted for the spike because FFmpeg is mature,
   already familiar in SemSource media work, and keeps sidecar/language choices out of the decoder contract.
 - FFmpeg may extract a data stream that contains concatenated KLV local sets rather than one semantic frame. Accepted
-  for the first fixture-grade packet path; deterministic truth-to-MPEG-TS fixtures must tighten packet/frame
-  boundaries before stronger support language.
+  for the first fixture-grade packet path. The deterministic truth-to-MPEG-TS smoke covers a single local set; packet
+  splitting remains required before multi-frame stream support language.
 - Local file URI only is too narrow for production. Accepted because storage-reference materialization and live media
   relay should be separate service-promotion decisions.
 
 ## Follow-Up Tasks
 
-- Add deterministic truth-to-KLV-to-MPEG-TS fixture generation or legally reviewed public sample smoke.
+- Add legally reviewed public sample smoke.
 - Decide packet splitting policy when FFmpeg emits multiple local sets.
 - Add checksum validation or explicit checksum-policy evidence before support language.
 - Review whether FFmpeg belongs in the SemOps container image, a media sidecar, or SemSource-owned generic media
+  substrate.
   infrastructure after fixture smoke.

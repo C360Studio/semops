@@ -237,6 +237,8 @@ Acceptance:
 - A registered `semops.klv_media_ref.v1` BaseMessage is decoded through the payload registry. [done]
 - ffprobe is invoked with explicit data-stream selection instead of assuming FFmpeg auto-selects data streams. [done]
 - FFmpeg extracts the selected stream with explicit `-map 0:<stream-index>` and bounded stdout. [done]
+- Optional local FFmpeg fixture generation wraps the deterministic KLV packet in MPEG-TS, then demuxes and decodes it
+  back to the truth fixture when `ffmpeg` and `ffprobe` are installed. [done]
 - The worker publishes a registered `semops.klv_packet.v1` BaseMessage to the declared packet subject. [done]
 - The demux worker does not publish graph mutation subjects. [done]
 - Storage-reference-only and remote URI demux are explicitly rejected until bounded materialization exists. [done]
@@ -255,10 +257,12 @@ Acceptance:
 - Public sample smoke extracts plausible ST 0601 metadata from a real MPEG-TS stream without claiming conformance.
 - Deterministic fixture output matches the source truth field set and numeric values within MISB integer quantization
   tolerances for the supported fields. [done]
+- Deterministic MPEG-TS wrapping proves generated KLV packet bytes survive a local media-container mux/demux cycle
+  without network downloads when FFmpeg tooling is available. [done]
 - The deterministic fixture contains enough ST 0601 metadata to extract sensor position and frame-center evidence;
   full footprint polygon extraction remains a projector/parser extension. [partial]
 - The fixture is small enough for local tests. [done]
-- CI does not depend on large network downloads.
+- CI does not depend on large network downloads or require FFmpeg to be installed.
 
 ### Media Gate
 
@@ -311,8 +315,8 @@ Acceptance:
 - No public small legal KLV MPEG-TS sample has passed SemOps license/provenance review yet.
 - No production MPEG-TS/live-media demux strategy chosen beyond the fixture-grade FFmpeg/ffprobe worker path.
 - No public KLV sample has passed SemOps license/provenance review yet.
-- No deterministic truth-to-KLV-to-MPEG-TS generation path has been chosen; the current deterministic fixture covers
-  truth JSON to generated KLV packet bytes to decoded frame output.
+- No committed MPEG-TS binary is vendored; deterministic MPEG-TS wrapping is generated in local tests from the truth
+  fixture when FFmpeg tooling is present.
 - Media-reference input and projector stages are topology skeletons only.
 - Demux and decoder workers exist for local file URI fixtures and bounded packet bytes, but no storage-ref
   materialization, live media, public sample, or graph projection runtime exists yet.
