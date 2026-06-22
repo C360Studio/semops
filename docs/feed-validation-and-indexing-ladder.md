@@ -25,15 +25,18 @@ Recommended order:
 1. MAVLink.
 2. TAK/CoT.
 3. CAP, with broader EDXL held for later feed-validation gates.
-4. CS API bidirectional interop.
-5. ADS-B.
-6. SAPIENT.
-7. KLV/STANAG 4609.
+4. Weather as a layered feed: visual map context, CAP/public alerts, and tactical point/area/route weather telemetry.
+5. DJI sensor/telemetry and media references.
+6. CS API bidirectional interop.
+7. ADS-B.
+8. SAPIENT.
+9. KLV/STANAG 4609.
 
 MAVLink and TAK should be first because they create the live operator picture quickly. MAVLink stresses high-rate
 current-state projection. TAK stresses operator markers, chat, and tactical XML. CAP is the first loose civilian
-warning feed. KLV should stay a proof spike until we have hard evidence that SemOps plus SemStreams can handle
-binary-derived video metadata honestly.
+warning feed. Weather and DJI are critical COP layers, but they should enter through explicit layer/feed gates rather
+than destabilizing the current Phase 1 spine. KLV should stay a proof spike until we have hard evidence that SemOps
+plus SemStreams can handle binary-derived video metadata honestly.
 
 ## Evidence Ladder
 
@@ -80,15 +83,19 @@ Current SemStreams profiles are:
 
 SemOps should treat profile assignment as a contract per projected entity type:
 
-- Current platform and sensor state from MAVLink, TAK, ADS-B, and SAPIENT should usually be `signal`.
+- Current platform and sensor state from MAVLink, TAK, DJI, ADS-B, and SAPIENT should usually be `signal`.
+- Tactical weather observations near assets or routes should usually be `signal`.
 - Alerts, tasks, commands, feed health, and scenario state should usually be `control`.
-- CAP advisory text, translated warnings, operator notes, and semantic explanations should usually be `content`.
+- CAP/weather advisory text, translated warnings, operator notes, and semantic explanations should usually be
+  `content`.
 - Native packet references, replay steps, keyframe extraction logs, and raw decode events should usually be `trace`.
 
 The risky cases are mixed-shape entities:
 
 - A TAK event may be both a position signal and an operator message.
 - A CAP alert may be both a hazard polygon and a text advisory.
+- A weather layer may be browser-only raster context, a tactical point/route observation, or an alert/advisory.
+- DJI may be a vehicle track, gimbal/sensor state, command authority, media reference, and vendor-specific evidence.
 - A KLV frame may be video metadata, sensor footprint, evidence reference, and binary artifact pointer.
 - A fused track may aggregate high-rate source state while also becoming an operator-relevant entity.
 
@@ -326,6 +333,99 @@ Remaining gates:
 - Telemetry-driven backpressure decisions once hosted CAP polling has real provider cadence, retry, retention, and
   audit pressure.
 
+### Weather
+
+Status: critical COP layer, split into visual context, alert evidence, and tactical telemetry.
+
+Compliance and source evidence:
+
+- OGC API - Environmental Data Retrieval is the standards-facing target for tactical weather because it defines
+  discovery plus query operations and supports position, area, trajectory, and corridor query shapes.
+- Environment and Climate Change Canada's MSC GeoMet is a practical public OGC API/WMS/WCS source for testing open
+  weather interoperability.
+- Open-Meteo is a useful developer-friendly JSON source for deterministic provider-shaped fixtures and early
+  tactical variables such as wind, precipitation, visibility, pressure, and temperature.
+- NWS API already fits the CAP lane for alerts and can return CAP content via content negotiation. NWS API explicitly
+  points radar display users to separate radar/OGC services rather than treating `/api.weather.gov` as a radar tile
+  source.
+
+Mock or harness:
+
+- Visual layer: browser-side raster/vector weather tiles or WMS are allowed without graph ingestion when they are
+  human context only.
+- Alert layer: continue using CAP-style append-evidence for public alerts and warnings.
+- Tactical layer: backend component queries point, area, trajectory, or corridor weather near active assets,
+  incident zones, or planned routes and publishes bounded forecast/observation payloads.
+
+Indexing profile pressure:
+
+- Localized weather observations and forecasts that affect routing or asset safety are `signal`.
+- Weather alert lifecycle and route-safety decisions are `control`.
+- Weather advisory text and forecast discussions are `content`.
+- Provider request/response diagnostics and replay records are `trace`.
+
+First acceptance gate:
+
+- Given a deterministic Open-Meteo-shaped or OGC EDR-shaped fixture, SemOps parses wind, precipitation, visibility,
+  pressure, temperature, timestamp, location/area/route, provider, and freshness without graph writes.
+- Given projection, localized tactical weather writes source-partitioned governed evidence and does not overwrite CAP
+  hazard or operator task state.
+- Given UI rendering, visual weather tiles may be configured in the browser without implying backend weather
+  ingestion or radar hosting.
+- Given routing or drone-safety use, the weather source, model time, query shape, stale policy, and confidence are
+  visible to the operator before any action recommendation is made.
+
+Known gaps:
+
+- No weather component package exists yet.
+- No selected first provider fixture exists yet.
+- No weather routing/safety rule is accepted yet.
+- No visual tile source has passed license/cache/reliability review.
+
+### DJI
+
+Status: critical HADR drone/vendor layer, not yet implemented.
+
+Compliance and source evidence:
+
+- DJI should be treated as a proprietary product integration, not a standards feed. It may arrive through SDK/cloud
+  surfaces, controller/dock/session APIs, recorded files, subtitles, or media streams depending on deployment.
+- DJI Onboard SDK documentation positions DJI platform integration around drone information, control, payload/camera,
+  video image analysis, and onboard applications.
+- DJI video is not automatically KLV/STANAG evidence. Some paths may expose vendor telemetry, subtitles, sidecar
+  metadata, or live streams rather than MISB ST 0601 KLV packets.
+
+Mock or harness:
+
+- Start with recorded or synthetic DJI-shaped telemetry and media-reference fixtures.
+- Keep DJI telemetry, media references, command authority, and graph projection as separate seams.
+- Use SemSource or a media sidecar only for generic storage/reference/track extraction; SemOps owns DJI semantics.
+
+Indexing profile pressure:
+
+- Vehicle pose, gimbal orientation, camera/sensor state, and selected telemetry are `signal`.
+- Mission/session/control state is `control`.
+- Operator notes, detected objects, and media annotations are `content`.
+- Raw vendor payload references, media extraction logs, and replay records are `trace`.
+
+First acceptance gate:
+
+- Given a DJI-shaped telemetry fixture, SemOps can parse vehicle position, heading, altitude, gimbal/camera state,
+  timestamps, source identity, and freshness without graph writes.
+- Given a DJI media fixture or reference, SemOps records media refs and bounded metadata without embedding video in
+  triples.
+- Given DJI video metadata, SemOps routes it to a DJI or generic media decoder path unless the source actually emits
+  KLV/MISB packets.
+- Given any DJI command/control work, command authority, local override, and safety policy are reviewed before graph
+  projection or driver actuation.
+
+Known gaps:
+
+- No legal representative DJI telemetry/media fixture has been selected.
+- No DJI SDK/cloud integration strategy has been chosen.
+- No live DJI bridge, media relay, or command authority path exists.
+- No DJI product support or compatibility claim is allowed yet.
+
 ### CS API Bidirectional Interop
 
 Status: interop after structural graph is stable.
@@ -547,20 +647,54 @@ Compliance and parser evidence:
 - jMISB implements several MISB standards, including ST 0601 UAS Datalink, ST 0805 KLV-to-CoT conversion, and
   ST 1402 MPEG-2 transport stream support.
 - `klvdata` is a Python library for parsing MISB ST 0601 KLV metadata from STANAG 4609-compliant MPEG-TS streams.
+- `klvdata` documents a small binary packet sample and an FFmpeg workflow for extracting KLV from the public
+  `Day Flight.mpg` MPEG-TS sample. Treat that as smoke evidence only until license/provenance and cache policy are
+  reviewed.
+- FFmpeg can map data streams explicitly; KLV extraction commands must not assume data streams are selected
+  automatically.
 
 Local assets:
 
 - SemSource has draft media support and a video handler that extracts metadata and keyframes with ffprobe/ffmpeg.
 - SemSource can store metadata-only video entities, and can store binary files when a media store is configured.
 - The current video handler streams hashing, but reads the full video into memory when binary storage is enabled.
+- SemOps does not currently have a real legal KLV, STANAG 4609, or SKG binary fixture to hand to SemSource.
+- `internal/components/klv` declares the first registered KLV payload schemas: `semops.klv_media_ref.v1`,
+  `semops.klv_packet.v1`, and `semops.klv_misb0601_frame.v1`.
+- `internal/components/klv` also declares the first component skeleton: media-reference input, KLV demux processor,
+  MISB ST 0601 decode processor, and governed projector processor with file, stream, and graph request ports.
+- `internal/components/klv` includes the first Go-native deterministic MISB ST 0601 local-set decoder for bounded
+  packet bytes, and the decoder component can publish decoded-frame BaseMessages when configured with a SemStreams
+  bus. No MPEG-TS demux path or graph projection is implemented.
 
 Mock or harness:
 
 - Treat SemSource as a candidate media sidecar, not a proven KLV solution.
-- First prove video metadata and keyframe ingestion on a small fixture.
-- Then prove KLV metadata extraction from a small ST 0601 sample stream using jMISB or `klvdata`.
-- Only after that decide whether the production adapter is Go-native, Java sidecar, Python sidecar, or SemSource
-  extension.
+- SemSource's governed SemStreams migration leaves KLV/MISB/STANAG/SAPIENT/SKG interpretation to SemOps or a
+  SemOps-owned worker. That is the product boundary SemOps should preserve.
+- Demux does not need to happen in SemSource for the MVP. SemOps owns the `media_ref -> demux -> decode -> project`
+  flow so MPEG-TS/KLV behavior, MISB decode, and support claims stay in the COP product.
+- A future SemSource or media-stack component may provide generic media-track extraction or byte-range materialization,
+  especially for shared FFmpeg/GStreamer/MediaMTX needs, but it should emit generic media/data-track evidence rather
+  than SemOps product claims.
+- If SemSource needs an immediate fixture for its governed SemStreams migration, use a deliberately synthetic binary
+  fixture and label it as storage/governance proof only.
+- The synthetic fixture may prove raw bytes by reference, storage hashes, governed metadata entities, owner-token
+  writes, indexing profiles, and memory-bounded handling.
+- The synthetic fixture must not be described as KLV, STANAG 4609, SAPIENT, SKG, streaming-binary, or protocol
+  conformance evidence.
+- SemOps owns the product fixture ladder: public KLV sample smoke, deterministic MISB ST 0601 fixture, and any formal
+  STANAG 4609 conformance path.
+- First prove video metadata and keyframe ingestion on a small synthetic or public fixture.
+- Then use a public KLV sample only as demux/parser smoke after license and provenance review.
+- Use a deterministic MISB ST 0601 fixture, ideally truth JSON to encoded KLV to MPEG-TS to parsed output, as the
+  first engineering-support acceptance gate.
+- Public examples commonly used by open-source FMV/KLV tooling plus deterministic fixtures are acceptable for
+  demo-grade engineering support. Official STANAG 4609 conformance or certification stays blocked until someone funds
+  a validator or lab effort with proper access.
+- First parser strategy: keep the first spike Go-native and deterministic for the supported MISB ST 0601 local-set
+  subset. Keep MPEG-TS demux behind the demux component boundary and defer FFmpeg/GStreamer, `klvdata`, jMISB, or a
+  Rust worker until public-sample smoke or production throughput proves the need.
 
 Indexing profile pressure:
 
@@ -572,8 +706,26 @@ Indexing profile pressure:
 
 First acceptance gate:
 
-- Given a small video-plus-KLV fixture, the demo extracts a sensor footprint and platform/sensor position, stores
-  binary by reference, and proves memory-bounded handling before any "streaming binary" product claim.
+- Given a SemOps-owned KLV/MISB worker design, the input is a SemSource storage reference or native media reference,
+  the output is governed derived facts, and component telemetry/backpressure/memory bounds are declared.
+- Given hosted KLV/MISB work, SemOps uses a SemStreams media-reference input component, demux processor, MISB decode
+  processor, projector processor, and optional interop processors rather than a monolithic COP server feature.
+- Given component promotion, KLV messages use registered `semops.klv.*` payloads and declared ports; graph writes
+  happen only in the projector through SemStreams request ports.
+- Given `go test ./internal/components/klv ./internal/contracts`, the first KLV payload schemas round-trip through
+  SemStreams `message.BaseMessage`, enforce by-reference posture for packet payloads that do not carry bounded bytes,
+  and connect media-ref -> demux -> decode -> projector through SemStreams flowgraph ports.
+- Given `go test ./internal/components/klv`, the first deterministic MISB ST 0601 local-set decoder extracts frame
+  time, platform designation, sensor position, frame center, azimuth, and elevation from bounded packet bytes without
+  graph writes.
+- Given the opt-in decoder worker path, a registered `semops.klv_packet.v1` BaseMessage produces a registered
+  `semops.klv_misb0601_frame.v1` BaseMessage on the declared frame subject, not a graph mutation subject.
+- Given a public video-plus-KLV smoke sample with documented license and provenance, the demo extracts plausible
+  KLV metadata without calling the result deterministic correctness or conformance evidence.
+- Given a deterministic MISB ST 0601 fixture, parsed platform/sensor position, frame time, frame center, and footprint
+  inputs exactly match the source truth data.
+- Given any video-plus-KLV path, binary is stored by reference and memory-bounded behavior is proven before any
+  "streaming binary" product claim.
 
 ## Upstream SemStreams Questions
 
@@ -594,6 +746,10 @@ Do not file all of these immediately. Use SemOps evidence first.
 - MAVLink developer guide: <https://mavlink.io/en/>
 - OASIS CAP 1.2: <https://docs.oasis-open.org/emergency/cap/v1.2/CAP-v1.2-os.pdf>
 - NWS API: <https://www.weather.gov/documentation/services-web-api>
+- OGC API - Environmental Data Retrieval: <https://ogcapi.ogc.org/edr/>
+- MSC GeoMet OGC API: <https://api.weather.gc.ca/>
+- Open-Meteo API docs: <https://open-meteo.com/en/docs>
+- DJI Onboard SDK overview: <https://developer.dji.com/onboard-sdk/documentation/introduction/homepage.html>
 - OpenSky REST API: <https://openskynetwork.github.io/opensky-api/rest.html>
 - OGC API - Connected Systems overview: <https://ogcapi.ogc.org/connectedsystems/>
 - OGC Connected Systems SWG repository: <https://github.com/opengeospatial/ogcapi-connected-systems>

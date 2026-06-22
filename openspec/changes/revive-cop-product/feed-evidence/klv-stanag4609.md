@@ -10,11 +10,129 @@ binary-by-reference storage, and memory-bounded handling.
 
 ## Local Evidence
 
-- No SemOps KLV adapter exists in the current checkout.
+- No production SemOps KLV adapter or MPEG-TS demuxer exists in the current checkout.
 - SemSource has video-source and video-handler code that extracts metadata and keyframes with ffprobe/ffmpeg.
 - SemSource video handling streams hashing, but when a storage backend is configured it currently reads the full
   video file into memory before storage.
 - SemSource can publish typed media entity state through SemStreams, but it is not a tested KLV parser.
+- SemOps does not currently have a real legal KLV, STANAG 4609, or SKG binary fixture to provide to SemSource.
+- `internal/components/klv` now declares the first registered SemStreams payload schemas for the future KLV worker:
+  `semops.klv_media_ref.v1`, `semops.klv_packet.v1`, and `semops.klv_misb0601_frame.v1`.
+- `internal/components/klv` now exposes the first SemStreams component skeleton for media-reference input, KLV demux,
+  MISB ST 0601 decode, and governed projector stages with declared file, stream, and graph request ports.
+- `internal/components/klv` now includes the first Go-native deterministic MISB ST 0601 local-set decoder for bounded
+  packet bytes. The decoder component can consume registered packet BaseMessages and publish registered decoded-frame
+  BaseMessages when configured with a SemStreams bus. MPEG-TS demux and graph projection remain follow-ups.
+
+## SemSource Fixture Handoff
+
+If SemSource needs an immediate fixture while migrating to governed SemStreams, SemOps should not block it on a real
+KLV/SKG sample that does not exist yet. Use a deliberately synthetic binary fixture and label it as a storage and
+governance proof, not protocol conformance.
+
+The synthetic fixture may prove:
+
+- Raw bytes are stored by reference rather than written into graph triples.
+- Hashes, storage references, byte ranges, extraction notes, and provenance become governed metadata entities.
+- SemSource uses SemStreams owner tokens, declared predicates, and indexing profiles for the metadata it publishes.
+- The configured storage path is memory bounded for the fixture shape being tested.
+
+The synthetic fixture must not be used to claim KLV/STANAG 4609, SAPIENT, SKG, streaming-binary, or parser
+conformance. Promoting beyond storage/governance proof requires a legal representative fixture, parser strategy,
+metadata extraction tests, and a separate adversarial review.
+
+## SemSource Alignment
+
+SemSource's governed SemStreams migration now treats opaque binary handling as a substrate proof. It can store,
+hash, reference, and publish governed metadata for binary artifacts, but it explicitly leaves KLV, MISB ST 0601,
+STANAG 4609, SAPIENT, SKG, parser, translation, and protocol-conformance claims to SemOps or a SemOps-owned worker.
+
+SemOps accepts that boundary. The SemOps product path is:
+
+1. Consume SemSource storage references or native media ingress.
+2. Demux and parse KLV/MISB payloads in a SemOps-owned worker or sidecar.
+3. Publish governed derived facts, CoT, CS API JSON, or COP-specific projections through SemStreams contracts.
+4. Keep protocol and streaming-binary claims gated by fixture provenance, parser tests, memory evidence, and
+   adversarial review.
+
+Demux does not need to happen in SemSource for this plan to work well. For MVP, SemOps should keep the
+`media_ref -> demux -> decode -> project` flow because MPEG-TS KLV handling, MISB ST 0601 decode, and
+engineering-support claims are COP product concerns. A future SemSource or media-stack component may still provide
+generic media-track extraction, byte-range materialization, or live media relay support, especially if FFmpeg,
+GStreamer, or MediaMTX becomes shared infrastructure. That generic service should not own SemOps KLV/STANAG claims;
+SemOps should consume its output through declared SemStreams ports and keep KLV semantics downstream.
+
+Recommended SemOps fixture ladder:
+
+1. Opaque synthetic binary fixture from SemSource for storage/governance proof only.
+2. Public KLV sample smoke in SemOps, after license and provenance review. This proves real-world demux/parser
+   plumbing, not deterministic correctness or conformance.
+3. Deterministic MISB ST 0601 fixture in SemOps, ideally truth JSON to encoded KLV to MPEG-TS to parsed output.
+   This is the first credible engineering-support gate because assertions can compare parsed output to known truth.
+4. Formal STANAG 4609 conformance as a separate validator or lab track.
+
+Engineering support language may cite public examples commonly used by open-source FMV/KLV tooling plus deterministic
+fixtures. It must not use "official conformance", "certification", or equivalent language until a funded validator or
+lab effort with proper access exists.
+
+## Current Parser Strategy
+
+The first KLV/MISB spike should stay Go-native and deterministic:
+
+- Decode a bounded MISB ST 0601 local-set packet generated in tests.
+- Prove frame time, platform designation, sensor position, frame center, azimuth, and elevation extraction without
+  graph writes.
+- Publish decoded-frame BaseMessages only through the declared frame output port when a bus is provided.
+- Keep MPEG-TS demux behind the demux component boundary.
+- Defer FFmpeg/GStreamer, `klvdata`, jMISB, or a Rust worker until public-sample smoke or throughput requirements
+  justify the sidecar/toolchain cost.
+- Do not vendor or download public media samples until license, provenance, cache, and CI policy are recorded.
+
+## Next Slice
+
+Add bounded media-ref and MPEG-TS demux behavior before projection code or vendored public fixtures.
+
+The worker should:
+
+- Accept either a SemSource storage reference or native media ingress reference as input.
+- Demux KLV from MPEG-TS without requiring raw video bytes in graph triples.
+- Parse the first MISB ST 0601 subset needed for platform position, sensor position, frame time, frame center, and
+  footprint inputs.
+- Emit governed derived facts through SemStreams contracts, with `signal` for projected sensor geometry, `trace` for
+  packet/decode diagnostics, and `control` for clip/evidence package lifecycle.
+- Publish CoT or CS API JSON only as derived interop outputs, not as the internal KLV model.
+- Expose component telemetry, backpressure posture, and memory bounds before any streaming-binary language.
+
+### Worker Boundary
+
+The first product shape should be a SemStreams component flow, not a monolithic COP server feature:
+
+1. Media-reference input component.
+   - Consumes SemSource storage references, local fixture paths, or future native media ingress references.
+   - Declares `FilePort`, `NATSPort`, `NATSRequestPort`, or `HTTPClientPort` resources that match the chosen source.
+   - Emits registered `semops.klv_media_ref.v1` messages with source URI, content hash, fixture/provenance metadata,
+     optional byte range, and storage reference.
+2. KLV demux processor.
+   - Reads the referenced media through bounded buffers or a sidecar process.
+   - Emits registered `semops.klv_packet.v1` trace messages containing packet metadata, byte offsets, timing, and
+     either bounded packet bytes or packet storage references.
+   - Does not write graph mutations.
+3. MISB decode processor.
+   - Parses the first supported ST 0601 subset into registered `semops.klv_misb0601_frame.v1` messages.
+   - Starts with platform position, sensor position, frame time, frame center, and fields needed to compute a
+     footprint.
+   - Emits decode diagnostics as `trace` rather than corrupting current COP state.
+4. KLV projector processor.
+   - Writes governed graph mutations only through declared SemStreams graph request ports.
+   - Uses `semops.feed.klv` owner tokens minted by the SemStreams registry/bind path.
+   - Projects sensor geometry and platform/sensor current state as `signal`, clip/evidence package lifecycle as
+     `control`, and packet/decode diagnostics as `trace`.
+5. Optional interop processors.
+   - Emit CoT, CS API JSON, or other bridge outputs from the decoded internal model.
+   - Do not replace the governed internal projection contract.
+
+Initial enablement should be opt-in, for example `SEMOPS_KLV_ENABLED=false` by default. Public sample use should also
+be opt-in or locally cached so CI does not depend on large network downloads.
 
 ## External Evidence
 
@@ -24,20 +142,96 @@ binary-by-reference storage, and memory-bounded handling.
 - `klvdata` parses and constructs KLV formatted binary streams and targets MISB ST 0601 UAS metadata from
   STANAG 4609-compliant MPEG-TS streams.
 - `klvdata` alone does not demux KLV from MPEG-TS; FFmpeg or GStreamer is needed in that workflow.
+- `klvdata` includes a small binary packet sample and documents using FFmpeg to extract KLV data from the public
+  FFmpeg `Day Flight.mpg` MPEG-TS sample.
+- The FFmpeg sample archive currently lists `Day Flight.mpg` and `Night Flight IR.mpg` under `MPEG2/mpegts-klv/`.
+- FFmpeg can manually map data streams; data streams are not selected automatically.
+- `klv-uas` is a Rust crate for UAS KLV parsing, but its docs are sparse enough that it should be a candidate parser,
+  not the default strategy until a spike proves maturity.
 
 ## Gates
+
+### Payload Registry Gate
+
+Target command:
+
+```bash
+go test ./internal/components/klv ./internal/contracts
+```
+
+Acceptance:
+
+- `semops.klv_media_ref.v1` round-trips through SemStreams `message.BaseMessage`. [done]
+- `semops.klv_packet.v1` round-trips through SemStreams `message.BaseMessage`. [done]
+- `semops.klv_misb0601_frame.v1` round-trips through SemStreams `message.BaseMessage`. [done]
+- Packet payloads require bounded packet bytes or a packet storage reference. [done]
+- Decoded frame payloads require an explicit decoded-field inventory. [done]
+
+### Component Skeleton Gate
+
+Target command:
+
+```bash
+go test ./internal/components/klv ./internal/contracts
+```
+
+Acceptance:
+
+- Media-reference input is a SemStreams input component with a `FilePort` and registered media-ref stream output.
+  [done]
+- Demux is a SemStreams processor component from media refs to KLV packet trace payloads. [done]
+- Decode is a SemStreams processor component from KLV packets to MISB ST 0601 frame payloads. [done]
+- Projector is a SemStreams processor component from decoded frames to graph create/update request ports. [done]
+- Flowgraph connects media-ref -> demux -> decode -> projector through tappable stream ports. [done]
+
+### Parser-Core Gate
+
+Target command:
+
+```bash
+go test ./internal/components/klv
+```
+
+Acceptance:
+
+- First spike uses a Go-native deterministic MISB ST 0601 local-set decoder rather than a sidecar. [done]
+- Bounded packet bytes decode into `semops.klv_misb0601_frame.v1` fields without graph writes. [done]
+- Frame time, platform designation, sensor position, sensor azimuth/elevation, and frame center decode from the
+  fixture packet. [done]
+- Storage-reference-only packets fail explicitly until the demux/materialization path exists. [done]
+- Unsupported tags are warning evidence, not current-state projection. [done]
+
+### Decoder Worker Gate
+
+Target command:
+
+```bash
+go test ./internal/components/klv
+```
+
+Acceptance:
+
+- Decoder runtime is opt-in through an explicit SemStreams bus dependency. [done]
+- A registered `semops.klv_packet.v1` BaseMessage is decoded through the payload registry. [done]
+- The worker publishes a registered `semops.klv_misb0601_frame.v1` BaseMessage to the declared frame subject. [done]
+- The decoder worker does not publish graph mutation subjects. [done]
 
 ### Fixture Gate
 
 Target artifact:
 
-- A tiny video-plus-KLV fixture that can be checked in or generated without restricted data.
+- Public sample smoke: a small or locally cached video-plus-KLV sample with documented license and provenance.
+- Deterministic fixture: truth JSON, generated KLV payloads, optional generated MPEG-TS wrapper, and expected decoded
+  output.
 
 Acceptance:
 
 - Fixture licensing is clear.
-- The fixture contains enough ST 0601 metadata to extract platform/sensor position and sensor footprint.
+- Public sample smoke extracts plausible ST 0601 metadata from a real MPEG-TS stream without claiming conformance.
+- Deterministic fixture output exactly matches the source truth data for supported fields.
+- The deterministic fixture contains enough ST 0601 metadata to extract platform/sensor position and sensor footprint.
 - The fixture is small enough for local tests.
+- CI does not depend on large network downloads.
 
 ### Media Gate
 
@@ -86,19 +280,30 @@ Acceptance:
 ## Known Gaps
 
 - No small legal fixture identified yet.
-- No SemOps parser strategy chosen: Go-native, Java sidecar, Python sidecar, or SemSource extension.
+- No production MPEG-TS demux strategy chosen: FFmpeg/GStreamer, Java sidecar, Python sidecar, Rust worker, or
+  SemSource extension.
+- No public KLV sample has passed SemOps license/provenance review yet.
+- No deterministic truth-to-KLV-to-MPEG-TS generation path has been chosen.
+- Media-reference input, demux, and projector stages are topology skeletons only.
+- The decoder worker exists for bounded packet bytes, but no media-ref input, MPEG-TS demux, or graph projection
+  runtime exists yet.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 
 ## Adversarial Feed-Entry Questions
 
 - Is the fixture legal, small, and representative enough?
+- Are public samples being used only as smoke tests while deterministic truth fixtures carry acceptance?
 - Are we claiming "streaming binary" before memory-bounded evidence exists?
 - Is SemSource being used as a media sidecar rather than assumed to solve KLV?
 - Does the graph contain metadata and references, never raw bytes?
 - Is the parser sidecar choice justified by testability and deployment constraints?
+- Are "engineering support" and "formal certification" kept separate in docs and demos?
 
 ## Source Links
 
 - jMISB: <https://github.com/WestRidgeSystems/jmisb>
 - klvdata: <https://github.com/paretech/klvdata>
+- FFmpeg MPEG-TS KLV samples: <https://samples.ffmpeg.org/MPEG2/mpegts-klv/>
+- FFmpeg docs: <https://ffmpeg.org/ffmpeg.html>
+- klv-uas docs: <https://docs.rs/klv-uas/latest/klv_uas/>

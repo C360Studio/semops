@@ -8,10 +8,10 @@ Code source: `pkg/cop/contracts.go`
 
 | Entity | Purpose | First indexing shape |
 | --- | --- | --- |
-| `track` | Moving thing from MAVLink, TAK/CoT, ADS-B, SAPIENT, or fusion | `signal` |
+| `track` | Moving thing from MAVLink, TAK/CoT, DJI, ADS-B, SAPIENT, or fusion | `signal` |
 | `asset` | Responder, platform, sensor host, infrastructure, or resource | `control` |
-| `hazard_area` | Flood, fire, plume, debris, exclusion, or evacuation geometry | `content` or `control` |
-| `sensor_footprint` | Observed area from drone, video, KLV, or other sensor metadata | `signal` |
+| `hazard_area` | Flood, fire, plume, debris, exclusion, evacuation, or weather hazard geometry | `content` or `control` |
+| `sensor_footprint` | Observed area from drone, video, DJI/KLV, or other sensor metadata | `signal` |
 | `alert` | Rule, source, or fusion alert with severity and active state | `control` |
 | `task` | Operator intent, requested action, or assignment | `control` |
 | `advisory` | Human-readable or semantic-tier advisory text | `content` |
@@ -77,7 +77,9 @@ Predicate names are product-local until a reusable SemStreams need is proven.
 | Track current state | `cop.track.position`, `cop.track.velocity`, `cop.track.status` | Strict source-owned state |
 | Task/control state | `cop.task.name`, `cop.task.position`, `cop.task.status` | TAK markers and later assignments |
 | Advisory content | `cop.advisory.text`, `cop.advisory.sender` | GeoChat, notes, and advisory text |
-| Hazard evidence | `cop.hazard.advisory_text`, `cop.hazard.evidence`, `cop.hazard.source` | CAP starts append-only |
+| Hazard evidence | `cop.hazard.advisory_text`, `cop.hazard.evidence`, `cop.hazard.source` | CAP/weather alerts start append-only |
+| Weather evidence | `cop.weather.value`, `cop.weather.variable`, `cop.weather.query_shape`, `cop.weather.model_time` | Candidate only until fixtures prove the first tactical weather slice |
+| Media evidence | `cop.media.ref`, `cop.media.kind`, `cop.media.hash`, `cop.media.time_range` | Candidate only until DJI/KLV media fixtures prove shared vocabulary |
 | Alert derived state | `cop.alert.severity`, `cop.alert.status`, `cop.alert.reason` | Fusion-owned derived facts |
 | Provenance | source, confidence, observed-at, source-ref predicates | Candidate upstream convention |
 

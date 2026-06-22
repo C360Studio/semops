@@ -10,6 +10,7 @@ import (
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
+	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
@@ -701,6 +702,84 @@ func TestSAPIENTPreflightBoundaryUsesSemStreamsComponentShapeWithoutGraphWrites(
 			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
 		}
 	}
+}
+
+func TestKLVWorkerBoundaryUsesMediaRefDemuxDecodeAndProjectorComponents(t *testing.T) {
+	var _ component.LifecycleComponent = (*klvcomponent.MediaRefInputComponent)(nil)
+	var _ component.LifecycleComponent = (*klvcomponent.DemuxComponent)(nil)
+	var _ component.LifecycleComponent = (*klvcomponent.DecoderComponent)(nil)
+	var _ component.LifecycleComponent = (*klvcomponent.ProjectorComponent)(nil)
+
+	input, err := klvcomponent.NewMediaRefInputComponent(klvcomponent.MediaRefInputConfig{})
+	if err != nil {
+		t.Fatalf("new KLV media-ref input: %v", err)
+	}
+	demux, err := klvcomponent.NewDemuxComponent(klvcomponent.DemuxConfig{})
+	if err != nil {
+		t.Fatalf("new KLV demux: %v", err)
+	}
+	decoder, err := klvcomponent.NewDecoderComponent(klvcomponent.DecoderConfig{})
+	if err != nil {
+		t.Fatalf("new KLV decoder: %v", err)
+	}
+	projector, err := klvcomponent.NewProjectorComponent(klvcomponent.ProjectorConfig{})
+	if err != nil {
+		t.Fatalf("new KLV projector: %v", err)
+	}
+
+	if got, want := input.InputPorts()[0].Config.Type(), "file"; got != want {
+		t.Fatalf("KLV media input port type = %q, want %q", got, want)
+	}
+	if got, want := input.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		klvcomponent.DefaultMediaRefSubject; got != want {
+		t.Fatalf("KLV media-ref subject = %q, want %q", got, want)
+	}
+	if got, want := demux.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		klvcomponent.DefaultPacketSubject; got != want {
+		t.Fatalf("KLV packet subject = %q, want %q", got, want)
+	}
+	if got, want := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		klvcomponent.DefaultFrameSubject; got != want {
+		t.Fatalf("KLV frame subject = %q, want %q", got, want)
+	}
+	for _, port := range projector.OutputPorts() {
+		if got, want := port.Config.Type(), "nats-request"; got != want {
+			t.Fatalf("KLV projector output port %q type = %q, want %q", port.Name, got, want)
+		}
+	}
+
+	requireProperty(t, input.ConfigSchema(), "media_ref_subject")
+	requireProperty(t, demux.ConfigSchema(), "max_packet_bytes")
+	requireProperty(t, decoder.ConfigSchema(), "supported_subset")
+	requireProperty(t, projector.ConfigSchema(), "owner")
+
+	fg := flowgraph.NewFlowGraph()
+	for _, comp := range []component.Discoverable{input, demux, decoder, projector} {
+		if err := fg.AddComponentNode(comp.Meta().Name, comp); err != nil {
+			t.Fatalf("add KLV component %s to flow graph: %v", comp.Meta().Name, err)
+		}
+	}
+	if err := fg.ConnectComponentsByPatterns(); err != nil {
+		t.Fatalf("connect KLV flow graph: %v", err)
+	}
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: input.Meta().Name, PortName: "media_refs"},
+		To:           flowgraph.ComponentPortRef{ComponentName: demux.Meta().Name, PortName: "media_refs"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: klvcomponent.DefaultMediaRefSubject,
+	})
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: demux.Meta().Name, PortName: "klv_packets"},
+		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "klv_packets"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: klvcomponent.DefaultPacketSubject,
+	})
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "misb0601_frames"},
+		To:           flowgraph.ComponentPortRef{ComponentName: projector.Meta().Name, PortName: "misb0601_frames"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: klvcomponent.DefaultFrameSubject,
+	})
 }
 
 func TestRawFeedFlowUsesRegisteredBaseMessagePayload(t *testing.T) {

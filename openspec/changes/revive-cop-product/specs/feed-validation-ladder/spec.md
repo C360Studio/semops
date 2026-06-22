@@ -12,7 +12,7 @@ Each feed SHALL pass documented validation gates before it is treated as a SemOp
 #### Scenario: Feed order is explicit
 
 - **WHEN** the revival plan sequences feed work
-- **THEN** it starts with MAVLink, then TAK/CoT, then CAP before ADS-B, SAPIENT, KLV, or CS API interop
+- **THEN** it starts with MAVLink, then TAK/CoT, then CAP before weather, DJI, ADS-B, SAPIENT, KLV, or CS API interop
 - **AND** broader EDXL formats beyond CAP require separate product need, fixture, projection, and review gates before
   they enter Phase 1 scope
 
@@ -167,6 +167,82 @@ binary-by-reference storage, and memory-bounded handling.
 
 - **WHEN** a video, keyframe, or KLV payload is ingested
 - **THEN** graph state contains metadata and storage references, not raw binary bytes
+
+#### Scenario: Synthetic binary fixture is labeled honestly
+
+- **WHEN** SemSource or a SemOps sidecar uses a synthetic binary fixture before a real legal KLV/SKG sample exists
+- **THEN** the fixture is labeled as storage/governance proof only
+- **AND** it proves binary-by-reference, governed metadata, indexing profile, and memory-bound behavior
+- **AND** it is not cited as KLV, STANAG 4609, SAPIENT, SKG, streaming-binary, or protocol conformance evidence
+
+#### Scenario: KLV and STANAG behavior remains a SemOps product concern
+
+- **WHEN** SemSource provides storage references or governed metadata for opaque binary artifacts
+- **THEN** SemOps owns KLV/MISB/STANAG parser choice, derived-fact projection, and conformance claims
+- **AND** SemSource substrate evidence is not treated as feed-specific protocol support
+
+#### Scenario: KLV demux remains a SemOps product boundary for MVP
+
+- **WHEN** SemOps consumes SemSource media references or native media ingress
+- **THEN** the MVP demuxes KLV in a SemOps-owned component or sidecar
+- **AND** future SemSource media-track extraction is treated as generic substrate support, not SemOps KLV/STANAG
+  product support
+
+#### Scenario: DJI media reinforces generic media references
+
+- **WHEN** DJI video or recorded media enters SemOps
+- **THEN** the media path uses generic media references and bounded metadata extraction where possible
+- **AND** DJI telemetry, subtitles, or vendor metadata are not forced through the KLV/MISB decoder unless the source
+  actually emits KLV
+- **AND** the existence of DJI video does not move KLV/STANAG product claims into SemSource
+
+#### Scenario: Weather layers are tracked separately
+
+- **WHEN** SemOps adds weather to the COP
+- **THEN** visual weather tiles, CAP/public alerts, and tactical weather telemetry have separate evidence gates
+- **AND** tactical weather supports point, area, and route/trajectory query shapes before it influences routing or
+  safety logic
+
+#### Scenario: Public samples are smoke evidence only
+
+- **WHEN** SemOps uses a public video-plus-KLV sample such as a widely circulated MPEG-TS KLV file
+- **THEN** the sample has documented license and provenance before use
+- **AND** the result is labeled as demux/parser smoke evidence, not deterministic correctness or conformance
+
+#### Scenario: Deterministic KLV fixture proves engineering support
+
+- **WHEN** SemOps claims MISB ST 0601 engineering support
+- **THEN** a deterministic fixture traces truth JSON through encoded KLV and optional MPEG-TS wrapping to parsed output
+- **AND** acceptance asserts parsed values against the original truth data for the supported field subset
+
+#### Scenario: First KLV parser spike is deterministic and local
+
+- **WHEN** SemOps chooses the first KLV/MISB parser and demux strategy
+- **THEN** the first spike uses a Go-native MISB ST 0601 local-set decoder against bounded deterministic packet bytes
+- **AND** MPEG-TS demux, public media samples, and sidecar parser choices remain follow-up smoke or production paths
+- **AND** parser-core tests do not write graph mutations
+
+#### Scenario: KLV decoder worker remains flow based
+
+- **WHEN** the first decoder worker path is enabled
+- **THEN** it consumes registered `semops.klv_packet.v1` BaseMessages from the declared packet input
+- **AND** it publishes registered `semops.klv_misb0601_frame.v1` BaseMessages to the declared frame output
+- **AND** it does not publish graph mutation requests
+
+#### Scenario: Engineering support is distinct from official conformance
+
+- **WHEN** SemOps uses public examples and deterministic fixtures for KLV/MISB acceptance
+- **THEN** demo and documentation language may claim engineering support for the tested subset
+- **AND** official STANAG 4609 conformance or certification remains blocked until a funded validator or lab effort
+  with proper access exists
+
+#### Scenario: KLV worker uses SemStreams component flow
+
+- **WHEN** SemOps promotes KLV/MISB beyond planning
+- **THEN** it is composed as media-reference input, demux processor, MISB decode processor, projector processor, and
+  optional interop processors
+- **AND** every stage uses declared ports, registered payloads, health, flow metrics, and config schema
+- **AND** graph writes occur only in the projector through declared SemStreams graph request ports
 
 #### Scenario: Streaming-binary claim is blocked by memory-bound evidence
 

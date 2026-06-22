@@ -113,6 +113,22 @@
 - [x] 5.41 Add SAPIENT preflight component gate without claiming product support, conformance, or graph projection
 - [x] 5.42 Add ADS-B app-runtime component gate without claiming default live OpenSky reliability or receiver support
 - [x] 5.43 Add SAPIENT app-runtime preflight gate without claiming product support, conformance, or graph projection
+- [x] 5.44 Record SemSource binary fixture handoff as synthetic storage/governance proof until a real KLV/SKG fixture exists
+- [ ] 5.45 Identify a legal representative KLV/SKG binary fixture before protocol conformance or streaming-binary claims
+- [x] 5.46 Accept SemSource beta.114 binary boundary while keeping KLV/MISB/STANAG details in SemOps
+- [x] 5.47 Design the SemOps-owned KLV/MISB worker boundary from storage references to governed derived facts
+- [x] 5.48 Record public-sample versus deterministic fixture strategy for KLV/MISB
+- [ ] 5.49 Verify public KLV sample license/provenance before vendoring, downloading, or using in CI
+- [x] 5.50 Choose parser and demux strategy for the first KLV/MISB worker spike
+- [x] 5.51 Define first `semops.klv_*` payload registry schemas with SemStreams BaseMessage round-trip tests
+- [x] 5.52 Define SemStreams component port skeletons for media-ref input, demux, decode, and projector stages
+- [x] 5.53 Add an opt-in KLV worker spike against a local deterministic fixture without graph writes
+- [ ] 5.54 Add adversarial review before any MISB/STANAG engineering-support language appears in demo copy
+- [x] 5.55 Add a deterministic MISB ST 0601 local-set decoder core test without graph writes
+- [x] 5.56 Add DJI sensor/telemetry and weather as first-class feed/layer roadmap entries
+- [x] 5.57 Record that DJI video reinforces generic media-reference handling without moving KLV demux into SemSource
+- [ ] 5.58 Add weather parser/source evidence for OGC API EDR, Open-Meteo, NWS CAP alerts, and visual tile sources
+- [ ] 5.59 Add DJI feed evidence for telemetry, command authority, media references, and replay fixtures
 
 ## 6. Structural COP Stack
 

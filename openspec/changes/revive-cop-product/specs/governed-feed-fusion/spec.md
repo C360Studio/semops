@@ -133,7 +133,7 @@ requests before triples or foreign edges are added.
   Events, streaming, and snapshots map through ownership-aware state, evidence, and command-authority boundaries
 - **AND** command ingress is asynchronous: the CS API boundary records governed intent or desired state with TTL,
   priority, authority, idempotency, and cancellation semantics before native drivers reconcile actual execution
-- **AND** native adapters for MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, and KLV remain first-class paths when their
+- **AND** native adapters for MAVLink, TAK/CoT, CAP, weather, DJI, ADS-B, SAPIENT, and KLV remain first-class paths when their
   native protocols carry product-critical semantics
 - **AND** CS API interop MUST preserve SemStreams ownership, provenance, freshness, and indexing-profile decisions
   rather than becoming a bypass around governed feed fusion
@@ -172,8 +172,24 @@ preserved as evidence.
 
 #### Scenario: Binary media is referenced instead of embedded
 
-- **WHEN** KLV, imagery, video, or keyframe evidence is available to a feed adapter
+- **WHEN** KLV, DJI video, imagery, video, or keyframe evidence is available to a feed adapter
 - **THEN** graph state contains metadata and storage references instead of raw binary payloads
+
+#### Scenario: Weather is split by operational shape
+
+- **WHEN** weather enters the COP
+- **THEN** alert/advisory evidence may reuse CAP-style append-evidence contracts
+- **AND** tactical weather observations or forecasts are projected as bounded point, area, trajectory, or corridor
+  evidence with provenance and freshness
+- **AND** visual raster or tile layers may be browser-only unless an operator workflow requires graph state
+
+#### Scenario: DJI video does not redefine KLV semantics
+
+- **WHEN** DJI telemetry, media references, subtitles, or live video feeds enter SemOps
+- **THEN** DJI-specific metadata and control semantics stay in a DJI feed boundary
+- **AND** KLV/MISB decode remains a KLV/STANAG worker concern
+- **AND** shared media infrastructure may provide generic media references or track extraction without claiming DJI or
+  KLV product support
 
 ### Requirement: First canonical COP entities are stable
 

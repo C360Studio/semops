@@ -35,10 +35,10 @@ state, command authority, and graph projection separate so promotion does not re
 
 SemOps uses a native core plus standards bridge strategy.
 
-Native adapters are tactical necessities for HADR-style operations: agencies bring MAVLink, CoT, CAP, ADS-B, video,
-and vendor-specific feeds as they are. SemOps should ingest those formats directly, keep native semantics where they
-matter, and project governed COP state into SemStreams without waiting for every source capability to be represented
-first as a standards driver.
+Native adapters are tactical necessities for HADR-style operations: agencies bring MAVLink, CoT, CAP, weather,
+ADS-B, DJI/video, and vendor-specific feeds as they are. SemOps should ingest those formats directly, keep native
+semantics where they matter, and project governed COP state into SemStreams without waiting for every source
+capability to be represented first as a standards driver.
 
 CS API is still important, but as an interface rather than the internal architecture. It buys decoupling for
 standards-aware clients, a possible vendor plug-and-play path when systems already expose CS API, and a unified
@@ -65,6 +65,18 @@ MAVLink:
 - Promotion trigger: multi-vehicle operations, command workflows, hardware links, or auth/signing.
 - Guardrail: keep autopilot protocol and command authority out of the graph projector.
 
+DJI:
+
+- Demo/MVP boundary: recorded or fixture-backed DJI telemetry/media-reference ingest that can show a common HADR
+  drone source without claiming full DJI command/control or video exploitation.
+- Full product path: DJI bridge service with SDK/cloud integration, vehicle identity, gimbal/camera state, media
+  sessions, replay, command authority, and security review for vendor credentials.
+- Promotion trigger: live DJI aircraft, remote-control/cloud session state, camera/gimbal control, or live media
+  relay requirement.
+- Guardrail: do not force DJI video metadata through the KLV/MISB decoder unless the source actually emits KLV.
+  Shared media infrastructure may provide generic media references or track extraction, but SemOps owns DJI product
+  semantics.
+
 TAK/CoT:
 
 - Demo/MVP boundary: native CoT parser, UDP/TCP fixture replay, and source-aware track/task/advisory projection.
@@ -86,6 +98,17 @@ CAP/EDXL:
   service or CAP conformance claim. Hosted CAP pollers use SemStreams `HTTPClientPort` plus a sibling `TimerPort` when
   cadence-driven. Broader EDXL remains a separate roadmap lane until a product need selects a concrete EDXL family
   member and fixture set.
+
+Weather:
+
+- Demo/MVP boundary: keep CAP/public weather alerts on the existing CAP lane, use browser-side weather tiles for
+  visual context when needed, and add a small tactical weather query fixture before weather influences routing.
+- Full product path: weather gateway with OGC API EDR, Open-Meteo or provider-specific polling, visual tile
+  configuration, route/trajectory weather sampling, stale-data policy, cache, and source confidence.
+- Promotion trigger: drone safety/routing logic, route planning, incident-area weather overlays, or multiple weather
+  providers.
+- Guardrail: visual raster/tiles do not need graph ingestion. Only localized tactical observations, forecasts,
+  alerts, and decisions become governed graph evidence.
 
 CS API:
 
@@ -146,6 +169,27 @@ can grow without changing graph ownership.
 Not claimed yet:
 Full GCS/autopilot management, hardware certification, or complete mission-command product.
 
+### DJI
+
+Demo/MVP lane:
+Recorded or fixture-backed DJI telemetry and media-reference ingest for a common HADR drone source. The first demo
+shape should prove a DJI source card, vehicle/sensor state, media reference, and freshness/provenance without
+claiming live DJI cloud or SDK control.
+
+Full product lane:
+DJI bridge service with SDK/cloud integration, aircraft identity, RC/dock/session state, gimbal/camera state,
+recorded media, live media relay, replay capture, command authority, credential handling, and safety/security review.
+
+Boundary to preserve now:
+Keep DJI telemetry, command authority, media sessions, and graph projection separate. DJI video should enter as
+generic media references or vendor metadata first; it must not be treated as KLV/MISB unless the source actually
+emits KLV. If media relay becomes shared infrastructure, SemSource or a media sidecar may own generic track
+extraction, while SemOps owns DJI semantics and claims.
+
+Not claimed yet:
+Live DJI Cloud/API integration, DJI command/control, dock/RC session management, payload SDK compatibility, or
+production video exploitation.
+
 ### TAK/CoT
 
 Demo/MVP lane:
@@ -189,6 +233,26 @@ gates, though component health now degrades to `stale` when no fresh provider pa
 Not claimed yet:
 Full EDXL suite, default live NWS/IPAWS service, CAP consumer conformance, authoritative hazard truth, or
 emergency-alerting authority.
+
+### Weather
+
+Demo/MVP lane:
+Three separate layers: visual weather context in the browser, public alerts through the CAP lane, and localized
+tactical weather telemetry for points, incident areas, or routes. The first backend slice should use deterministic
+fixtures or a provider-shaped HTTP response before live provider claims.
+
+Full product lane:
+OGC API EDR and provider-specific weather gateway with point, area, trajectory, and corridor query support; cache and
+rate-limit behavior; stale-data policy; source confidence; pressure/wind/visibility/precipitation profiles relevant
+to drone safety and routing; and optional visual tile configuration for the UI.
+
+Boundary to preserve now:
+Visual raster or tile layers can stay browser-only unless they produce operator decisions or evidence. Tactical
+weather that affects routing, safety, alerts, or fusion must become governed graph evidence with freshness and
+provenance. CAP-style alerts remain append-evidence and must not overwrite stricter hazard truth.
+
+Not claimed yet:
+Default live weather service reliability, weather-routing authority, provider conformance, or radar product hosting.
 
 ### CS API Bidirectional Interop
 
@@ -281,7 +345,9 @@ Production media/KLV pipeline with demux, parser sidecar or native parser, objec
 sensor footprints, security review for binary handling, replay, and retention.
 
 Boundary to preserve now:
-Treat SemSource as a candidate media sidecar, not a proven answer; keep binary bytes out of graph triples.
+Treat SemSource as a candidate media sidecar, not a proven answer; keep binary bytes out of graph triples. DJI video
+reinforces the need for generic media references and optional shared media-track extraction, but it does not make
+KLV/STANAG demux a SemSource responsibility or turn DJI metadata into MISB/KLV evidence.
 
 Not claimed yet:
 Streaming-binary support, STANAG 4609 conformance, or production video exploitation.
@@ -316,3 +382,8 @@ needs prove the value.
 
 - OGC API - Connected Systems overview: <https://ogcapi.ogc.org/connectedsystems/>
 - OGC Connected Systems SWG repository: <https://github.com/opengeospatial/ogcapi-connected-systems>
+- OGC API - Environmental Data Retrieval: <https://ogcapi.ogc.org/edr/>
+- NWS API documentation: <https://www.weather.gov/documentation/services-web-api>
+- MSC GeoMet OGC API: <https://api.weather.gc.ca/>
+- Open-Meteo API docs: <https://open-meteo.com/en/docs>
+- DJI Onboard SDK overview: <https://developer.dji.com/onboard-sdk/documentation/introduction/homepage.html>

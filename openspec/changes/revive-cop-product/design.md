@@ -52,8 +52,12 @@ demo unless a future decision explicitly changes that repo boundary.
 Adapters that own external protocols or different runtime placement can run as services:
 
 - MAVLink over UDP/TCP/SITL.
+- DJI sensor/telemetry and media references, with vendor-specific control and video concerns kept out of the MAVLink
+  adapter.
 - TAK/CoT over UDP/TCP/XML.
 - CAP ingestion, with broader EDXL variants deferred until a concrete product gate selects them.
+- Weather, split into CAP/public-alert evidence, tactical point/area/trajectory weather observations, and visual map
+  layers.
 - SAPIENT protobuf.
 - ADS-B raw JSON first, ASTERIX later.
 - KLV subset extraction.
@@ -126,8 +130,10 @@ Each ask must cite a SemOps workflow, failing test, missing primitive, or demo c
 
 ### 8. Feeds enter one at a time through evidence gates
 
-Feed order is MAVLink, TAK/CoT, CAP, CS API bidirectional interop, ADS-B, SAPIENT, then KLV/STANAG 4609. Broader
-EDXL variants remain out of Phase 1 until a separate product force, fixture set, and projection contract justify them.
+Feed order is MAVLink, TAK/CoT, CAP, weather, DJI, CS API bidirectional interop, ADS-B, SAPIENT, then KLV/STANAG
+4609. The ordering is not a claim that DJI or weather block the current Phase 1 stack; it records that a credible
+HADR demo needs those layers before deep SAPIENT/KLV product claims. Broader EDXL variants remain out of Phase 1
+until a separate product force, fixture set, and projection contract justify them.
 
 Every feed needs a parser gate, mock or simulator gate, projection gate, replay gate, and demo gate. Compliance gates
 are required where a public suite, official schema, or documented interoperability test exists. If no compliance
@@ -136,9 +142,9 @@ surface is verified, the gap must be recorded before implementation starts.
 Every feed also needs a service-promotion gate. The MVP starts as a bounded adapter or fixture unless product forces
 justify a SemOps-owned service or gateway: protocol exposure, auth/session/federation state, bidirectional command or
 tasking, placement and scaling isolation, durable collaboration or replay state, secrets, cost, or failure-domain
-isolation. The first adapter must keep parser, transport, service state, command authority, and graph projection seams
-separate so TAK Server, CS API gateway, SAPIENT service, ADS-B receiver, or KLV media-pipeline work can be promoted
-later without rewriting governed graph ownership.
+isolation. The first adapter must keep parser, transport, service state, command authority, media/session state, and
+graph projection seams separate so TAK Server, CS API gateway, SAPIENT service, DJI bridge, weather gateway, ADS-B
+receiver, or KLV media-pipeline work can be promoted later without rewriting governed graph ownership.
 
 The first SemStreams indexing-pressure question is whether entity boundaries are right. High-rate state should remain
 `signal`, durable operational state should be `control`, advisory text should be `content`, and replay/native decode
@@ -153,7 +159,7 @@ SemOps should deliberately attack its own assumptions before stage transitions. 
 - COP entity and predicate model stabilization, including born-first and foreign-edge discipline.
 - Each Phase 1 feed entering the structural stack.
 - Orchestration, topology, or tier UI promotion.
-- SAPIENT or KLV product commitment.
+- Weather, DJI, SAPIENT, or KLV product commitment.
 - Upstream SemStreams issue filing.
 
 Reviews should challenge product value, protocol evidence, compliance wording, framework ownership, indexing profile
@@ -171,7 +177,7 @@ accepted risks, and follow-up tasks.
 - Container sprawl can slow the demo. Start with a compact stack and split services when placement requires it.
 - Mixed-shape feeds can blur indexing policy. Split entities by storage/cardinality shape before asking SemStreams
   for new profile semantics.
-- Binary-video claims are risky. KLV remains a proof spike until a small fixture proves metadata extraction,
+- Binary-video claims are risky. KLV and DJI media remain proof spikes until small fixtures prove metadata extraction,
   binary-by-reference storage, and memory-bounded handling.
 - Adversarial reviews can slow execution if they become generic meetings. Keep them evidence-based and tied to stage
   decisions, not broad design theater.
@@ -182,7 +188,8 @@ accepted risks, and follow-up tasks.
 2. Add canonical COP entity and predicate contracts.
 3. Move useful MAVLink parser, generator, and SITL code behind a clean adapter package.
 4. Add structural projection writers and born-first contract tests.
-5. Add the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT, and KLV.
+5. Add the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, weather, DJI, CS API interop, ADS-B,
+   SAPIENT, and KLV.
 6. Run adversarial reviews for framework modernization, COP model, and feed evidence before Phase 1 implementation.
 7. Add generated/replay MAVLink live graph smoke for the ADR-055/056 must-exist breaking-tag gate.
 8. Add first Compose stack with NATS, SemStreams, SemOps API, UI, scenario runner, and three feed adapters.
@@ -200,6 +207,6 @@ accepted risks, and follow-up tasks.
 - Which SemOps API delta style should the browser use first: WebSocket, SSE, or GraphQL subscription?
 - Which selected-entity workflows justify Threlte/Three.js, if any, before Phase 2?
 - What is the minimum manifest metadata that avoids becoming a fake orchestrator?
-- Which SAPIENT and KLV subsets are demo-grade but honest?
+- Which weather, DJI, SAPIENT, and KLV subsets are demo-grade but honest?
 - Which feeds prove that current SemStreams indexing profiles need changes, versus better SemOps entity boundaries?
 - What is the lightest review record that preserves adversarial value without slowing the demo cadence?
