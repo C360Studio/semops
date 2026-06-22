@@ -60,6 +60,36 @@ func TestHandlerReportsProviderFailure(t *testing.T) {
 	}
 }
 
+func TestHandlerServesRuntimeSnapshot(t *testing.T) {
+	now := time.Date(2026, 6, 21, 17, 30, 0, 0, time.UTC)
+	handler, err := NewHandler(
+		NewFixtureProvider(nil),
+		WithClock(func() time.Time { return now }),
+		WithRuntimeProvider(runtimeProviderStub{}),
+	)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/cop/runtime", nil)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var snapshot RuntimeSnapshot
+	if err := json.Unmarshal(rec.Body.Bytes(), &snapshot); err != nil {
+		t.Fatalf("decode runtime snapshot: %v", err)
+	}
+	if snapshot.GeneratedAt != now {
+		t.Fatalf("generated at = %s, want %s", snapshot.GeneratedAt, now)
+	}
+	if snapshot.Feeds == nil || snapshot.Components == nil {
+		t.Fatalf("runtime snapshot slices should be JSON arrays: %+v", snapshot)
+	}
+}
+
 func TestHandlerHealthz(t *testing.T) {
 	handler, err := NewHandler(NewFixtureProvider(nil))
 	if err != nil {

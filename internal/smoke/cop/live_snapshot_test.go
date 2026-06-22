@@ -20,6 +20,7 @@ import (
 
 const (
 	liveSnapshotURLEnv      = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
+	liveRuntimeURLEnv       = "SEMOPS_COP_SMOKE_RUNTIME_URL"
 	liveScenarioStatusEnv   = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
 	liveComponentMetricsEnv = "SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL"
 	liveSnapshotUDPAddrEnv  = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
@@ -371,6 +372,73 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 	}
 }
 
+func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
+	runtimeURL := os.Getenv(liveRuntimeURLEnv)
+	mavlinkAddr := os.Getenv(liveSnapshotUDPAddrEnv)
+	cotAddr := os.Getenv(liveSnapshotCoTAddrEnv)
+	if runtimeURL == "" || mavlinkAddr == "" || cotAddr == "" {
+		t.Skipf("set %s, %s, and %s to run the hosted runtime smoke",
+			liveRuntimeURLEnv, liveSnapshotUDPAddrEnv, liveSnapshotCoTAddrEnv)
+	}
+	expectADSB, err := boolFromEnv(liveSnapshotADSBHTTPEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectSAPIENT, err := boolFromEnv(liveSnapshotSAPIENTEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	mavlinkFrames := generatedMAVLinkFrames(t)
+	cotEvents, err := cotcodec.MarshalEvents(cotcodec.SeedEvents(time.Now().UTC()))
+	if err != nil {
+		t.Fatalf("marshal cot seed events: %v", err)
+	}
+	expected := []runtimeFeedExpectation{
+		{ID: "feed.mavlink", Healthy: 3, Total: 3, RequireFlow: true},
+		{ID: "feed.tak", Healthy: 3, Total: 3, RequireFlow: true},
+	}
+	if expectADSB {
+		expected = append(expected, runtimeFeedExpectation{ID: "feed.adsb", Healthy: 3, Total: 3, RequireFlow: true})
+	}
+	if expectSAPIENT {
+		expected = append(expected, runtimeFeedExpectation{ID: "feed.sapient", Healthy: 2, Total: 2, RequireFlow: true})
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		if err := sendMAVLinkFrames(ctx, mavlinkAddr, mavlinkFrames); err != nil {
+			lastErr = err
+		}
+		if err := sendCoTEvents(ctx, cotAddr, cotEvents); err != nil {
+			lastErr = err
+		}
+
+		runtime, err := fetchRuntime(ctx, client, runtimeURL)
+		if err != nil {
+			lastErr = err
+		} else if missing := missingRuntimeFeedFlow(runtime, expected); len(missing) == 0 {
+			return
+		} else {
+			lastErr = fmt.Errorf("runtime missing feed flow: %s", strings.Join(missing, ", "))
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted COP runtime did not reflect feed flow before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
 func generatedMAVLinkFrames(t *testing.T) [][]byte {
 	t.Helper()
 
@@ -432,6 +500,27 @@ func sendCoTEvents(ctx context.Context, udpAddr string, events [][]byte) error {
 		}
 	}
 	return nil
+}
+
+func fetchRuntime(ctx context.Context, client *http.Client, runtimeURL string) (copapi.RuntimeSnapshot, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, runtimeURL, nil)
+	if err != nil {
+		return copapi.RuntimeSnapshot{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return copapi.RuntimeSnapshot{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return copapi.RuntimeSnapshot{}, fmt.Errorf("runtime status = %d", resp.StatusCode)
+	}
+	var runtime copapi.RuntimeSnapshot
+	if err := json.NewDecoder(resp.Body).Decode(&runtime); err != nil {
+		return copapi.RuntimeSnapshot{}, fmt.Errorf("decode runtime: %w", err)
+	}
+	return runtime, nil
 }
 
 func fetchSnapshot(ctx context.Context, client *http.Client, snapshotURL string) (copapi.Snapshot, error) {
@@ -594,6 +683,13 @@ type componentMetricExpectation struct {
 	Role string
 }
 
+type runtimeFeedExpectation struct {
+	ID          string
+	Healthy     int
+	Total       int
+	RequireFlow bool
+}
+
 type prometheusSample struct {
 	Name   string
 	Labels map[string]string
@@ -664,6 +760,37 @@ func parsePrometheusIdentity(identity string) (string, map[string]string, error)
 		labels[key] = strings.Trim(value, `"`)
 	}
 	return identity[:open], labels, nil
+}
+
+func missingRuntimeFeedFlow(runtime copapi.RuntimeSnapshot, expected []runtimeFeedExpectation) []string {
+	byID := map[string]copapi.RuntimeFeed{}
+	for _, feed := range runtime.Feeds {
+		byID[feed.ID] = feed
+	}
+	var missing []string
+	for _, item := range expected {
+		feed, ok := byID[item.ID]
+		if !ok {
+			missing = append(missing, item.ID+":missing")
+			continue
+		}
+		if feed.Status != "flowing" {
+			missing = append(missing, fmt.Sprintf("%s:status=%s", item.ID, feed.Status))
+			continue
+		}
+		if feed.HealthyComponents < item.Healthy || feed.TotalComponents < item.Total {
+			missing = append(missing, fmt.Sprintf("%s:health=%d/%d", item.ID, feed.HealthyComponents, feed.TotalComponents))
+			continue
+		}
+		if item.RequireFlow && feed.MessagesPerSecond <= 0 {
+			missing = append(missing, item.ID+":messages_per_second")
+			continue
+		}
+		if item.RequireFlow && feed.LastActivity == nil {
+			missing = append(missing, item.ID+":last_activity")
+		}
+	}
+	return missing
 }
 
 func missingComponentFlow(snapshot prometheusSnapshot, expected []componentMetricExpectation) []string {

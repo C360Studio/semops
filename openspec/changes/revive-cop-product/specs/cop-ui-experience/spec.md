@@ -59,6 +59,15 @@ Phase 1.
 - **AND** graph query not-found responses are handled as cold-start state rather than silently decoded as successful
   entity data
 
+#### Scenario: Runtime flow is exposed as a curated API view
+
+- **WHEN** SemOps hosts feed input and processor components with SemStreams `Health()` and `DataFlow()` surfaces
+- **THEN** `GET /api/cop/runtime` maps those components into feed-level runtime status, throughput, health counts,
+  last activity, and component evidence
+- **AND** the browser consumes that curated view instead of scraping Prometheus, connecting to NATS, or inferring raw
+  subject topology
+- **AND** an unavailable runtime view does not replace the snapshot fallback or make the first screen empty
+
 #### Scenario: Native trace stays behind the API
 
 - **WHEN** a feed emits native packets, raw frames, graph mutations, or replay trace events
@@ -86,6 +95,15 @@ SemOps MUST NOT treat dynamic ontology-generated UI as a Phase 1 feature.
 - **WHEN** SemOps renders source health for graph-backed snapshot state
 - **THEN** the source cards may show compact prefix-discovery counts by source/type
 - **AND** those cards highlight cap-truncated pressure without exposing raw graph triples or native packet payloads
+
+#### Scenario: Source cards show runtime flow evidence
+
+- **WHEN** SemOps renders source cards with runtime component data available
+- **THEN** the cards show compact feed-level component status, message rate, healthy component count, and last-flow
+  freshness
+- **AND** runtime-only preflight feeds such as SAPIENT may appear as component-flow evidence without claiming graph
+  projection or product feed support
+- **AND** this remains a source-health view, not an orchestration, topology, or flow-control UI
 
 #### Scenario: Discovery pressure becomes source-health alerts
 

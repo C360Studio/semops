@@ -14,9 +14,11 @@ The current implementation is intentionally narrow:
 - `internal/api/cop` exposes `GET /api/cop/snapshot` through a graph-backed provider that discovers MAVLink,
   TAK/CoT, and CAP entities by SemStreams prefix query, with configured seed IDs retained only as family-scoped
   compatibility fallback.
+- `internal/api/cop` also exposes `GET /api/cop/runtime`, a read-only runtime view derived from running SemStreams
+  component health and flow sources.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
 - The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, TAK/CoT tasks,
-  TAK/CoT advisories, hazards, labels, and picking, plus alert, feed state, and provenance panels.
+  TAK/CoT advisories, hazards, labels, and picking, plus alert, feed state, runtime flow, and provenance panels.
 
 This is the first full-stack spine, not the final map implementation. Bounded deltas, real basemap/terrain sources,
 footprints, alert geometry, discovery total-count tuning, and scenario playback remain next gates.
@@ -61,6 +63,7 @@ map-first.
 The browser should not connect directly to NATS in Phase 1. SemOps API owns the browser contract and should expose:
 
 - a snapshot endpoint for current COP state;
+- a runtime endpoint for component-derived source health and flow;
 - a delta stream using WebSocket, SSE, or GraphQL subscriptions after the API contract decision is made;
 - bounded view models for tracks, assets, hazard areas, footprints, alerts, tasks, advisories, feed health,
   provenance, source evidence, and timeline state.
@@ -83,6 +86,12 @@ diagnostics report org, platform, source, entity type, returned count, query lim
 prefix-query error text when a partial read fails. The UI surfaces those counts compactly in the source cards and
 promotes truncation/error diagnostics into warning alerts so large mixed-feed demos can show index-pressure evidence
 without exposing raw graph triples as an operator workflow.
+
+`GET /api/cop/runtime` rolls up SemStreams component `Health()` and `DataFlow()` into feed-level status,
+throughput, healthy component counts, and last activity. The source cards merge this runtime evidence with snapshot
+feed state, so the UI can show whether a hosted MAVLink, TAK/CoT, CAP, ADS-B, or SAPIENT component flow is active,
+idle, stale, or degraded. Prometheus remains the operational metrics standard; the browser runtime endpoint is a
+curated product view and should not grow into a topology editor or orchestration shell.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for

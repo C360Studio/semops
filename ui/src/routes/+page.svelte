@@ -1,24 +1,43 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Activity, AlertTriangle, Database, RefreshCcw } from '@lucide/svelte';
-  import { loadSnapshot, freshnessLabel } from '$lib/cop/client';
+  import { loadRuntime, loadSnapshot, freshnessLabel, formatRate } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, type SelectableEntity } from '$lib/cop/selection';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
-  import type { Advisory, Alert, Asset, DiscoveryDiagnostic, EntityRef, Hazard, Snapshot, Task, Track } from '$lib/cop/types';
+  import type {
+    Advisory,
+    Alert,
+    Asset,
+    DiscoveryDiagnostic,
+    EntityRef,
+    FeedHealth,
+    Hazard,
+    RuntimeFeed,
+    RuntimeSnapshot,
+    Snapshot,
+    Task,
+    Track
+  } from '$lib/cop/types';
+
+  type FeedRow = FeedHealth & { runtime?: RuntimeFeed };
 
   let snapshot = $state<Snapshot | null>(null);
+  let runtime = $state<RuntimeSnapshot | null>(null);
   let source = $state<'api' | 'fixture'>('fixture');
   let error = $state<string | undefined>();
   let selected = $state<EntityRef>({ kind: 'track', id: 'c360.edge.cop.mavlink.track.system-42' });
   let loading = $state(true);
 
   const selectedEntity = $derived(resolveEntity(snapshot, selected));
+  const feedRows = $derived(buildFeedRows(snapshot, runtime));
+
   async function refresh() {
     loading = true;
-    const result = await loadSnapshot();
-    snapshot = result.snapshot;
-    source = result.source;
-    error = result.error;
+    const [snapshotResult, runtimeResult] = await Promise.all([loadSnapshot(), loadRuntime()]);
+    snapshot = snapshotResult.snapshot;
+    runtime = runtimeResult.runtime;
+    source = snapshotResult.source;
+    error = [snapshotResult.error, runtimeResult.error].filter(Boolean).join('; ') || undefined;
     selected = reconcileSelection(snapshot, selected);
     loading = false;
   }
@@ -41,11 +60,36 @@
       'feed.mavlink': 'mavlink',
       'feed.tak': 'tak',
       'feed.cap': 'cap',
-      'feed.adsb': 'adsb'
+      'feed.adsb': 'adsb',
+      'feed.sapient': 'sapient'
     };
     const source = sourceByFeed[feedID];
     if (!source) return [];
     return (snapshot.diagnostics?.discovery ?? []).filter((item) => item.source === source);
+  }
+
+  function buildFeedRows(snapshot: Snapshot | null, runtime: RuntimeSnapshot | null): FeedRow[] {
+    if (!snapshot) return [];
+    const runtimeByFeed = new Map((runtime?.feeds ?? []).map((feed) => [feed.id, feed]));
+    const rows = snapshot.feeds.map((feed) => ({
+      ...feed,
+      runtime: runtimeByFeed.get(feed.id)
+    }));
+    const knownFeeds = new Set(rows.map((feed) => feed.id));
+    const generatedAt = runtime?.generated_at ?? snapshot.generated_at;
+    for (const runtimeFeed of runtime?.feeds ?? []) {
+      if (knownFeeds.has(runtimeFeed.id)) continue;
+      rows.push({
+        id: runtimeFeed.id,
+        name: runtimeFeed.name,
+        kind: 'component-flow',
+        status: runtimeFeed.status,
+        last_event_at: runtimeFeed.last_activity ?? generatedAt,
+        message: runtimeFeed.message,
+        runtime: runtimeFeed
+      });
+    }
+    return rows;
   }
 
   function entityTypeLabel(value: string) {
@@ -80,7 +124,7 @@
         </div>
         <div>
           <dt>Feeds</dt>
-          <dd>{snapshot.feeds.length}</dd>
+          <dd>{feedRows.length}</dd>
         </div>
       </dl>
     {/if}
@@ -122,11 +166,26 @@
       <section class="feed-strip">
         <h2>Sources</h2>
         <div class="feed-list">
-          {#each snapshot.feeds as feed}
-            <article class="feed-card" class:live={feed.status === 'live'}>
+          {#each feedRows as feed}
+            {@const runtimeFeed = feed.runtime}
+            <article
+              class="feed-card"
+              class:live={feed.status === 'live'}
+              class:flowing={runtimeFeed?.status === 'flowing'}
+              class:idle={runtimeFeed?.status === 'idle'}
+              class:stale={runtimeFeed?.status === 'stale'}
+              class:degraded={runtimeFeed?.status === 'degraded'}
+            >
               <strong>{feed.name}</strong>
-              <span>{feed.status}</span>
+              <span>{runtimeFeed?.status ?? feed.status}</span>
               <small>{feed.message}</small>
+              {#if runtimeFeed}
+                <div class="flow-metrics" aria-label={`${feed.name} runtime flow`}>
+                  <span><Activity size={13} /> {formatRate(runtimeFeed.messages_per_second)} msg/s</span>
+                  <span>{runtimeFeed.healthy_components}/{runtimeFeed.total_components} healthy</span>
+                  <span>{runtimeFeed.last_activity ? `${freshnessLabel(runtimeFeed.last_activity)} flow` : 'no flow'}</span>
+                </div>
+              {/if}
               {#if discoveryDiagnosticsForFeed(snapshot, feed.id).length}
                 <div class="index-counts" aria-label={`${feed.name} discovery counts`}>
                   {#each discoveryDiagnosticsForFeed(snapshot, feed.id) as item}

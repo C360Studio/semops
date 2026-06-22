@@ -88,6 +88,10 @@ fixture provider and only verifies the declared decoded output stream, not graph
 The first SAPIENT smoke exposed a hosted lifecycle bug: components were inheriting the startup/connect timeout
 context and stopping after startup. Runtime components are now owned by `App.Close`, so connection deadlines no longer
 silently cancel long-running input and processor components.
+Hosted components expose SemStreams `Health()` and `DataFlow()` through two product boundaries: Prometheus
+`/metrics` remains the ops-standard telemetry surface, and `GET /api/cop/runtime` derives a curated feed/runtime view
+for the COP UI. The UI facade is read-only source-health evidence. It must not become a topology editor, NATS-subject
+browser, or orchestration shell unless a later adversarial review proves that operator value.
 
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
@@ -107,6 +111,9 @@ SemOps started materially stale; the first revival slices are correcting that:
 - `compose.cop.yml` starts NATS, SemStreams graph backend, SemOps runtime/API, Svelte UI, Caddy, the hosted scenario
   runner, and a local ADS-B/SAPIENT HTTP fixture provider for the current graph smoke scaffold plus first
   browser-facing COP path.
+- `cmd/semops` serves `GET /api/cop/runtime` beside `GET /api/cop/snapshot`. The runtime endpoint rolls up running
+  SemStreams component health and flow by feed so the browser can show source flow evidence without scraping
+  Prometheus or coupling to raw NATS subjects.
 - `internal/scenario` now provides a deterministic HADR flood/evacuation runner core that exercises MAVLink,
   TAK/CoT, and CAP lifecycle replay through the same adapter/projector seams used by hosted graph writes. It can also
   opt into ADS-B snapshot replay through the hosted ADS-B adapter. Container packaging is now present through

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { fixtureSnapshot } from '../src/lib/cop/fixture';
-import type { Snapshot } from '../src/lib/cop/types';
+import type { RuntimeSnapshot, Snapshot } from '../src/lib/cop/types';
 
 const adsbTrack = {
   id: 'c360.edge-compose.cop.adsb.track.a1b2c3',
@@ -56,6 +56,55 @@ const snapshotWithADSB: Snapshot = {
   tracks: [...fixtureSnapshot.tracks, adsbTrack]
 };
 
+const runtimeSnapshot: RuntimeSnapshot = {
+  generated_at: '2026-06-21T16:21:00Z',
+  feeds: [
+    {
+      id: 'feed.mavlink',
+      name: 'MAVLink',
+      status: 'flowing',
+      message: 'component flow active',
+      healthy_components: 3,
+      total_components: 3,
+      messages_per_second: 8.5,
+      last_activity: '2026-06-21T16:20:58Z',
+      last_activity_age_seconds: 2
+    },
+    {
+      id: 'feed.tak',
+      name: 'TAK/CoT',
+      status: 'flowing',
+      message: 'component flow active',
+      healthy_components: 3,
+      total_components: 3,
+      messages_per_second: 2,
+      last_activity: '2026-06-21T16:20:55Z',
+      last_activity_age_seconds: 5
+    },
+    {
+      id: 'feed.adsb',
+      name: 'ADS-B',
+      status: 'flowing',
+      message: 'component flow active',
+      healthy_components: 3,
+      total_components: 3,
+      messages_per_second: 4.5,
+      last_activity: '2026-06-21T16:20:59Z',
+      last_activity_age_seconds: 1
+    },
+    {
+      id: 'feed.sapient',
+      name: 'SAPIENT',
+      status: 'idle',
+      message: 'components healthy; no recent flow',
+      healthy_components: 2,
+      total_components: 2,
+      messages_per_second: 0
+    }
+  ],
+  components: []
+};
+
 test('renders API-backed COP state with ADS-B discovery and selection', async ({ page }) => {
   let snapshotRequests = 0;
   await page.route('/api/cop/snapshot', async (route) => {
@@ -66,6 +115,13 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
       body: JSON.stringify(snapshotWithADSB)
     });
   });
+  await page.route('/api/cop/runtime', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(runtimeSnapshot)
+    });
+  });
 
   await page.goto('/');
 
@@ -74,6 +130,10 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByText('ADS-B')).toBeVisible();
   await expect(page.getByText('OpenSky-compatible fixture via SemStreams component flow')).toBeVisible();
   await expect(page.getByLabel('ADS-B discovery counts')).toContainText('track 1');
+  await expect(page.getByLabel('ADS-B runtime flow')).toContainText('4.5 msg/s');
+  await expect(page.getByLabel('ADS-B runtime flow')).toContainText('3/3 healthy');
+  await expect(page.getByText('SAPIENT')).toBeVisible();
+  await expect(page.getByLabel('SAPIENT runtime flow')).toContainText('2/2 healthy');
   await expect(page.getByRole('button', { name: 'Select N123AB' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Select N123AB' }).click();

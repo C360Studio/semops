@@ -1,9 +1,14 @@
 import { fixtureSnapshot } from './fixture';
-import type { Snapshot } from './types';
+import type { RuntimeSnapshot, Snapshot } from './types';
 
 export type SnapshotLoadResult = {
   snapshot: Snapshot;
   source: 'api' | 'fixture';
+  error?: string;
+};
+
+export type RuntimeLoadResult = {
+  runtime: RuntimeSnapshot | null;
   error?: string;
 };
 
@@ -26,6 +31,24 @@ export async function loadSnapshot(fetcher: typeof fetch = fetch): Promise<Snaps
   }
 }
 
+export async function loadRuntime(fetcher: typeof fetch = fetch): Promise<RuntimeLoadResult> {
+  try {
+    const response = await fetcher('/api/cop/runtime', {
+      headers: { accept: 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`runtime request failed: ${response.status}`);
+    }
+    const runtime = (await response.json()) as RuntimeSnapshot;
+    return { runtime };
+  } catch (error) {
+    return {
+      runtime: null,
+      error: error instanceof Error ? error.message : 'runtime unavailable'
+    };
+  }
+}
+
 export function freshnessLabel(isoTime: string, now = new Date()): string {
   const time = Date.parse(isoTime);
   if (Number.isNaN(time)) {
@@ -40,4 +63,14 @@ export function freshnessLabel(isoTime: string, now = new Date()): string {
     return `${ageMinutes}m`;
   }
   return `${Math.round(ageMinutes / 60)}h`;
+}
+
+export function formatRate(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0';
+  }
+  if (value < 10) {
+    return value.toFixed(1).replace(/\.0$/, '');
+  }
+  return Math.round(value).toString();
 }

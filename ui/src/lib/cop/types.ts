@@ -46,6 +46,40 @@ export type FeedHealth = {
   message: string;
 };
 
+export type RuntimeSnapshot = {
+  generated_at: string;
+  feeds: RuntimeFeed[];
+  components: RuntimeComponent[];
+};
+
+export type RuntimeFeed = {
+  id: string;
+  name: string;
+  status: 'flowing' | 'idle' | 'stale' | 'degraded' | string;
+  message: string;
+  healthy_components: number;
+  total_components: number;
+  messages_per_second: number;
+  last_activity?: string;
+  last_activity_age_seconds?: number;
+};
+
+export type RuntimeComponent = {
+  name: string;
+  feed: string;
+  role: string;
+  type: string;
+  status: string;
+  healthy: boolean;
+  messages_per_second: number;
+  bytes_per_second: number;
+  error_rate: number;
+  error_count: number;
+  last_activity?: string;
+  last_check?: string;
+  uptime_seconds: number;
+};
+
 export type Asset = {
   id: string;
   label: string;

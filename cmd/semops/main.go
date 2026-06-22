@@ -107,7 +107,11 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 			provider = graphProvider
 		}
 	}
-	handler, err := copapi.NewHandler(provider)
+	handlerOptions := []copapi.Option{}
+	if runtime != nil {
+		handlerOptions = append(handlerOptions, copapi.WithRuntimeProvider(runtime))
+	}
+	handler, err := copapi.NewHandler(provider, handlerOptions...)
 	if err != nil {
 		return nil, err
 	}

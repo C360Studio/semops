@@ -191,6 +191,7 @@
       updates
 - [x] 6.60 Expose hosted component health and flow through Prometheus `/metrics` and assert Caddy-routed
       `semops_component_*` samples in the one-command stack smoke
+- [x] 6.61 Add a UI-facing COP runtime facade derived from SemStreams component health and flow sources
 
 ## 7. COP UI
 
@@ -217,6 +218,7 @@
 - [x] 7.21 Surface ADS-B prefix-discovered aircraft tracks in the COP API contract
 - [x] 7.22 Add fixture-backed Playwright browser smoke for API-backed ADS-B feed/discovery readback and selection
       provenance
+- [x] 7.23 Surface SemStreams component runtime health and flow in source cards without adding topology controls
 
 ## 8. Tier Escalation And Egress
 

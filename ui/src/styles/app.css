@@ -403,6 +403,25 @@ h3 {
   background: #f2fbf5;
 }
 
+.feed-card.flowing {
+  border-left-color: #217d67;
+}
+
+.feed-card.idle {
+  border-left-color: #8e9b92;
+  background: #f8faf9;
+}
+
+.feed-card.stale {
+  border-left-color: #bd7e30;
+  background: #fff8ec;
+}
+
+.feed-card.degraded {
+  border-left-color: #b34d35;
+  background: #fff5f2;
+}
+
 .feed-card strong,
 .feed-card span,
 .feed-card small {
@@ -425,6 +444,28 @@ h3 {
   color: #5d6b64;
   font-size: 0.8rem;
   line-height: 1.35;
+}
+
+.flow-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.flow-metrics span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #cfdbd5;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #31423b;
+  padding: 3px 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: none;
 }
 
 .index-counts {
