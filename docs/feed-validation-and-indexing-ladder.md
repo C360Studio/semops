@@ -651,6 +651,8 @@ Compliance and parser evidence:
 - `klvdata` documents a small binary packet sample and an FFmpeg workflow for extracting KLV from the public
   `Day Flight.mpg` MPEG-TS sample. Treat that as smoke evidence only until license/provenance and cache policy are
   reviewed.
+- `docs/klv-public-sample-smoke.md` records the opt-in local public-sample smoke path. It requires a local sample
+  path plus source/provenance environment variables and never downloads or vendors public media.
 - FFmpeg can map data streams explicitly; KLV extraction commands must not assume data streams are selected
   automatically.
 
@@ -740,6 +742,9 @@ First acceptance gate:
   back through the SemOps demux worker, and decoded to the original truth without network downloads or vendored media.
 - Given a public video-plus-KLV smoke sample with documented license and provenance, the demo extracts plausible
   KLV metadata without calling the result deterministic correctness or conformance evidence.
+- Given `SEMOPS_KLV_PUBLIC_SAMPLE_PATH`, `SEMOPS_KLV_PUBLIC_SAMPLE_SOURCE_URL`, and
+  `SEMOPS_KLV_PUBLIC_SAMPLE_PROVENANCE` are set, the opt-in public sample smoke exercises the SemOps demux and
+  decoder components against a local MPEG-TS KLV file without downloading or vendoring media.
 - Given a deterministic MISB ST 0601 fixture, parsed sensor position, frame time, frame center, azimuth, elevation,
   and supported field presence match the source truth data within MISB integer quantization tolerances.
 - Given `go test ./internal/projectors/klv ./internal/components/klv`, decoded KLV frames project born-first

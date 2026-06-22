@@ -50,3 +50,7 @@ blob-report/
 *.tmp
 .cache/
 .temp/
+
+# Local large KLV/FMVs used by opt-in smoke tests
+fixtures/klv/public-samples/
+fixtures/klv/.cache/

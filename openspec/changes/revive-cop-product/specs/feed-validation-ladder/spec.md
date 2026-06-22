@@ -208,6 +208,7 @@ binary-by-reference storage, and memory-bounded handling.
 - **WHEN** SemOps uses a public video-plus-KLV sample such as a widely circulated MPEG-TS KLV file
 - **THEN** the sample has documented license and provenance before use
 - **AND** the result is labeled as demux/parser smoke evidence, not deterministic correctness or conformance
+- **AND** automated public-sample smoke is opt-in, local-path based, and does not download or vendor public media
 
 #### Scenario: Deterministic KLV fixture proves engineering support
 

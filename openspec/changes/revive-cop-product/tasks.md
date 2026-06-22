@@ -135,6 +135,7 @@
 - [x] 5.63 Add KLV sensor/frame-center projection contract without footprint polygon claims
 - [x] 5.64 Add bounded KLV packet splitting and opt-in storage-ref materialization gate
 - [x] 5.65 Add bounded KLV packet storage-ref materialization for decoder workers
+- [x] 5.66 Add opt-in public KLV sample smoke gate without vendoring media
 
 ## 6. Structural COP Stack
 

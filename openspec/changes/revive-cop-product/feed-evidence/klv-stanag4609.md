@@ -157,6 +157,8 @@ be opt-in or locally cached so CI does not depend on large network downloads.
 - `klvdata` includes a small binary packet sample and documents using FFmpeg to extract KLV data from the public
   FFmpeg `Day Flight.mpg` MPEG-TS sample.
 - The FFmpeg sample archive currently lists `Day Flight.mpg` and `Night Flight IR.mpg` under `MPEG2/mpegts-klv/`.
+- `docs/klv-public-sample-smoke.md` records the opt-in local public-sample smoke path and its required provenance
+  environment variables. The test never downloads or vendors public media.
 - FFmpeg can manually map data streams; data streams are not selected automatically.
 - `klv-uas` is a Rust crate for UAS KLV parsing, but its docs are sparse enough that it should be a candidate parser,
   not the default strategy until a spike proves maturity.
@@ -267,6 +269,9 @@ Acceptance:
 
 - Fixture licensing is clear.
 - Public sample smoke extracts plausible ST 0601 metadata from a real MPEG-TS stream without claiming conformance.
+- Opt-in local public-sample smoke requires `SEMOPS_KLV_PUBLIC_SAMPLE_PATH`,
+  `SEMOPS_KLV_PUBLIC_SAMPLE_SOURCE_URL`, and `SEMOPS_KLV_PUBLIC_SAMPLE_PROVENANCE`; it is skipped by default and never
+  downloads or vendors media. [done]
 - Deterministic fixture output matches the source truth field set and numeric values within MISB integer quantization
   tolerances for the supported fields. [done]
 - Deterministic MPEG-TS wrapping proves generated KLV packet bytes survive a local media-container mux/demux cycle
@@ -327,9 +332,10 @@ Acceptance:
 
 ## Known Gaps
 
-- No public small legal KLV MPEG-TS sample has passed SemOps license/provenance review yet.
+- No public small legal KLV MPEG-TS sample has passed SemOps redistribution/license review yet; the opt-in smoke gate
+  now exists for local candidate samples with explicit provenance notes.
 - No production MPEG-TS/live-media demux strategy chosen beyond the fixture-grade FFmpeg/ffprobe worker path.
-- No public KLV sample has passed SemOps license/provenance review yet.
+- No public KLV sample smoke has been run and recorded as SemOps evidence yet.
 - No committed MPEG-TS binary is vendored; deterministic MPEG-TS wrapping is generated in local tests from the truth
   fixture when FFmpeg tooling is present.
 - Media-reference input remains a topology skeleton; the projector now has contract-tested plan writing for
