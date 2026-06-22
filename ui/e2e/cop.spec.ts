@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { fixtureSnapshot } from '../src/lib/cop/fixture';
 import type { RuntimeSnapshot, Snapshot } from '../src/lib/cop/types';
 
@@ -105,7 +106,7 @@ const runtimeSnapshot: RuntimeSnapshot = {
   components: []
 };
 
-test('renders API-backed COP state with ADS-B discovery and selection', async ({ page }) => {
+async function routeCOPState(page: Page) {
   let snapshotRequests = 0;
   await page.route('/api/cop/snapshot', async (route) => {
     snapshotRequests += 1;
@@ -122,17 +123,35 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
       body: JSON.stringify(runtimeSnapshot)
     });
   });
+  return {
+    snapshotRequests: () => snapshotRequests
+  };
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const root = document.documentElement;
+        return root.scrollWidth <= root.clientWidth + 1;
+      })
+    )
+    .toBe(true);
+}
+
+test('renders API-backed COP state with ADS-B discovery and selection', async ({ page }) => {
+  const routes = await routeCOPState(page);
 
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'Common Operating Picture' })).toBeVisible();
   await expect(page.getByText(/api\s+\d+[smhd]\s+snapshot/)).toBeVisible();
-  await expect(page.getByText('ADS-B')).toBeVisible();
+  await expect(page.getByLabel('ADS-B source state')).toBeVisible();
   await expect(page.getByText('OpenSky-compatible fixture via SemStreams component flow')).toBeVisible();
   await expect(page.getByLabel('ADS-B discovery counts')).toContainText('track 1');
   await expect(page.getByLabel('ADS-B runtime flow')).toContainText('4.5 msg/s');
   await expect(page.getByLabel('ADS-B runtime flow')).toContainText('3/3 healthy');
-  await expect(page.getByText('SAPIENT')).toBeVisible();
+  await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT runtime flow')).toContainText('2/2 healthy');
   await expect(page.getByRole('button', { name: 'Select N123AB' })).toBeVisible();
 
@@ -142,5 +161,33 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByText('adsb://opensky/a1b2c3/2026-06-21T16:20:00Z')).toBeVisible();
 
   await page.getByRole('button', { name: 'Refresh COP snapshot' }).click();
-  await expect.poll(() => snapshotRequests).toBeGreaterThanOrEqual(2);
+  await expect.poll(routes.snapshotRequests).toBeGreaterThanOrEqual(2);
+});
+
+test('keeps core operator loop accessible in a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await routeCOPState(page);
+
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Common Operating Picture' })).toBeVisible();
+  await expect(page.getByLabel('Tactical map')).toBeVisible();
+  await expect(page.getByLabel('Map entities')).toBeVisible();
+  await expect(page.getByLabel('ADS-B source state')).toBeVisible();
+  await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  const aircraftButton = page.getByRole('button', { name: 'Select N123AB' });
+  await aircraftButton.focus();
+  await expect(aircraftButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'N123AB' })).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('semops.feed.adsb');
+
+  const alertButton = page.getByRole('button', { name: /Track freshness nominal/ });
+  await alertButton.focus();
+  await expect(alertButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Track freshness nominal' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 });

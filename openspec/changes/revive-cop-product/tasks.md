@@ -198,9 +198,9 @@
 - [x] 7.1 Build Svelte 5 first screen as the usable COP, not a landing page
 - [x] 7.2 Add map layer for tracks, assets, TAK tasks/advisories, and hazard areas
 - [x] 7.3 Add source and provenance lenses for selected entities
-- [ ] 7.4 Validate whether topology/tier UI answers a real operator question before building it
-- [ ] 7.5 Add component tests and accessibility checks for core operator flows
-- [ ] 7.6 Run adversarial UX review before promoting topology, tier, or orchestration UI
+- [x] 7.4 Validate whether topology/tier UI answers a real operator question before building it
+- [x] 7.5 Add component tests and accessibility checks for core operator flows
+- [x] 7.6 Run adversarial UX review before promoting topology, tier, or orchestration UI
 - [x] 7.7 Inventory current UI state and decide clean-sheet COP UI over flow-runtime restoration
 - [x] 7.8 Record MapLibre/deck.gl starting stack and dynamic ontology UI scope gate
 - [x] 7.9 Add snapshot client tests and fixture fallback for the first SemOps API/UI contract

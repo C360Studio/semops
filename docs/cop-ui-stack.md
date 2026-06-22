@@ -97,11 +97,12 @@ In local development, Caddy is the browser-facing entrypoint. It serves the Svel
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
 diagnostics and smoke tests.
 
-The first browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts
-`GET /api/cop/snapshot`, serves an API-shaped snapshot containing ADS-B track and discovery evidence, and verifies the
-operator surface renders source cards, prefix-discovery counts, map selection controls, and provenance for the selected
-ADS-B aircraft. This complements the Docker stack smoke: Playwright proves the browser contract and interaction path,
-while `scripts/cop-stack-smoke.sh` proves the live SemOps/SemStreams/Caddy plumbing.
+The browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts `GET /api/cop/snapshot` and
+`GET /api/cop/runtime`, serves API-shaped ADS-B discovery plus runtime-flow evidence, and verifies the operator
+surface renders source cards, prefix-discovery counts, runtime flow, map selection controls, keyboard selection,
+selected-entity provenance, and a narrow viewport without horizontal overflow. This complements the Docker stack
+smoke: Playwright proves the browser contract and interaction path, while `scripts/cop-stack-smoke.sh` proves the live
+SemOps/SemStreams/Caddy plumbing.
 
 ## Dynamic UI Scope Gate
 
@@ -119,7 +120,9 @@ Deferred behavior:
 
 - Automatic creation of new operator layers because a new predicate or entity class appears.
 - Automatic layout, workflow, alerting, or command controls generated from ontology structure.
-- Topology, tier, or orchestration panels without an adversarial review proving the operator job they improve.
+- Topology, tier, or orchestration panels without an adversarial review proving the operator job they improve. The
+  current MVP review explicitly defers them because source health, runtime flow, provenance, alerts, and scenario
+  state answer the known operator questions with less visual and control-surface risk.
 
 The short version: ontology hydrates the inspector; SemOps owns the view.
 

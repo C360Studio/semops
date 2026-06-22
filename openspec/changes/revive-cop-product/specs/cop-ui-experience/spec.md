@@ -25,6 +25,23 @@ deck.gl for high-rate tactical overlays.
 - **AND** it does not claim finished basemap tiles, terrain, track trails, footprints, alert geometry, full task
   workflow geometry, or temporal scrubbing until those layers have their own evidence
 
+### Requirement: Core operator loop is test guarded
+
+SemOps SHALL keep the first COP operator loop covered by focused component/helper tests and browser checks.
+
+#### Scenario: Source state has component-level coverage
+
+- **WHEN** source cards combine snapshot feed health, runtime component flow, and prefix-discovery diagnostics
+- **THEN** tests cover live, idle, stale, degraded, runtime-only, and truncation states without requiring the full page
+  to render
+- **AND** runtime evidence does not erase the feed's source/provenance message
+
+#### Scenario: Browser flow remains keyboard and narrow-viewport usable
+
+- **WHEN** Playwright exercises the first COP screen
+- **THEN** it verifies named source cards, map entity controls, alert controls, selected-entity provenance, keyboard
+  activation, and a narrow viewport without horizontal overflow
+
 ### Requirement: Browser state comes through SemOps API
 
 The browser SHALL consume curated SemOps COP view models instead of connecting directly to NATS or raw feed subjects in

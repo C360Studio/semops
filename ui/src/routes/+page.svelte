@@ -1,25 +1,22 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Activity, AlertTriangle, Database, RefreshCcw } from '@lucide/svelte';
-  import { loadRuntime, loadSnapshot, freshnessLabel, formatRate } from '$lib/cop/client';
+  import { loadRuntime, loadSnapshot, freshnessLabel } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, type SelectableEntity } from '$lib/cop/selection';
+  import SourceCard from '$lib/cop/SourceCard.svelte';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
+  import { buildFeedRows, discoveryDiagnosticsForFeed } from '$lib/cop/sourceHealth';
   import type {
     Advisory,
     Alert,
     Asset,
-    DiscoveryDiagnostic,
     EntityRef,
-    FeedHealth,
     Hazard,
-    RuntimeFeed,
     RuntimeSnapshot,
     Snapshot,
     Task,
     Track
   } from '$lib/cop/types';
-
-  type FeedRow = FeedHealth & { runtime?: RuntimeFeed };
 
   let snapshot = $state<Snapshot | null>(null);
   let runtime = $state<RuntimeSnapshot | null>(null);
@@ -54,48 +51,6 @@
     if (!entity) return 'No selection';
     return entity.label;
   }
-
-  function discoveryDiagnosticsForFeed(snapshot: Snapshot, feedID: string): DiscoveryDiagnostic[] {
-    const sourceByFeed: Record<string, string> = {
-      'feed.mavlink': 'mavlink',
-      'feed.tak': 'tak',
-      'feed.cap': 'cap',
-      'feed.adsb': 'adsb',
-      'feed.sapient': 'sapient'
-    };
-    const source = sourceByFeed[feedID];
-    if (!source) return [];
-    return (snapshot.diagnostics?.discovery ?? []).filter((item) => item.source === source);
-  }
-
-  function buildFeedRows(snapshot: Snapshot | null, runtime: RuntimeSnapshot | null): FeedRow[] {
-    if (!snapshot) return [];
-    const runtimeByFeed = new Map((runtime?.feeds ?? []).map((feed) => [feed.id, feed]));
-    const rows = snapshot.feeds.map((feed) => ({
-      ...feed,
-      runtime: runtimeByFeed.get(feed.id)
-    }));
-    const knownFeeds = new Set(rows.map((feed) => feed.id));
-    const generatedAt = runtime?.generated_at ?? snapshot.generated_at;
-    for (const runtimeFeed of runtime?.feeds ?? []) {
-      if (knownFeeds.has(runtimeFeed.id)) continue;
-      rows.push({
-        id: runtimeFeed.id,
-        name: runtimeFeed.name,
-        kind: 'component-flow',
-        status: runtimeFeed.status,
-        last_event_at: runtimeFeed.last_activity ?? generatedAt,
-        message: runtimeFeed.message,
-        runtime: runtimeFeed
-      });
-    }
-    return rows;
-  }
-
-  function entityTypeLabel(value: string) {
-    return value.replaceAll('_', ' ');
-  }
-
 </script>
 
 <svelte:head>
@@ -167,35 +122,7 @@
         <h2>Sources</h2>
         <div class="feed-list">
           {#each feedRows as feed}
-            {@const runtimeFeed = feed.runtime}
-            <article
-              class="feed-card"
-              class:live={feed.status === 'live'}
-              class:flowing={runtimeFeed?.status === 'flowing'}
-              class:idle={runtimeFeed?.status === 'idle'}
-              class:stale={runtimeFeed?.status === 'stale'}
-              class:degraded={runtimeFeed?.status === 'degraded'}
-            >
-              <strong>{feed.name}</strong>
-              <span>{runtimeFeed?.status ?? feed.status}</span>
-              <small>{feed.message}</small>
-              {#if runtimeFeed}
-                <div class="flow-metrics" aria-label={`${feed.name} runtime flow`}>
-                  <span><Activity size={13} /> {formatRate(runtimeFeed.messages_per_second)} msg/s</span>
-                  <span>{runtimeFeed.healthy_components}/{runtimeFeed.total_components} healthy</span>
-                  <span>{runtimeFeed.last_activity ? `${freshnessLabel(runtimeFeed.last_activity)} flow` : 'no flow'}</span>
-                </div>
-              {/if}
-              {#if discoveryDiagnosticsForFeed(snapshot, feed.id).length}
-                <div class="index-counts" aria-label={`${feed.name} discovery counts`}>
-                  {#each discoveryDiagnosticsForFeed(snapshot, feed.id) as item}
-                    <span class:at-limit={item.at_limit} title={item.prefix}>
-                      {entityTypeLabel(item.entity_type)} {item.count}{item.at_limit ? '+' : ''}
-                    </span>
-                  {/each}
-                </div>
-              {/if}
-            </article>
+            <SourceCard {feed} diagnostics={discoveryDiagnosticsForFeed(snapshot, feed.id)} />
           {/each}
         </div>
       </section>
