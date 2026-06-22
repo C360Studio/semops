@@ -17,12 +17,14 @@ import (
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
+	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	"github.com/c360studio/semops/internal/copownership"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
+	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
@@ -710,6 +712,101 @@ func TestStartComposesSAPIENTPreflightFlowWithoutOwnershipExpansion(t *testing.T
 	}
 }
 
+func TestStartRegistersOwnershipBeforeComposingKLVFlow(t *testing.T) {
+	ctx := context.Background()
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.KLV.Enabled = true
+	cfg.KLV.Platform = "edge-alpha"
+	cfg.KLV.Source = "klv:media-ref:test"
+	cfg.KLV.WriteTimeout = 750 * time.Millisecond
+	cfg.KLV.MediaPath = t.TempDir()
+	cfg.KLV.MediaPattern = "*.ts"
+
+	var stoppedOwners bool
+	var gotWriterCfg stack.KLVAdapterConfig
+	var gotWriterDeps stack.KLVAdapterDeps
+
+	app, err := start(ctx, cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			_ context.Context,
+			gotClient semstreamsClient,
+			heartbeat time.Duration,
+			owned []cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			if gotClient != client {
+				t.Fatal("ownership registration got unexpected client")
+			}
+			if !client.connected {
+				t.Fatal("ownership registration must run after NATS connect")
+			}
+			if heartbeat != cfg.OwnershipHeartbeatInterval {
+				t.Fatalf("heartbeat interval = %s, want %s", heartbeat, cfg.OwnershipHeartbeatInterval)
+			}
+			if !hasOwnedContract(owned, cop.OwnerKLV, cop.KLVSensorFootprintContract().Name) {
+				t.Fatalf("runtime owned contracts did not include KLV when enabled: %+v", owned)
+			}
+			return copownership.BindingResult{
+					Incarnation: "lease-123",
+					Owners:      []string{cop.OwnerKLV},
+					Tokens: map[string]ownership.OwnerToken{
+						cop.OwnerKLV: ownership.ExpectedOwnerToken(cop.OwnerKLV, "lease-123"),
+					},
+				}, func() {
+					stoppedOwners = true
+				}, nil
+		},
+		newKLVPlanWriter: func(
+			writerCfg stack.KLVAdapterConfig,
+			writerDeps stack.KLVAdapterDeps,
+		) (klvcomponent.ProjectorPlanWriter, error) {
+			gotWriterCfg = writerCfg
+			gotWriterDeps = writerDeps
+			return &recordingKLVAppPlanWriter{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if app.KLVMediaRefInput() == nil || app.KLVDemux() == nil || app.KLVDecoder() == nil || app.KLVProjector() == nil {
+		t.Fatal("expected hosted KLV media-ref input, demux, decoder, and projector components")
+	}
+	if got, want := gotWriterCfg.OwnerTokens[cop.OwnerKLV].Wire(), "semops.feed.klv#lease-123"; got != want {
+		t.Fatalf("writer KLV owner token = %q, want %q", got, want)
+	}
+	if gotWriterCfg.Platform != "edge-alpha" || gotWriterCfg.Source != "klv:media-ref:test" {
+		t.Fatalf("writer config = %+v", gotWriterCfg)
+	}
+	if gotWriterCfg.WriteTimeout != 750*time.Millisecond {
+		t.Fatalf("writer timeout = %s", gotWriterCfg.WriteTimeout)
+	}
+	if gotWriterDeps.NATS != client {
+		t.Fatal("KLV writer must reuse the connected SemStreams client")
+	}
+	if !client.hasSubscription(klvcomponent.DefaultMediaRefSubject) ||
+		!client.hasSubscription(klvcomponent.DefaultPacketSubject) ||
+		!client.hasSubscription(klvcomponent.DefaultFrameSubject) {
+		t.Fatalf("KLV flow subscriptions = %+v", client.subscriptionSubjects())
+	}
+	if !hasComponentMetricSource(app.ComponentMetricSources(), "semops-input-klv-media-ref", "klv", "media-ref-input") {
+		t.Fatalf("missing KLV media-ref metric source: %+v", componentMetricSourceNames(app.ComponentMetricSources()))
+	}
+
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatalf("close app: %v", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("close must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("close must close SemStreams client")
+	}
+}
+
 func TestStartSAPIENTPreflightCapturesProviderReplayWhenConfigured(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -931,6 +1028,47 @@ func TestStartCleansUpWhenSAPIENTCompositionFails(t *testing.T) {
 	})
 	if !errors.Is(err, decoderErr) {
 		t.Fatalf("error = %v, want sapient decoder error", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("failed startup must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("failed startup must close SemStreams client")
+	}
+}
+
+func TestStartCleansUpWhenKLVCompositionFails(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.KLV.Enabled = true
+	cfg.KLV.MediaPath = t.TempDir()
+	writerErr := errors.New("bad klv writer")
+	var stoppedOwners bool
+
+	_, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {
+				stoppedOwners = true
+			}, nil
+		},
+		newKLVPlanWriter: func(
+			stack.KLVAdapterConfig,
+			stack.KLVAdapterDeps,
+		) (klvcomponent.ProjectorPlanWriter, error) {
+			return nil, writerErr
+		},
+	})
+	if !errors.Is(err, writerErr) {
+		t.Fatalf("error = %v, want klv writer error", err)
 	}
 	if !stoppedOwners {
 		t.Fatal("failed startup must stop ownership heartbeat")
@@ -1248,6 +1386,19 @@ func TestRuntimeOwnedContractsIncludeADSBOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestRuntimeOwnedContractsIncludeKLVOnlyWhenEnabled(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.KLV.Enabled = false
+	if hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerKLV, cop.KLVSensorFootprintContract().Name) {
+		t.Fatal("runtime ownership should not include KLV when the hosted KLV flow is disabled")
+	}
+
+	cfg.KLV.Enabled = true
+	if !hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerKLV, cop.KLVSensorFootprintContract().Name) {
+		t.Fatal("runtime ownership should include KLV when the hosted KLV flow is enabled")
+	}
+}
+
 func TestComponentMetricSourcesExposeStartedRuntimeComponents(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1283,69 +1434,80 @@ func TestComponentMetricSourcesExposeStartedRuntimeComponents(t *testing.T) {
 
 func TestConfigFromEnv(t *testing.T) {
 	env := map[string]string{
-		EnvNATSURL:                     "nats://semstreams:4222",
-		EnvNATSName:                    "semops-test",
-		EnvNATSConnectTimeout:          "3s",
-		EnvAPIAddr:                     ":18088",
-		EnvOwnershipHeartbeatInterval:  "4s",
-		EnvCOPGraphQueryTimeout:        "1500ms",
-		EnvCOPGraphDiscoveryEnabled:    "false",
-		EnvCOPGraphDiscoveryLimit:      "75",
-		EnvCOPMAVLinkSystemIDs:         "42, 43",
-		EnvCOPCoTUIDs:                  "ANDROID-ALPHA, MARKER-NORTH-GATE",
-		EnvCOPCAPAlertIDs:              "nws-demo-flood-warning, nws-demo-flood-update",
-		EnvMAVLinkEnabled:              "false",
-		EnvMAVLinkSource:               "udp:14550",
-		EnvOrg:                         "lab",
-		EnvPlatform:                    "edge-7",
-		EnvTraceID:                     "trace-7",
-		EnvMAVLinkWriteTimeout:         "900ms",
-		EnvMAVLinkUDPListenAddr:        "127.0.0.1:14550",
-		EnvMAVLinkUDPMaxDatagramBytes:  "2048",
-		EnvCoTEnabled:                  "true",
-		EnvCoTSource:                   "udp:cot",
-		EnvCoTWriteTimeout:             "950ms",
-		EnvCoTUDPListenAddr:            "127.0.0.1:18080",
-		EnvCoTUDPMaxDatagramBytes:      "4096",
-		EnvCoTTCPListenAddr:            "127.0.0.1:18081",
-		EnvCoTTCPMaxEventBytes:         "8192",
-		EnvCAPEnabled:                  "true",
-		EnvCAPSource:                   "cap:http",
-		EnvCAPReplayPath:               "/tmp/semops-cap.jsonl",
-		EnvCAPWriteTimeout:             "975ms",
-		EnvCAPHTTPURL:                  "https://example.test/cap",
-		EnvCAPHTTPMethod:               "POST",
-		EnvCAPHTTPPollInterval:         "45s",
-		EnvCAPHTTPStaleAfter:           "2m",
-		EnvCAPHTTPContactPolicy:        "semops-test@example.invalid",
-		EnvCAPHTTPAuthRef:              "cap-secret",
-		EnvCAPHTTPMaxResponseBytes:     "123456",
-		EnvADSBEnabled:                 "true",
-		EnvADSBSource:                  "adsb:opensky",
-		EnvADSBReplayPath:              "/tmp/semops-adsb.jsonl",
-		EnvADSBRawMaxRecords:           "32",
-		EnvADSBRawMaxBytes:             "65536",
-		EnvADSBWriteTimeout:            "980ms",
-		EnvADSBHTTPURL:                 "https://example.test/opensky",
-		EnvADSBHTTPMethod:              "POST",
-		EnvADSBHTTPPollInterval:        "40s",
-		EnvADSBHTTPStaleAfter:          "3m",
-		EnvADSBHTTPContactPolicy:       "semops-adsb-test@example.invalid",
-		EnvADSBHTTPAuthRef:             "adsb-secret",
-		EnvADSBHTTPMaxResponseBytes:    "234567",
-		EnvSAPIENTEnabled:              "true",
-		EnvSAPIENTSource:               "sapient:http",
-		EnvSAPIENTReplayPath:           "/tmp/semops-sapient.jsonl",
-		EnvSAPIENTRawMaxRecords:        "33",
-		EnvSAPIENTRawMaxBytes:          "75536",
-		EnvSAPIENTHTTPURL:              "https://example.test/sapient",
-		EnvSAPIENTHTTPMethod:           "POST",
-		EnvSAPIENTHTTPPollInterval:     "50s",
-		EnvSAPIENTHTTPStaleAfter:       "4m",
-		EnvSAPIENTHTTPContactPolicy:    "semops-sapient-test@example.invalid",
-		EnvSAPIENTHTTPAuthRef:          "sapient-secret",
-		EnvSAPIENTHTTPMaxResponseBytes: "345678",
-		EnvSAPIENTHTTPEncoding:         "json",
+		EnvNATSURL:                      "nats://semstreams:4222",
+		EnvNATSName:                     "semops-test",
+		EnvNATSConnectTimeout:           "3s",
+		EnvAPIAddr:                      ":18088",
+		EnvOwnershipHeartbeatInterval:   "4s",
+		EnvCOPGraphQueryTimeout:         "1500ms",
+		EnvCOPGraphDiscoveryEnabled:     "false",
+		EnvCOPGraphDiscoveryLimit:       "75",
+		EnvCOPMAVLinkSystemIDs:          "42, 43",
+		EnvCOPCoTUIDs:                   "ANDROID-ALPHA, MARKER-NORTH-GATE",
+		EnvCOPCAPAlertIDs:               "nws-demo-flood-warning, nws-demo-flood-update",
+		EnvMAVLinkEnabled:               "false",
+		EnvMAVLinkSource:                "udp:14550",
+		EnvOrg:                          "lab",
+		EnvPlatform:                     "edge-7",
+		EnvTraceID:                      "trace-7",
+		EnvMAVLinkWriteTimeout:          "900ms",
+		EnvMAVLinkUDPListenAddr:         "127.0.0.1:14550",
+		EnvMAVLinkUDPMaxDatagramBytes:   "2048",
+		EnvCoTEnabled:                   "true",
+		EnvCoTSource:                    "udp:cot",
+		EnvCoTWriteTimeout:              "950ms",
+		EnvCoTUDPListenAddr:             "127.0.0.1:18080",
+		EnvCoTUDPMaxDatagramBytes:       "4096",
+		EnvCoTTCPListenAddr:             "127.0.0.1:18081",
+		EnvCoTTCPMaxEventBytes:          "8192",
+		EnvCAPEnabled:                   "true",
+		EnvCAPSource:                    "cap:http",
+		EnvCAPReplayPath:                "/tmp/semops-cap.jsonl",
+		EnvCAPWriteTimeout:              "975ms",
+		EnvCAPHTTPURL:                   "https://example.test/cap",
+		EnvCAPHTTPMethod:                "POST",
+		EnvCAPHTTPPollInterval:          "45s",
+		EnvCAPHTTPStaleAfter:            "2m",
+		EnvCAPHTTPContactPolicy:         "semops-test@example.invalid",
+		EnvCAPHTTPAuthRef:               "cap-secret",
+		EnvCAPHTTPMaxResponseBytes:      "123456",
+		EnvADSBEnabled:                  "true",
+		EnvADSBSource:                   "adsb:opensky",
+		EnvADSBReplayPath:               "/tmp/semops-adsb.jsonl",
+		EnvADSBRawMaxRecords:            "32",
+		EnvADSBRawMaxBytes:              "65536",
+		EnvADSBWriteTimeout:             "980ms",
+		EnvADSBHTTPURL:                  "https://example.test/opensky",
+		EnvADSBHTTPMethod:               "POST",
+		EnvADSBHTTPPollInterval:         "40s",
+		EnvADSBHTTPStaleAfter:           "3m",
+		EnvADSBHTTPContactPolicy:        "semops-adsb-test@example.invalid",
+		EnvADSBHTTPAuthRef:              "adsb-secret",
+		EnvADSBHTTPMaxResponseBytes:     "234567",
+		EnvSAPIENTEnabled:               "true",
+		EnvSAPIENTSource:                "sapient:http",
+		EnvSAPIENTReplayPath:            "/tmp/semops-sapient.jsonl",
+		EnvSAPIENTRawMaxRecords:         "33",
+		EnvSAPIENTRawMaxBytes:           "75536",
+		EnvSAPIENTHTTPURL:               "https://example.test/sapient",
+		EnvSAPIENTHTTPMethod:            "POST",
+		EnvSAPIENTHTTPPollInterval:      "50s",
+		EnvSAPIENTHTTPStaleAfter:        "4m",
+		EnvSAPIENTHTTPContactPolicy:     "semops-sapient-test@example.invalid",
+		EnvSAPIENTHTTPAuthRef:           "sapient-secret",
+		EnvSAPIENTHTTPMaxResponseBytes:  "345678",
+		EnvSAPIENTHTTPEncoding:          "json",
+		EnvKLVEnabled:                   "true",
+		EnvKLVSource:                    "klv:fixture",
+		EnvKLVMediaPath:                 "/tmp/semops-klv",
+		EnvKLVMediaPattern:              "*.mpg",
+		EnvKLVWriteTimeout:              "990ms",
+		EnvKLVDemuxMaxPacketBytes:       "65536",
+		EnvKLVDemuxMaxExtractBytes:      "262144",
+		EnvKLVDemuxMaxPackets:           "17",
+		EnvKLVDemuxMaxMaterializedBytes: "1048576",
+		EnvKLVDemuxProbeOutputMaxBytes:  "32768",
+		EnvKLVDecodeMaxPacketBytes:      "65536",
 	}
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
@@ -1486,6 +1648,30 @@ func TestConfigFromEnv(t *testing.T) {
 		cfg.SAPIENT.HTTP.MaxResponseBytes != 345678 ||
 		cfg.SAPIENT.HTTP.Encoding != sapientcodec.EncodingJSON {
 		t.Fatalf("SAPIENT HTTP config = %+v", cfg.SAPIENT.HTTP)
+	}
+	if !cfg.KLV.Enabled {
+		t.Fatal("KLV enabled = false, want true")
+	}
+	if cfg.KLV.Source != "klv:fixture" ||
+		cfg.KLV.Org != "lab" ||
+		cfg.KLV.Platform != "edge-7" ||
+		cfg.KLV.TraceID != "trace-7" ||
+		cfg.KLV.MediaPath != "/tmp/semops-klv" ||
+		cfg.KLV.MediaPattern != "*.mpg" {
+		t.Fatalf("KLV config = %+v", cfg.KLV)
+	}
+	if cfg.KLV.WriteTimeout != 990*time.Millisecond {
+		t.Fatalf("KLV write timeout = %s", cfg.KLV.WriteTimeout)
+	}
+	if cfg.KLV.Demux.MaxPacketBytes != 65536 ||
+		cfg.KLV.Demux.MaxExtractBytes != 262144 ||
+		cfg.KLV.Demux.MaxPackets != 17 ||
+		cfg.KLV.Demux.MaxMaterializedBytes != 1048576 ||
+		cfg.KLV.Demux.ProbeOutputMaxBytes != 32768 {
+		t.Fatalf("KLV demux config = %+v", cfg.KLV.Demux)
+	}
+	if cfg.KLV.Decode.MaxPacketBytes != 65536 {
+		t.Fatalf("KLV decode config = %+v", cfg.KLV.Decode)
 	}
 }
 
@@ -1813,6 +1999,79 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			},
 			want: EnvSAPIENTHTTPEncoding,
 		},
+		{
+			name: "bad klv enabled",
+			env:  map[string]string{EnvKLVEnabled: "sometimes"},
+			want: EnvKLVEnabled,
+		},
+		{
+			name: "bad klv write timeout",
+			env:  map[string]string{EnvKLVWriteTimeout: "forever"},
+			want: EnvKLVWriteTimeout,
+		},
+		{
+			name: "bad klv demux max packet bytes",
+			env:  map[string]string{EnvKLVDemuxMaxPacketBytes: "huge"},
+			want: EnvKLVDemuxMaxPacketBytes,
+		},
+		{
+			name: "bad klv demux max extract bytes",
+			env:  map[string]string{EnvKLVDemuxMaxExtractBytes: "huge"},
+			want: EnvKLVDemuxMaxExtractBytes,
+		},
+		{
+			name: "bad klv demux max packets",
+			env:  map[string]string{EnvKLVDemuxMaxPackets: "many"},
+			want: EnvKLVDemuxMaxPackets,
+		},
+		{
+			name: "bad klv demux max materialized bytes",
+			env:  map[string]string{EnvKLVDemuxMaxMaterializedBytes: "huge"},
+			want: EnvKLVDemuxMaxMaterializedBytes,
+		},
+		{
+			name: "bad klv demux probe output max bytes",
+			env:  map[string]string{EnvKLVDemuxProbeOutputMaxBytes: "huge"},
+			want: EnvKLVDemuxProbeOutputMaxBytes,
+		},
+		{
+			name: "bad klv decode max packet bytes",
+			env:  map[string]string{EnvKLVDecodeMaxPacketBytes: "huge"},
+			want: EnvKLVDecodeMaxPacketBytes,
+		},
+		{
+			name: "zero klv max extract bytes",
+			env: map[string]string{
+				EnvKLVEnabled:              "true",
+				EnvKLVDemuxMaxExtractBytes: "0",
+			},
+			want: EnvKLVDemuxMaxExtractBytes,
+		},
+		{
+			name: "klv max extract bytes below max packet bytes",
+			env: map[string]string{
+				EnvKLVEnabled:              "true",
+				EnvKLVDemuxMaxPacketBytes:  "128",
+				EnvKLVDemuxMaxExtractBytes: "64",
+			},
+			want: EnvKLVDemuxMaxExtractBytes,
+		},
+		{
+			name: "zero klv max packets",
+			env: map[string]string{
+				EnvKLVEnabled:         "true",
+				EnvKLVDemuxMaxPackets: "0",
+			},
+			want: EnvKLVDemuxMaxPackets,
+		},
+		{
+			name: "zero klv decode max packet bytes",
+			env: map[string]string{
+				EnvKLVEnabled:              "true",
+				EnvKLVDecodeMaxPacketBytes: "0",
+			},
+			want: EnvKLVDecodeMaxPacketBytes,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2015,6 +2274,15 @@ type recordingADSBAppPlanWriter struct {
 }
 
 func (w *recordingADSBAppPlanWriter) Apply(_ context.Context, plan adsbprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	return nil
+}
+
+type recordingKLVAppPlanWriter struct {
+	plans []klvprojector.Plan
+}
+
+func (w *recordingKLVAppPlanWriter) Apply(_ context.Context, plan klvprojector.Plan) error {
 	w.plans = append(w.plans, plan)
 	return nil
 }

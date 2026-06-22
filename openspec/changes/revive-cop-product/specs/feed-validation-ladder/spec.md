@@ -263,6 +263,16 @@ binary-by-reference storage, and memory-bounded handling.
 - **AND** the first projector contract writes only source-partitioned KLV `sensor_footprint` sensor/frame-center state
   with `indexing_profile=signal`, leaving footprint polygon extraction as a later gate
 
+#### Scenario: Hosted KLV runtime remains opt-in and local-media bounded
+
+- **WHEN** the hosted SemOps app enables KLV/MISB through runtime config
+- **THEN** the app registers the KLV `sensor_footprint` ownership contract before composing graph-writing components
+- **AND** it wires media-ref input -> demux -> MISB decode -> projector through SemStreams subjects and component
+  lifecycle hooks
+- **AND** the media-ref input publishes only local file references discovered from the configured path and glob
+- **AND** KLV stays disabled in the default stack until live media ingress, storage policy, and operator-facing claims
+  receive separate adversarial review
+
 #### Scenario: KLV UI proof uses graph readback
 
 - **WHEN** SemOps makes KLV visible in the operator COP

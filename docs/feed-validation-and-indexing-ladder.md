@@ -743,6 +743,9 @@ First acceptance gate:
 - Given the opt-in demux worker path, a registered `semops.klv_media_ref.v1` BaseMessage for a local file URI invokes
   ffprobe data-stream discovery, extracts bounded bytes with FFmpeg explicit `-map`, and publishes a registered
   `semops.klv_packet.v1` BaseMessage on the declared packet subject for each split MISB ST 0601 local set.
+- Given `go test ./internal/app ./internal/stack`, hosted KLV runtime composition stays opt-in, registers the KLV
+  `sensor_footprint` ownership contract only when enabled, exposes component health/flow through the common runtime
+  metric source path, and writes graph plans through the SemStreams request writer with typed owner tokens.
 - Given a storage-reference-only media ref, demux proceeds only when a configured materializer stages the media under
   `max_materialized_bytes`; the demux worker still enforces `max_extract_bytes`, `max_packet_bytes`, and
   `max_packets` before publishing packet payloads.

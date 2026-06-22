@@ -48,6 +48,9 @@ project flow is not wired into the default hosted stack.
 
 Resolution: do not present this as live media ingress. Runtime composition remains a separate opt-in stack gate.
 
+Update: the opt-in hosted runtime gate is now wired for configured local media references. KLV remains disabled by
+default, and live media ingress, storage policy, and stronger video/STANAG claims remain separate gates.
+
 ## Verification
 
 - `go test ./internal/api/cop`
@@ -59,5 +62,6 @@ Resolution: do not present this as live media ingress. Runtime composition remai
 
 - Add explicit KLV evidence predicates for source hash/provenance class and parser warnings if the product needs
   stronger fixture/posture wording.
-- Wire hosted KLV runtime only after media ingress, materialization policy, and resource bounds are reviewed.
+- Keep hosted KLV runtime disabled by default until live media ingress, materialization policy, and product claims are
+  reviewed.
 - Keep video player, thumbnails, 3D frustum, and footprint polygon work under separate reviews.

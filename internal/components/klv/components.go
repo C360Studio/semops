@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
+	"net/url"
+	"os"
+	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -68,6 +73,7 @@ type MediaRefInputConfig struct {
 	MediaPath       string
 	MediaPattern    string
 	MediaRefSubject string
+	Bus             Bus
 	Clock           func() time.Time
 }
 
@@ -103,7 +109,18 @@ func (c *MediaRefInputComponent) Initialize() error {
 }
 
 func (c *MediaRefInputComponent) Start(ctx context.Context) error {
-	return c.state.Start(ctx)
+	alreadyStarted := c.state.Current() == component.StateStarted
+	if err := c.state.Start(ctx); err != nil {
+		return err
+	}
+	if alreadyStarted || c.cfg.Bus == nil {
+		return nil
+	}
+	if err := c.publishDiscoveredMedia(ctx); err != nil {
+		c.state.metrics.recordError(err)
+		return err
+	}
+	return nil
 }
 
 func (c *MediaRefInputComponent) Stop(timeout time.Duration) error {
@@ -154,6 +171,56 @@ func (c *MediaRefInputComponent) Health() component.HealthStatus {
 
 func (c *MediaRefInputComponent) DataFlow() component.FlowMetrics {
 	return c.state.DataFlow()
+}
+
+func (c *MediaRefInputComponent) publishDiscoveredMedia(ctx context.Context) error {
+	pattern := filepath.Join(c.cfg.MediaPath, c.cfg.MediaPattern)
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("discover KLV media refs with pattern %q: %w", pattern, err)
+	}
+	sort.Strings(matches)
+	for _, path := range matches {
+		info, err := os.Stat(path)
+		if err != nil {
+			return fmt.Errorf("stat KLV media ref %q: %w", path, err)
+		}
+		if info.IsDir() {
+			continue
+		}
+		uri, err := localFileURI(path)
+		if err != nil {
+			return err
+		}
+		now := c.cfg.Clock().UTC()
+		payload := NewMediaRefPayload(c.cfg.Source, uri, "", now)
+		payload.MediaType = mediaTypeForPath(path)
+		payload.FixtureKind = "local-file"
+		data, err := marshalBaseMessage(MediaRefType, payload, c.cfg.Name, now)
+		if err != nil {
+			return err
+		}
+		if err := c.cfg.Bus.Publish(ctx, c.cfg.MediaRefSubject, data); err != nil {
+			return fmt.Errorf("publish KLV media ref %q: %w", path, err)
+		}
+		c.state.metrics.recordMessage(len(data), now)
+	}
+	return nil
+}
+
+func localFileURI(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve KLV media ref %q: %w", path, err)
+	}
+	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(abs)}).String(), nil
+}
+
+func mediaTypeForPath(path string) string {
+	if mediaType := mime.TypeByExtension(filepath.Ext(path)); mediaType != "" {
+		return mediaType
+	}
+	return "application/octet-stream"
 }
 
 type DemuxConfig struct {

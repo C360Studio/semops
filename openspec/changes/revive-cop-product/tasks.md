@@ -215,6 +215,9 @@
 - [x] 6.60 Expose hosted component health and flow through Prometheus `/metrics` and assert Caddy-routed
       `semops_component_*` samples in the one-command stack smoke
 - [x] 6.61 Add a UI-facing COP runtime facade derived from SemStreams component health and flow sources
+- [x] 6.62 Wire opt-in KLV local media-ref -> demux -> decode -> projector hosted runtime with ownership and
+      component metrics
+- [ ] 6.63 Add a one-command opt-in KLV stack smoke after fixture provenance and runtime-resource posture are clean
 
 ## 7. COP UI
 

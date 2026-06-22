@@ -219,6 +219,9 @@ Acceptance:
 - Decode is a SemStreams processor component from KLV packets to MISB ST 0601 frame payloads. [done]
 - Projector is a SemStreams processor component from decoded frames to graph create/update request ports. [done]
 - Flowgraph connects media-ref -> demux -> decode -> projector through tappable stream ports. [done]
+- Hosted app composition wires the same media-ref -> demux -> decode -> projector flow behind
+  `SEMOPS_KLV_ENABLED=false` by default, registers the KLV `sensor_footprint` ownership contract only when enabled,
+  and exposes KLV component health/flow through the shared runtime metrics source path. [done]
 
 ### Parser-Core Gate
 
@@ -390,13 +393,12 @@ Acceptance:
   redistribution/license review.
 - No committed MPEG-TS binary is vendored; deterministic MPEG-TS wrapping is generated in local tests from the truth
   fixture when FFmpeg tooling is present.
-- Media-reference input remains a topology skeleton; the projector now has contract-tested plan writing for
-  sensor/frame-center state but is not wired into the hosted runtime.
+- Media-reference input now publishes configured local file references in the opt-in hosted runtime, but it is not a
+  live media receiver, storage watcher, or video service.
 - Demux and decoder workers exist for local file URI fixtures, bounded media and packet storage-ref materialization,
-  split packet payloads, and bounded packet bytes, but no live media, public sample, or graph projection runtime
-  exists yet.
-- COP API/UI readback exists for KLV `sensor_footprint` graph state, but hosted KLV runtime composition is still not
-  wired into the default stack.
+  split packet payloads, and bounded packet bytes, but no live media or redistributable public sample claim exists yet.
+- COP API/UI readback exists for KLV `sensor_footprint` graph state, and opt-in hosted KLV runtime composition can
+  project local media-derived frames into the graph, but the default stack still does not enable KLV.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 

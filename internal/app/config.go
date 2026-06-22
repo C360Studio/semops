@@ -9,6 +9,7 @@ import (
 
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
+	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
@@ -17,69 +18,80 @@ import (
 )
 
 const (
-	EnvNATSURL                     = "SEMOPS_NATS_URL"
-	EnvNATSName                    = "SEMOPS_NATS_NAME"
-	EnvNATSConnectTimeout          = "SEMOPS_NATS_CONNECT_TIMEOUT"
-	EnvAPIAddr                     = "SEMOPS_API_ADDR"
-	EnvOwnershipHeartbeatInterval  = "SEMOPS_OWNERSHIP_HEARTBEAT_INTERVAL"
-	EnvMAVLinkEnabled              = "SEMOPS_MAVLINK_ENABLED"
-	EnvMAVLinkSource               = "SEMOPS_MAVLINK_SOURCE"
-	EnvOrg                         = "SEMOPS_ORG"
-	EnvPlatform                    = "SEMOPS_PLATFORM"
-	EnvTraceID                     = "SEMOPS_TRACE_ID"
-	EnvMAVLinkWriteTimeout         = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
-	EnvMAVLinkUDPListenAddr        = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
-	EnvMAVLinkUDPMaxDatagramBytes  = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
-	EnvCoTEnabled                  = "SEMOPS_COT_ENABLED"
-	EnvCoTSource                   = "SEMOPS_COT_SOURCE"
-	EnvCoTWriteTimeout             = "SEMOPS_COT_WRITE_TIMEOUT"
-	EnvCoTUDPListenAddr            = "SEMOPS_COT_UDP_LISTEN_ADDR"
-	EnvCoTUDPMaxDatagramBytes      = "SEMOPS_COT_UDP_MAX_DATAGRAM_BYTES"
-	EnvCoTTCPListenAddr            = "SEMOPS_COT_TCP_LISTEN_ADDR"
-	EnvCoTTCPMaxEventBytes         = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
-	EnvCAPEnabled                  = "SEMOPS_CAP_ENABLED"
-	EnvCAPSource                   = "SEMOPS_CAP_SOURCE"
-	EnvCAPReplayPath               = "SEMOPS_CAP_REPLAY_PATH"
-	EnvCAPWriteTimeout             = "SEMOPS_CAP_WRITE_TIMEOUT"
-	EnvCAPHTTPURL                  = "SEMOPS_CAP_HTTP_URL"
-	EnvCAPHTTPMethod               = "SEMOPS_CAP_HTTP_METHOD"
-	EnvCAPHTTPPollInterval         = "SEMOPS_CAP_HTTP_POLL_INTERVAL"
-	EnvCAPHTTPStaleAfter           = "SEMOPS_CAP_HTTP_STALE_AFTER"
-	EnvCAPHTTPContactPolicy        = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
-	EnvCAPHTTPAuthRef              = "SEMOPS_CAP_HTTP_AUTH_REF"
-	EnvCAPHTTPMaxResponseBytes     = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
-	EnvADSBEnabled                 = "SEMOPS_ADSB_ENABLED"
-	EnvADSBSource                  = "SEMOPS_ADSB_SOURCE"
-	EnvADSBReplayPath              = "SEMOPS_ADSB_REPLAY_PATH"
-	EnvADSBRawMaxRecords           = "SEMOPS_ADSB_RAW_MAX_RECORDS"
-	EnvADSBRawMaxBytes             = "SEMOPS_ADSB_RAW_MAX_BYTES"
-	EnvADSBWriteTimeout            = "SEMOPS_ADSB_WRITE_TIMEOUT"
-	EnvADSBHTTPURL                 = "SEMOPS_ADSB_HTTP_URL"
-	EnvADSBHTTPMethod              = "SEMOPS_ADSB_HTTP_METHOD"
-	EnvADSBHTTPPollInterval        = "SEMOPS_ADSB_HTTP_POLL_INTERVAL"
-	EnvADSBHTTPStaleAfter          = "SEMOPS_ADSB_HTTP_STALE_AFTER"
-	EnvADSBHTTPContactPolicy       = "SEMOPS_ADSB_HTTP_CONTACT_POLICY"
-	EnvADSBHTTPAuthRef             = "SEMOPS_ADSB_HTTP_AUTH_REF"
-	EnvADSBHTTPMaxResponseBytes    = "SEMOPS_ADSB_HTTP_MAX_RESPONSE_BYTES"
-	EnvSAPIENTEnabled              = "SEMOPS_SAPIENT_ENABLED"
-	EnvSAPIENTSource               = "SEMOPS_SAPIENT_SOURCE"
-	EnvSAPIENTReplayPath           = "SEMOPS_SAPIENT_REPLAY_PATH"
-	EnvSAPIENTRawMaxRecords        = "SEMOPS_SAPIENT_RAW_MAX_RECORDS"
-	EnvSAPIENTRawMaxBytes          = "SEMOPS_SAPIENT_RAW_MAX_BYTES"
-	EnvSAPIENTHTTPURL              = "SEMOPS_SAPIENT_HTTP_URL"
-	EnvSAPIENTHTTPMethod           = "SEMOPS_SAPIENT_HTTP_METHOD"
-	EnvSAPIENTHTTPPollInterval     = "SEMOPS_SAPIENT_HTTP_POLL_INTERVAL"
-	EnvSAPIENTHTTPStaleAfter       = "SEMOPS_SAPIENT_HTTP_STALE_AFTER"
-	EnvSAPIENTHTTPContactPolicy    = "SEMOPS_SAPIENT_HTTP_CONTACT_POLICY"
-	EnvSAPIENTHTTPAuthRef          = "SEMOPS_SAPIENT_HTTP_AUTH_REF"
-	EnvSAPIENTHTTPMaxResponseBytes = "SEMOPS_SAPIENT_HTTP_MAX_RESPONSE_BYTES"
-	EnvSAPIENTHTTPEncoding         = "SEMOPS_SAPIENT_HTTP_ENCODING"
-	EnvCOPGraphQueryTimeout        = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
-	EnvCOPGraphDiscoveryEnabled    = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
-	EnvCOPGraphDiscoveryLimit      = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
-	EnvCOPMAVLinkSystemIDs         = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
-	EnvCOPCoTUIDs                  = "SEMOPS_COP_COT_UIDS"
-	EnvCOPCAPAlertIDs              = "SEMOPS_COP_CAP_ALERT_IDS"
+	EnvNATSURL                      = "SEMOPS_NATS_URL"
+	EnvNATSName                     = "SEMOPS_NATS_NAME"
+	EnvNATSConnectTimeout           = "SEMOPS_NATS_CONNECT_TIMEOUT"
+	EnvAPIAddr                      = "SEMOPS_API_ADDR"
+	EnvOwnershipHeartbeatInterval   = "SEMOPS_OWNERSHIP_HEARTBEAT_INTERVAL"
+	EnvMAVLinkEnabled               = "SEMOPS_MAVLINK_ENABLED"
+	EnvMAVLinkSource                = "SEMOPS_MAVLINK_SOURCE"
+	EnvOrg                          = "SEMOPS_ORG"
+	EnvPlatform                     = "SEMOPS_PLATFORM"
+	EnvTraceID                      = "SEMOPS_TRACE_ID"
+	EnvMAVLinkWriteTimeout          = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
+	EnvMAVLinkUDPListenAddr         = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
+	EnvMAVLinkUDPMaxDatagramBytes   = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
+	EnvCoTEnabled                   = "SEMOPS_COT_ENABLED"
+	EnvCoTSource                    = "SEMOPS_COT_SOURCE"
+	EnvCoTWriteTimeout              = "SEMOPS_COT_WRITE_TIMEOUT"
+	EnvCoTUDPListenAddr             = "SEMOPS_COT_UDP_LISTEN_ADDR"
+	EnvCoTUDPMaxDatagramBytes       = "SEMOPS_COT_UDP_MAX_DATAGRAM_BYTES"
+	EnvCoTTCPListenAddr             = "SEMOPS_COT_TCP_LISTEN_ADDR"
+	EnvCoTTCPMaxEventBytes          = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
+	EnvCAPEnabled                   = "SEMOPS_CAP_ENABLED"
+	EnvCAPSource                    = "SEMOPS_CAP_SOURCE"
+	EnvCAPReplayPath                = "SEMOPS_CAP_REPLAY_PATH"
+	EnvCAPWriteTimeout              = "SEMOPS_CAP_WRITE_TIMEOUT"
+	EnvCAPHTTPURL                   = "SEMOPS_CAP_HTTP_URL"
+	EnvCAPHTTPMethod                = "SEMOPS_CAP_HTTP_METHOD"
+	EnvCAPHTTPPollInterval          = "SEMOPS_CAP_HTTP_POLL_INTERVAL"
+	EnvCAPHTTPStaleAfter            = "SEMOPS_CAP_HTTP_STALE_AFTER"
+	EnvCAPHTTPContactPolicy         = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
+	EnvCAPHTTPAuthRef               = "SEMOPS_CAP_HTTP_AUTH_REF"
+	EnvCAPHTTPMaxResponseBytes      = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
+	EnvADSBEnabled                  = "SEMOPS_ADSB_ENABLED"
+	EnvADSBSource                   = "SEMOPS_ADSB_SOURCE"
+	EnvADSBReplayPath               = "SEMOPS_ADSB_REPLAY_PATH"
+	EnvADSBRawMaxRecords            = "SEMOPS_ADSB_RAW_MAX_RECORDS"
+	EnvADSBRawMaxBytes              = "SEMOPS_ADSB_RAW_MAX_BYTES"
+	EnvADSBWriteTimeout             = "SEMOPS_ADSB_WRITE_TIMEOUT"
+	EnvADSBHTTPURL                  = "SEMOPS_ADSB_HTTP_URL"
+	EnvADSBHTTPMethod               = "SEMOPS_ADSB_HTTP_METHOD"
+	EnvADSBHTTPPollInterval         = "SEMOPS_ADSB_HTTP_POLL_INTERVAL"
+	EnvADSBHTTPStaleAfter           = "SEMOPS_ADSB_HTTP_STALE_AFTER"
+	EnvADSBHTTPContactPolicy        = "SEMOPS_ADSB_HTTP_CONTACT_POLICY"
+	EnvADSBHTTPAuthRef              = "SEMOPS_ADSB_HTTP_AUTH_REF"
+	EnvADSBHTTPMaxResponseBytes     = "SEMOPS_ADSB_HTTP_MAX_RESPONSE_BYTES"
+	EnvSAPIENTEnabled               = "SEMOPS_SAPIENT_ENABLED"
+	EnvSAPIENTSource                = "SEMOPS_SAPIENT_SOURCE"
+	EnvSAPIENTReplayPath            = "SEMOPS_SAPIENT_REPLAY_PATH"
+	EnvSAPIENTRawMaxRecords         = "SEMOPS_SAPIENT_RAW_MAX_RECORDS"
+	EnvSAPIENTRawMaxBytes           = "SEMOPS_SAPIENT_RAW_MAX_BYTES"
+	EnvSAPIENTHTTPURL               = "SEMOPS_SAPIENT_HTTP_URL"
+	EnvSAPIENTHTTPMethod            = "SEMOPS_SAPIENT_HTTP_METHOD"
+	EnvSAPIENTHTTPPollInterval      = "SEMOPS_SAPIENT_HTTP_POLL_INTERVAL"
+	EnvSAPIENTHTTPStaleAfter        = "SEMOPS_SAPIENT_HTTP_STALE_AFTER"
+	EnvSAPIENTHTTPContactPolicy     = "SEMOPS_SAPIENT_HTTP_CONTACT_POLICY"
+	EnvSAPIENTHTTPAuthRef           = "SEMOPS_SAPIENT_HTTP_AUTH_REF"
+	EnvSAPIENTHTTPMaxResponseBytes  = "SEMOPS_SAPIENT_HTTP_MAX_RESPONSE_BYTES"
+	EnvSAPIENTHTTPEncoding          = "SEMOPS_SAPIENT_HTTP_ENCODING"
+	EnvKLVEnabled                   = "SEMOPS_KLV_ENABLED"
+	EnvKLVSource                    = "SEMOPS_KLV_SOURCE"
+	EnvKLVMediaPath                 = "SEMOPS_KLV_MEDIA_PATH"
+	EnvKLVMediaPattern              = "SEMOPS_KLV_MEDIA_PATTERN"
+	EnvKLVWriteTimeout              = "SEMOPS_KLV_WRITE_TIMEOUT"
+	EnvKLVDemuxMaxPacketBytes       = "SEMOPS_KLV_DEMUX_MAX_PACKET_BYTES"
+	EnvKLVDemuxMaxExtractBytes      = "SEMOPS_KLV_DEMUX_MAX_EXTRACT_BYTES"
+	EnvKLVDemuxMaxPackets           = "SEMOPS_KLV_DEMUX_MAX_PACKETS"
+	EnvKLVDemuxMaxMaterializedBytes = "SEMOPS_KLV_DEMUX_MAX_MATERIALIZED_BYTES"
+	EnvKLVDemuxProbeOutputMaxBytes  = "SEMOPS_KLV_DEMUX_PROBE_OUTPUT_MAX_BYTES"
+	EnvKLVDecodeMaxPacketBytes      = "SEMOPS_KLV_DECODE_MAX_PACKET_BYTES"
+	EnvCOPGraphQueryTimeout         = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
+	EnvCOPGraphDiscoveryEnabled     = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
+	EnvCOPGraphDiscoveryLimit       = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
+	EnvCOPMAVLinkSystemIDs          = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
+	EnvCOPCoTUIDs                   = "SEMOPS_COP_COT_UIDS"
+	EnvCOPCAPAlertIDs               = "SEMOPS_COP_CAP_ALERT_IDS"
 )
 
 type Config struct {
@@ -94,6 +106,7 @@ type Config struct {
 	CAP                        CAPConfig
 	ADSB                       ADSBConfig
 	SAPIENT                    SAPIENTConfig
+	KLV                        KLVConfig
 	COP                        COPConfig
 }
 
@@ -203,6 +216,32 @@ type SAPIENTHTTPConfig struct {
 	AuthRef          string
 	MaxResponseBytes int
 	Encoding         sapientcodec.Encoding
+}
+
+type KLVConfig struct {
+	Enabled      bool
+	Source       string
+	Org          string
+	Platform     string
+	TraceID      string
+	MediaPath    string
+	MediaPattern string
+	WriteTimeout time.Duration
+	Retry        natsclient.RetryConfig
+	Demux        KLVDemuxConfig
+	Decode       KLVDecodeConfig
+}
+
+type KLVDemuxConfig struct {
+	MaxPacketBytes       int
+	MaxExtractBytes      int
+	MaxPackets           int
+	MaxMaterializedBytes int
+	ProbeOutputMaxBytes  int
+}
+
+type KLVDecodeConfig struct {
+	MaxPacketBytes int
 }
 
 type COPConfig struct {
@@ -315,6 +354,32 @@ func DefaultConfig() Config {
 				MaxResponseBytes: sapientcomponent.DefaultHTTPMaxResponseBytes,
 			},
 		},
+		KLV: KLVConfig{
+			Enabled:      false,
+			Source:       "klv:media-ref:inprocess",
+			Org:          "c360",
+			Platform:     "edge",
+			TraceID:      "semops-klv-hosted",
+			MediaPath:    klvcomponent.DefaultMediaPath,
+			MediaPattern: klvcomponent.DefaultMediaPattern,
+			WriteTimeout: 2 * time.Second,
+			Demux: KLVDemuxConfig{
+				MaxPacketBytes:       klvcomponent.DefaultMaxPacketBytes,
+				MaxExtractBytes:      klvcomponent.DefaultMaxPacketBytes * 4,
+				MaxPackets:           klvcomponent.DefaultMaxPackets,
+				MaxMaterializedBytes: klvcomponent.DefaultMaxMaterializedBytes,
+				ProbeOutputMaxBytes:  klvcomponent.DefaultProbeOutputMaxBytes,
+			},
+			Decode: KLVDecodeConfig{
+				MaxPacketBytes: klvcomponent.DefaultMaxMaterializedPacketBytes,
+			},
+			Retry: natsclient.RetryConfig{
+				MaxRetries:        5,
+				InitialBackoff:    50 * time.Millisecond,
+				MaxBackoff:        500 * time.Millisecond,
+				BackoffMultiplier: 2,
+			},
+		},
 		COP: COPConfig{
 			GraphQueryTimeout:     2 * time.Second,
 			GraphDiscoveryEnabled: true,
@@ -341,18 +406,24 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvADSBReplayPath, &cfg.ADSB.ReplayPath)
 	setString(getenv, EnvSAPIENTSource, &cfg.SAPIENT.Source)
 	setString(getenv, EnvSAPIENTReplayPath, &cfg.SAPIENT.ReplayPath)
+	setString(getenv, EnvKLVSource, &cfg.KLV.Source)
+	setString(getenv, EnvKLVMediaPath, &cfg.KLV.MediaPath)
+	setString(getenv, EnvKLVMediaPattern, &cfg.KLV.MediaPattern)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)
 	setString(getenv, EnvOrg, &cfg.ADSB.Org)
+	setString(getenv, EnvOrg, &cfg.KLV.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
 	setString(getenv, EnvPlatform, &cfg.CoT.Platform)
 	setString(getenv, EnvPlatform, &cfg.CAP.Platform)
 	setString(getenv, EnvPlatform, &cfg.ADSB.Platform)
+	setString(getenv, EnvPlatform, &cfg.KLV.Platform)
 	setString(getenv, EnvTraceID, &cfg.MAVLink.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CoT.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CAP.TraceID)
 	setString(getenv, EnvTraceID, &cfg.ADSB.TraceID)
+	setString(getenv, EnvTraceID, &cfg.KLV.TraceID)
 	setString(getenv, EnvMAVLinkUDPListenAddr, &cfg.MAVLink.UDP.ListenAddr)
 	setString(getenv, EnvCoTUDPListenAddr, &cfg.CoT.UDP.ListenAddr)
 	setString(getenv, EnvCoTTCPListenAddr, &cfg.CoT.TCP.ListenAddr)
@@ -408,6 +479,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvADSBWriteTimeout,
 		cfg.ADSB.WriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.KLV.WriteTimeout, err = durationFromEnv(
+		getenv,
+		EnvKLVWriteTimeout,
+		cfg.KLV.WriteTimeout,
 	); err != nil {
 		return Config{}, err
 	}
@@ -482,6 +560,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	if cfg.SAPIENT.Enabled, err = boolFromEnv(getenv, EnvSAPIENTEnabled, cfg.SAPIENT.Enabled); err != nil {
 		return Config{}, err
 	}
+	if cfg.KLV.Enabled, err = boolFromEnv(getenv, EnvKLVEnabled, cfg.KLV.Enabled); err != nil {
+		return Config{}, err
+	}
 	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
 		getenv,
 		EnvMAVLinkUDPMaxDatagramBytes,
@@ -549,6 +630,48 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvSAPIENTHTTPMaxResponseBytes,
 		cfg.SAPIENT.HTTP.MaxResponseBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.KLV.Demux.MaxPacketBytes, err = intFromEnv(
+		getenv,
+		EnvKLVDemuxMaxPacketBytes,
+		cfg.KLV.Demux.MaxPacketBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.KLV.Demux.MaxExtractBytes, err = intFromEnv(
+		getenv,
+		EnvKLVDemuxMaxExtractBytes,
+		cfg.KLV.Demux.MaxExtractBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.KLV.Demux.MaxPackets, err = intFromEnv(
+		getenv,
+		EnvKLVDemuxMaxPackets,
+		cfg.KLV.Demux.MaxPackets,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.KLV.Demux.MaxMaterializedBytes, err = intFromEnv(
+		getenv,
+		EnvKLVDemuxMaxMaterializedBytes,
+		cfg.KLV.Demux.MaxMaterializedBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.KLV.Demux.ProbeOutputMaxBytes, err = intFromEnv(
+		getenv,
+		EnvKLVDemuxProbeOutputMaxBytes,
+		cfg.KLV.Demux.ProbeOutputMaxBytes,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.KLV.Decode.MaxPacketBytes, err = intFromEnv(
+		getenv,
+		EnvKLVDecodeMaxPacketBytes,
+		cfg.KLV.Decode.MaxPacketBytes,
 	); err != nil {
 		return Config{}, err
 	}
@@ -637,6 +760,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.SAPIENT.Validate(); err != nil {
+		return err
+	}
+	if err := c.KLV.Validate(); err != nil {
 		return err
 	}
 	if !c.MAVLink.Enabled {
@@ -730,6 +856,56 @@ func (c SAPIENTConfig) Validate() error {
 	}
 	if c.HTTP.Encoding != "" && !c.HTTP.Encoding.Valid() {
 		return fmt.Errorf("%s must be json, protobuf, or empty auto mode when SAPIENT is enabled", EnvSAPIENTHTTPEncoding)
+	}
+	return nil
+}
+
+func (c KLVConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(c.Source) == "" {
+		return fmt.Errorf("%s is required when KLV is enabled", EnvKLVSource)
+	}
+	if strings.TrimSpace(c.Org) == "" {
+		return fmt.Errorf("%s is required when KLV is enabled", EnvOrg)
+	}
+	if strings.TrimSpace(c.Platform) == "" {
+		return fmt.Errorf("%s is required when KLV is enabled", EnvPlatform)
+	}
+	if strings.TrimSpace(c.MediaPath) == "" {
+		return fmt.Errorf("%s is required when KLV is enabled", EnvKLVMediaPath)
+	}
+	if strings.TrimSpace(c.MediaPattern) == "" {
+		return fmt.Errorf("%s is required when KLV is enabled", EnvKLVMediaPattern)
+	}
+	if c.WriteTimeout <= 0 {
+		return fmt.Errorf("%s must be greater than zero when KLV is enabled", EnvKLVWriteTimeout)
+	}
+	if c.Demux.MaxPacketBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when KLV is enabled", EnvKLVDemuxMaxPacketBytes)
+	}
+	if c.Demux.MaxExtractBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when KLV is enabled", EnvKLVDemuxMaxExtractBytes)
+	}
+	if c.Demux.MaxExtractBytes < c.Demux.MaxPacketBytes {
+		return fmt.Errorf(
+			"%s must be greater than or equal to %s when KLV is enabled",
+			EnvKLVDemuxMaxExtractBytes,
+			EnvKLVDemuxMaxPacketBytes,
+		)
+	}
+	if c.Demux.MaxPackets <= 0 {
+		return fmt.Errorf("%s must be greater than zero when KLV is enabled", EnvKLVDemuxMaxPackets)
+	}
+	if c.Demux.MaxMaterializedBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when KLV is enabled", EnvKLVDemuxMaxMaterializedBytes)
+	}
+	if c.Demux.ProbeOutputMaxBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when KLV is enabled", EnvKLVDemuxProbeOutputMaxBytes)
+	}
+	if c.Decode.MaxPacketBytes <= 0 {
+		return fmt.Errorf("%s must be greater than zero when KLV is enabled", EnvKLVDecodeMaxPacketBytes)
 	}
 	return nil
 }

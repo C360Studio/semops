@@ -2,6 +2,8 @@ package klv
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -119,6 +121,69 @@ func TestKLVComponentConstructorsValidateNegativeBounds(t *testing.T) {
 	}
 	if _, err := NewProjectorComponent(ProjectorConfig{WriteTimeout: -time.Second}); err == nil {
 		t.Fatal("expected negative write_timeout to fail")
+	}
+}
+
+func TestKLVMediaRefInputPublishesDiscoveredLocalFiles(t *testing.T) {
+	dir := t.TempDir()
+	mediaPath := filepath.Join(dir, "fixture.ts")
+	if err := os.WriteFile(mediaPath, []byte("mpeg-ts placeholder"), 0o644); err != nil {
+		t.Fatalf("write media fixture: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ignored.bin"), []byte("ignored"), 0o644); err != nil {
+		t.Fatalf("write ignored fixture: %v", err)
+	}
+	registry := payloadregistry.New()
+	if err := RegisterPayloads(registry); err != nil {
+		t.Fatalf("register payloads: %v", err)
+	}
+	bus := &klvRecordingBus{}
+	observedAt := time.Date(2026, 6, 22, 17, 30, 0, 0, time.UTC)
+	input, err := NewMediaRefInputComponent(MediaRefInputConfig{
+		Source:       "klv:media-ref:test",
+		MediaPath:    dir,
+		MediaPattern: "*.ts",
+		Bus:          bus,
+		Clock:        func() time.Time { return observedAt },
+	})
+	if err != nil {
+		t.Fatalf("new media-ref input: %v", err)
+	}
+	if err := input.Initialize(); err != nil {
+		t.Fatalf("initialize media-ref input: %v", err)
+	}
+	if err := input.Start(context.Background()); err != nil {
+		t.Fatalf("start media-ref input: %v", err)
+	}
+	if len(bus.published) != 1 {
+		t.Fatalf("published %d media refs, want 1", len(bus.published))
+	}
+	published := bus.published[0]
+	if published.subject != DefaultMediaRefSubject {
+		t.Fatalf("published subject = %q, want %q", published.subject, DefaultMediaRefSubject)
+	}
+	envelope, err := message.NewDecoder(registry).Decode(published.data)
+	if err != nil {
+		t.Fatalf("decode media-ref BaseMessage: %v", err)
+	}
+	payload, ok := envelope.Payload().(*MediaRefPayload)
+	if !ok {
+		t.Fatalf("published payload = %T, want *MediaRefPayload", envelope.Payload())
+	}
+	if payload.Source != "klv:media-ref:test" {
+		t.Fatalf("media-ref source = %q", payload.Source)
+	}
+	if !strings.HasPrefix(payload.URI, "file://") || !strings.Contains(payload.URI, "fixture.ts") {
+		t.Fatalf("media-ref URI = %q, want file URI for fixture.ts", payload.URI)
+	}
+	if payload.FixtureKind != "local-file" {
+		t.Fatalf("fixture kind = %q, want local-file", payload.FixtureKind)
+	}
+	if !payload.ReceivedAt.Equal(observedAt) {
+		t.Fatalf("received_at = %s, want %s", payload.ReceivedAt, observedAt)
+	}
+	if got := input.DataFlow().LastActivity; !got.Equal(observedAt) {
+		t.Fatalf("media-ref input last activity = %s, want %s", got, observedAt)
 	}
 }
 

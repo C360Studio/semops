@@ -10,6 +10,7 @@ import (
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
+	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	"github.com/c360studio/semops/internal/copownership"
@@ -17,6 +18,7 @@ import (
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
+	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	"github.com/c360studio/semops/internal/stack"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
@@ -48,6 +50,10 @@ type App struct {
 	adsbProjector    *adsbcomponent.ProjectorComponent
 	sapientInput     *sapientcomponent.HTTPInputComponent
 	sapientDecoder   *sapientcomponent.DecoderComponent
+	klvMediaInput    *klvcomponent.MediaRefInputComponent
+	klvDemux         *klvcomponent.DemuxComponent
+	klvDecoder       *klvcomponent.DecoderComponent
+	klvProjector     *klvcomponent.ProjectorComponent
 	runtimeCancel    context.CancelFunc
 }
 
@@ -92,6 +98,11 @@ type dependencies struct {
 	newADSBProjector     func(adsbcomponent.ProjectorConfig, adsbcomponent.Bus) (*adsbcomponent.ProjectorComponent, error)
 	newSAPIENTHTTPInput  func(sapientcomponent.HTTPInputConfig, sapientcomponent.Bus) (*sapientcomponent.HTTPInputComponent, error)
 	newSAPIENTDecoder    func(sapientcomponent.DecoderConfig, sapientcomponent.Bus) (*sapientcomponent.DecoderComponent, error)
+	newKLVPlanWriter     func(stack.KLVAdapterConfig, stack.KLVAdapterDeps) (klvcomponent.ProjectorPlanWriter, error)
+	newKLVMediaRefInput  func(klvcomponent.MediaRefInputConfig) (*klvcomponent.MediaRefInputComponent, error)
+	newKLVDemux          func(klvcomponent.DemuxConfig) (*klvcomponent.DemuxComponent, error)
+	newKLVDecoder        func(klvcomponent.DecoderConfig) (*klvcomponent.DecoderComponent, error)
+	newKLVProjector      func(klvcomponent.ProjectorConfig) (*klvcomponent.ProjectorComponent, error)
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -139,6 +150,11 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop SAPIENT HTTP input component: %w", err))
 		}
 	}
+	if a.klvMediaInput != nil {
+		if err := a.klvMediaInput.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop KLV media-ref input component: %w", err))
+		}
+	}
 	if a.mavlinkDecoder != nil {
 		if err := a.mavlinkDecoder.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink decoder component: %w", err))
@@ -164,6 +180,16 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop SAPIENT decoder component: %w", err))
 		}
 	}
+	if a.klvDemux != nil {
+		if err := a.klvDemux.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop KLV demux component: %w", err))
+		}
+	}
+	if a.klvDecoder != nil {
+		if err := a.klvDecoder.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop KLV decoder component: %w", err))
+		}
+	}
 	if a.mavlinkProjector != nil {
 		if err := a.mavlinkProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink projector component: %w", err))
@@ -182,6 +208,11 @@ func (a *App) Close(ctx context.Context) error {
 	if a.adsbProjector != nil {
 		if err := a.adsbProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop ADS-B projector component: %w", err))
+		}
+	}
+	if a.klvProjector != nil {
+		if err := a.klvProjector.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop KLV projector component: %w", err))
 		}
 	}
 	if a.ownershipStop != nil {
@@ -307,6 +338,34 @@ func (a *App) SAPIENTDecoder() *sapientcomponent.DecoderComponent {
 	return a.sapientDecoder
 }
 
+func (a *App) KLVMediaRefInput() *klvcomponent.MediaRefInputComponent {
+	if a == nil {
+		return nil
+	}
+	return a.klvMediaInput
+}
+
+func (a *App) KLVDemux() *klvcomponent.DemuxComponent {
+	if a == nil {
+		return nil
+	}
+	return a.klvDemux
+}
+
+func (a *App) KLVDecoder() *klvcomponent.DecoderComponent {
+	if a == nil {
+		return nil
+	}
+	return a.klvDecoder
+}
+
+func (a *App) KLVProjector() *klvcomponent.ProjectorComponent {
+	if a == nil {
+		return nil
+	}
+	return a.klvProjector
+}
+
 func (a *App) GraphRequester() GraphRequester {
 	if a == nil {
 		return nil
@@ -318,7 +377,7 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 	if a == nil {
 		return nil
 	}
-	sources := make([]componentmetrics.Source, 0, 15)
+	sources := make([]componentmetrics.Source, 0, 19)
 	if a.mavlinkInput != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "input", Component: a.mavlinkInput})
 	}
@@ -363,6 +422,18 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 	}
 	if a.sapientDecoder != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "sapient", Role: "decoder", Component: a.sapientDecoder})
+	}
+	if a.klvMediaInput != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "klv", Role: "media-ref-input", Component: a.klvMediaInput})
+	}
+	if a.klvDemux != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "klv", Role: "demux", Component: a.klvDemux})
+	}
+	if a.klvDecoder != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "klv", Role: "decoder", Component: a.klvDecoder})
+	}
+	if a.klvProjector != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "klv", Role: "projector", Component: a.klvProjector})
 	}
 	return sources
 }
@@ -432,6 +503,12 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 		}
 	}
 
+	if cfg.KLV.Enabled {
+		if err := app.startKLVFlow(runtimeCtx, cfg.KLV, bindings, deps); err != nil {
+			return nil, err
+		}
+	}
+
 	cleanup = false
 	return app, nil
 }
@@ -459,6 +536,11 @@ func defaultDependencies() dependencies {
 		newADSBProjector:     adsbcomponent.NewProjectorComponent,
 		newSAPIENTHTTPInput:  sapientcomponent.NewHTTPInputComponent,
 		newSAPIENTDecoder:    sapientcomponent.NewDecoderComponent,
+		newKLVPlanWriter:     newKLVPlanWriter,
+		newKLVMediaRefInput:  klvcomponent.NewMediaRefInputComponent,
+		newKLVDemux:          klvcomponent.NewDemuxComponent,
+		newKLVDecoder:        klvcomponent.NewDecoderComponent,
+		newKLVProjector:      klvcomponent.NewProjectorComponent,
 	}
 }
 
@@ -526,6 +608,21 @@ func fillDependencies(deps dependencies) dependencies {
 	}
 	if deps.newSAPIENTDecoder == nil {
 		deps.newSAPIENTDecoder = defaults.newSAPIENTDecoder
+	}
+	if deps.newKLVPlanWriter == nil {
+		deps.newKLVPlanWriter = defaults.newKLVPlanWriter
+	}
+	if deps.newKLVMediaRefInput == nil {
+		deps.newKLVMediaRefInput = defaults.newKLVMediaRefInput
+	}
+	if deps.newKLVDemux == nil {
+		deps.newKLVDemux = defaults.newKLVDemux
+	}
+	if deps.newKLVDecoder == nil {
+		deps.newKLVDecoder = defaults.newKLVDecoder
+	}
+	if deps.newKLVProjector == nil {
+		deps.newKLVProjector = defaults.newKLVProjector
 	}
 	return deps
 }
@@ -903,6 +1000,99 @@ func (a *App) startSAPIENTFlow(ctx context.Context, cfg SAPIENTConfig, deps depe
 	return nil
 }
 
+func (a *App) startKLVFlow(
+	ctx context.Context,
+	cfg KLVConfig,
+	bindings copownership.BindingResult,
+	deps dependencies,
+) error {
+	bus := klvRuntimeBus{client: a.client}
+	registry := payloadregistry.New()
+	writer, err := deps.newKLVPlanWriter(stack.KLVAdapterConfig{
+		Source:       cfg.Source,
+		Org:          cfg.Org,
+		Platform:     cfg.Platform,
+		OwnerTokens:  bindings.OwnerTokenMap(),
+		TraceID:      cfg.TraceID,
+		WriteTimeout: cfg.WriteTimeout,
+		Retry:        cfg.Retry,
+	}, stack.KLVAdapterDeps{NATS: a.client})
+	if err != nil {
+		return fmt.Errorf("compose KLV graph writer: %w", err)
+	}
+
+	projector, err := deps.newKLVProjector(klvcomponent.ProjectorConfig{
+		Registry: registry,
+		Projector: klvprojector.NewProjector(klvprojector.Config{
+			Org:         cfg.Org,
+			Platform:    cfg.Platform,
+			OwnerTokens: bindings.OwnerTokenMap(),
+			TraceID:     cfg.TraceID,
+		}),
+		Writer:       writer,
+		WriteTimeout: cfg.WriteTimeout,
+		Bus:          bus,
+	})
+	if err != nil {
+		return fmt.Errorf("compose KLV projector component: %w", err)
+	}
+	decoder, err := deps.newKLVDecoder(klvcomponent.DecoderConfig{
+		Source:          klvcomponent.DefaultDecodeSource,
+		PacketSubject:   klvcomponent.DefaultPacketSubject,
+		FrameSubject:    klvcomponent.DefaultFrameSubject,
+		SupportedSubset: klvcomponent.DefaultSupportedSubset,
+		MaxPacketBytes:  cfg.Decode.MaxPacketBytes,
+		Registry:        registry,
+		Bus:             bus,
+	})
+	if err != nil {
+		return fmt.Errorf("compose KLV decoder component: %w", err)
+	}
+	demux, err := deps.newKLVDemux(klvcomponent.DemuxConfig{
+		Source:               klvcomponent.DefaultDemuxSource,
+		MediaRefSubject:      klvcomponent.DefaultMediaRefSubject,
+		PacketSubject:        klvcomponent.DefaultPacketSubject,
+		MaxPacketBytes:       cfg.Demux.MaxPacketBytes,
+		MaxExtractBytes:      cfg.Demux.MaxExtractBytes,
+		MaxPackets:           cfg.Demux.MaxPackets,
+		MaxMaterializedBytes: cfg.Demux.MaxMaterializedBytes,
+		ProbeOutputMaxBytes:  cfg.Demux.ProbeOutputMaxBytes,
+		Registry:             registry,
+		Bus:                  bus,
+	})
+	if err != nil {
+		return fmt.Errorf("compose KLV demux component: %w", err)
+	}
+	input, err := deps.newKLVMediaRefInput(klvcomponent.MediaRefInputConfig{
+		Source:          cfg.Source,
+		MediaPath:       cfg.MediaPath,
+		MediaPattern:    cfg.MediaPattern,
+		MediaRefSubject: klvcomponent.DefaultMediaRefSubject,
+		Bus:             bus,
+	})
+	if err != nil {
+		return fmt.Errorf("compose KLV media-ref input component: %w", err)
+	}
+	a.klvProjector = projector
+	a.klvDecoder = decoder
+	a.klvDemux = demux
+	a.klvMediaInput = input
+
+	if err := startLifecycle(ctx, "KLV projector", projector); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "KLV decoder", decoder); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "KLV demux", demux); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "KLV media-ref input", input); err != nil {
+		return err
+	}
+	return nil
+}
+
 func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	Initialize() error
 	Start(context.Context) error
@@ -942,6 +1132,13 @@ func newADSBPlanWriter(
 	deps stack.ADSBAdapterDeps,
 ) (adsbcomponent.PlanWriter, error) {
 	return stack.NewADSBPlanWriter(cfg, deps)
+}
+
+func newKLVPlanWriter(
+	cfg stack.KLVAdapterConfig,
+	deps stack.KLVAdapterDeps,
+) (klvcomponent.ProjectorPlanWriter, error) {
+	return stack.NewKLVPlanWriter(cfg, deps)
 }
 
 func newNATSClient(cfg Config) (semstreamsClient, error) {
@@ -984,6 +1181,12 @@ func runtimeOwnedContracts(cfg Config) []cop.OwnedContract {
 		owned = append(owned, cop.OwnedContract{
 			Owner:    cop.OwnerADSB,
 			Contract: cop.ADSBTrackContract(),
+		})
+	}
+	if cfg.KLV.Enabled {
+		owned = append(owned, cop.OwnedContract{
+			Owner:    cop.OwnerKLV,
+			Contract: cop.KLVSensorFootprintContract(),
 		})
 	}
 	return owned
@@ -1100,6 +1303,29 @@ func (b sapientRuntimeBus) Subscribe(
 	subject string,
 	handler func(context.Context, *nats.Msg),
 ) (sapientcomponent.Subscription, error) {
+	subscription, err := b.client.Subscribe(ctx, subject, handler)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return noopSubscription{}, nil
+	}
+	return subscription, nil
+}
+
+type klvRuntimeBus struct {
+	client semstreamsClient
+}
+
+func (b klvRuntimeBus) Publish(ctx context.Context, subject string, data []byte) error {
+	return b.client.Publish(ctx, subject, data)
+}
+
+func (b klvRuntimeBus) Subscribe(
+	ctx context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (klvcomponent.Subscription, error) {
 	subscription, err := b.client.Subscribe(ctx, subject, handler)
 	if err != nil {
 		return nil, err

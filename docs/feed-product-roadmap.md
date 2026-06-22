@@ -346,8 +346,9 @@ The demux worker can split concatenated MISB ST 0601 local sets into distinct pa
 bounded materializer for storage-reference-only media refs. The decoder component can also materialize
 storage-reference-only packet payloads, but only through an explicit bounded packet materializer. Decoded fields are
 asserted within MISB integer quantization tolerance. The first graph projection contract covers KLV-owned
-sensor/frame-center state only; footprint polygons, media packages, and hosted live runtime wiring remain later
-gates.
+sensor/frame-center state only. Opt-in hosted runtime wiring now exists for local media-ref input -> demux -> decode ->
+projector flow, but default-stack live media ingress, footprint polygons, media packages, and stronger KLV/STANAG
+claims remain later gates.
 
 Full product lane:
 Production media/KLV pipeline with demux, parser sidecar or native parser, object storage, frame/keyframe evidence,
