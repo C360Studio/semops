@@ -85,6 +85,10 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - `internal/projectors/command` includes a guarded batch projection path that admits commands, arbitrates admitted
   active intents, projects accepted/superseded command-intent status, and exposes only accepted commands as future
   native execution candidates.
+- `internal/projectors/command` maps MAVLink COMMAND_ACK readback evidence into command-intent lifecycle status
+  updates without rewriting desired state, authority, priority, or target edges. `accepted` remains native acceptance
+  evidence, `in_progress` maps to `executing`, rejection-style MAVLink results map to `rejected`, and final mission or
+  task success remains out of scope.
 - `internal/app` and `cmd/semops` connect to SemStreams, register first-phase COP ownership, enroll heartbeat, and
   compose the hosted MAVLink adapter with registry-derived owner tokens.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured

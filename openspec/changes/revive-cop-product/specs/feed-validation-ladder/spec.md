@@ -193,6 +193,8 @@ public conformance suite, or documented interoperability test backs the claim.
   intents to native feed drivers
 - **AND** guarded batch projection SHALL admit commands before arbitration, project accepted and superseded status as
   command-intent graph state, and expose only accepted decisions as native execution candidates
+- **AND** native status reconciliation SHALL map protocol readback evidence into constrained command-intent lifecycle
+  status updates without rewriting desired-state, authority, priority, or target edges
 - **AND** native feed drivers SHALL publish ACK/status evidence separately rather than owning desired command intent
 - **AND** live command transmission SHALL remain blocked until safety interlocks, local override, stale-command
   rejection, cancellation, supersession, and async status reconciliation are reviewed

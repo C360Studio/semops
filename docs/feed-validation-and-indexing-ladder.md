@@ -671,6 +671,10 @@ Indexing profile pressure:
 - The guarded batch projection path admits commands, arbitrates admitted active intents, projects accepted and
   superseded status through the command-intent graph contract, and exposes only accepted intents as native execution
   candidates.
+- Native status reconciliation maps MAVLink COMMAND_ACK readback strings to command-intent lifecycle status updates:
+  `accepted`, `in_progress` -> `executing`, rejection-style results -> `rejected`, `failed`, and `cancelled`. The
+  status projection updates only native ID, status, description, and provenance fields; desired state, authority,
+  priority, and target edges stay out of the readback update.
 
 First acceptance gate:
 

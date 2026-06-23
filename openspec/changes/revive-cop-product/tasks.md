@@ -353,6 +353,7 @@
 - [x] 8.14 Add command-intent status lifecycle vocabulary and transition guard before CS API/UI/native status
       handlers
 - [x] 8.15 Add pure command cancellation-intent helper before CS API/UI/native cancellation handlers
+- [x] 8.16 Add native command-status reconciliation from feed readback evidence to command-intent lifecycle updates
 
 ## 9. Upstream SemStreams Asks
 
