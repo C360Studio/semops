@@ -23,6 +23,7 @@ Code source: `pkg/cop/contracts.go`
 | --- | --- | --- | --- | --- |
 | `semops.feed.asset` | Source asset identity | `c360.*.cop.*.asset.*` | `replace-owned` | `control` |
 | `semops.feed.mavlink` | MAVLink current track state | `c360.*.cop.mavlink.track.*` | `replace-owned` | `signal` |
+| `semops.feed.mavlink` | MAVLink command ACK/readback state | `c360.*.cop.mavlink.task.*` | `replace-owned` | `control` |
 | `semops.feed.tak` | TAK/CoT current track state | `c360.*.cop.tak.track.*` | `replace-owned` | `signal` |
 | `semops.feed.tak` | TAK/CoT marker and task control state | `c360.*.cop.tak.task.*` | `replace-owned` | `control` |
 | `semops.feed.tak` | TAK/CoT GeoChat and advisory text | `c360.*.cop.tak.advisory.*` | `replace-owned` | `content` |
@@ -35,6 +36,11 @@ Code source: `pkg/cop/contracts.go`
 
 Strict feed owners are source-partitioned by the SemStreams entity `system` segment. This prevents MAVLink and TAK from
 claiming the same `cop.track.position` cell over a wildcard `track` pattern.
+
+MAVLink is intentionally split between `signal` track state and `control` command ACK/readback state. COMMAND_ACK
+projection is evidence that a native command lifecycle event was observed, not proof that SemOps has outbound command
+authority. MAVLink track state declares the strict `cop.track.source` edge to a born source asset; MAVLink command
+tasks declare the strict `cop.task.target` edge to the same born source asset.
 
 TAK/CoT is intentionally one feed owner with multiple contracts. Operator and air-track positions stay in `signal`;
 durable markers and task-like map control state stay in `control`; GeoChat text becomes `content`. Only TAK track
@@ -60,8 +66,8 @@ SemOps adapters must follow SemStreams ADR-055 and ADR-056 directly:
 - No SemOps adapter may rely on `triple.add` or `triple.add_batch` auto-vivify to create missing entities.
 - Every relationship written onto a different entity must be declared by a projection contract `ForeignEdge`, which
   derives a SemStreams `ownership.ForeignEdgeClaim`.
-- The first MAVLink and TAK `cop.track.source` edges are `EdgeStrict` born-first edges. The target source asset must
-  be born before the track edge is written.
+- The first MAVLink and TAK `cop.track.source` edges and MAVLink `cop.task.target` edges are `EdgeStrict` born-first
+  edges. The target source asset must be born before the track or task edge is written.
 - `EdgeNoBirthStub` is allowed only after an adversarial review proves the target has no independent producer and the
   contract names the producer message type plus target pattern.
 - SemOps issue #1 tracks the live SemStreams breaking-tag proof for this policy; the first generated-frame MAVLink
@@ -116,11 +122,14 @@ failing SemOps tests or awkward duplicated code:
 - First-phase contracts validate and derive SemStreams ownership claims.
 - Strict, tolerant, and fusion owners use the expected write modes and indexing profiles.
 - MAVLink and TAK strict track contracts are source-partitioned.
+- MAVLink binds signal track and control command-task contracts under the same feed owner without overlapping
+  `replace-owned` predicates.
 - TAK binds track, task/control, and advisory/content contracts under the same feed owner without overlapping
   replace-owned predicates.
 - ADS-B and SAPIENT track contracts are source-partitioned, signal-profiled, and do not claim association foreign
   edges.
-- Track foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with producer and target pattern.
+- Track and MAVLink command-task foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with producer and
+  target pattern.
 - Overlapping `replace-owned` predicates are rejected.
 - CAP evidence does not claim authoritative hazard state.
 - KLV sensor-footprint evidence owns sensor/frame-center state without claiming footprint polygons.

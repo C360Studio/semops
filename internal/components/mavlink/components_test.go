@@ -234,6 +234,65 @@ func TestProjectorConsumesDecodedPacketAndWritesGraphPlan(t *testing.T) {
 	}
 }
 
+func TestProjectorConsumesDecodedCommandAckAndWritesControlTask(t *testing.T) {
+	now := time.Date(2026, 6, 20, 10, 45, 0, 0, time.UTC)
+	bus := &recordingBus{}
+	registry := payloadregistry.New()
+	writer := &recordingPlanWriter{}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Registry: registry,
+		Projector: mavprojector.NewProjector(mavprojector.Config{
+			Org:      "c360",
+			Platform: "edge",
+			OwnerTokens: map[string]ownership.OwnerToken{
+				cop.OwnerAsset:   ownership.ExpectedOwnerToken(cop.OwnerAsset, "component-test"),
+				cop.OwnerMAVLink: ownership.ExpectedOwnerToken(cop.OwnerMAVLink, "component-test"),
+			},
+			TraceID: "component-test",
+		}),
+		Writer: writer,
+		Clock:  func() time.Time { return now },
+	}, bus)
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+	if err := projector.Initialize(); err != nil {
+		t.Fatalf("initialize projector: %v", err)
+	}
+
+	frame, err := mavcodec.NewGenerator(42, 7).GenerateCommandAck(mavcodec.CommandAckMessage{
+		Command:           mavcodec.CommandComponentArmDisarm,
+		Result:            mavcodec.MAVResultAccepted,
+		Progress:          100,
+		TargetSystemID:    255,
+		TargetComponentID: 1,
+	})
+	if err != nil {
+		t.Fatalf("generate command ack: %v", err)
+	}
+	payload := decodedPayloadFromFrame(t, "decoder:test", "mavlink://raw/test/00000002", now, frame)
+	wire := mustBaseMessageJSON(t, DecodedPacketType, payload, "semops-processor-mavlink-decode", now)
+	if err := projector.HandleDecodedMessage(context.Background(), wire); err != nil {
+		t.Fatalf("handle decoded command ack: %v", err)
+	}
+
+	if len(writer.plans) != 1 {
+		t.Fatalf("plans = %d, want 1", len(writer.plans))
+	}
+	if len(writer.plans[0].Mutations) != 2 {
+		t.Fatalf("mutations = %d, want asset + task create", len(writer.plans[0].Mutations))
+	}
+	taskCreate := writer.plans[0].Mutations[1].Create
+	if taskCreate.Entity.ID != "c360.edge.cop.mavlink.task.system-42-command-400-target-255-1" {
+		t.Fatalf("task id = %q", taskCreate.Entity.ID)
+	}
+	if taskCreate.IndexingProfile != cop.MAVLinkCommandTaskContract().IndexingProfile {
+		t.Fatalf("task indexing profile = %q", taskCreate.IndexingProfile)
+	}
+	requireMessageTriple(t, taskCreate.Triples, cop.TaskTarget, "c360.edge.cop.mavlink.asset.system-42")
+	requireMessageTriple(t, taskCreate.Triples, cop.ProvenanceSourceRef, "mavlink://raw/test/00000002")
+}
+
 func TestProjectorReconcilesExistingBirths(t *testing.T) {
 	now := time.Date(2026, 6, 20, 11, 0, 0, 0, time.UTC)
 	bus := &recordingBus{}
@@ -275,6 +334,19 @@ func TestProjectorReconcilesExistingBirths(t *testing.T) {
 	if len(last.Mutations) != 1 || last.Mutations[0].Kind != mavprojector.MutationUpdate {
 		t.Fatalf("last plan = %+v, want update after reconciling existing births", last)
 	}
+}
+
+func requireMessageTriple(t *testing.T, triples []message.Triple, predicate string, want any) {
+	t.Helper()
+	for _, triple := range triples {
+		if triple.Predicate == predicate {
+			if triple.Object != want {
+				t.Fatalf("%s object = %#v, want %#v", predicate, triple.Object, want)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing predicate %q in %+v", predicate, triples)
 }
 
 type publishedMessage struct {

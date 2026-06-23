@@ -287,6 +287,108 @@ func TestProjectorIncludesRawSourceReferenceWithoutRawEntityBirth(t *testing.T) 
 	}
 }
 
+func TestProjectorMapsCommandAckToControlTaskWithBornFirstTarget(t *testing.T) {
+	packet := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
+		return g.GenerateCommandAck(mavcodec.CommandAckMessage{
+			Command:           mavcodec.CommandComponentArmDisarm,
+			Result:            mavcodec.MAVResultAccepted,
+			Progress:          100,
+			ResultParam2:      -7,
+			TargetSystemID:    255,
+			TargetComponentID: 1,
+		})
+	})
+
+	projector := NewProjector(Config{
+		Org:         "c360",
+		Platform:    "edge",
+		OwnerTokens: testOwnerTokens("test"),
+		TraceID:     "scenario-001",
+	})
+	plan, err := projector.ProjectPacket(packet)
+	if err != nil {
+		t.Fatalf("project command ack: %v", err)
+	}
+	if len(plan.Mutations) != 2 {
+		t.Fatalf("mutations = %d, want asset birth + task birth", len(plan.Mutations))
+	}
+
+	assetCreate := requireCreate(t, plan.Mutations[0])
+	taskCreate := requireCreate(t, plan.Mutations[1])
+
+	if assetCreate.Entity.ID != "c360.edge.cop.mavlink.asset.system-42" {
+		t.Fatalf("asset id = %q", assetCreate.Entity.ID)
+	}
+	if taskCreate.Entity.ID != "c360.edge.cop.mavlink.task.system-42-command-400-target-255-1" {
+		t.Fatalf("task id = %q", taskCreate.Entity.ID)
+	}
+	if taskCreate.Entity.MessageType.Key() != cop.MAVLinkCommandTaskContract().MessageType {
+		t.Fatalf("task message type = %q", taskCreate.Entity.MessageType.Key())
+	}
+	if taskCreate.IndexingProfile != cop.MAVLinkCommandTaskContract().IndexingProfile {
+		t.Fatalf("task indexing profile = %q", taskCreate.IndexingProfile)
+	}
+	if taskCreate.OwnerToken != "semops.feed.mavlink#test" {
+		t.Fatalf("task owner token = %q", taskCreate.OwnerToken)
+	}
+
+	requireTriple(t, taskCreate.Triples, cop.TaskTarget, assetCreate.Entity.ID)
+	requireTriple(t, taskCreate.Triples, cop.TaskName, "MAVLink command 400 ACK")
+	requireTriple(t, taskCreate.Triples, cop.TaskKind, "mavlink.command_ack")
+	requireTriple(t, taskCreate.Triples, cop.TaskStatus, "accepted")
+	requireTriple(t, taskCreate.Triples, cop.TaskDescription, "command=400 result=accepted progress=100 target=255/1 result_param2=-7")
+	requireTriple(t, taskCreate.Triples, cop.TaskNativeID, "mavlink.system.42.component.7.command.400.target.255.1")
+}
+
+func TestProjectorUpdatesKnownCommandTaskWithoutRepeatingTargetEdge(t *testing.T) {
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
+	first := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
+		return g.GenerateCommandAck(mavcodec.CommandAckMessage{
+			Command:           mavcodec.CommandComponentArmDisarm,
+			Result:            mavcodec.MAVResultInProgress,
+			Progress:          50,
+			TargetSystemID:    255,
+			TargetComponentID: 1,
+		})
+	})
+	birthPlan, err := projector.ProjectPacket(first)
+	if err != nil {
+		t.Fatalf("project first command ack: %v", err)
+	}
+	if marked := projector.MarkBornForPlan(birthPlan); marked != 2 {
+		t.Fatalf("marked births = %d, want asset + task", marked)
+	}
+
+	second := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
+		return g.GenerateCommandAck(mavcodec.CommandAckMessage{
+			Command:           mavcodec.CommandComponentArmDisarm,
+			Result:            mavcodec.MAVResultAccepted,
+			Progress:          100,
+			TargetSystemID:    255,
+			TargetComponentID: 1,
+		})
+	})
+	plan, err := projector.ProjectPacket(second)
+	if err != nil {
+		t.Fatalf("project second command ack: %v", err)
+	}
+	if len(plan.Mutations) != 1 {
+		t.Fatalf("mutations = %d, want task update only", len(plan.Mutations))
+	}
+	update := requireUpdate(t, plan.Mutations[0])
+	if update.Entity.ID != "c360.edge.cop.mavlink.task.system-42-command-400-target-255-1" {
+		t.Fatalf("update entity id = %q", update.Entity.ID)
+	}
+	if update.IndexingProfile != cop.MAVLinkCommandTaskContract().IndexingProfile {
+		t.Fatalf("update indexing profile = %q", update.IndexingProfile)
+	}
+	if hasPredicate(update.AddTriples, cop.TaskTarget) {
+		t.Fatal("task updates must not re-emit target foreign edge after born-first create")
+	}
+	requireTriple(t, update.AddTriples, cop.TaskStatus, "accepted")
+	requireTriple(t, update.AddTriples, cop.TaskDescription, "command=400 result=accepted progress=100 target=255/1 result_param2=0")
+}
+
 func TestProjectorIgnoresUnsupportedMessagesWithoutBirth(t *testing.T) {
 	projector := NewProjector(Config{})
 	plan, err := projector.ProjectPacket(&mavcodec.Packet{

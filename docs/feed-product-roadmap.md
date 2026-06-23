@@ -162,13 +162,15 @@ KLV/STANAG 4609:
 
 Demo/MVP lane:
 Generated/replay and UDP current-state ingest for heartbeat, position, attitude, battery, bounded raw lane,
-born-first source asset and track graph writes. The next simulator-fidelity step is a skipped-by-default external
-SITL/MAVSDK telemetry smoke that observes a real simulator track through the hosted COP snapshot without injecting
-generated frames.
+born-first source asset and track graph writes. COMMAND_ACK readback now projects to control task state with a
+born-first target edge, but this is command lifecycle evidence only. The next simulator-fidelity step is a
+skipped-by-default external SITL/MAVSDK telemetry smoke that observes a real simulator track through the hosted COP
+snapshot without injecting generated frames.
 
 Full product lane:
 PX4/ArduPilot SITL and hardware profiles, MAVSDK smoke, UDP/TCP/serial transports, signed or authenticated links
-where applicable, multi-vehicle lifecycle, command authority, mission state, reconnect, and staleness behavior.
+where applicable, multi-vehicle lifecycle, command authority, command priority, TTL windows, mission state, reconnect,
+and staleness behavior.
 
 Boundary to preserve now:
 Keep codec, raw lane, transport listener, projector, and command authority separate so simulator and hardware support

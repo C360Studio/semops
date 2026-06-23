@@ -79,6 +79,7 @@
       evidence output
 - [x] 4.17 Add a preferred PX4/Gazebo headless Docker stack gate path while keeping the simulator evidence task open
       until the image is pulled and the gate passes locally
+- [x] 4.18 Add MAVLink COMMAND_ACK control-task readback projection without claiming outbound command authority
 
 ## 5. Feed Validation And Indexing Ladder
 
@@ -194,6 +195,8 @@
       gates open
 - [x] 5.93 Record PX4/Gazebo headless Docker motion-required stack-smoke evidence while keeping command/control gates
       open
+- [x] 5.94 Record COMMAND_ACK readback as governed control-task evidence while keeping live command transmit,
+      priority, TTL, and CS API reconciliation gates open
 
 ## 6. Structural COP Stack
 

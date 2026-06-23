@@ -72,7 +72,7 @@ func TestAdapterIngestFrameCapturesProjectsAndWrites(t *testing.T) {
 	}
 }
 
-func TestAdapterCapturesCommandAckWithoutGraphWrite(t *testing.T) {
+func TestAdapterCapturesCommandAckAndWritesControlTask(t *testing.T) {
 	writer := &recordingPlanWriter{}
 	adapter := newTestAdapter(t, writer, time.Now)
 
@@ -91,21 +91,31 @@ func TestAdapterCapturesCommandAckWithoutGraphWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ingest command ack: %v", err)
 	}
-	if result.Mutations != 0 {
-		t.Fatalf("mutations = %d, want 0 for command ack current-state projection", result.Mutations)
+	if result.Mutations != 2 {
+		t.Fatalf("mutations = %d, want source asset + command task create", result.Mutations)
 	}
-	if len(writer.plans) != 0 {
-		t.Fatalf("plans written = %d, want 0", len(writer.plans))
+	if len(writer.plans) != 1 {
+		t.Fatalf("plans written = %d, want 1", len(writer.plans))
 	}
+	taskCreate := requireCreate(t, writer.plans[0].Mutations[1])
+	if taskCreate.Entity.ID != "c360.edge.cop.mavlink.task.system-42-command-400-target-255-1" {
+		t.Fatalf("task id = %q", taskCreate.Entity.ID)
+	}
+	if taskCreate.IndexingProfile != cop.MAVLinkCommandTaskContract().IndexingProfile {
+		t.Fatalf("task indexing profile = %q", taskCreate.IndexingProfile)
+	}
+	requireTriple(t, taskCreate.Triples, cop.TaskTarget, "c360.edge.cop.mavlink.asset.system-42")
+	requireTriple(t, taskCreate.Triples, cop.TaskStatus, "accepted")
+	requireTriple(t, taskCreate.Triples, cop.ProvenanceSourceRef, result.RawRef)
 	health := adapter.Health()
 	if !health.Ready {
 		t.Fatalf("health ready = false, last error %q", health.LastError)
 	}
-	if health.ProjectionDrops != 1 {
-		t.Fatalf("projection drops = %d, want unsupported packet drop", health.ProjectionDrops)
+	if health.ProjectionDrops != 0 {
+		t.Fatalf("projection drops = %d, want 0", health.ProjectionDrops)
 	}
-	if health.GraphMutations != 0 {
-		t.Fatalf("graph mutations = %d, want 0", health.GraphMutations)
+	if health.GraphMutations != 2 {
+		t.Fatalf("graph mutations = %d, want source asset + command task create", health.GraphMutations)
 	}
 }
 

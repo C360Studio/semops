@@ -70,6 +70,27 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 		t.Fatalf("MAVLink indexing profile = %q, want signal", mavlink.IndexingProfile)
 	}
 
+	mavlinkCommandTask := MAVLinkCommandTaskContract()
+	if err := mavlinkCommandTask.Validate(); err != nil {
+		t.Fatalf("MAVLink command task contract should validate: %v", err)
+	}
+	if got := mavlinkCommandTask.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("MAVLink command task mode = %q, want replace-owned", got)
+	}
+	if mavlinkCommandTask.IndexingProfile != "control" {
+		t.Fatalf("MAVLink command task indexing profile = %q, want control", mavlinkCommandTask.IndexingProfile)
+	}
+	if mavlinkCommandTask.EntityPattern == mavlink.EntityPattern {
+		t.Fatalf("MAVLink command tasks must use a task entity pattern, not track")
+	}
+	mavlinkRegistration, err := projection.Derive(OwnerMAVLink, mavlink, mavlinkCommandTask)
+	if err != nil {
+		t.Fatalf("derive MAVLink track + command task ownership: %v", err)
+	}
+	if len(mavlinkRegistration.ForeignEdges) != 2 {
+		t.Fatalf("MAVLink foreign edges = %d, want track source + task target", len(mavlinkRegistration.ForeignEdges))
+	}
+
 	tak := TAKTrackContract()
 	if got := tak.Groups[0].Mode; got != ownership.ModeReplaceOwned {
 		t.Fatalf("TAK mode = %q, want replace-owned", got)
@@ -242,12 +263,16 @@ func TestTAKOwnerBindsTrackControlAndContentContracts(t *testing.T) {
 }
 
 func TestForeignEdgesDeclareADR056BornFirstShape(t *testing.T) {
-	for _, owned := range []OwnedContract{
-		{Owner: OwnerMAVLink, Contract: MAVLinkTrackContract()},
-		{Owner: OwnerTAK, Contract: TAKTrackContract()},
+	for _, tc := range []struct {
+		owned         OwnedContract
+		wantPredicate string
+	}{
+		{owned: OwnedContract{Owner: OwnerMAVLink, Contract: MAVLinkTrackContract()}, wantPredicate: TrackSource},
+		{owned: OwnedContract{Owner: OwnerMAVLink, Contract: MAVLinkCommandTaskContract()}, wantPredicate: TaskTarget},
+		{owned: OwnedContract{Owner: OwnerTAK, Contract: TAKTrackContract()}, wantPredicate: TrackSource},
 	} {
-		contract := owned.Contract
-		registration, err := projection.Derive(owned.Owner, contract)
+		contract := tc.owned.Contract
+		registration, err := projection.Derive(tc.owned.Owner, contract)
 		if err != nil {
 			t.Fatalf("%s should derive: %v", contract.Name, err)
 		}
@@ -256,8 +281,8 @@ func TestForeignEdgesDeclareADR056BornFirstShape(t *testing.T) {
 		}
 
 		edge := registration.ForeignEdges[0]
-		if edge.Predicate != TrackSource {
-			t.Fatalf("%s foreign edge predicate = %q, want %q", contract.Name, edge.Predicate, TrackSource)
+		if edge.Predicate != tc.wantPredicate {
+			t.Fatalf("%s foreign edge predicate = %q, want %q", contract.Name, edge.Predicate, tc.wantPredicate)
 		}
 		if edge.Producer != contract.MessageType {
 			t.Fatalf("%s producer = %q, want %q", contract.Name, edge.Producer, contract.MessageType)

@@ -3,18 +3,18 @@
 Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner, SemStreams graph writer boundary,
 structural wiring, typed owner-token wiring, restart create-conflict reconciliation, opt-in UDP transport hosting, COP
 owner-registration smoke evidence, generated-frame live graph smoke evidence, a skipped-by-default external
-PX4/MAVSDK/SITL telemetry smoke harness, and one passed PX4/Gazebo headless Docker telemetry smoke. Live feed
-integration remains blocked by durable replay playback, TCP/serial transport work, ArduPilot parity, and
-command/control fidelity work in `COP-004`.
+PX4/MAVSDK/SITL telemetry smoke harness, one passed PX4/Gazebo headless Docker telemetry smoke, and COMMAND_ACK
+control-task readback projection. Live feed integration remains blocked by durable replay playback, TCP/serial
+transport work, ArduPilot parity, and outbound command/control fidelity work in `COP-004`.
 
 ## Decision
 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
-coverage, current-state projection planner, tested graph request/reply writer boundary, retry-aware SemStreams NATS
-requester boundary, in-process adapter harness, hosted runtime wiring, opt-in UDP datagram ingestion, and a one-command
-graph scaffold. Live feed work still needs scenario-runner replay wiring, TCP/serial transport, ArduPilot evidence, and
-full product-stack expansion.
+coverage, current-state projection planner, COMMAND_ACK control-task readback projection, tested graph request/reply
+writer boundary, retry-aware SemStreams NATS requester boundary, in-process adapter harness, hosted runtime wiring,
+opt-in UDP datagram ingestion, and a one-command graph scaffold. Live feed work still needs scenario-runner replay
+wiring, TCP/serial transport, ArduPilot evidence, safe outbound command/control, and full product-stack expansion.
 
 SemOps GitHub issue #1 added a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
 graph path against live SemStreams before PX4/SITL becomes the blocking milestone. The generated-frame smoke passed
@@ -40,10 +40,11 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - `pkg/adapters/mavlink/replay.go` appends durable raw-lane records as JSON Lines fixtures and loads them back.
 - `pkg/adapters/mavlink/replay_test.go` proves appended fixtures load back into parseable MAVLink frame bytes.
 - `internal/projectors/mavlink` maps decoded heartbeat, global position, attitude, and battery packets into ordered
-  SemStreams graph mutation requests.
+  SemStreams graph mutation requests, and maps COMMAND_ACK packets into control-profiled command readback task state.
 - `internal/projectors/mavlink/projector_test.go` proves source asset birth before strict `cop.track.source` edges,
   signal-profiled track current state, source-reference projection, pure projection before committed birth marking, and
-  update-only behavior after first birth.
+  update-only behavior after first birth. It also proves COMMAND_ACK creates a control task with a strict born-first
+  `cop.task.target` edge to the source asset and updates known command tasks without repeating that foreign edge.
 - `internal/projectors/mavlink/writer.go` sends plans to SemStreams `graph.mutation.entity.create_with_triples` and
   `graph.mutation.entity.update_with_triples` request/reply subjects.
 - `internal/projectors/mavlink/writer_test.go` proves write ordering, owner-token transit,
@@ -53,8 +54,9 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - `internal/adapters/mavlink` composes parser, raw lane, projector, graph plan writer, and pollable health counters
   for the future adapter service boundary.
 - `internal/adapters/mavlink/adapter_test.go` proves valid telemetry writes graph plans, command ACK frames are
-  captured without graph writes, corrupt frames stop before graph writes, writer failures are reflected in health, and
-  strict `entity_already_exists` birth conflicts after restart are reconciled into update-only writes.
+  captured and written as control-task readback state, corrupt frames stop before graph writes, writer failures are
+  reflected in health, and strict `entity_already_exists` birth conflicts after restart are reconciled into update-only
+  writes.
 - `internal/adapters/mavlink/udp_listener.go` hosts an opt-in UDP datagram loop that feeds real datagrams into the
   adapter without letting corrupt frames terminate the listener.
 - `internal/adapters/mavlink/udp_listener_test.go` sends generated MAVLink frames over localhost UDP and proves invalid
@@ -109,6 +111,10 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   recorded `result=passed`, `require_motion=true`, `timeout=60s`, `min_updates=2`, vehicle `gz_x500`, world `default`,
   and expected track `c360.edge-compose.cop.mavlink.track.system-1`. The external SITL snapshot smoke passed in 25.52s,
   proving the PX4/Gazebo headless route produced enough position delta for the motion-required gate.
+- 2026-06-23: `go test ./pkg/cop ./internal/projectors/mavlink ./internal/adapters/mavlink
+  ./internal/components/mavlink ./internal/copownership` passed after adding the MAVLink command-task ownership
+  contract and COMMAND_ACK readback projection. This is evidence of governed command lifecycle readback only; live
+  command transmit, safety interlocks, priority, TTL, and CS API command reconciliation remain open.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -162,6 +168,8 @@ Acceptance:
 - The in-process adapter harness exposes pollable health counters for raw ingest, projection, graph writes, and errors.
 - Structural wiring can compose the NATS-backed writer path without launching the full stack.
 - Commands, mission state, and battery alerts use `indexing_profile=control`.
+- COMMAND_ACK packets project to `indexing_profile=control` command-task readback state with a strict
+  `cop.task.target` edge to the born MAVLink source asset.
 - Replay/decode records use `indexing_profile=trace`.
 - No graph entity is created per raw packet.
 
@@ -300,8 +308,10 @@ Acceptance:
   is now closed.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
-- Command codec coverage is active for COMMAND_LONG and COMMAND_ACK, but live command/control is not.
-- PX4 SITL/MAVSDK evidence is not yet in SemOps.
+- Command codec coverage and COMMAND_ACK readback projection are active, but live command transmit, command
+  reconciliation, priority, TTL, and safety interlocks are not.
+- PX4/Gazebo headless telemetry and motion-required evidence is in SemOps; ArduPilot parity, MAVSDK parity, and live
+  command/control evidence remain open.
 
 ## Adversarial Feed-Entry Questions
 

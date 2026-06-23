@@ -160,8 +160,17 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the smoke must assert live MAVLink feed health, source-owned provenance, non-empty source reference, position,
   velocity or equivalent state evidence, and repeated simulator updates before it is cited as simulator-fidelity
   evidence
-- **AND** command/control, mission state, safe command ACKs, serial/TCP transports, signed links, and hardware behavior
-  remain separate gates until reviewed
+- **AND** live command transmit, mission state, command ACK reconciliation, serial/TCP transports, signed links, and
+  hardware behavior remain separate gates until reviewed
+
+#### Scenario: MAVLink command ACK readback is not outbound authority
+
+- **WHEN** SemOps projects MAVLink COMMAND_ACK packets
+- **THEN** the ACK SHALL be written as `control`-profiled command readback task state
+- **AND** the command task SHALL use a strict born-first `cop.task.target` edge to the MAVLink source asset
+- **AND** known command-task updates SHALL NOT repeat the strict target edge after the task is born
+- **AND** SemOps SHALL NOT treat ACK readback projection as evidence of live command transmission, mission execution,
+  command priority arbitration, TTL-window policy, CS API tasking reconciliation, or native safety interlocks
 
 #### Scenario: MAVLink simulator readiness is not simulator evidence
 

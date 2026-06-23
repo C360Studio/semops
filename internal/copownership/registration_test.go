@@ -47,8 +47,8 @@ func TestRegisterFirstPhaseBindsAndEnrollsOwners(t *testing.T) {
 			if len(registration.Claims) == 0 && len(registration.ForeignEdges) == 0 {
 				t.Fatalf("owner %s derived no claims", owner)
 			}
-			if owner == cop.OwnerMAVLink && len(registration.ForeignEdges) != 1 {
-				t.Fatalf("MAVLink foreign-edge claims = %d, want 1", len(registration.ForeignEdges))
+			if owner == cop.OwnerMAVLink && len(registration.ForeignEdges) != 2 {
+				t.Fatalf("MAVLink foreign-edge claims = %d, want 2", len(registration.ForeignEdges))
 			}
 			heartbeater.Add(owner)
 			calls = append(calls, owner)

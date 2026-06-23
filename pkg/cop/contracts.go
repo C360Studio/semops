@@ -66,6 +66,7 @@ const (
 	TaskPosition    = "cop.task.position"
 	TaskDescription = "cop.task.description"
 	TaskNativeID    = "cop.task.native_id"
+	TaskTarget      = "cop.task.target"
 
 	AdvisoryText     = "cop.advisory.text"
 	AdvisoryKind     = "cop.advisory.kind"
@@ -186,6 +187,38 @@ func MAVLinkTrackContract() projection.Contract {
 		}},
 		ForeignEdges: []projection.ForeignEdge{{
 			Predicate:     TrackSource,
+			Mode:          ownership.EdgeStrict,
+			TargetPattern: EntityPattern(EntityAsset),
+		}},
+	}
+}
+
+// MAVLinkCommandTaskContract owns command ACK/readback evidence projected from
+// MAVLink. It is control-profiled because operators and CS API bridges will
+// reconcile command lifecycle state through this entity family, but it does not
+// grant outbound command authority.
+func MAVLinkCommandTaskContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.task.mavlink-command-current-state",
+		MessageType:     "semops.mavlink.command_task.v1",
+		EntityPattern:   SourceEntityPattern("mavlink", EntityTask),
+		IndexingProfile: "control",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				TaskName,
+				TaskKind,
+				TaskStatus,
+				TaskDescription,
+				TaskNativeID,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+		ForeignEdges: []projection.ForeignEdge{{
+			Predicate:     TaskTarget,
 			Mode:          ownership.EdgeStrict,
 			TargetPattern: EntityPattern(EntityAsset),
 		}},
@@ -439,6 +472,7 @@ func FirstPhaseOwnedContracts() []OwnedContract {
 	return []OwnedContract{
 		{Owner: OwnerAsset, Contract: SourceAssetContract()},
 		{Owner: OwnerMAVLink, Contract: MAVLinkTrackContract()},
+		{Owner: OwnerMAVLink, Contract: MAVLinkCommandTaskContract()},
 		{Owner: OwnerTAK, Contract: TAKTrackContract()},
 		{Owner: OwnerTAK, Contract: TAKTaskContract()},
 		{Owner: OwnerTAK, Contract: TAKAdvisoryContract()},

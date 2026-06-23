@@ -38,6 +38,7 @@ type Projector struct {
 	cfg        Config
 	bornAssets map[string]struct{}
 	bornTracks map[string]struct{}
+	bornTasks  map[string]struct{}
 }
 
 type Plan struct {
@@ -65,15 +66,17 @@ func NewProjector(cfg Config) *Projector {
 		cfg:        cfg,
 		bornAssets: make(map[string]struct{}),
 		bornTracks: make(map[string]struct{}),
+		bornTasks:  make(map[string]struct{}),
 	}
 }
 
 func (p *Projector) ProjectPackets(packets []*mavcodec.Packet) (Plan, error) {
 	bornAssets := cloneStringSet(p.bornAssets)
 	bornTracks := cloneStringSet(p.bornTracks)
+	bornTasks := cloneStringSet(p.bornTasks)
 	var plan Plan
 	for _, packet := range packets {
-		next, err := p.projectPacket(packet, bornAssets, bornTracks)
+		next, err := p.projectPacket(packet, bornAssets, bornTracks, bornTasks)
 		if err != nil {
 			return Plan{}, err
 		}
@@ -83,16 +86,25 @@ func (p *Projector) ProjectPackets(packets []*mavcodec.Packet) (Plan, error) {
 }
 
 func (p *Projector) ProjectPacket(packet *mavcodec.Packet) (Plan, error) {
-	return p.projectPacket(packet, cloneStringSet(p.bornAssets), cloneStringSet(p.bornTracks))
+	return p.projectPacket(
+		packet,
+		cloneStringSet(p.bornAssets),
+		cloneStringSet(p.bornTracks),
+		cloneStringSet(p.bornTasks),
+	)
 }
 
 func (p *Projector) projectPacket(
 	packet *mavcodec.Packet,
 	bornAssets map[string]struct{},
 	bornTracks map[string]struct{},
+	bornTasks map[string]struct{},
 ) (Plan, error) {
 	if packet == nil {
 		return Plan{}, nil
+	}
+	if packet.MessageID == mavcodec.MessageIDCommandAck {
+		return p.projectCommandTask(packet, bornAssets, bornTasks), nil
 	}
 
 	trackTriples := p.trackTriples(packet)
@@ -106,21 +118,7 @@ func (p *Projector) projectPacket(
 	now := observedAt(packet)
 
 	if _, ok := bornAssets[assetID]; !ok {
-		plan.Mutations = append(plan.Mutations, Mutation{
-			Kind: MutationCreate,
-			Create: graph.CreateEntityWithTriplesRequest{
-				Entity: &graph.EntityState{
-					ID:          assetID,
-					MessageType: sourceAssetMessageType(),
-					UpdatedAt:   now,
-				},
-				Triples:         p.sourceAssetTriples(assetID, packet),
-				IndexingProfile: cop.SourceAssetContract().IndexingProfile,
-				OwnerToken:      p.ownerToken(cop.OwnerAsset),
-				TraceID:         p.cfg.TraceID,
-				RequestID:       requestID("create-source-asset", packet.SystemID),
-			},
-		})
+		plan.Mutations = append(plan.Mutations, p.sourceAssetBirthMutation(assetID, packet))
 		bornAssets[assetID] = struct{}{}
 	}
 
@@ -161,6 +159,63 @@ func (p *Projector) projectPacket(
 	return plan, nil
 }
 
+func (p *Projector) projectCommandTask(
+	packet *mavcodec.Packet,
+	bornAssets map[string]struct{},
+	bornTasks map[string]struct{},
+) Plan {
+	taskTriples := p.commandTaskTriples(packet)
+	if len(taskTriples) == 0 {
+		return Plan{}
+	}
+
+	var plan Plan
+	assetID := p.sourceAssetID(packet.SystemID)
+	taskID := p.commandTaskID(packet)
+	now := observedAt(packet)
+
+	if _, ok := bornAssets[assetID]; !ok {
+		plan.Mutations = append(plan.Mutations, p.sourceAssetBirthMutation(assetID, packet))
+		bornAssets[assetID] = struct{}{}
+	}
+
+	if _, ok := bornTasks[taskID]; !ok {
+		taskTriples = append(taskTriples, triple(taskID, cop.TaskTarget, assetID, packet, p.cfg.Confidence))
+		plan.Mutations = append(plan.Mutations, Mutation{
+			Kind: MutationCreate,
+			Create: graph.CreateEntityWithTriplesRequest{
+				Entity: &graph.EntityState{
+					ID:          taskID,
+					MessageType: mavlinkCommandTaskMessageType(),
+					UpdatedAt:   now,
+				},
+				Triples:         taskTriples,
+				IndexingProfile: cop.MAVLinkCommandTaskContract().IndexingProfile,
+				OwnerToken:      p.ownerToken(cop.OwnerMAVLink),
+				TraceID:         p.cfg.TraceID,
+				RequestID:       commandRequestID("create-command-task", packet),
+			},
+		})
+		bornTasks[taskID] = struct{}{}
+		return plan
+	}
+
+	plan.Mutations = append(plan.Mutations, Mutation{
+		Kind: MutationUpdate,
+		Update: graph.UpdateEntityWithTriplesRequest{
+			Entity: &graph.EntityState{
+				ID: taskID,
+			},
+			AddTriples:      taskTriples,
+			IndexingProfile: cop.MAVLinkCommandTaskContract().IndexingProfile,
+			OwnerToken:      p.ownerToken(cop.OwnerMAVLink),
+			TraceID:         p.cfg.TraceID,
+			RequestID:       commandRequestID("update-command-task", packet),
+		},
+	})
+	return plan
+}
+
 func (p *Projector) MarkBornForPlan(plan Plan) int {
 	if p == nil {
 		return 0
@@ -189,6 +244,10 @@ func (p *Projector) MarkBornForPacket(packet *mavcodec.Packet, entityID string) 
 		p.bornTracks[entityID] = struct{}{}
 		return true
 	default:
+		if packet.MessageID == mavcodec.MessageIDCommandAck && entityID == p.commandTaskID(packet) {
+			p.bornTasks[entityID] = struct{}{}
+			return true
+		}
 		return false
 	}
 }
@@ -209,6 +268,12 @@ func (p *Projector) markBornEntity(entity *graph.EntityState) bool {
 			return false
 		}
 		p.bornTracks[entity.ID] = struct{}{}
+		return true
+	case cop.MAVLinkCommandTaskContract().MessageType:
+		if _, ok := p.bornTasks[entity.ID]; ok {
+			return false
+		}
+		p.bornTasks[entity.ID] = struct{}{}
 		return true
 	default:
 		return false
@@ -295,6 +360,44 @@ func (p *Projector) trackTriples(packet *mavcodec.Packet) []message.Triple {
 	return nil
 }
 
+func (p *Projector) commandTaskTriples(packet *mavcodec.Packet) []message.Triple {
+	command, commandOK := field[uint16](packet, "command")
+	result, resultOK := field[uint8](packet, "result")
+	if !commandOK || !resultOK {
+		return nil
+	}
+	targetSystem, _ := field[uint8](packet, "target_system")
+	targetComponent, _ := field[uint8](packet, "target_component")
+	progress, _ := field[uint8](packet, "progress")
+	resultParam2, _ := field[int32](packet, "result_param2")
+	taskID := p.commandTaskID(packet)
+	status := mavcodec.MAVResultString(result)
+	description := fmt.Sprintf(
+		"command=%d result=%s progress=%d target=%d/%d result_param2=%d",
+		command,
+		status,
+		progress,
+		targetSystem,
+		targetComponent,
+		resultParam2,
+	)
+
+	triples := []message.Triple{
+		triple(taskID, cop.TaskName, fmt.Sprintf("MAVLink command %d ACK", command), packet, p.cfg.Confidence),
+		triple(taskID, cop.TaskKind, "mavlink.command_ack", packet, p.cfg.Confidence),
+		triple(taskID, cop.TaskStatus, status, packet, p.cfg.Confidence),
+		triple(taskID, cop.TaskDescription, description, packet, p.cfg.Confidence),
+		triple(taskID, cop.TaskNativeID, commandTaskNativeID(packet), packet, p.cfg.Confidence),
+		triple(taskID, cop.ProvenanceSource, "mavlink", packet, p.cfg.Confidence),
+		triple(taskID, cop.ProvenanceConfidence, p.cfg.Confidence, packet, p.cfg.Confidence),
+		triple(taskID, cop.ProvenanceObservedAt, observedAt(packet), packet, p.cfg.Confidence),
+	}
+	if packet.SourceRef != "" {
+		triples = append(triples, triple(taskID, cop.ProvenanceSourceRef, packet.SourceRef, packet, p.cfg.Confidence))
+	}
+	return triples
+}
+
 func (p *Projector) sourceAssetTriples(assetID string, packet *mavcodec.Packet) []message.Triple {
 	triples := []message.Triple{
 		triple(assetID, cop.AssetName, fmt.Sprintf("MAVLink system %d", packet.SystemID), packet, p.cfg.Confidence),
@@ -309,6 +412,24 @@ func (p *Projector) sourceAssetTriples(assetID string, packet *mavcodec.Packet) 
 		triples = append(triples, triple(assetID, cop.ProvenanceSourceRef, packet.SourceRef, packet, p.cfg.Confidence))
 	}
 	return triples
+}
+
+func (p *Projector) sourceAssetBirthMutation(assetID string, packet *mavcodec.Packet) Mutation {
+	return Mutation{
+		Kind: MutationCreate,
+		Create: graph.CreateEntityWithTriplesRequest{
+			Entity: &graph.EntityState{
+				ID:          assetID,
+				MessageType: sourceAssetMessageType(),
+				UpdatedAt:   observedAt(packet),
+			},
+			Triples:         p.sourceAssetTriples(assetID, packet),
+			IndexingProfile: cop.SourceAssetContract().IndexingProfile,
+			OwnerToken:      p.ownerToken(cop.OwnerAsset),
+			TraceID:         p.cfg.TraceID,
+			RequestID:       requestID("create-source-asset", packet.SystemID),
+		},
+	}
 }
 
 func (p *Projector) sourceAssetID(systemID uint8) string {
@@ -330,6 +451,26 @@ func (p *Projector) trackID(systemID uint8) string {
 		System:   "mavlink",
 		Type:     cop.EntityTrack,
 		Instance: fmt.Sprintf("system-%d", systemID),
+	}.Key()
+}
+
+func (p *Projector) commandTaskID(packet *mavcodec.Packet) string {
+	command, _ := field[uint16](packet, "command")
+	targetSystem, _ := field[uint8](packet, "target_system")
+	targetComponent, _ := field[uint8](packet, "target_component")
+	return message.EntityID{
+		Org:      p.cfg.Org,
+		Platform: p.cfg.Platform,
+		Domain:   "cop",
+		System:   "mavlink",
+		Type:     cop.EntityTask,
+		Instance: fmt.Sprintf(
+			"system-%d-command-%d-target-%d-%d",
+			packet.SystemID,
+			command,
+			targetSystem,
+			targetComponent,
+		),
 	}.Key()
 }
 
@@ -360,6 +501,20 @@ func heartbeatStatus(packet *mavcodec.Packet) (string, bool) {
 
 func nativeID(packet *mavcodec.Packet) string {
 	return fmt.Sprintf("mavlink.system.%d.component.%d", packet.SystemID, packet.ComponentID)
+}
+
+func commandTaskNativeID(packet *mavcodec.Packet) string {
+	command, _ := field[uint16](packet, "command")
+	targetSystem, _ := field[uint8](packet, "target_system")
+	targetComponent, _ := field[uint8](packet, "target_component")
+	return fmt.Sprintf(
+		"mavlink.system.%d.component.%d.command.%d.target.%d.%d",
+		packet.SystemID,
+		packet.ComponentID,
+		command,
+		targetSystem,
+		targetComponent,
+	)
 }
 
 func field[T any](packet *mavcodec.Packet, name string) (T, bool) {
@@ -413,12 +568,30 @@ func requestID(prefix string, systemID uint8) string {
 	return fmt.Sprintf("%s-system-%d", prefix, systemID)
 }
 
+func commandRequestID(prefix string, packet *mavcodec.Packet) string {
+	command, _ := field[uint16](packet, "command")
+	targetSystem, _ := field[uint8](packet, "target_system")
+	targetComponent, _ := field[uint8](packet, "target_component")
+	return fmt.Sprintf(
+		"%s-system-%d-command-%d-target-%d-%d",
+		prefix,
+		packet.SystemID,
+		command,
+		targetSystem,
+		targetComponent,
+	)
+}
+
 func sourceAssetMessageType() message.Type {
 	return messageType(cop.SourceAssetContract().MessageType)
 }
 
 func mavlinkTrackMessageType() message.Type {
 	return messageType(cop.MAVLinkTrackContract().MessageType)
+}
+
+func mavlinkCommandTaskMessageType() message.Type {
+	return messageType(cop.MAVLinkCommandTaskContract().MessageType)
 }
 
 func messageType(key string) message.Type {

@@ -171,6 +171,8 @@ Local assets:
 - The active replay store persists raw-lane records as JSON Lines fixtures and loads them back into parseable frames.
 - The adapter harness composes parser, raw lane, projector, graph plan writer, health counters, and an opt-in UDP
   datagram listener before the dedicated adapter service boundary exists.
+- COMMAND_ACK packets now project to `control` task state with a strict born-first `cop.task.target` edge to the
+  MAVLink source asset. This is command readback evidence only, not outbound command authority.
 - The old ignored parser/generator and SITL controller/scenario references were deleted after extraction or rejection.
 
 Mock or harness:
@@ -211,6 +213,8 @@ Indexing profile pressure:
 - Raw frames stay off the graph on bounded lanes or object references.
 - Vehicle current state is `signal`.
 - Commands, mission state, and low-battery alerts are `control`.
+- COMMAND_ACK readback evidence is `control`; outbound command intent, command priority, TTL windows, authority
+  arbitration, and native transmitter safety remain separate gates.
 - Replay decode details are `trace`.
 
 First acceptance gate:
@@ -233,6 +237,8 @@ Current codec gate:
 - `pkg/adapters/mavlink/raw_lane_test.go` proves the bounded in-memory raw lane separately from durable fixture
   storage.
 - `pkg/adapters/mavlink/commands_test.go` proves command frame encoding and ACK parsing before any live SITL harness.
+- `go test ./internal/projectors/mavlink` proves COMMAND_ACK readback projects as a control task with a born-first
+  target edge and does not repeat that edge on updates.
 - `pkg/adapters/mavlink/replay_test.go` proves durable fixture append/load and parser replay.
 - `go test ./internal/adapters/mavlink` proves parse, raw capture, projection, graph-plan write, and health ordering.
 - `go test ./internal/smoke/mavlink` proves the external SITL smoke skips unless an explicit COP snapshot URL is set.
