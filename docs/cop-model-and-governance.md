@@ -15,6 +15,7 @@ Code source: `pkg/cop/contracts.go`
 | `alert` | Rule, source, or fusion alert with severity and active state | `control` |
 | `task` | Operator intent, requested action, or assignment | `control` |
 | `advisory` | Human-readable or semantic-tier advisory text | `content` |
+| `weather_observation` | Localized tactical weather variable sample | `signal` |
 
 ## First Ownership Matrix
 
@@ -26,6 +27,7 @@ Code source: `pkg/cop/contracts.go`
 | `semops.feed.tak` | TAK/CoT marker and task control state | `c360.*.cop.tak.task.*` | `replace-owned` | `control` |
 | `semops.feed.tak` | TAK/CoT GeoChat and advisory text | `c360.*.cop.tak.advisory.*` | `replace-owned` | `content` |
 | `semops.feed.cap` | CAP hazard/advisory evidence | `c360.*.cop.cap.hazard_area.*` | `append-evidence` | `content` |
+| `semops.feed.weather` | Tactical weather samples | `c360.*.cop.weather.weather_observation.*` | `replace-owned` | `signal` |
 | `semops.fusion.structural` | Fusion alert state | `c360.*.cop.fusion.alert.*` | `replace-owned` | `control` |
 
 Strict feed owners are source-partitioned by the SemStreams entity `system` segment. This prevents MAVLink and TAK from
@@ -37,6 +39,10 @@ state declares the strict `cop.track.source` edge to a born source asset.
 
 Loose CAP evidence does not own authoritative hazard geometry, severity, or status. It appends advisory text, source
 references, evidence, observed time, and confidence until a deterministic hazard projector earns stricter ownership.
+
+Weather observation evidence is source-partitioned and signal-profiled. It owns localized variable samples with query
+shape, geometry, valid time, model time, freshness, unit, provenance, and confidence. It does not own CAP-style hazard
+authority, route decisions, task state, or operator advisories.
 
 ## ADR-055/056 Born-First Discipline
 
@@ -78,7 +84,7 @@ Predicate names are product-local until a reusable SemStreams need is proven.
 | Task/control state | `cop.task.name`, `cop.task.position`, `cop.task.status` | TAK markers and later assignments |
 | Advisory content | `cop.advisory.text`, `cop.advisory.sender` | GeoChat, notes, and advisory text |
 | Hazard evidence | `cop.hazard.advisory_text`, `cop.hazard.evidence`, `cop.hazard.source` | CAP/weather alerts start append-only |
-| Weather evidence | `cop.weather.value`, `cop.weather.variable`, `cop.weather.query_shape`, `cop.weather.model_time` | Candidate only until fixtures prove the first tactical weather slice |
+| Weather evidence | `cop.weather.value`, `cop.weather.variable`, `cop.weather.query_shape`, `cop.weather.query_geometry` | Tactical weather signal |
 | Media evidence | `cop.media.ref`, `cop.media.kind`, `cop.media.hash`, `cop.media.time_range` | Candidate only until DJI/KLV media fixtures prove shared vocabulary |
 | Alert derived state | `cop.alert.severity`, `cop.alert.status`, `cop.alert.reason` | Fusion-owned derived facts |
 | Provenance | source, confidence, observed-at, source-ref predicates | Candidate upstream convention |
@@ -108,3 +114,5 @@ failing SemOps tests or awkward duplicated code:
 - Track foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with producer and target pattern.
 - Overlapping `replace-owned` predicates are rejected.
 - CAP evidence does not claim authoritative hazard state.
+- Weather observation evidence uses `signal` indexing and does not claim hazard, alert, task, or route-decision
+  authority.

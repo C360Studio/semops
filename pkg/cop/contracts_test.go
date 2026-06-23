@@ -18,6 +18,7 @@ func TestFirstCanonicalEntitySet(t *testing.T) {
 		"alert",
 		"task",
 		"advisory",
+		"weather_observation",
 	}
 	if len(FirstCanonicalEntitySet) != len(want) {
 		t.Fatalf("entity count = %d, want %d", len(FirstCanonicalEntitySet), len(want))
@@ -123,6 +124,30 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 	}
 	if len(klvRegistration.ForeignEdges) != 0 {
 		t.Fatalf("KLV derived foreign edges = %+v, want none before footprint association claims", klvRegistration.ForeignEdges)
+	}
+
+	weather := WeatherObservationContract()
+	if err := weather.Validate(); err != nil {
+		t.Fatalf("weather observation contract should validate: %v", err)
+	}
+	if got := weather.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("weather observation mode = %q, want replace-owned", got)
+	}
+	if weather.IndexingProfile != "signal" {
+		t.Fatalf("weather observation indexing profile = %q, want signal", weather.IndexingProfile)
+	}
+	if weather.EntityPattern == mavlink.EntityPattern ||
+		weather.EntityPattern == tak.EntityPattern ||
+		weather.EntityPattern == adsb.EntityPattern ||
+		weather.EntityPattern == klv.EntityPattern {
+		t.Fatalf("weather observation contract must be source-partitioned")
+	}
+	weatherRegistration, err := projection.Derive(OwnerWeather, weather)
+	if err != nil {
+		t.Fatalf("derive weather ownership: %v", err)
+	}
+	if len(weatherRegistration.ForeignEdges) != 0 {
+		t.Fatalf("weather derived foreign edges = %+v, want none before route/hazard association claims", weatherRegistration.ForeignEdges)
 	}
 
 	takTask := TAKTaskContract()
@@ -244,6 +269,34 @@ func TestTolerantCAPContractDoesNotClaimAuthoritativeHazardState(t *testing.T) {
 			switch predicate {
 			case HazardGeometry, HazardSeverity, HazardStatus:
 				t.Fatalf("CAP evidence contract must not own authoritative predicate %q", predicate)
+			}
+		}
+	}
+}
+
+func TestWeatherObservationContractDoesNotClaimHazardOrDecisionAuthority(t *testing.T) {
+	contract := WeatherObservationContract()
+	for _, group := range contract.Groups {
+		if group.Mode != ownership.ModeReplaceOwned {
+			t.Fatalf("weather group mode = %q, want replace-owned signal state", group.Mode)
+		}
+		for _, predicate := range group.Predicates {
+			switch predicate {
+			case HazardGeometry,
+				HazardSeverity,
+				HazardStatus,
+				HazardAdvisoryText,
+				HazardEvidence,
+				HazardSource,
+				AlertSeverity,
+				AlertStatus,
+				AlertReason,
+				AlertAffectedEntity,
+				AlertSource,
+				TaskName,
+				TaskStatus,
+				TaskPosition:
+				t.Fatalf("weather observation contract must not own authority predicate %q", predicate)
 			}
 		}
 	}

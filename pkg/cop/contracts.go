@@ -8,13 +8,14 @@ import (
 )
 
 const (
-	EntityTrack           = "track"
-	EntityAsset           = "asset"
-	EntityHazardArea      = "hazard_area"
-	EntitySensorFootprint = "sensor_footprint"
-	EntityAlert           = "alert"
-	EntityTask            = "task"
-	EntityAdvisory        = "advisory"
+	EntityTrack              = "track"
+	EntityAsset              = "asset"
+	EntityHazardArea         = "hazard_area"
+	EntitySensorFootprint    = "sensor_footprint"
+	EntityAlert              = "alert"
+	EntityTask               = "task"
+	EntityAdvisory           = "advisory"
+	EntityWeatherObservation = "weather_observation"
 )
 
 const (
@@ -24,6 +25,7 @@ const (
 	OwnerAsset   = "semops.feed.asset"
 	OwnerCAP     = "semops.feed.cap"
 	OwnerKLV     = "semops.feed.klv"
+	OwnerWeather = "semops.feed.weather"
 	OwnerFusion  = "semops.fusion.structural"
 )
 
@@ -84,6 +86,17 @@ const (
 	SensorFootprintFrameCenterElevation = "cop.sensor_footprint.frame_center_elevation_meters"
 	SensorFootprintPlatformDesignation  = "cop.sensor_footprint.platform_designation"
 
+	WeatherNativeID      = "cop.weather.native_id"
+	WeatherProvider      = "cop.weather.provider"
+	WeatherQueryShape    = "cop.weather.query_shape"
+	WeatherQueryGeometry = "cop.weather.query_geometry"
+	WeatherValidTime     = "cop.weather.valid_time"
+	WeatherModelTime     = "cop.weather.model_time"
+	WeatherFreshUntil    = "cop.weather.fresh_until"
+	WeatherVariable      = "cop.weather.variable"
+	WeatherValue         = "cop.weather.value"
+	WeatherUnit          = "cop.weather.unit"
+
 	ProvenanceSource     = "cop.provenance.source"
 	ProvenanceConfidence = "cop.provenance.confidence"
 	ProvenanceObservedAt = "cop.provenance.observed_at"
@@ -98,6 +111,7 @@ var FirstCanonicalEntitySet = []string{
 	EntityAlert,
 	EntityTask,
 	EntityAdvisory,
+	EntityWeatherObservation,
 }
 
 // OwnedContract binds a product projection contract to the SemOps owner that
@@ -256,6 +270,37 @@ func KLVSensorFootprintContract() projection.Contract {
 				SensorFootprintFrameCenter,
 				SensorFootprintFrameCenterElevation,
 				SensorFootprintPlatformDesignation,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+	}
+}
+
+// WeatherObservationContract owns localized tactical weather signal evidence
+// for bounded point, area, trajectory, or corridor queries. Route decisions,
+// CAP/weather alert authority, and hazard status remain separate contracts.
+func WeatherObservationContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.weather.tactical-observation",
+		MessageType:     "semops.weather.observation.v1",
+		EntityPattern:   SourceEntityPattern("weather", EntityWeatherObservation),
+		IndexingProfile: "signal",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				WeatherNativeID,
+				WeatherProvider,
+				WeatherQueryShape,
+				WeatherQueryGeometry,
+				WeatherValidTime,
+				WeatherModelTime,
+				WeatherFreshUntil,
+				WeatherVariable,
+				WeatherValue,
+				WeatherUnit,
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,

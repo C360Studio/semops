@@ -212,6 +212,8 @@ binary-by-reference storage, and memory-bounded handling.
   parsing before standards-facing tactical weather interop claims exceed point retrieval
 - **AND** OGC EDR area, trajectory, and corridor parser fixtures remain parser evidence until spatial runtime
   payloads, graph projection, freshness/confidence policy, and route-weather UI semantics are accepted
+- **AND** tactical weather graph projection uses source-partitioned `weather_observation` signal entities for bounded
+  variable/time samples without claiming hazard, task, alert, route-decision, or advisory authority
 - **AND** tactical weather supports the relevant point, area, and route/trajectory query shapes before it influences
   routing or safety logic
 

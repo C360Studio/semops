@@ -142,6 +142,7 @@
       writes or live provider claims
 - [x] 5.69 Add OGC EDR-shaped position fixture and decoder gate before standards-facing tactical weather claims
 - [x] 5.70 Add OGC EDR-shaped area, trajectory, and corridor parser gates before route-weather claims
+- [x] 5.71 Add tactical-weather graph contract and pure projector-plan gate before UI or route-safety claims
 
 ## 6. Structural COP Stack
 

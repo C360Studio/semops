@@ -181,6 +181,8 @@ preserved as evidence.
 - **THEN** alert/advisory evidence may reuse CAP-style append-evidence contracts
 - **AND** tactical weather observations or forecasts are projected as bounded point, area, trajectory, or corridor
   evidence with provenance and freshness
+- **AND** tactical weather variable/time samples are `signal`-profiled `weather_observation` entities rather than
+  CAP hazard, route-decision, task, alert, or advisory authority
 - **AND** visual raster or tile layers may be browser-only unless an operator workflow requires graph state
 
 #### Scenario: DJI video does not redefine KLV semantics
