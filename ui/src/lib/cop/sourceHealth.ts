@@ -5,6 +5,7 @@ export type FeedRow = FeedHealth & { runtime?: RuntimeFeed };
 const sourceByFeed: Record<string, string> = {
   'feed.mavlink': 'mavlink',
   'feed.tak': 'tak',
+  'feed.command': 'command',
   'feed.cap': 'cap',
   'feed.adsb': 'adsb',
   'feed.klv': 'klv',

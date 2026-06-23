@@ -44,6 +44,17 @@ const snapshotWithADSB: Snapshot = {
       {
         org: 'c360',
         platform: 'edge-compose',
+        source: 'command',
+        family: 'command',
+        entity_type: 'task',
+        prefix: 'c360.edge-compose.cop.command.task',
+        count: 1,
+        limit: 500,
+        at_limit: false
+      },
+      {
+        org: 'c360',
+        platform: 'edge-compose',
         source: 'weather',
         family: 'weather',
         entity_type: 'weather_observation',
@@ -195,6 +206,10 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('ADS-B discovery counts')).toContainText('track 1');
   await expect(page.getByLabel('ADS-B runtime flow')).toContainText('4.5 msg/s');
   await expect(page.getByLabel('ADS-B runtime flow')).toContainText('3/3 healthy');
+  await expect(page.getByLabel('Command source state')).toBeVisible();
+  await expect(page.getByLabel('Command discovery counts')).toContainText('task 1');
+  const commandTaskRow = page.getByRole('button', { name: 'Route MAVLink system 42 to North Gate cancel_requested' });
+  await expect(commandTaskRow).toBeVisible();
   await expect(page.getByLabel('KLV source state')).toBeVisible();
   await expect(page.getByLabel('KLV discovery counts')).toContainText('sensor footprint 1');
   await expect(page.getByLabel('KLV runtime flow')).toContainText('1.3 msg/s');
@@ -211,6 +226,12 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByRole('heading', { name: 'N123AB' })).toBeVisible();
   await expect(page.getByText('semops.feed.adsb')).toBeVisible();
   await expect(page.getByText('adsb://opensky/a1b2c3/2026-06-21T16:20:00Z')).toBeVisible();
+
+  await commandTaskRow.click();
+  await expect(page.getByRole('heading', { name: 'Route MAVLink system 42 to North Gate' })).toBeVisible();
+  await expect(page.getByText('semops.command.intent')).toBeVisible();
+  await expect(page.getByText('command://fixture/hadr-command/0004-route-cancel-requested')).toBeVisible();
+  await expect(page.getByText('ui:cancel-route-42')).toBeVisible();
 
   await page.getByRole('button', { name: 'Select TEST-UAS-01 sensor footprint' }).click();
   await expect(page.getByRole('heading', { name: 'TEST-UAS-01 sensor footprint' })).toBeVisible();

@@ -6,13 +6,14 @@ const takObserved = '2026-06-19T11:59:14Z';
 const advisoryObserved = '2026-06-19T11:58:00Z';
 const klvObserved = '2026-06-19T11:58:45Z';
 const weatherObserved = '2026-06-19T11:57:30Z';
+const commandObserved = '2026-06-19T11:59:30Z';
 
 export const fixtureSnapshot: Snapshot = {
   generated_at: now,
   scenario: 'phase-1-fixture',
   summary: {
     active_tracks: 2,
-    active_tasks: 1,
+    active_tasks: 2,
     active_advisories: 1,
     active_sensor_footprints: 1,
     active_weather_observations: 1,
@@ -38,6 +39,14 @@ export const fixtureSnapshot: Snapshot = {
       status: 'live',
       last_event_at: takObserved,
       message: 'Seed replay track, task, and GeoChat smoke path'
+    },
+    {
+      id: 'feed.command',
+      name: 'Command',
+      kind: 'control',
+      status: 'live',
+      last_event_at: commandObserved,
+      message: 'Synthetic command lifecycle replay state'
     },
     {
       id: 'feed.cap',
@@ -127,6 +136,28 @@ export const fixtureSnapshot: Snapshot = {
         owner: 'semops.feed.tak',
         source_ref: 'cot://fixture/0003',
         observed_at: takObserved
+      }
+    },
+    {
+      id: 'c360.edge.cop.command.task.csapi-command-route-42',
+      label: 'Route MAVLink system 42 to North Gate',
+      kind: 'mavlink.goto',
+      source: 'command',
+      status: 'cancel_requested',
+      description: 'cancel requested: airspace conflict',
+      target_id: 'c360.edge.cop.mavlink.asset.system-42',
+      authority: 'local.operator',
+      priority: 95,
+      expires_at: '2026-06-19T12:03:00Z',
+      requested_by: 'operator:lead',
+      correlation_id: 'ui:cancel-route-42',
+      desired_state: '{"command":"cancel","target_native_id":"csapi-command-route-42","reason":"airspace conflict"}',
+      confidence: 1,
+      updated_at: commandObserved,
+      provenance: {
+        owner: 'semops.command.intent',
+        source_ref: 'command://fixture/hadr-command/0004-route-cancel-requested',
+        observed_at: commandObserved
       }
     }
   ],

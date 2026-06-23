@@ -10,6 +10,7 @@ import (
 
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
+	commandprojector "github.com/c360studio/semops/internal/projectors/command"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
@@ -93,8 +94,9 @@ func TestGraphProviderMapsMAVLinkEntities(t *testing.T) {
 	if snapshot.Assets[0].Position.Lat != track.Position.Lat || snapshot.Assets[0].Position.Lon != track.Position.Lon {
 		t.Fatalf("asset position = %+v, want track position %+v", snapshot.Assets[0].Position, track.Position)
 	}
-	if snapshot.Feeds[0].Status != "live" {
-		t.Fatalf("MAVLink feed status = %q", snapshot.Feeds[0].Status)
+	mavlinkFeed := findFeed(snapshot.Feeds, "feed.mavlink")
+	if mavlinkFeed.Status != "live" {
+		t.Fatalf("MAVLink feed = %+v", mavlinkFeed)
 	}
 	if got := requester.subjects; len(got) != 3 ||
 		got[0] != SubjectGraphQueryEntity ||
@@ -203,8 +205,9 @@ func TestGraphProviderMapsTAKCoTEntities(t *testing.T) {
 		got.Sender != "ANDROID-ALPHA" || got.Position == nil {
 		t.Fatalf("advisory = %+v", got)
 	}
-	if snapshot.Feeds[1].ID != "feed.tak" || snapshot.Feeds[1].Status != "live" {
-		t.Fatalf("TAK feed = %+v", snapshot.Feeds[1])
+	takFeed := findFeed(snapshot.Feeds, "feed.tak")
+	if takFeed.Status != "live" {
+		t.Fatalf("TAK feed = %+v", takFeed)
 	}
 }
 
@@ -289,8 +292,9 @@ func TestGraphProviderMapsCAPHazardEvidence(t *testing.T) {
 		hazard.Provenance.Observed != observed {
 		t.Fatalf("hazard provenance = %+v", hazard.Provenance)
 	}
-	if snapshot.Feeds[2].ID != "feed.cap" || snapshot.Feeds[2].Status != "live" {
-		t.Fatalf("CAP feed = %+v", snapshot.Feeds[2])
+	capFeed := findFeed(snapshot.Feeds, "feed.cap")
+	if capFeed.Status != "live" {
+		t.Fatalf("CAP feed = %+v", capFeed)
 	}
 }
 
@@ -346,9 +350,8 @@ func TestGraphProviderDiscoversADSBTracksByPrefix(t *testing.T) {
 	if track.Position.Lat != 38.9 || track.Position.Lon != -77.04 {
 		t.Fatalf("ADS-B track position = %+v", track.Position)
 	}
-	if len(snapshot.Feeds) != 7 ||
-		snapshot.Feeds[3].ID != "feed.adsb" ||
-		snapshot.Feeds[3].Status != "live" {
+	if len(snapshot.Feeds) != 8 ||
+		findFeed(snapshot.Feeds, "feed.adsb").Status != "live" {
 		t.Fatalf("ADS-B feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "adsb", copmodel.EntityTrack)
@@ -415,9 +418,8 @@ func TestGraphProviderDiscoversSAPIENTTracksByPrefix(t *testing.T) {
 	if track.Position.Lat != 51.1739726 || track.Position.Lon != -1.8223767 {
 		t.Fatalf("SAPIENT track position = %+v", track.Position)
 	}
-	if len(snapshot.Feeds) != 7 ||
-		snapshot.Feeds[4].ID != "feed.sapient" ||
-		snapshot.Feeds[4].Status != "live" {
+	if len(snapshot.Feeds) != 8 ||
+		findFeed(snapshot.Feeds, "feed.sapient").Status != "live" {
 		t.Fatalf("SAPIENT feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "sapient", copmodel.EntityTrack)
@@ -518,9 +520,8 @@ func TestGraphProviderMapsKLVSensorFootprints(t *testing.T) {
 		!strings.Contains(footprint.ClaimPosture, "no STANAG conformance") {
 		t.Fatalf("claim posture/warnings = %q / %+v", footprint.ClaimPosture, footprint.Warnings)
 	}
-	if len(snapshot.Feeds) != 7 ||
-		snapshot.Feeds[5].ID != "feed.klv" ||
-		snapshot.Feeds[5].Status != "live" {
+	if len(snapshot.Feeds) != 8 ||
+		findFeed(snapshot.Feeds, "feed.klv").Status != "live" {
 		t.Fatalf("KLV feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "klv", copmodel.EntitySensorFootprint)
@@ -614,9 +615,8 @@ func TestGraphProviderMapsWeatherObservations(t *testing.T) {
 		!strings.Contains(observation.Label, "temperature_2m") {
 		t.Fatalf("weather label/posture = %q / %q", observation.Label, observation.ClaimPosture)
 	}
-	if len(snapshot.Feeds) != 7 ||
-		snapshot.Feeds[6].ID != "feed.weather" ||
-		snapshot.Feeds[6].Status != "live" {
+	if len(snapshot.Feeds) != 8 ||
+		findFeed(snapshot.Feeds, "feed.weather").Status != "live" {
 		t.Fatalf("weather feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "weather", copmodel.EntityWeatherObservation)
@@ -751,11 +751,13 @@ func TestGraphProviderUsesLatestCAPHazardEvidence(t *testing.T) {
 func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	now := time.Date(2026, 6, 19, 17, 0, 0, 0, time.UTC)
 	observed := now.Add(-15 * time.Second)
+	requested := observed.Add(-45 * time.Second)
 	platform := "edge-discover"
 	mavAssetID := "c360.edge-discover.cop.mavlink.asset.system-77"
 	mavTrackID := "c360.edge-discover.cop.mavlink.track.system-77"
 	takTaskID := cotprojector.EntityID("c360", platform, copmodel.EntityTask, "MARKER-EVAC")
 	takAdvisoryID := cotprojector.EntityID("c360", platform, copmodel.EntityAdvisory, "CHAT-EVAC")
+	commandTaskID := commandprojector.EntityID("c360", platform, "csapi-command-route-42")
 	hazardID := capprojector.EntityID("c360", platform, "nws-demo-flood-warning")
 	evidenceJSON, err := json.Marshal(copmodel.HazardEvidenceDocument{
 		Identifier: "nws-demo-flood-warning",
@@ -820,6 +822,35 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 					testTriple(takAdvisoryID, copmodel.ProvenanceObservedAt, observed, observed),
 				},
 			}},
+			graphEntityPrefix("c360", platform, "command", copmodel.EntityTask): {{
+				ID:        commandTaskID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(commandTaskID, copmodel.TaskNativeID, "csapi-command-route-42", requested),
+					testTriple(commandTaskID, copmodel.TaskName, "Route MAVLink system 42 to North Gate", requested),
+					testTriple(commandTaskID, copmodel.TaskKind, "mavlink.goto", requested),
+					testTriple(commandTaskID, copmodel.TaskTarget, mavAssetID, requested),
+					testTriple(commandTaskID, copmodel.TaskStatus, "requested", requested),
+					testTriple(commandTaskID, copmodel.TaskDescription, "operator-approved route change", requested),
+					testTriple(commandTaskID, copmodel.TaskDesired, `{"command":"goto","lat":38.9,"lon":-77.04}`, requested),
+					testTriple(commandTaskID, copmodel.TaskAuthority, "local.operator", requested),
+					testTriple(commandTaskID, copmodel.TaskPriority, int64(80), requested),
+					testTriple(commandTaskID, copmodel.TaskExpiresAt, now.Add(5*time.Minute), requested),
+					testTriple(commandTaskID, copmodel.TaskCorrelation, "csapi:req-route-42", requested),
+					testTriple(commandTaskID, copmodel.TaskRequestedBy, "operator:coby", requested),
+					testTriple(commandTaskID, copmodel.ProvenanceSource, "cs-api", requested),
+					testTriple(commandTaskID, copmodel.ProvenanceSourceRef, "csapi://commands/route-42", requested),
+					testTriple(commandTaskID, copmodel.ProvenanceObservedAt, requested, requested),
+					testTriple(commandTaskID, copmodel.TaskStatus, "cancel_requested", observed),
+					testTriple(commandTaskID, copmodel.TaskDescription, "cancel requested: airspace conflict", observed),
+					testTriple(commandTaskID, copmodel.TaskDesired, `{"command":"cancel","target_native_id":"csapi-command-route-42","reason":"airspace conflict"}`, observed),
+					testTriple(commandTaskID, copmodel.TaskPriority, int64(95), observed),
+					testTriple(commandTaskID, copmodel.ProvenanceSource, "local-ui", observed),
+					testTriple(commandTaskID, copmodel.ProvenanceConfidence, 1.0, observed),
+					testTriple(commandTaskID, copmodel.ProvenanceObservedAt, observed, observed),
+					testTriple(commandTaskID, copmodel.ProvenanceSourceRef, "command://fixture/hadr-command/0004-route-cancel-requested", observed),
+				},
+			}},
 			graphEntityPrefix("c360", platform, "cap", copmodel.EntityHazardArea): {{
 				ID:        hazardID,
 				UpdatedAt: observed,
@@ -852,7 +883,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	}
 
 	if snapshot.Summary.ActiveTracks != 1 ||
-		snapshot.Summary.ActiveTasks != 1 ||
+		snapshot.Summary.ActiveTasks != 2 ||
 		snapshot.Summary.ActiveAdvisories != 1 ||
 		len(snapshot.Hazards) != 1 {
 		t.Fatalf("snapshot summary/entities = %+v hazards=%+v", snapshot.Summary, snapshot.Hazards)
@@ -860,13 +891,38 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if snapshot.Tracks[0].ID != mavTrackID || snapshot.Tracks[0].Label != "UAS 77" {
 		t.Fatalf("track = %+v", snapshot.Tracks[0])
 	}
-	if snapshot.Tasks[0].ID != takTaskID || snapshot.Advisories[0].ID != takAdvisoryID {
+	if _, ok := findTask(snapshot.Tasks, takTaskID); !ok {
+		t.Fatalf("missing TAK task in %+v", snapshot.Tasks)
+	}
+	commandTask, ok := findTask(snapshot.Tasks, commandTaskID)
+	if !ok {
+		t.Fatalf("missing command task in %+v", snapshot.Tasks)
+	}
+	if commandTask.Source != "command" ||
+		commandTask.Provenance.Owner != copmodel.OwnerCommand ||
+		commandTask.Status != "cancel_requested" ||
+		commandTask.Position != nil ||
+		commandTask.Description != "cancel requested: airspace conflict" ||
+		commandTask.TargetID != mavAssetID ||
+		commandTask.Authority != "local.operator" ||
+		commandTask.Priority == nil ||
+		*commandTask.Priority != 95 ||
+		commandTask.RequestedBy != "operator:coby" ||
+		commandTask.CorrelationID != "csapi:req-route-42" ||
+		commandTask.DesiredState != `{"command":"cancel","target_native_id":"csapi-command-route-42","reason":"airspace conflict"}` ||
+		commandTask.Provenance.SourceRef != "command://fixture/hadr-command/0004-route-cancel-requested" {
+		t.Fatalf("command task = %+v", commandTask)
+	}
+	if commandTask.ExpiresAt == nil || !commandTask.ExpiresAt.Equal(now.Add(5*time.Minute)) {
+		t.Fatalf("command task expiry = %+v", commandTask.ExpiresAt)
+	}
+	if snapshot.Advisories[0].ID != takAdvisoryID {
 		t.Fatalf("tasks/advisories = %+v / %+v", snapshot.Tasks, snapshot.Advisories)
 	}
 	if snapshot.Hazards[0].ID != hazardID || snapshot.Hazards[0].Source != "cap" {
 		t.Fatalf("hazard = %+v", snapshot.Hazards[0])
 	}
-	if len(requester.prefixRequests) != 11 {
+	if len(requester.prefixRequests) != 12 {
 		t.Fatalf("prefix requests = %+v", requester.prefixRequests)
 	}
 	for _, subject := range requester.subjects {
@@ -877,7 +933,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
-	if len(snapshot.Diagnostics.Discovery) != 11 {
+	if len(snapshot.Diagnostics.Discovery) != 12 {
 		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
 	}
 	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)
@@ -898,6 +954,17 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	}
 	if trackDiagnostic.Count != 0 || trackDiagnostic.AtLimit {
 		t.Fatalf("TAK track diagnostic = %+v", trackDiagnostic)
+	}
+	commandDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "command", copmodel.EntityTask)
+	if !ok {
+		t.Fatalf("missing command task discovery diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if commandDiagnostic.Family != "command" || commandDiagnostic.Count != 1 || commandDiagnostic.AtLimit {
+		t.Fatalf("command task diagnostic = %+v", commandDiagnostic)
+	}
+	commandFeed := findFeed(snapshot.Feeds, "feed.command")
+	if commandFeed.Status != "live" || commandFeed.Message != "Graph-backed command-intent lifecycle state" {
+		t.Fatalf("command feed = %+v", commandFeed)
 	}
 }
 
@@ -1225,8 +1292,9 @@ func TestGraphProviderDowngradesStaleTAKStateAtReadTime(t *testing.T) {
 	if len(snapshot.Tasks) != 1 || snapshot.Tasks[0].Status != "stale.marker" {
 		t.Fatalf("tasks = %+v", snapshot.Tasks)
 	}
-	if snapshot.Feeds[1].Status != "stale" || snapshot.Feeds[1].LastEventAt != observed {
-		t.Fatalf("TAK feed = %+v", snapshot.Feeds[1])
+	takFeed := findFeed(snapshot.Feeds, "feed.tak")
+	if takFeed.Status != "stale" || takFeed.LastEventAt != observed {
+		t.Fatalf("TAK feed = %+v", takFeed)
 	}
 }
 
@@ -1450,6 +1518,24 @@ func findDiscoveryDiagnostic(
 		}
 	}
 	return DiscoveryDiagnostic{}, false
+}
+
+func findTask(tasks []Task, id string) (Task, bool) {
+	for _, task := range tasks {
+		if task.ID == id {
+			return task, true
+		}
+	}
+	return Task{}, false
+}
+
+func findFeed(feeds []FeedHealth, id string) FeedHealth {
+	for _, feed := range feeds {
+		if feed.ID == id {
+			return feed
+		}
+	}
+	return FeedHealth{}
 }
 
 func findAlert(alerts []Alert, id string) (Alert, bool) {

@@ -683,6 +683,9 @@ Indexing profile pressure:
   tests, and replays requested, accepted, executing, cancel-requested, cancelled, timeout, and expired states through
   the existing planner/reconciliation helpers. It is synthetic policy evidence only, not CS API service support,
   native command transmission, or simulator/hardware actuation evidence.
+- The COP API/UI can discover command-intent task state by prefix, map latest lifecycle/provenance fields into the
+  curated task view model, and render read-only command status rows in the operator UI. This is status visibility for
+  future bridge plumbing; it is not an execute/cancel UI, CS API ingress, hosted scheduler, or native transmit path.
 
 First acceptance gate:
 

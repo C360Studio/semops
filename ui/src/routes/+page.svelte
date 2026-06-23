@@ -144,21 +144,40 @@
         </div>
       </section>
 
-      <section class="alert-strip">
-        <h2>Alerts</h2>
-        {#each snapshot.alerts as alert}
-          <button
-            class:selected={selected.kind === 'alert' && selected.id === alert.id}
-            class="alert-row"
-            type="button"
-            aria-pressed={selected.kind === 'alert' && selected.id === alert.id}
-            onclick={() => selectEntity('alert', alert.id)}
-          >
-            <AlertTriangle size={16} />
-            <span>{alert.label}</span>
-            <small>{alert.severity}</small>
-          </button>
-        {/each}
+      <section class="right-rail">
+        <section class="task-strip">
+          <h2>Tasks</h2>
+          {#each snapshot.tasks as task}
+            <button
+              class:selected={selected.kind === 'task' && selected.id === task.id}
+              class="task-row"
+              type="button"
+              aria-pressed={selected.kind === 'task' && selected.id === task.id}
+              onclick={() => selectEntity('task', task.id)}
+            >
+              <Activity size={16} />
+              <span>{task.label}</span>
+              <small>{task.status}</small>
+            </button>
+          {/each}
+        </section>
+
+        <section class="alert-strip">
+          <h2>Alerts</h2>
+          {#each snapshot.alerts as alert}
+            <button
+              class:selected={selected.kind === 'alert' && selected.id === alert.id}
+              class="alert-row"
+              type="button"
+              aria-pressed={selected.kind === 'alert' && selected.id === alert.id}
+              onclick={() => selectEntity('alert', alert.id)}
+            >
+              <AlertTriangle size={16} />
+              <span>{alert.label}</span>
+              <small>{alert.severity}</small>
+            </button>
+          {/each}
+        </section>
       </section>
     </section>
   {:else}
@@ -305,6 +324,54 @@
         </div>
       </dl>
       <p class="reason">{entity.claim_posture}</p>
+    </section>
+  {/if}
+
+  {#if 'target_id' in entity && entity.target_id}
+    <section class="provenance">
+      <h3>Command Intent</h3>
+      <dl class="detail-list">
+        <div>
+          <dt>Target</dt>
+          <dd>{entity.target_id}</dd>
+        </div>
+        {#if entity.authority}
+          <div>
+            <dt>Authority</dt>
+            <dd>{entity.authority}</dd>
+          </div>
+        {/if}
+        {#if entity.priority !== undefined}
+          <div>
+            <dt>Priority</dt>
+            <dd>{entity.priority}</dd>
+          </div>
+        {/if}
+        {#if entity.expires_at}
+          <div>
+            <dt>Expires</dt>
+            <dd>{formatInstant(entity.expires_at)}</dd>
+          </div>
+        {/if}
+        {#if entity.requested_by}
+          <div>
+            <dt>Requested by</dt>
+            <dd>{entity.requested_by}</dd>
+          </div>
+        {/if}
+        {#if entity.correlation_id}
+          <div>
+            <dt>Correlation</dt>
+            <dd>{entity.correlation_id}</dd>
+          </div>
+        {/if}
+        {#if entity.desired_state}
+          <div>
+            <dt>Desired</dt>
+            <dd>{entity.desired_state}</dd>
+          </div>
+        {/if}
+      </dl>
     </section>
   {/if}
 

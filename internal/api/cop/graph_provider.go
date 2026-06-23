@@ -347,6 +347,7 @@ type graphDiscoveryTarget struct {
 type graphDiscoveryResult struct {
 	mavlink     bool
 	cot         bool
+	command     bool
 	cap         bool
 	sapient     bool
 	klv         bool
@@ -384,6 +385,8 @@ func (p *GraphProvider) discoverInto(
 				result.mavlink = true
 			case "cot":
 				result.cot = true
+			case "command":
+				result.command = true
 			case "cap":
 				result.cap = true
 			case "klv":
@@ -416,7 +419,7 @@ func (p *GraphProvider) discoverInto(
 }
 
 func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
-	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*11)
+	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*12)
 	for _, scope := range p.discovery.Scopes {
 		targets = append(targets,
 			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityAsset, "mavlink"),
@@ -425,6 +428,7 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityTrack, "cot"),
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityTask, "cot"),
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityAdvisory, "cot"),
+			newGraphDiscoveryTarget(scope, "command", copmodel.EntityTask, "command"),
 			newGraphDiscoveryTarget(scope, "cap", copmodel.EntityHazardArea, "cap"),
 			newGraphDiscoveryTarget(scope, "adsb", copmodel.EntityTrack, "adsb"),
 			newGraphDiscoveryTarget(scope, "sapient", copmodel.EntityTrack, "sapient"),
@@ -781,6 +785,8 @@ func sourceLabel(source string) string {
 		return "MAVLink"
 	case "tak":
 		return "TAK/CoT"
+	case "command":
+		return "Command"
 	case "cap":
 		return "CAP"
 	case "adsb":
@@ -806,6 +812,8 @@ func feedIDForDiscoverySource(source string) string {
 		return "feed.mavlink"
 	case "tak":
 		return "feed.tak"
+	case "command":
+		return "feed.command"
 	case "cap":
 		return "feed.cap"
 	case "adsb":
@@ -841,9 +849,10 @@ func firstPhaseFeedHealth(
 		"Graph-backed source asset and track state",
 		trackObservationTimes(filterTracksBySource(tracks, "mavlink")),
 	)
+	takTasks := filterTasksBySource(tasks, "tak-cot")
 	takObservations := append(
 		trackObservationTimes(filterTracksBySource(tracks, "tak-cot")),
-		taskObservationTimes(tasks)...,
+		taskObservationTimes(takTasks)...,
 	)
 	takObservations = append(takObservations, advisoryObservationTimes(advisories)...)
 	tak := feedHealthFromObservations(
@@ -856,6 +865,21 @@ func firstPhaseFeedHealth(
 		"Graph-backed CoT tracks, tasks, and advisories",
 		takObservations,
 	)
+	commandTasks := filterTasksBySource(tasks, "command")
+	command := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.command",
+		"Command",
+		"control",
+		"Command lifecycle replay gate pending",
+		"Graph-backed command-intent lifecycle state",
+		taskObservationTimes(commandTasks),
+	)
+	if len(commandTasks) == 0 {
+		command.Status = "planned"
+		command.LastEventAt = now.Add(-41 * time.Minute)
+	}
 	cap := feedHealthFromObservations(
 		now,
 		freshness,
@@ -915,7 +939,7 @@ func firstPhaseFeedHealth(
 		klv.LastEventAt = now.Add(-50 * time.Minute)
 	}
 	weatherFeed := weatherFeedHealth(now, freshness, weather)
-	return []FeedHealth{mavlink, tak, cap, adsb, sapient, klv, weatherFeed}
+	return []FeedHealth{mavlink, tak, command, cap, adsb, sapient, klv, weatherFeed}
 }
 
 func weatherFeedHealth(now time.Time, freshness time.Duration, observations []WeatherObservation) FeedHealth {
@@ -981,6 +1005,16 @@ func filterTracksBySource(tracks []Track, source string) []Track {
 	for _, track := range tracks {
 		if track.Source == source {
 			filtered = append(filtered, track)
+		}
+	}
+	return filtered
+}
+
+func filterTasksBySource(tasks []Task, source string) []Task {
+	filtered := make([]Task, 0, len(tasks))
+	for _, task := range tasks {
+		if task.Source == source {
+			filtered = append(filtered, task)
 		}
 	}
 	return filtered
@@ -1093,22 +1127,34 @@ func trackFromEntity(entity graph.EntityState, now time.Time, freshness time.Dur
 }
 
 func taskFromEntity(entity graph.EntityState, now time.Time, freshness time.Duration) (Task, bool) {
-	updatedAt := observedAt(entity, copmodel.ProvenanceObservedAt)
+	updatedAt := latestObservedAt(entity, copmodel.ProvenanceObservedAt)
 	position := optionalPoint(entity, copmodel.TaskPosition)
-	source := stringProperty(entity, copmodel.ProvenanceSource, sourceFromEntityID(entity.ID))
+	entitySource := sourceFromEntityID(entity.ID)
+	source := latestStringProperty(entity, copmodel.ProvenanceSource, entitySource)
+	if entitySource == "command" {
+		source = "command"
+	}
+	expiresAt := optionalLatestTime(entity, copmodel.TaskExpiresAt)
 	return Task{
-		ID:          entity.ID,
-		Label:       stringProperty(entity, copmodel.TaskName, nativeOrInstanceLabel(entity, copmodel.TaskNativeID)),
-		Kind:        stringProperty(entity, copmodel.TaskKind, "task"),
-		Source:      source,
-		Status:      freshnessStatus(stringProperty(entity, copmodel.TaskStatus, "unknown"), now, updatedAt, freshness),
-		Position:    position,
-		Description: stringProperty(entity, copmodel.TaskDescription, ""),
-		Confidence:  confidence(entity),
-		UpdatedAt:   updatedAt,
+		ID:            entity.ID,
+		Label:         latestStringProperty(entity, copmodel.TaskName, nativeOrInstanceLabel(entity, copmodel.TaskNativeID)),
+		Kind:          latestStringProperty(entity, copmodel.TaskKind, "task"),
+		Source:        source,
+		Status:        freshnessStatus(latestStringProperty(entity, copmodel.TaskStatus, "unknown"), now, updatedAt, freshness),
+		Position:      position,
+		Description:   latestStringProperty(entity, copmodel.TaskDescription, ""),
+		TargetID:      latestStringProperty(entity, copmodel.TaskTarget, ""),
+		Authority:     latestStringProperty(entity, copmodel.TaskAuthority, ""),
+		Priority:      optionalLatestInt(entity, copmodel.TaskPriority),
+		ExpiresAt:     expiresAt,
+		RequestedBy:   latestStringProperty(entity, copmodel.TaskRequestedBy, ""),
+		CorrelationID: latestStringProperty(entity, copmodel.TaskCorrelation, ""),
+		DesiredState:  latestStringProperty(entity, copmodel.TaskDesired, ""),
+		Confidence:    confidence(entity),
+		UpdatedAt:     updatedAt,
 		Provenance: Provenance{
 			Owner:     ownerForSource(source),
-			SourceRef: stringProperty(entity, copmodel.ProvenanceSourceRef, ""),
+			SourceRef: latestStringProperty(entity, copmodel.ProvenanceSourceRef, ""),
 			Observed:  updatedAt,
 		},
 	}, true
@@ -1520,6 +1566,26 @@ func optionalFloat(entity graph.EntityState, predicate string) *float64 {
 	return &parsed
 }
 
+func optionalLatestInt(entity graph.EntityState, predicate string) *int {
+	value, ok := latestPropertyValue(entity, predicate)
+	if !ok {
+		return nil
+	}
+	parsed, ok := intFromAny(value)
+	if !ok {
+		return nil
+	}
+	return &parsed
+}
+
+func optionalLatestTime(entity graph.EntityState, predicate string) *time.Time {
+	parsed, ok := latestTimeProperty(entity, predicate)
+	if !ok {
+		return nil
+	}
+	return &parsed
+}
+
 func latestFloatProperty(entity graph.EntityState, predicate string) (float64, bool) {
 	value, ok := latestPropertyValue(entity, predicate)
 	if !ok {
@@ -1557,6 +1623,9 @@ func sourceFromEntityID(entityID string) string {
 	if strings.Contains(entityID, ".cop.tak.") {
 		return "tak-cot"
 	}
+	if strings.Contains(entityID, ".cop.command.") {
+		return "command"
+	}
 	if strings.Contains(entityID, ".cop.mavlink.") {
 		return "mavlink"
 	}
@@ -1584,6 +1653,8 @@ func ownerForSource(source string) string {
 		return copmodel.OwnerTAK
 	case "mavlink":
 		return copmodel.OwnerMAVLink
+	case "command":
+		return copmodel.OwnerCommand
 	case "cap":
 		return copmodel.OwnerCAP
 	case "adsb":
@@ -1754,6 +1825,22 @@ func floatFromAny(value any) (float64, bool) {
 	case json.Number:
 		parsed, err := typed.Float64()
 		return parsed, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func intFromAny(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case int64:
+		return int(typed), true
+	case float64:
+		return int(typed), typed == float64(int(typed))
+	case json.Number:
+		parsed, err := typed.Int64()
+		return int(parsed), err == nil
 	default:
 		return 0, false
 	}

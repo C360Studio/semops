@@ -115,6 +115,13 @@ export type Task = {
   status: string;
   position?: GeoPoint;
   description?: string;
+  target_id?: string;
+  authority?: string;
+  priority?: number;
+  expires_at?: string;
+  requested_by?: string;
+  correlation_id?: string;
+  desired_state?: string;
   confidence: number;
   updated_at: string;
   provenance: Provenance;

@@ -158,8 +158,10 @@ Acceptance:
   commands to `timeout`. SemOps now carries a manifest-listed synthetic command lifecycle replay fixture for route
   cancellation, accepted survey timeout, and stale-command expiry; it is useful for CS API/UI/native-status plumbing
   tests, but is not CS API service support, hosted scheduling, native cancellation acknowledgement, native transmit, or
-  live actuation evidence. Hosted deadline scheduling, CS API request handling, native cancellation acknowledgement,
-  and live actuation remain open.
+  live actuation evidence. The COP API/UI can now read command task state by prefix and show read-only lifecycle
+  details, but it still has no execute/cancel UI, CS API request handler, scheduler, native cancellation
+  acknowledgement, or live actuation path. Hosted deadline scheduling, CS API request handling, native cancellation
+  acknowledgement, and live actuation remain open.
 - CS API interop should not block Phase 1 structural COP.
 - Native adapter support can be strong while CS API projection is still incomplete; keep those claims separate.
 - CS API conformance can be green while a native feed remains only fixture/replay-tested; keep those claims separate.

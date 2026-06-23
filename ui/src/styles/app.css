@@ -131,6 +131,7 @@ h3 {
 }
 
 .icon-button:hover,
+.task-row:hover,
 .alert-row:hover {
   border-color: #5d8f7d;
   background: #f4fbf8;
@@ -138,6 +139,7 @@ h3 {
 
 .icon-button:focus-visible,
 .map-selector-button:focus-visible,
+.task-row:focus-visible,
 .alert-row:focus-visible {
   outline: 3px solid rgba(29, 120, 150, 0.38);
   outline-offset: 2px;
@@ -153,6 +155,7 @@ h3 {
 .map-panel,
 .side-panel,
 .feed-strip,
+.task-strip,
 .alert-strip {
   border: 1px solid #cbd6d0;
   border-radius: 8px;
@@ -385,6 +388,7 @@ h3 {
 }
 
 .feed-strip,
+.task-strip,
 .alert-strip {
   display: grid;
   gap: 10px;
@@ -503,10 +507,19 @@ h3 {
   color: #7c3d1f;
 }
 
+.right-rail {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.task-strip,
 .alert-strip {
   align-content: start;
 }
 
+.task-row,
 .alert-row {
   min-height: 44px;
   display: grid;
@@ -523,10 +536,22 @@ h3 {
   cursor: pointer;
 }
 
+.task-row {
+  border-color: #d9d4e4;
+  border-left-color: #7656a6;
+  background: #fbf8ff;
+  color: #312541;
+}
+
+.task-row.selected {
+  outline: 2px solid rgba(118, 86, 166, 0.32);
+}
+
 .alert-row.selected {
   outline: 2px solid rgba(192, 106, 58, 0.32);
 }
 
+.task-row span,
 .alert-row span {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -534,11 +559,19 @@ h3 {
   font-weight: 750;
 }
 
+.task-row small,
 .alert-row small {
-  color: #8a4a29;
   font-size: 0.72rem;
   font-weight: 850;
   text-transform: uppercase;
+}
+
+.task-row small {
+  color: #694b95;
+}
+
+.alert-row small {
+  color: #8a4a29;
 }
 
 .loading-state {

@@ -119,6 +119,18 @@ Phase 1.
 - **AND** the UI does not show visual weather tiles, incident-area weather products, route-safety decisions, live
   provider reliability, or OGC conformance claims until those gates have separate evidence and review
 
+#### Scenario: Command lifecycle UI is read-only status evidence
+
+- **WHEN** command-intent task state has been projected into governed `command` task entities
+- **THEN** the SemOps COP API discovers those tasks by command prefix and maps latest lifecycle status, target,
+  authority, priority, expiry, requested-by, correlation, desired state, provenance, and owner into the curated task
+  view model
+- **AND** the browser renders command tasks as selectable task rows with selected-entity inspector details and source
+  card discovery evidence
+- **AND** command tasks without geometry remain inspectable without pretending they are map points
+- **AND** the UI does not expose execute, cancel, retry, arbitration override, CS API tasking, or native transmit
+  controls until those gates have separate safety and adversarial UX review
+
 ### Requirement: Ontology hydrates inspectors, not the whole UI
 
 SemOps MUST NOT treat dynamic ontology-generated UI as a Phase 1 feature.

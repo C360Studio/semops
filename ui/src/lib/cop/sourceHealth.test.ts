@@ -100,6 +100,17 @@ describe('discoveryDiagnosticsForFeed', () => {
             count: 1,
             limit: 500,
             at_limit: false
+          },
+          {
+            org: 'c360',
+            platform: 'edge',
+            source: 'command',
+            family: 'command',
+            entity_type: 'task',
+            prefix: 'c360.edge.cop.command.task',
+            count: 1,
+            limit: 500,
+            at_limit: false
           }
         ]
       }
@@ -107,6 +118,7 @@ describe('discoveryDiagnosticsForFeed', () => {
 
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.adsb')).toEqual([snapshot.diagnostics!.discovery[0]]);
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.weather')).toEqual([snapshot.diagnostics!.discovery[1]]);
+    expect(discoveryDiagnosticsForFeed(snapshot, 'feed.command')).toEqual([snapshot.diagnostics!.discovery[3]]);
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.sapient')).toEqual([]);
   });
 

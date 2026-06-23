@@ -78,16 +78,23 @@ type Track struct {
 }
 
 type Task struct {
-	ID          string     `json:"id"`
-	Label       string     `json:"label"`
-	Kind        string     `json:"kind"`
-	Source      string     `json:"source"`
-	Status      string     `json:"status"`
-	Position    *GeoPoint  `json:"position,omitempty"`
-	Description string     `json:"description,omitempty"`
-	Confidence  float64    `json:"confidence"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	Provenance  Provenance `json:"provenance"`
+	ID            string     `json:"id"`
+	Label         string     `json:"label"`
+	Kind          string     `json:"kind"`
+	Source        string     `json:"source"`
+	Status        string     `json:"status"`
+	Position      *GeoPoint  `json:"position,omitempty"`
+	Description   string     `json:"description,omitempty"`
+	TargetID      string     `json:"target_id,omitempty"`
+	Authority     string     `json:"authority,omitempty"`
+	Priority      *int       `json:"priority,omitempty"`
+	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
+	RequestedBy   string     `json:"requested_by,omitempty"`
+	CorrelationID string     `json:"correlation_id,omitempty"`
+	DesiredState  string     `json:"desired_state,omitempty"`
+	Confidence    float64    `json:"confidence"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	Provenance    Provenance `json:"provenance"`
 }
 
 type Advisory struct {

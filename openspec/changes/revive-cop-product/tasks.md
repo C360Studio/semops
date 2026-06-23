@@ -327,6 +327,7 @@
       Playwright smoke while deferring visual weather tiles, live providers, and route-safety decisions
 - [x] 7.28 Add SAPIENT graph-prefix COP API readback for absolute-location detections while deferring dedicated
       SAPIENT UI semantics
+- [x] 7.29 Add read-only command lifecycle task readback in the COP API/UI while deferring command controls
 
 ## 8. Tier Escalation And Egress
 
@@ -356,6 +357,7 @@
 - [x] 8.16 Add native command-status reconciliation from feed readback evidence to command-intent lifecycle updates
 - [x] 8.17 Add deadline reconciliation for expired and timed-out command intent before hosted scheduler work
 - [x] 8.18 Add manifest-backed synthetic command lifecycle replay fixture before CS API/UI/native command handlers
+- [x] 8.19 Add command-intent prefix discovery and read-only lifecycle UI before CS API/UI/native command controls
 
 ## 9. Upstream SemStreams Asks
 

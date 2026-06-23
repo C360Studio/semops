@@ -61,11 +61,13 @@ describe('tactical map layer helpers', () => {
       'track',
       'asset',
       'task',
+      'task',
       'advisory',
       'hazard',
       'sensor-footprint',
       'weather-observation'
     ]);
+    expect(items.map((item) => item.label)).toContain('Route MAVLink system 42 to North Gate');
     expect(labels.map((label) => [label.kind, label.anchor, label.offset])).toEqual([
       ['asset', 'end', [-14, 18]],
       ['track', 'start', [16, -18]],
