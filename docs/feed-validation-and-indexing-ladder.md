@@ -144,6 +144,16 @@ Mock or harness:
 - The one-command hosted stack smoke also scrapes the SemOps `/metrics` endpoint through Caddy and asserts
   `semops_component_health_status`, `semops_component_flow_messages_per_second`, and
   `semops_component_flow_last_activity_timestamp_seconds` for the hosted MAVLink input/decoder/projector chain.
+- SemOps now has a skipped-by-default external PX4/MAVSDK/SITL telemetry smoke:
+  `SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL=<cop-snapshot-url> go test ./internal/smoke/mavlink -run
+  TestExternalSITLTelemetryCOPSnapshot -count=1 -v`. The smoke observes a real simulator track through
+  `GET /api/cop/snapshot` without injecting generated frames, requires live MAVLink feed health, provenance, source
+  refs, velocity evidence, and repeated simulator updates, and can require motion with
+  `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true`.
+- The one-command stack smoke can include that external telemetry gate with
+  `SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true`; in that mode `compose.cop.yml` honors
+  `SEMOPS_COP_MAVLINK_SYSTEM_IDS`, defaulting to systems `1,42` for PX4-style system ID 1 plus the deterministic
+  generated-frame system 42.
 - Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 
 Indexing profile pressure:
@@ -175,6 +185,8 @@ Current codec gate:
 - `pkg/adapters/mavlink/commands_test.go` proves command frame encoding and ACK parsing before any live SITL harness.
 - `pkg/adapters/mavlink/replay_test.go` proves durable fixture append/load and parser replay.
 - `go test ./internal/adapters/mavlink` proves parse, raw capture, projection, graph-plan write, and health ordering.
+- `go test ./internal/smoke/mavlink` proves the external SITL smoke skips unless an explicit COP snapshot URL is set.
+  A real PX4/MAVSDK run is still required before MAVLink simulator-fidelity claims.
 
 ### TAK/CoT
 

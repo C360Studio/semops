@@ -83,6 +83,19 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** SemOps does not claim product support or conformance until a local parser gate and scoped harness result
   exist
 
+#### Scenario: MAVLink simulator telemetry is opt-in evidence
+
+- **WHEN** SemOps adds PX4, MAVSDK, ArduPilot SITL, or hardware-adjacent MAVLink evidence
+- **THEN** the simulator or hardware source must be explicit and must feed the hosted SemOps MAVLink component path
+  rather than a test-only projector shortcut
+- **AND** the smoke may observe simulator telemetry through the Caddy-routed COP snapshot without injecting generated
+  MAVLink frames from the assertion process
+- **AND** the smoke must assert live MAVLink feed health, source-owned provenance, non-empty source reference, position,
+  velocity or equivalent state evidence, and repeated simulator updates before it is cited as simulator-fidelity
+  evidence
+- **AND** command/control, mission state, safe command ACKs, serial/TCP transports, signed links, and hardware behavior
+  remain separate gates until reviewed
+
 #### Scenario: SAPIENT parser preflight is not conformance
 
 - **WHEN** SemOps parses BSI Flex 335 v2 JSON fixtures derived from official SAPIENT sample shapes

@@ -74,6 +74,7 @@
 - [x] 4.12 Add skipped-by-default MAVLink live graph smoke harness target
 - [x] 4.13 Add MAVLink restart create-conflict reconciliation for existing asset/track births
 - [x] 4.14 Add opt-in MAVLink UDP datagram transport reader for hosted runtime
+- [x] 4.15 Add skipped-by-default external PX4/MAVSDK/SITL telemetry smoke harness against the hosted COP snapshot
 
 ## 5. Feed Validation And Indexing Ladder
 

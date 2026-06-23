@@ -2,8 +2,9 @@
 
 Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner, SemStreams graph writer boundary,
 structural wiring, typed owner-token wiring, restart create-conflict reconciliation, opt-in UDP transport hosting, COP
-owner-registration smoke evidence, and generated-frame live graph smoke evidence. Live feed integration remains blocked
-by durable replay playback, TCP/serial transport work, and simulator fidelity work in `COP-004`.
+owner-registration smoke evidence, generated-frame live graph smoke evidence, and a skipped-by-default external
+PX4/MAVSDK/SITL telemetry smoke harness. Live feed integration remains blocked by running that harness against an
+actual simulator, durable replay playback, TCP/serial transport work, and command/control fidelity work in `COP-004`.
 
 ## Decision
 
@@ -68,6 +69,17 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
   stack, registers COP ownership, polls SemStreams graph state, and asserts source asset, track, `cop.track.source`,
   `cop.track.position`, owner lookup, and foreign-edge claim readback.
+- `internal/smoke/mavlink/external_sitl_test.go` is a skipped-by-default external simulator smoke. Given a hosted COP
+  snapshot URL and a simulator emitting MAVLink telemetry into the SemOps UDP input, it observes a real MAVLink track
+  without injecting generated frames itself, requires live feed health, provenance, source refs, velocity evidence, and
+  repeated simulator updates, and can optionally require position motion.
+- `scripts/cop-stack-smoke.sh` can opt into that external simulator smoke with
+  `SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true`. In that mode it allows COP discovery for systems `1,42` by default
+  and expects the external simulator track `c360.edge-compose.cop.mavlink.track.system-1`.
+- `compose.cop.yml` now respects `SEMOPS_COP_MAVLINK_SYSTEM_IDS`, so PX4-style system `1` can be included without
+  editing the Compose file.
+- See `openspec/changes/revive-cop-product/reviews/2026-06-23-mavlink-external-sitl-smoke-review.md` for the
+  simulator-fidelity harness review.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -168,17 +180,34 @@ Acceptance:
 
 ### SITL Gate
 
-Target command after SITL harness exists:
+Current skipped-by-default telemetry target:
 
 ```bash
-go test ./internal/adapters/mavlink/sitl
+SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL=http://127.0.0.1:8080/api/cop/snapshot \
+SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID=c360.edge-compose.cop.mavlink.track.system-1 \
+go test ./internal/smoke/mavlink -run TestExternalSITLTelemetryCOPSnapshot -count=1 -v
+```
+
+Stack target when an external simulator is already emitting MAVLink UDP to the SemOps host port:
+
+```bash
+SEMOPS_COP_MAVLINK_SYSTEM_IDS=1,42 \
+SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true \
+bash scripts/cop-stack-smoke.sh
 ```
 
 Acceptance:
 
-- Tests skip cleanly when SITL is unavailable.
+- The smoke skips cleanly unless `SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL` is set. [done]
+- The smoke observes a simulator-owned MAVLink track through the hosted COP snapshot rather than sending generated
+  frames from the test. [done in harness; not yet run against PX4/MAVSDK]
+- The track uses `semops.feed.mavlink` provenance, carries a non-empty source reference, has non-zero position and
+  velocity evidence, and appears while `feed.mavlink` is live. [done in harness; not yet run against PX4/MAVSDK]
+- The smoke observes repeated simulator updates and can require actual position motion with
+  `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true`. [done in harness; not yet run against PX4/MAVSDK]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs safe command smoke tests.
-- PX4 SITL or MAVSDK smoke evidence is added before calling MAVLink Phase 1 complete.
+  [open]
+- PX4 SITL or MAVSDK smoke evidence is recorded before calling MAVLink Phase 1 complete. [open]
 
 ### Replay Gate
 
@@ -210,6 +239,8 @@ Acceptance:
   recovery and scenario-runner replay integration remain open.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before
   command/control demo claims.
+- The external SITL telemetry smoke harness exists, but no local PX4, MAVSDK, or ArduPilot simulator run has been
+  recorded yet.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
 - Command codec coverage is active for COMMAND_LONG and COMMAND_ACK, but live command/control is not.

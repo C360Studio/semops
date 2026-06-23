@@ -160,7 +160,9 @@ KLV/STANAG 4609:
 
 Demo/MVP lane:
 Generated/replay and UDP current-state ingest for heartbeat, position, attitude, battery, bounded raw lane,
-born-first source asset and track graph writes.
+born-first source asset and track graph writes. The next simulator-fidelity step is a skipped-by-default external
+SITL/MAVSDK telemetry smoke that observes a real simulator track through the hosted COP snapshot without injecting
+generated frames.
 
 Full product lane:
 PX4/ArduPilot SITL and hardware profiles, MAVSDK smoke, UDP/TCP/serial transports, signed or authenticated links
