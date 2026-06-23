@@ -174,7 +174,8 @@ Full GCS/autopilot management, hardware certification, or complete mission-comma
 Demo/MVP lane:
 Recorded or fixture-backed DJI telemetry and media-reference ingest for a common HADR drone source. The first demo
 shape should prove a DJI source card, vehicle/sensor state, media reference, and freshness/provenance without
-claiming live DJI cloud or SDK control.
+claiming live DJI cloud or SDK control. SemOps now has a synthetic DJI-shaped parser fixture that preserves
+telemetry, media references, and command-authority posture without graph writes.
 
 Full product lane:
 DJI bridge service with SDK/cloud integration, aircraft identity, RC/dock/session state, gimbal/camera state,
@@ -184,7 +185,9 @@ Boundary to preserve now:
 Keep DJI telemetry, command authority, media sessions, and graph projection separate. DJI video should enter as
 generic media references or vendor metadata first; it must not be treated as KLV/MISB unless the source actually
 emits KLV. If media relay becomes shared infrastructure, SemSource or a media sidecar may own generic track
-extraction, while SemOps owns DJI semantics and claims.
+extraction, while SemOps owns DJI semantics and claims. The current parser fixture is synthetic SemOps contract
+evidence only; it is not captured SDK, Cloud API, flight-log, subtitle, media metadata, or DJI product compatibility
+evidence.
 
 Not claimed yet:
 Live DJI Cloud/API integration, DJI command/control, dock/RC session management, payload SDK compatibility, or

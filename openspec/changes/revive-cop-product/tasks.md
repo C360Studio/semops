@@ -128,7 +128,7 @@
 - [x] 5.56 Add DJI sensor/telemetry and weather as first-class feed/layer roadmap entries
 - [x] 5.57 Record that DJI video reinforces generic media-reference handling without moving KLV demux into SemSource
 - [x] 5.58 Add weather parser/source evidence for OGC API EDR, Open-Meteo, NWS CAP alerts, and visual tile sources
-- [ ] 5.59 Add DJI feed evidence for telemetry, command authority, media references, and replay fixtures
+- [x] 5.59 Add DJI feed evidence for telemetry, command authority, media references, and replay fixtures
 - [x] 5.60 Add fixture-grade FFmpeg/ffprobe KLV demux worker path with explicit stream selection and bounded output
 - [x] 5.61 Add deterministic MISB ST 0601 truth JSON to generated-packet to decoded-frame fixture acceptance
 - [x] 5.62 Add optional deterministic truth-to-MPEG-TS demux smoke using local FFmpeg tooling

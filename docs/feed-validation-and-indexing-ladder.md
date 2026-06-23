@@ -394,7 +394,7 @@ Known gaps:
 
 ### DJI
 
-Status: critical HADR drone/vendor layer, not yet implemented.
+Status: critical HADR drone/vendor layer with first synthetic parser fixture evidence.
 
 Compliance and source evidence:
 
@@ -402,12 +402,21 @@ Compliance and source evidence:
   surfaces, controller/dock/session APIs, recorded files, subtitles, or media streams depending on deployment.
 - DJI Onboard SDK documentation positions DJI platform integration around drone information, control, payload/camera,
   video image analysis, and onboard applications.
+- DJI Mobile SDK documentation exposes application surfaces around flight controller, camera, gimbal, smart battery,
+  missions, media management, and video stream decoding samples.
+- DJI Payload SDK documentation confirms payload-device development is a separate integration lane from mobile,
+  onboard, cloud, Windows, and payload SDK surfaces.
 - DJI video is not automatically KLV/STANAG evidence. Some paths may expose vendor telemetry, subtitles, sidecar
   metadata, or live streams rather than MISB ST 0601 KLV packets.
+- SemOps now carries a synthetic DJI-shaped parser fixture at `fixtures/dji/telemetry-media.json`.
+- `pkg/adapters/dji` parses aircraft pose, altitude, heading, speed, battery, gimbal/camera state, media references,
+  source identity, and command-authority posture without graph writes.
 
 Mock or harness:
 
 - Start with recorded or synthetic DJI-shaped telemetry and media-reference fixtures.
+- The current fixture is synthetic SemOps contract evidence only, not captured SDK, Cloud API, flight-log, subtitle,
+  media metadata, or product-compatibility evidence.
 - Keep DJI telemetry, media references, command authority, and graph projection as separate seams.
 - Use SemSource or a media sidecar only for generic storage/reference/track extraction; SemOps owns DJI semantics.
 
@@ -421,9 +430,11 @@ Indexing profile pressure:
 First acceptance gate:
 
 - Given a DJI-shaped telemetry fixture, SemOps can parse vehicle position, heading, altitude, gimbal/camera state,
-  timestamps, source identity, and freshness without graph writes.
+  timestamps, source identity, and freshness without graph writes. [done for synthetic fixture]
 - Given a DJI media fixture or reference, SemOps records media refs and bounded metadata without embedding video in
-  triples.
+  triples. [done for synthetic fixture]
+- Given DJI command-authority posture, SemOps records the authority mode, holder, local override requirement, and
+  remote-command disabled posture as data only. [done for synthetic fixture]
 - Given DJI video metadata, SemOps routes it to a DJI or generic media decoder path unless the source actually emits
   KLV/MISB packets.
 - Given any DJI command/control work, command authority, local override, and safety policy are reviewed before graph
@@ -432,6 +443,7 @@ First acceptance gate:
 Known gaps:
 
 - No legal representative DJI telemetry/media fixture has been selected.
+- No DJI replay store exists beyond the committed synthetic JSON fixture.
 - No DJI SDK/cloud integration strategy has been chosen.
 - No live DJI bridge, media relay, or command authority path exists.
 - No DJI product support or compatibility claim is allowed yet.

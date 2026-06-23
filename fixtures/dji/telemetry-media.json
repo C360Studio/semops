@@ -1,0 +1,61 @@
+{
+  "fixture_class": "semops.synthetic.dji.telemetry.v1",
+  "source": {
+    "provider": "dji-shaped",
+    "source_id": "dji://fixture/matrice-350/alpha",
+    "aircraft_model": "Matrice 350 RTK",
+    "controller_id": "pilot-controller-alpha",
+    "aircraft_serial_ref": "redacted:matrice-alpha"
+  },
+  "observed_at": "2026-06-22T18:10:00Z",
+  "aircraft": {
+    "latitude": 38.89945,
+    "longitude": -77.03182,
+    "altitude_msl_m": 142.4,
+    "altitude_agl_m": 86.2,
+    "heading_deg": 214.7,
+    "ground_speed_mps": 15.4,
+    "vertical_speed_mps": -0.3
+  },
+  "battery": {
+    "percent": 68,
+    "voltage_v": 48.2,
+    "temperature_c": 31.5
+  },
+  "gimbal": {
+    "yaw_deg": 91.4,
+    "pitch_deg": -24.3,
+    "roll_deg": 0.2,
+    "mode": "free"
+  },
+  "camera": {
+    "payload": "Zenmuse H20T",
+    "mode": "video",
+    "recording": true,
+    "zoom_ratio": 4.0,
+    "thermal_enabled": true
+  },
+  "media_refs": [
+    {
+      "uri": "object://semops/dji/matrice-alpha/clip-0001.mp4",
+      "kind": "video/mp4",
+      "role": "recorded-video",
+      "started_at": "2026-06-22T18:09:30Z",
+      "ended_at": "2026-06-22T18:10:00Z",
+      "sha256": "9a4e1bc5d1328caa0ef8b6d80d104a0ad1a8b2c948c2c4a62c31f7b5af07f001",
+      "byte_length": 1048576
+    },
+    {
+      "uri": "rtsp://redacted.example.invalid/dji/matrice-alpha/live",
+      "kind": "video/rtsp",
+      "role": "live-preview"
+    }
+  ],
+  "command_authority": {
+    "mode": "local_operator",
+    "holder": "pilot-alpha",
+    "remote_commands_enabled": false,
+    "local_override_required": true,
+    "notes": "Synthetic fixture: no live DJI command path is enabled."
+  }
+}

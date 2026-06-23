@@ -1,6 +1,7 @@
 # DJI Feed Evidence
 
-Status: critical HADR drone/vendor layer, not yet implemented.
+Status: critical HADR drone/vendor layer with first synthetic parser fixture evidence; not yet implemented as a
+SemStreams component or live DJI bridge.
 
 ## Decision
 
@@ -26,21 +27,40 @@ change the KLV worker boundary.
 
 ## First Acceptance Gates
 
-- Parse a deterministic DJI-shaped telemetry fixture without graph writes.
+- Parse a deterministic DJI-shaped telemetry fixture without graph writes. [done]
 - Preserve aircraft position, altitude, heading, gimbal/camera state, battery/source freshness, source identity, and
-  media references.
-- Publish bounded raw/vendor payload references rather than raw video bytes.
+  media references. [done]
+- Preserve command-authority posture as data, with remote command execution disabled in the first fixture. [done]
+- Publish bounded raw/vendor payload references rather than raw video bytes. [done]
 - Project DJI current aircraft/sensor state as `signal`, session/control state as `control`, annotations as
   `content`, and vendor replay/extraction records as `trace`.
 - Review command authority, local override, credentials, and safety policy before any live driver or command path.
 
+## Local Evidence
+
+- `fixtures/dji/telemetry-media.json` is a SemOps-owned synthetic DJI-shaped telemetry/media-reference fixture.
+- The fixture is not captured DJI SDK, Cloud API, flight-log, subtitle, or media metadata evidence.
+- `pkg/adapters/dji` parses aircraft state, battery, gimbal, camera, media references, source identity, and
+  command-authority posture without graph writes.
+- Media references are URI and metadata records only; this slice does not embed video bytes or decode media.
+- Command authority is represented as posture data only. The fixture sets `remote_commands_enabled=false` and
+  `local_override_required=true`.
+
 ## Known Gaps
 
 - No legal representative DJI telemetry/media fixture has been selected.
+- No DJI replay store exists beyond the committed synthetic JSON fixture.
 - No DJI SDK/cloud integration strategy has been chosen.
 - No live DJI bridge, media relay, or command authority path exists.
 - No DJI product support, compatibility, or certification claim is allowed yet.
 
+## Verification
+
+- `go test ./pkg/adapters/dji`
+- `go test ./...`
+
 ## Source Links
 
 - DJI Onboard SDK overview: <https://developer.dji.com/onboard-sdk/documentation/introduction/homepage.html>
+- DJI Mobile SDK introduction: <https://developer.dji.com/mobile-sdk/documentation/introduction/index.html>
+- DJI Payload SDK introduction: <https://developer.dji.com/payload-sdk/documentation/introduction/index.html>

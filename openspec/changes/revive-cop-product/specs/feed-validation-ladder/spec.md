@@ -194,6 +194,8 @@ binary-by-reference storage, and memory-bounded handling.
 - **THEN** the media path uses generic media references and bounded metadata extraction where possible
 - **AND** DJI telemetry, subtitles, or vendor metadata are not forced through the KLV/MISB decoder unless the source
   actually emits KLV
+- **AND** deterministic synthetic DJI-shaped fixtures prove telemetry, media-reference, and command-authority posture
+  shape before live DJI product support claims
 - **AND** the existence of DJI video does not move KLV/STANAG product claims into SemSource
 
 #### Scenario: Weather layers are tracked separately
