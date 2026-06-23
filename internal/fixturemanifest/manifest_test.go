@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -55,15 +57,18 @@ func TestFixtureManifestDeclaresTiersAndValidatesCommittedArtifacts(t *testing.T
 
 	seen := map[string]bool{}
 	feeds := map[string]bool{}
+	manifestedPaths := map[string]bool{}
 	for _, entry := range manifest.Entries {
 		validateFixtureEntry(t, root, entry, seen)
 		feeds[entry.Feed] = true
+		manifestedPaths[filepath.Clean(entry.Path)] = true
 	}
 	for _, feed := range []string{"cap", "dji", "weather", "klv"} {
 		if !feeds[feed] {
 			t.Fatalf("fixture manifest missing feed %q", feed)
 		}
 	}
+	validatePortableFixtureFilesAreManifested(t, root, manifestedPaths)
 }
 
 func validateFixtureEntry(t *testing.T, root string, entry fixtureRecord, seen map[string]bool) {
@@ -155,6 +160,64 @@ func allowedTier(value string) bool {
 func allowedCommitStatus(value string) bool {
 	switch value {
 	case "ignored_local", "committed", "generated":
+		return true
+	default:
+		return false
+	}
+}
+
+func validatePortableFixtureFilesAreManifested(t *testing.T, root string, manifestedPaths map[string]bool) {
+	t.Helper()
+	fixturesRoot := filepath.Join(root, "fixtures")
+	err := filepath.WalkDir(fixturesRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.Clean(rel)
+		if d.IsDir() {
+			if ignoredLocalFixtureDir(rel) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if ignoredFixtureFile(rel) {
+			return nil
+		}
+		if !manifestedPaths[rel] {
+			t.Fatalf("portable fixture file %s missing from %s", rel, manifestPath)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk fixtures: %v", err)
+	}
+}
+
+func ignoredLocalFixtureDir(rel string) bool {
+	switch rel {
+	case "fixtures/cap/nws-samples",
+		"fixtures/cap/replay",
+		"fixtures/cap/schema",
+		"fixtures/klv/.cache",
+		"fixtures/klv/generated",
+		"fixtures/klv/public-samples":
+		return true
+	default:
+		return false
+	}
+}
+
+func ignoredFixtureFile(rel string) bool {
+	base := filepath.Base(rel)
+	if strings.HasPrefix(base, ".") {
+		return true
+	}
+	switch rel {
+	case manifestPath, "fixtures/klv/README.md":
 		return true
 	default:
 		return false

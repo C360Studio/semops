@@ -45,6 +45,8 @@ data are not confused.
 - **AND** committed fixture artifacts must match the manifest SHA-256 and byte size
 - **AND** ignored live captures remain optional local files, but when present they must match the manifest SHA-256 and
   byte size
+- **AND** portable files under `fixtures/` must not bypass the manifest unless they are explicitly ignored local
+  captures, generated media, cache files, or non-fixture documentation
 
 #### Scenario: Derived story fixtures are labeled synthetic
 
