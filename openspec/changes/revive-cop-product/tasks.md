@@ -45,6 +45,9 @@
       payload registry, health, flow metrics, and born-first reconciliation for point forecasts
 - [x] 2.23 Wire the opt-in hosted weather fixture input -> decoder -> projector flow through SemStreams component
       lifecycle, ports, payload registry, owner tokens, and component metrics
+- [x] 2.24 Add the first concrete SAPIENT graph projector processor component behind explicit graph opt-in using
+      SemStreams request ports, payload registry, health, flow metrics, and born-first reconciliation for
+      absolute-location detections
 
 ## 3. COP Model And Governance
 
@@ -155,6 +158,8 @@
       weather UI semantics or route-safety authority
 - [x] 5.75 Add narrow SAPIENT absolute-location detection projection and readback evidence without claiming
       conformance, hosted graph production, tasking, association, UTM conversion, or range/bearing support
+- [x] 5.76 Add opt-in SAPIENT absolute-location runtime graph component evidence without claiming conformance,
+      product service support, tasking, association, UTM conversion, or range/bearing support
 
 ## 6. Structural COP Stack
 
@@ -243,6 +248,9 @@
       metrics while keeping weather disabled by default
 - [x] 6.66 Add opt-in one-command weather stack smoke for fixture-backed graph projection, COP snapshot readback, and
       component/runtime flow evidence
+- [x] 6.67 Wire SAPIENT decoded-message graph projection through hosted runtime behind
+      `SEMOPS_SAPIENT_GRAPH_ENABLED=false` by default, with SAPIENT ownership registered only when graph mode is
+      enabled
 
 ## 7. COP UI
 
@@ -278,8 +286,8 @@
       weather map layers and route-safety UI
 - [x] 7.27 Add weather-observation point evidence to the COP UI with source diagnostics, provenance inspector, and
       Playwright smoke while deferring visual weather tiles, live providers, and route-safety decisions
-- [x] 7.28 Add SAPIENT graph-prefix COP API readback for absolute-location detections while deferring runtime graph
-      production and dedicated SAPIENT UI semantics
+- [x] 7.28 Add SAPIENT graph-prefix COP API readback for absolute-location detections while deferring dedicated
+      SAPIENT UI semantics
 
 ## 8. Tier Escalation And Egress
 

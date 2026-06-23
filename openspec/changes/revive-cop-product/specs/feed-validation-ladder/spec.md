@@ -97,9 +97,12 @@ public conformance suite, or documented interoperability test backs the claim.
   absolute-location detection reports
 - **AND** that first projection rejects range/bearing, UTM, unsupported datum, tasking, association, and lifecycle
   semantics until those policies are reviewed
+- **AND** SemOps may add a SAPIENT graph-producing processor component and graph writer only behind
+  `SEMOPS_SAPIENT_GRAPH_ENABLED=true`, with `OwnerSAPIENT` registered only for that graph-enabled runtime path
 - **AND** SemOps does not claim compliance until scoped Dstl harness evidence exists
-- **AND** SemOps does not add graph-producing hosted components, runtime graph writers, or product service support
-  until projection ownership, indexing, service mode, backpressure, and harness scope have been reviewed
+- **AND** SemOps does not claim product service support, tasking, association, UTM conversion, range/bearing
+  conversion, or Apex middleware behavior until service mode, backpressure, command authority, and harness scope have
+  been reviewed
 
 #### Scenario: CS API conformance is standards-edge evidence
 
@@ -128,6 +131,8 @@ canonical graph state.
   and uncertainty are available
 - **AND** associated detections and cross-source links are expressed by fusion or evidence contracts rather than the
   SAPIENT adapter's source-owner contract
+- **AND** hosted SAPIENT graph production is opt-in and separate from preflight decode, product-service hosting,
+  compliance, tasking, range/bearing, UTM, and association claims
 
 #### Scenario: ADS-B starts with OpenSky fixture parsing and source-partitioned projection
 

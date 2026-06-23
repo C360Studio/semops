@@ -100,6 +100,10 @@ func fixtureHandler(clock func() time.Time) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(sapientcodec.TaskAckFixtureJSON())
 	})
+	mux.HandleFunc("/sapient/detections", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(sapientcodec.DetectionFixtureJSON())
+	})
 	return mux
 }
 

@@ -21,6 +21,7 @@ import (
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
+	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
 	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
 	"github.com/c360studio/semops/internal/stack"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
@@ -52,6 +53,7 @@ type App struct {
 	adsbProjector    *adsbcomponent.ProjectorComponent
 	sapientInput     *sapientcomponent.HTTPInputComponent
 	sapientDecoder   *sapientcomponent.DecoderComponent
+	sapientProjector *sapientcomponent.ProjectorComponent
 	klvMediaInput    *klvcomponent.MediaRefInputComponent
 	klvDemux         *klvcomponent.DemuxComponent
 	klvDecoder       *klvcomponent.DecoderComponent
@@ -101,8 +103,10 @@ type dependencies struct {
 	newADSBHTTPPoller    func(adsbcomponent.HTTPPollerConfig, adsbcomponent.Bus) (*adsbcomponent.HTTPPollerComponent, error)
 	newADSBDecoder       func(adsbcomponent.DecoderConfig, adsbcomponent.Bus) (*adsbcomponent.DecoderComponent, error)
 	newADSBProjector     func(adsbcomponent.ProjectorConfig, adsbcomponent.Bus) (*adsbcomponent.ProjectorComponent, error)
+	newSAPIENTPlanWriter func(time.Duration, natsclient.RetryConfig, graphrequest.RetryRequester) (sapientcomponent.PlanWriter, error)
 	newSAPIENTHTTPInput  func(sapientcomponent.HTTPInputConfig, sapientcomponent.Bus) (*sapientcomponent.HTTPInputComponent, error)
 	newSAPIENTDecoder    func(sapientcomponent.DecoderConfig, sapientcomponent.Bus) (*sapientcomponent.DecoderComponent, error)
+	newSAPIENTProjector  func(sapientcomponent.ProjectorConfig, sapientcomponent.Bus) (*sapientcomponent.ProjectorComponent, error)
 	newKLVPlanWriter     func(stack.KLVAdapterConfig, stack.KLVAdapterDeps) (klvcomponent.ProjectorPlanWriter, error)
 	newKLVMediaRefInput  func(klvcomponent.MediaRefInputConfig) (*klvcomponent.MediaRefInputComponent, error)
 	newKLVDemux          func(klvcomponent.DemuxConfig) (*klvcomponent.DemuxComponent, error)
@@ -227,6 +231,11 @@ func (a *App) Close(ctx context.Context) error {
 	if a.adsbProjector != nil {
 		if err := a.adsbProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop ADS-B projector component: %w", err))
+		}
+	}
+	if a.sapientProjector != nil {
+		if err := a.sapientProjector.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop SAPIENT projector component: %w", err))
 		}
 	}
 	if a.klvProjector != nil {
@@ -362,6 +371,13 @@ func (a *App) SAPIENTDecoder() *sapientcomponent.DecoderComponent {
 	return a.sapientDecoder
 }
 
+func (a *App) SAPIENTProjector() *sapientcomponent.ProjectorComponent {
+	if a == nil {
+		return nil
+	}
+	return a.sapientProjector
+}
+
 func (a *App) KLVMediaRefInput() *klvcomponent.MediaRefInputComponent {
 	if a == nil {
 		return nil
@@ -468,6 +484,9 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 	if a.sapientDecoder != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "sapient", Role: "decoder", Component: a.sapientDecoder})
 	}
+	if a.sapientProjector != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "sapient", Role: "projector", Component: a.sapientProjector})
+	}
 	if a.klvMediaInput != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "klv", Role: "media-ref-input", Component: a.klvMediaInput})
 	}
@@ -552,7 +571,7 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 	}
 
 	if cfg.SAPIENT.Enabled {
-		if err := app.startSAPIENTFlow(runtimeCtx, cfg.SAPIENT, deps); err != nil {
+		if err := app.startSAPIENTFlow(runtimeCtx, cfg.SAPIENT, bindings, deps); err != nil {
 			return nil, err
 		}
 	}
@@ -594,8 +613,10 @@ func defaultDependencies() dependencies {
 		newADSBHTTPPoller:    adsbcomponent.NewHTTPPollerComponent,
 		newADSBDecoder:       adsbcomponent.NewDecoderComponent,
 		newADSBProjector:     adsbcomponent.NewProjectorComponent,
+		newSAPIENTPlanWriter: newSAPIENTPlanWriter,
 		newSAPIENTHTTPInput:  sapientcomponent.NewHTTPInputComponent,
 		newSAPIENTDecoder:    sapientcomponent.NewDecoderComponent,
+		newSAPIENTProjector:  sapientcomponent.NewProjectorComponent,
 		newKLVPlanWriter:     newKLVPlanWriter,
 		newKLVMediaRefInput:  klvcomponent.NewMediaRefInputComponent,
 		newKLVDemux:          klvcomponent.NewDemuxComponent,
@@ -667,11 +688,17 @@ func fillDependencies(deps dependencies) dependencies {
 	if deps.newADSBProjector == nil {
 		deps.newADSBProjector = defaults.newADSBProjector
 	}
+	if deps.newSAPIENTPlanWriter == nil {
+		deps.newSAPIENTPlanWriter = defaults.newSAPIENTPlanWriter
+	}
 	if deps.newSAPIENTHTTPInput == nil {
 		deps.newSAPIENTHTTPInput = defaults.newSAPIENTHTTPInput
 	}
 	if deps.newSAPIENTDecoder == nil {
 		deps.newSAPIENTDecoder = defaults.newSAPIENTDecoder
+	}
+	if deps.newSAPIENTProjector == nil {
+		deps.newSAPIENTProjector = defaults.newSAPIENTProjector
 	}
 	if deps.newKLVPlanWriter == nil {
 		deps.newKLVPlanWriter = defaults.newKLVPlanWriter
@@ -1030,9 +1057,35 @@ func (a *App) startADSBFlow(
 	return nil
 }
 
-func (a *App) startSAPIENTFlow(ctx context.Context, cfg SAPIENTConfig, deps dependencies) error {
+func (a *App) startSAPIENTFlow(
+	ctx context.Context,
+	cfg SAPIENTConfig,
+	bindings copownership.BindingResult,
+	deps dependencies,
+) error {
 	bus := sapientRuntimeBus{client: a.client}
 	registry := payloadregistry.New()
+	var projector *sapientcomponent.ProjectorComponent
+	if cfg.GraphEnabled {
+		writer, err := deps.newSAPIENTPlanWriter(cfg.WriteTimeout, cfg.Retry, a.client)
+		if err != nil {
+			return fmt.Errorf("compose SAPIENT graph writer: %w", err)
+		}
+		projector, err = deps.newSAPIENTProjector(sapientcomponent.ProjectorConfig{
+			Registry: registry,
+			Projector: sapientprojector.NewProjector(sapientprojector.Config{
+				Org:         cfg.Org,
+				Platform:    cfg.Platform,
+				OwnerTokens: bindings.OwnerTokenMap(),
+				TraceID:     cfg.TraceID,
+			}),
+			Writer:       writer,
+			WriteTimeout: cfg.WriteTimeout,
+		}, bus)
+		if err != nil {
+			return fmt.Errorf("compose SAPIENT projector component: %w", err)
+		}
+	}
 	var replay sapientcomponent.ReplayAppender
 	if cfg.ReplayPath != "" {
 		replay = sapientcodec.NewReplayStore(cfg.ReplayPath)
@@ -1064,9 +1117,15 @@ func (a *App) startSAPIENTFlow(ctx context.Context, cfg SAPIENTConfig, deps depe
 	if err != nil {
 		return fmt.Errorf("compose SAPIENT HTTP input component: %w", err)
 	}
+	a.sapientProjector = projector
 	a.sapientDecoder = decoder
 	a.sapientInput = input
 
+	if projector != nil {
+		if err := startLifecycle(ctx, "SAPIENT projector", projector); err != nil {
+			return err
+		}
+	}
 	if err := startLifecycle(ctx, "SAPIENT decoder", decoder); err != nil {
 		return err
 	}
@@ -1283,6 +1342,25 @@ func newADSBPlanWriter(
 	return stack.NewADSBPlanWriter(cfg, deps)
 }
 
+func newSAPIENTPlanWriter(
+	timeout time.Duration,
+	retry natsclient.RetryConfig,
+	client graphrequest.RetryRequester,
+) (sapientcomponent.PlanWriter, error) {
+	if client == nil {
+		return nil, fmt.Errorf("sapient stack requires a NATS requester")
+	}
+	opts := []graphrequest.NATSRequesterOption{}
+	if retry != (natsclient.RetryConfig{}) {
+		opts = append(opts, graphrequest.WithRetryConfig(retry))
+	}
+	requester := graphrequest.NewNATSRequester(client, opts...)
+	return sapientprojector.NewGraphWriter(
+		requester,
+		sapientprojector.WithWriteTimeout(timeout),
+	), nil
+}
+
 func newKLVPlanWriter(
 	cfg stack.KLVAdapterConfig,
 	deps stack.KLVAdapterDeps,
@@ -1337,6 +1415,12 @@ func runtimeOwnedContracts(cfg Config) []cop.OwnedContract {
 		owned = append(owned, cop.OwnedContract{
 			Owner:    cop.OwnerADSB,
 			Contract: cop.ADSBTrackContract(),
+		})
+	}
+	if cfg.SAPIENT.Enabled && cfg.SAPIENT.GraphEnabled {
+		owned = append(owned, cop.OwnedContract{
+			Owner:    cop.OwnerSAPIENT,
+			Contract: cop.SAPIENTTrackContract(),
 		})
 	}
 	if cfg.KLV.Enabled {

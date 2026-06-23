@@ -65,10 +65,12 @@ const (
 	EnvADSBHTTPAuthRef              = "SEMOPS_ADSB_HTTP_AUTH_REF"
 	EnvADSBHTTPMaxResponseBytes     = "SEMOPS_ADSB_HTTP_MAX_RESPONSE_BYTES"
 	EnvSAPIENTEnabled               = "SEMOPS_SAPIENT_ENABLED"
+	EnvSAPIENTGraphEnabled          = "SEMOPS_SAPIENT_GRAPH_ENABLED"
 	EnvSAPIENTSource                = "SEMOPS_SAPIENT_SOURCE"
 	EnvSAPIENTReplayPath            = "SEMOPS_SAPIENT_REPLAY_PATH"
 	EnvSAPIENTRawMaxRecords         = "SEMOPS_SAPIENT_RAW_MAX_RECORDS"
 	EnvSAPIENTRawMaxBytes           = "SEMOPS_SAPIENT_RAW_MAX_BYTES"
+	EnvSAPIENTWriteTimeout          = "SEMOPS_SAPIENT_WRITE_TIMEOUT"
 	EnvSAPIENTHTTPURL               = "SEMOPS_SAPIENT_HTTP_URL"
 	EnvSAPIENTHTTPMethod            = "SEMOPS_SAPIENT_HTTP_METHOD"
 	EnvSAPIENTHTTPPollInterval      = "SEMOPS_SAPIENT_HTTP_POLL_INTERVAL"
@@ -211,10 +213,16 @@ type ADSBHTTPConfig struct {
 
 type SAPIENTConfig struct {
 	Enabled       bool
+	GraphEnabled  bool
 	Source        string
+	Org           string
+	Platform      string
+	TraceID       string
 	ReplayPath    string
 	RawMaxRecords int
 	RawMaxBytes   int
+	WriteTimeout  time.Duration
+	Retry         natsclient.RetryConfig
 	HTTP          SAPIENTHTTPConfig
 }
 
@@ -370,14 +378,25 @@ func DefaultConfig() Config {
 		},
 		SAPIENT: SAPIENTConfig{
 			Enabled:       false,
+			GraphEnabled:  false,
 			Source:        "sapient:http:inprocess",
+			Org:           "c360",
+			Platform:      "edge",
+			TraceID:       "semops-sapient-hosted",
 			RawMaxRecords: sapientcodec.DefaultRawLaneMaxRecords,
 			RawMaxBytes:   sapientcodec.DefaultRawLaneMaxBytes,
+			WriteTimeout:  2 * time.Second,
 			HTTP: SAPIENTHTTPConfig{
 				Method:           "GET",
 				PollInterval:     sapientcomponent.DefaultHTTPPollInterval,
 				StaleAfter:       time.Duration(sapientcomponent.DefaultHTTPStaleMultiplier) * sapientcomponent.DefaultHTTPPollInterval,
 				MaxResponseBytes: sapientcomponent.DefaultHTTPMaxResponseBytes,
+			},
+			Retry: natsclient.RetryConfig{
+				MaxRetries:        5,
+				InitialBackoff:    50 * time.Millisecond,
+				MaxBackoff:        500 * time.Millisecond,
+				BackoffMultiplier: 2,
 			},
 		},
 		KLV: KLVConfig{
@@ -462,18 +481,21 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)
 	setString(getenv, EnvOrg, &cfg.ADSB.Org)
+	setString(getenv, EnvOrg, &cfg.SAPIENT.Org)
 	setString(getenv, EnvOrg, &cfg.KLV.Org)
 	setString(getenv, EnvOrg, &cfg.Weather.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
 	setString(getenv, EnvPlatform, &cfg.CoT.Platform)
 	setString(getenv, EnvPlatform, &cfg.CAP.Platform)
 	setString(getenv, EnvPlatform, &cfg.ADSB.Platform)
+	setString(getenv, EnvPlatform, &cfg.SAPIENT.Platform)
 	setString(getenv, EnvPlatform, &cfg.KLV.Platform)
 	setString(getenv, EnvPlatform, &cfg.Weather.Platform)
 	setString(getenv, EnvTraceID, &cfg.MAVLink.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CoT.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CAP.TraceID)
 	setString(getenv, EnvTraceID, &cfg.ADSB.TraceID)
+	setString(getenv, EnvTraceID, &cfg.SAPIENT.TraceID)
 	setString(getenv, EnvTraceID, &cfg.KLV.TraceID)
 	setString(getenv, EnvTraceID, &cfg.Weather.TraceID)
 	setString(getenv, EnvMAVLinkUDPListenAddr, &cfg.MAVLink.UDP.ListenAddr)
@@ -531,6 +553,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvADSBWriteTimeout,
 		cfg.ADSB.WriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.SAPIENT.WriteTimeout, err = durationFromEnv(
+		getenv,
+		EnvSAPIENTWriteTimeout,
+		cfg.SAPIENT.WriteTimeout,
 	); err != nil {
 		return Config{}, err
 	}
@@ -624,6 +653,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.SAPIENT.Enabled, err = boolFromEnv(getenv, EnvSAPIENTEnabled, cfg.SAPIENT.Enabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.SAPIENT.GraphEnabled, err = boolFromEnv(
+		getenv,
+		EnvSAPIENTGraphEnabled,
+		cfg.SAPIENT.GraphEnabled,
+	); err != nil {
 		return Config{}, err
 	}
 	if cfg.KLV.Enabled, err = boolFromEnv(getenv, EnvKLVEnabled, cfg.KLV.Enabled); err != nil {
@@ -906,11 +942,28 @@ func (c ADSBConfig) Validate() error {
 }
 
 func (c SAPIENTConfig) Validate() error {
+	if c.GraphEnabled && !c.Enabled {
+		return fmt.Errorf("%s requires %s=true", EnvSAPIENTGraphEnabled, EnvSAPIENTEnabled)
+	}
 	if !c.Enabled {
 		return nil
 	}
 	if strings.TrimSpace(c.Source) == "" {
 		return fmt.Errorf("%s is required when SAPIENT is enabled", EnvSAPIENTSource)
+	}
+	if c.GraphEnabled {
+		if strings.TrimSpace(c.Org) == "" {
+			return fmt.Errorf("%s is required when SAPIENT graph projection is enabled", EnvOrg)
+		}
+		if strings.TrimSpace(c.Platform) == "" {
+			return fmt.Errorf("%s is required when SAPIENT graph projection is enabled", EnvPlatform)
+		}
+		if strings.TrimSpace(c.TraceID) == "" {
+			return fmt.Errorf("%s is required when SAPIENT graph projection is enabled", EnvTraceID)
+		}
+		if c.WriteTimeout <= 0 {
+			return fmt.Errorf("%s must be greater than zero when SAPIENT graph projection is enabled", EnvSAPIENTWriteTimeout)
+		}
 	}
 	if c.RawMaxRecords <= 0 {
 		return fmt.Errorf("%s must be greater than zero when SAPIENT is enabled", EnvSAPIENTRawMaxRecords)

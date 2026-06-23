@@ -81,12 +81,13 @@ component package proved against local provider fixtures, and the hosted app can
 so this is not a live OpenSky reliability, receiver, or ASTERIX claim. The Compose smoke now includes a
 `semops-feed-fixtures` service and enables ADS-B against its local `/adsb/states` endpoint to prove hosted HTTP
 component readback through the COP snapshot without live network access.
-SAPIENT now has a preflight-only HTTP input -> decoder component package for raw/decoded JSON or protobuf payload
-streams, and the hosted app can run it behind `SEMOPS_SAPIENT_ENABLED=true` with an explicit URL, encoding, and replay
-settings. It deliberately has no graph request ports or runtime owner registration. The stack smoke enables SAPIENT
-against the local fixture provider and only verifies the declared decoded output stream, not hosted graph projection or
-conformance. The separate SAPIENT graph contract is currently a pure absolute-location detection projection/readback
-gate, not a hosted runtime feed.
+SAPIENT now has HTTP input, decoder, and graph-projector component boundaries for raw/decoded JSON or protobuf payload
+streams. The hosted app can run the preflight chain behind `SEMOPS_SAPIENT_ENABLED=true` with an explicit URL,
+encoding, and replay settings. It composes the graph projector and registers `OwnerSAPIENT` only when
+`SEMOPS_SAPIENT_GRAPH_ENABLED=true`, and that path is limited to the reviewed absolute-location detection contract.
+The stack smoke enables SAPIENT against the local fixture provider and verifies the declared decoded output stream; it
+does not claim SAPIENT conformance, tasking, range/bearing, UTM, association, Apex middleware behavior, or a
+SemOps-hosted SAPIENT service.
 The first SAPIENT smoke exposed a hosted lifecycle bug: components were inheriting the startup/connect timeout
 context and stopping after startup. Runtime components are now owned by `App.Close`, so connection deadlines no longer
 silently cancel long-running input and processor components.
@@ -141,9 +142,9 @@ SemOps started materially stale; the first revival slices are correcting that:
 - The hosted `cmd/semops` ADS-B path can start the projector processor, decoder processor, and HTTP poller input in
   that order behind `SEMOPS_ADSB_ENABLED=true`. Runtime ownership appends `semops.feed.adsb` only for that opt-in flow,
   and Compose passes the OpenSky-compatible HTTP settings through while defaulting the feed off.
-- The hosted `cmd/semops` SAPIENT path can start the decoder processor and HTTP input component behind
-  `SEMOPS_SAPIENT_ENABLED=true`. It publishes raw and decoded preflight streams only, and does not register
-  `OwnerSAPIENT` or any graph-producing component.
+- The hosted `cmd/semops` SAPIENT path can start the HTTP input and decoder processor behind
+  `SEMOPS_SAPIENT_ENABLED=true`. It publishes raw and decoded preflight streams when graph mode is off, and only
+  registers `OwnerSAPIENT` plus the graph projector when `SEMOPS_SAPIENT_GRAPH_ENABLED=true`.
 - Old EntityStore, ObjectStore, StreamKit, and BaseProcessor product paths have been removed from the active build.
 - The active frontend tree is a clean-sheet Svelte 5 COP in `ui`; the old flow-runtime UI idea should be treated as
   historical context, not a surface to restore.
@@ -166,9 +167,10 @@ SemOps has salvageable MAVLink depth:
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
 - The next hosted-feed hardening step is to prove ADS-B's opt-in OpenSky-compatible runtime flow in the full Compose
-  smoke or prioritize local receiver/readsb/dump1090 input components. SAPIENT has a preflight-only app-runtime input
-  -> decoder component flow, but graph projection, `OwnerSAPIENT`, and product service hosting remain blocked behind
-  projection ownership, harness, and service-mode review. CAP now has an opt-in input ->
+  smoke or prioritize local receiver/readsb/dump1090 input components. SAPIENT has app-runtime input -> decoder
+  preflight flow and an explicit graph-projector opt-in for absolute-location detections, but product service hosting,
+  tasking, association, UTM conversion, range/bearing conversion, and conformance language remain blocked behind
+  service-mode and harness review. CAP now has an opt-in input ->
   decoder -> projector component flow, component-level stale health, and optional provider-shaped replay capture
   through `SEMOPS_CAP_REPLAY_PATH`, but real provider fixtures and lifecycle behavior remain open.
 
@@ -439,7 +441,7 @@ These belong inside the SemOps codebase even when a container hosts them.
 | `cmd/semops-scenario-runner` | Hosted one-shot scenario service | Runs HADR replay with active status polling |
 | `internal/adapters/adsb` | ADS-B adapter harness | OpenSky snapshot capture, replay, projection, health |
 | `internal/components/adsb` | ADS-B component package | OpenSky HTTP poller, decoder, projector ports |
-| `internal/components/sapient` | SAPIENT preflight components | HTTP raw input and decoder streams |
+| `internal/components/sapient` | SAPIENT component package | HTTP raw input, decoder streams, graph-gated projector |
 | `internal/stack` | Testable service composition factories | Wires SemStreams clients, writers, adapters |
 | `internal/projectors/*` | Boundary payload to graph projection mappers | One projection owner per feed or flow |
 | `internal/fusion` | Structural fusion and deterministic correlation | Geofence, dedupe, stable-ID match, warnings |
@@ -518,12 +520,11 @@ profile semantics.
 - Add deterministic ADS-B replay, a hosted adapter seam, and an OpenSky-compatible SemStreams component package now
   that OpenSky-shaped parsing plus graph projection/readback exist.
 - Move SAPIENT from artifact discovery to parser/harness planning now that GOV.UK, BSI Flex 335 v2, Dstl protobufs,
-  the Dstl v2 Test Harness, and Apex middleware are identified; keep the current SemStreams component work
-  preflight-only.
-- Keep hosted SAPIENT graph production and demo compliance language gated until SemOps has local parser fixtures, a
-  documented harness result or an explicit non-compliance demo decision, an accepted source-owner model, and runtime
-  graph-writer/backpressure review. The accepted first graph slice is absolute-location detection projection/readback
-  only.
+  the Dstl v2 Test Harness, and Apex middleware are identified; keep the current SemStreams component work split
+  between preflight decode and explicit graph-enabled projection.
+- Keep SAPIENT product-service hosting and demo compliance language gated until SemOps has a documented harness result
+  or an explicit non-compliance demo decision, service-mode review, and command-authority review. The accepted first
+  graph slice is absolute-location detection projection/readback/runtime graph only.
 - Add a statistical track association service for ambiguous air tracks.
 - Write association evidence back to the graph; add UI only if it helps operator decisions.
 

@@ -10,11 +10,15 @@ import (
 	"testing"
 	"time"
 
+	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/component"
 	"github.com/c360studio/semstreams/component/flowgraph"
+	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/payloadregistry"
+	"github.com/c360studio/semstreams/pkg/ownership"
 	"github.com/nats-io/nats.go"
 )
 
@@ -74,6 +78,7 @@ func TestSAPIENTComponentsExposeHTTPAndStreamPorts(t *testing.T) {
 	var _ component.LifecycleComponent = (*HTTPInputComponent)(nil)
 	var _ component.DebugStatusProvider = (*HTTPInputComponent)(nil)
 	var _ component.LifecycleComponent = (*DecoderComponent)(nil)
+	var _ component.LifecycleComponent = (*ProjectorComponent)(nil)
 
 	bus := &recordingBus{}
 	input, err := NewHTTPInputComponent(HTTPInputConfig{
@@ -89,12 +94,16 @@ func TestSAPIENTComponentsExposeHTTPAndStreamPorts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new decoder: %v", err)
 	}
+	projector, err := NewProjectorComponent(ProjectorConfig{Writer: &recordingPlanWriter{}}, bus)
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
 
 	if input.Meta().Type != "input" {
 		t.Fatalf("input component type = %q, want input", input.Meta().Type)
 	}
-	if decoder.Meta().Type != "processor" {
-		t.Fatalf("decoder component type = %q, want processor", decoder.Meta().Type)
+	if decoder.Meta().Type != "processor" || projector.Meta().Type != "processor" {
+		t.Fatalf("processor component types = %q/%q, want processor/processor", decoder.Meta().Type, projector.Meta().Type)
 	}
 	inputPorts := input.InputPorts()
 	if len(inputPorts) != 2 {
@@ -122,8 +131,10 @@ func TestSAPIENTComponentsExposeHTTPAndStreamPorts(t *testing.T) {
 	if got, want := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject, DefaultDecodedSubject; got != want {
 		t.Fatalf("decoder decoded subject = %q, want %q", got, want)
 	}
-	if len(decoder.OutputPorts()) != 1 || len(input.OutputPorts()) != 1 {
-		t.Fatalf("SAPIENT preflight components should not expose graph request ports")
+	for _, port := range projector.OutputPorts() {
+		if got, want := port.Config.Type(), "nats-request"; got != want {
+			t.Fatalf("projector output port %q type = %q, want %q", port.Name, got, want)
+		}
 	}
 
 	fg := flowgraph.NewFlowGraph()
@@ -132,6 +143,9 @@ func TestSAPIENTComponentsExposeHTTPAndStreamPorts(t *testing.T) {
 	}
 	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
 		t.Fatalf("add decoder: %v", err)
+	}
+	if err := fg.AddComponentNode(projector.Meta().Name, projector); err != nil {
+		t.Fatalf("add projector: %v", err)
 	}
 	if err := fg.ConnectComponentsByPatterns(); err != nil {
 		t.Fatalf("connect flowgraph: %v", err)
@@ -149,11 +163,163 @@ func TestSAPIENTComponentsExposeHTTPAndStreamPorts(t *testing.T) {
 		"raw_messages",
 		DefaultRawSubject,
 	)
+	requireEdge(
+		t,
+		fg.GetEdges(),
+		decoder.Meta().Name,
+		"decoded_messages",
+		projector.Meta().Name,
+		"decoded_messages",
+		DefaultDecodedSubject,
+	)
 	analysis := fg.AnalyzeConnectivity()
 	for _, orphan := range analysis.OrphanedPorts {
 		if orphan.ComponentName == input.Meta().Name && orphan.PortName == "sapient_feed" {
 			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
 		}
+	}
+}
+
+func TestProjectorConsumesAbsoluteLocationDetectionAndWritesGraphPlan(t *testing.T) {
+	now := time.Date(2026, 6, 23, 17, 30, 0, 0, time.UTC)
+	msg, err := sapientcodec.ParseJSONMessage([]byte(sampleAbsoluteDetectionJSON))
+	if err != nil {
+		t.Fatalf("parse SAPIENT detection: %v", err)
+	}
+	record := sapientcodec.RawMessageRecord{
+		Ref:        "sapient://raw/sapient-fixture/json/00000001",
+		Source:     "sapient-fixture",
+		ReceivedAt: now,
+		Encoding:   sapientcodec.EncodingJSON,
+		Content:    msg.Content,
+		NodeID:     msg.NodeID,
+		MessageAt:  msg.Timestamp,
+		RawPayload: []byte(sampleAbsoluteDetectionJSON),
+	}
+	bus := &recordingBus{}
+	registry := payloadregistry.New()
+	writer := &recordingPlanWriter{}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Registry: registry,
+		Projector: sapientprojector.NewProjector(sapientprojector.Config{
+			OwnerTokens: map[string]ownership.OwnerToken{
+				cop.OwnerSAPIENT: ownership.ExpectedOwnerToken(cop.OwnerSAPIENT, "component-test"),
+			},
+			TraceID: "component-test",
+		}),
+		Writer: writer,
+		Clock:  func() time.Time { return now },
+	}, bus)
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+	if err := projector.Initialize(); err != nil {
+		t.Fatalf("initialize projector: %v", err)
+	}
+
+	payload := NewDecodedMessagePayload(record, msg)
+	wire := mustBaseMessageJSON(t, DecodedMessageType, payload, "semops-processor-sapient-decode", now)
+	if err := projector.HandleDecodedMessage(context.Background(), wire); err != nil {
+		t.Fatalf("handle decoded detection: %v", err)
+	}
+
+	if len(writer.plans) != 1 {
+		t.Fatalf("plans = %d, want 1", len(writer.plans))
+	}
+	if len(writer.plans[0].Mutations) != 1 ||
+		writer.plans[0].Mutations[0].Kind != sapientprojector.MutationCreate {
+		t.Fatalf("plan = %+v, want SAPIENT track create", writer.plans[0])
+	}
+	create := writer.plans[0].Mutations[0].Create
+	if create.OwnerToken != "semops.feed.sapient#component-test" {
+		t.Fatalf("owner token = %q", create.OwnerToken)
+	}
+	if create.TraceID != "component-test" {
+		t.Fatalf("trace id = %q", create.TraceID)
+	}
+}
+
+func TestProjectorReconcilesExistingSAPIENTBirth(t *testing.T) {
+	now := time.Date(2026, 6, 23, 17, 45, 0, 0, time.UTC)
+	msg, err := sapientcodec.ParseJSONMessage([]byte(sampleAbsoluteDetectionJSON))
+	if err != nil {
+		t.Fatalf("parse SAPIENT detection: %v", err)
+	}
+	writer := &recordingPlanWriter{
+		failures: []error{
+			&sapientprojector.MutationFailureError{
+				Operation: "create_with_triples",
+				Kind:      sapientprojector.MutationCreate,
+				EntityID:  sapientprojector.EntityID("c360", "edge", "01GGYFBAXH4VYRQYEX7S3XGK3H"),
+				ErrorCode: graph.ErrorCodeEntityExists,
+				Message:   "already exists",
+			},
+		},
+	}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Projector: sapientprojector.NewProjector(sapientprojector.Config{
+			OwnerTokens: map[string]ownership.OwnerToken{
+				cop.OwnerSAPIENT: ownership.ExpectedOwnerToken(cop.OwnerSAPIENT, "component-test"),
+			},
+		}),
+		Writer: writer,
+		Clock:  func() time.Time { return now },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+
+	payload := NewDecodedMessagePayload(sapientcodec.RawMessageRecord{
+		Ref:        "sapient://raw/sapient-fixture/json/00000001",
+		Source:     "sapient-fixture",
+		ReceivedAt: now,
+		Encoding:   sapientcodec.EncodingJSON,
+		Content:    msg.Content,
+		NodeID:     msg.NodeID,
+		MessageAt:  msg.Timestamp,
+		RawPayload: []byte(sampleAbsoluteDetectionJSON),
+	}, msg)
+	if err := projector.HandleDecodedPayload(context.Background(), payload); err != nil {
+		t.Fatalf("handle decoded with birth reconciliation: %v", err)
+	}
+	if len(writer.plans) != 2 {
+		t.Fatalf("plans = %d, want create retry then update", len(writer.plans))
+	}
+	last := writer.plans[len(writer.plans)-1]
+	if len(last.Mutations) != 1 || last.Mutations[0].Kind != sapientprojector.MutationUpdate {
+		t.Fatalf("last plan = %+v, want update after reconciling existing birth", last)
+	}
+}
+
+func TestProjectorIgnoresDecodedTaskAckWithoutGraphWrites(t *testing.T) {
+	now := time.Date(2026, 6, 23, 18, 0, 0, 0, time.UTC)
+	msg, err := sapientcodec.ParseJSONMessage([]byte(sampleTaskAckJSON))
+	if err != nil {
+		t.Fatalf("parse task ack: %v", err)
+	}
+	writer := &recordingPlanWriter{}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Writer: writer,
+		Clock:  func() time.Time { return now },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+	payload := NewDecodedMessagePayload(sapientcodec.RawMessageRecord{
+		Ref:        "sapient://raw/sapient-fixture/json/00000001",
+		Source:     "sapient-fixture",
+		ReceivedAt: now,
+		Encoding:   sapientcodec.EncodingJSON,
+		Content:    msg.Content,
+		NodeID:     msg.NodeID,
+		MessageAt:  msg.Timestamp,
+		RawPayload: []byte(sampleTaskAckJSON),
+	}, msg)
+	if err := projector.HandleDecodedPayload(context.Background(), payload); err != nil {
+		t.Fatalf("handle decoded task ack: %v", err)
+	}
+	if len(writer.plans) != 0 {
+		t.Fatalf("plans = %d, want none for non-detection preflight message", len(writer.plans))
 	}
 }
 
@@ -470,6 +636,21 @@ func (r *recordingReplay) Append(record sapientcodec.RawMessageRecord) error {
 	return nil
 }
 
+type recordingPlanWriter struct {
+	plans    []sapientprojector.Plan
+	failures []error
+}
+
+func (w *recordingPlanWriter) Apply(_ context.Context, plan sapientprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	if len(w.failures) == 0 {
+		return nil
+	}
+	err := w.failures[0]
+	w.failures = w.failures[1:]
+	return err
+}
+
 func mustBaseMessageJSON(
 	t *testing.T,
 	msgType message.Type,
@@ -515,5 +696,25 @@ const sampleTaskAckJSON = `{
     "taskId": "01H4R63D7NVN8444Z5M77WEBY8",
     "taskStatus": "TASK_STATUS_ACCEPTED",
     "reason": ["accepted for preflight"]
+  }
+}`
+
+const sampleAbsoluteDetectionJSON = `{
+  "timestamp": "2023-07-07T12:44:17.027638700Z",
+  "nodeId": "a8654cdf-4328-47de-81fa-c495589e30c8",
+  "destinationId": "a8654cdf-4328-47de-81fa-c495589e30c9",
+  "detectionReport": {
+    "reportId": "01GGYFBAXGDG7AGAHRZ6XSNY12",
+    "objectId": "01GGYFBAXH4VYRQYEX7S3XGK3H",
+    "taskId": "01GGYFBAXHNV9DN0N74DFX2952",
+    "state": "TestState",
+    "location": {
+      "x": -1.82237671048,
+      "y": 51.1739726374,
+      "z": 788,
+      "coordinateSystem": "LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M",
+      "datum": "LOCATION_DATUM_WGS84_E"
+    },
+    "detectionConfidence": 0.91
   }
 }`

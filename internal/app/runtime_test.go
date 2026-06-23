@@ -22,11 +22,13 @@ import (
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	weathercomponent "github.com/c360studio/semops/internal/components/weather"
 	"github.com/c360studio/semops/internal/copownership"
+	"github.com/c360studio/semops/internal/graphrequest"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
+	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
 	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
 	"github.com/c360studio/semops/internal/stack"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
@@ -702,6 +704,98 @@ func TestStartComposesSAPIENTPreflightFlowWithoutOwnershipExpansion(t *testing.T
 	}
 	if client.hasSubscription(sapientcomponent.DefaultDecodedSubject) {
 		t.Fatalf("SAPIENT preflight runtime should not subscribe decoded graph subject: %+v", client.subscriptionSubjects())
+	}
+
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatalf("close app: %v", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("close must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("close must close SemStreams client")
+	}
+}
+
+func TestStartRegistersOwnershipBeforeComposingSAPIENTGraphFlow(t *testing.T) {
+	ctx := context.Background()
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.SAPIENT.Enabled = true
+	cfg.SAPIENT.GraphEnabled = true
+	cfg.SAPIENT.Platform = "edge-alpha"
+	cfg.SAPIENT.Source = "sapient:http:test"
+	cfg.SAPIENT.TraceID = "sapient-runtime-test"
+	cfg.SAPIENT.WriteTimeout = 750 * time.Millisecond
+	cfg.SAPIENT.HTTP.URL = "https://example.test/sapient"
+	cfg.SAPIENT.HTTP.PollInterval = time.Hour
+	cfg.SAPIENT.HTTP.StaleAfter = 3 * time.Hour
+
+	var stoppedOwners bool
+	var gotWriterTimeout time.Duration
+	var gotWriterRetry natsclient.RetryConfig
+
+	app, err := start(ctx, cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			_ context.Context,
+			gotClient semstreamsClient,
+			heartbeat time.Duration,
+			owned []cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			if gotClient != client {
+				t.Fatal("ownership registration got unexpected client")
+			}
+			if !client.connected {
+				t.Fatal("ownership registration must run after NATS connect")
+			}
+			if heartbeat != cfg.OwnershipHeartbeatInterval {
+				t.Fatalf("heartbeat interval = %s, want %s", heartbeat, cfg.OwnershipHeartbeatInterval)
+			}
+			if !hasOwnedContract(owned, cop.OwnerSAPIENT, cop.SAPIENTTrackContract().Name) {
+				t.Fatalf("runtime owned contracts did not include SAPIENT graph contract when enabled: %+v", owned)
+			}
+			return copownership.BindingResult{
+					Incarnation: "lease-123",
+					Owners:      []string{cop.OwnerSAPIENT},
+					Tokens: map[string]ownership.OwnerToken{
+						cop.OwnerSAPIENT: ownership.ExpectedOwnerToken(cop.OwnerSAPIENT, "lease-123"),
+					},
+				}, func() {
+					stoppedOwners = true
+				}, nil
+		},
+		newSAPIENTPlanWriter: func(
+			timeout time.Duration,
+			retry natsclient.RetryConfig,
+			requester graphrequest.RetryRequester,
+		) (sapientcomponent.PlanWriter, error) {
+			gotWriterTimeout = timeout
+			gotWriterRetry = retry
+			if requester != client {
+				t.Fatal("SAPIENT writer must reuse the connected SemStreams client")
+			}
+			return &recordingSAPIENTAppPlanWriter{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if app.SAPIENTHTTPInput() == nil || app.SAPIENTDecoder() == nil || app.SAPIENTProjector() == nil {
+		t.Fatal("expected hosted SAPIENT HTTP input, decoder, and projector components")
+	}
+	if gotWriterTimeout != 750*time.Millisecond {
+		t.Fatalf("writer timeout = %s, want 750ms", gotWriterTimeout)
+	}
+	if gotWriterRetry != cfg.SAPIENT.Retry {
+		t.Fatalf("writer retry = %+v, want %+v", gotWriterRetry, cfg.SAPIENT.Retry)
+	}
+	if !client.hasSubscription(sapientcomponent.DefaultRawSubject) ||
+		!client.hasSubscription(sapientcomponent.DefaultDecodedSubject) {
+		t.Fatalf("SAPIENT graph flow subscriptions = %+v", client.subscriptionSubjects())
 	}
 
 	if err := app.Close(context.Background()); err != nil {
@@ -1604,6 +1698,57 @@ func TestRuntimeOwnedContractsIncludeWeatherOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestRuntimeOwnedContractsIncludeSAPIENTOnlyWhenGraphEnabled(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.SAPIENT.Enabled = false
+	cfg.SAPIENT.GraphEnabled = false
+	if hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerSAPIENT, cop.SAPIENTTrackContract().Name) {
+		t.Fatal("runtime ownership should not include SAPIENT when disabled")
+	}
+
+	cfg.SAPIENT.Enabled = true
+	if hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerSAPIENT, cop.SAPIENTTrackContract().Name) {
+		t.Fatal("runtime ownership should not include SAPIENT for preflight-only runtime")
+	}
+
+	cfg.SAPIENT.GraphEnabled = true
+	if !hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerSAPIENT, cop.SAPIENTTrackContract().Name) {
+		t.Fatal("runtime ownership should include SAPIENT when graph projection is enabled")
+	}
+}
+
+func TestNewSAPIENTPlanWriterUsesConfiguredRetry(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	retry := natsclient.RetryConfig{
+		MaxRetries:        7,
+		InitialBackoff:    3 * time.Millisecond,
+		MaxBackoff:        30 * time.Millisecond,
+		BackoffMultiplier: 2,
+	}
+	writer, err := newSAPIENTPlanWriter(45*time.Millisecond, retry, client)
+	if err != nil {
+		t.Fatalf("new SAPIENT plan writer: %v", err)
+	}
+	err = writer.Apply(context.Background(), sapientprojector.Plan{Mutations: []sapientprojector.Mutation{{
+		Kind: sapientprojector.MutationCreate,
+		Create: graph.CreateEntityWithTriplesRequest{
+			Entity: &graph.EntityState{ID: "sapient-track-1"},
+		},
+	}}})
+	if err != nil {
+		t.Fatalf("apply SAPIENT plan: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want 1", len(client.requests))
+	}
+	if client.requests[0].timeout != 45*time.Millisecond {
+		t.Fatalf("timeout = %s, want 45ms", client.requests[0].timeout)
+	}
+	if client.requests[0].retry != retry {
+		t.Fatalf("retry = %+v, want %+v", client.requests[0].retry, retry)
+	}
+}
+
 func TestComponentMetricSourcesExposeStartedRuntimeComponents(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1690,10 +1835,12 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvADSBHTTPAuthRef:              "adsb-secret",
 		EnvADSBHTTPMaxResponseBytes:     "234567",
 		EnvSAPIENTEnabled:               "true",
+		EnvSAPIENTGraphEnabled:          "true",
 		EnvSAPIENTSource:                "sapient:http",
 		EnvSAPIENTReplayPath:            "/tmp/semops-sapient.jsonl",
 		EnvSAPIENTRawMaxRecords:         "33",
 		EnvSAPIENTRawMaxBytes:           "75536",
+		EnvSAPIENTWriteTimeout:          "985ms",
 		EnvSAPIENTHTTPURL:               "https://example.test/sapient",
 		EnvSAPIENTHTTPMethod:            "POST",
 		EnvSAPIENTHTTPPollInterval:      "50s",
@@ -1845,12 +1992,21 @@ func TestConfigFromEnv(t *testing.T) {
 	if !cfg.SAPIENT.Enabled {
 		t.Fatal("SAPIENT enabled = false, want true")
 	}
+	if !cfg.SAPIENT.GraphEnabled {
+		t.Fatal("SAPIENT graph enabled = false, want true")
+	}
 	if cfg.SAPIENT.Source != "sapient:http" ||
+		cfg.SAPIENT.Org != "lab" ||
+		cfg.SAPIENT.Platform != "edge-7" ||
+		cfg.SAPIENT.TraceID != "trace-7" ||
 		cfg.SAPIENT.ReplayPath != "/tmp/semops-sapient.jsonl" {
 		t.Fatalf("SAPIENT config = %+v", cfg.SAPIENT)
 	}
 	if cfg.SAPIENT.RawMaxRecords != 33 || cfg.SAPIENT.RawMaxBytes != 75536 {
 		t.Fatalf("SAPIENT raw lane config = records %d bytes %d", cfg.SAPIENT.RawMaxRecords, cfg.SAPIENT.RawMaxBytes)
+	}
+	if cfg.SAPIENT.WriteTimeout != 985*time.Millisecond {
+		t.Fatalf("SAPIENT write timeout = %s", cfg.SAPIENT.WriteTimeout)
 	}
 	if cfg.SAPIENT.HTTP.URL != "https://example.test/sapient" ||
 		cfg.SAPIENT.HTTP.Method != "POST" ||
@@ -2085,6 +2241,16 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			want: EnvSAPIENTEnabled,
 		},
 		{
+			name: "bad sapient graph enabled",
+			env:  map[string]string{EnvSAPIENTGraphEnabled: "sometimes"},
+			want: EnvSAPIENTGraphEnabled,
+		},
+		{
+			name: "bad sapient write timeout",
+			env:  map[string]string{EnvSAPIENTWriteTimeout: "forever"},
+			want: EnvSAPIENTWriteTimeout,
+		},
+		{
 			name: "bad sapient poll interval",
 			env:  map[string]string{EnvSAPIENTHTTPPollInterval: "soon"},
 			want: EnvSAPIENTHTTPPollInterval,
@@ -2218,6 +2384,23 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvSAPIENTHTTPStaleAfter: "0s",
 			},
 			want: EnvSAPIENTHTTPStaleAfter,
+		},
+		{
+			name: "sapient graph enabled without sapient enabled",
+			env: map[string]string{
+				EnvSAPIENTGraphEnabled: "true",
+			},
+			want: EnvSAPIENTGraphEnabled,
+		},
+		{
+			name: "zero sapient graph write timeout",
+			env: map[string]string{
+				EnvSAPIENTEnabled:      "true",
+				EnvSAPIENTGraphEnabled: "true",
+				EnvSAPIENTHTTPURL:      "https://example.test/sapient",
+				EnvSAPIENTWriteTimeout: "0s",
+			},
+			want: EnvSAPIENTWriteTimeout,
 		},
 		{
 			name: "sapient enabled without url",
@@ -2544,6 +2727,15 @@ type recordingADSBAppPlanWriter struct {
 }
 
 func (w *recordingADSBAppPlanWriter) Apply(_ context.Context, plan adsbprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	return nil
+}
+
+type recordingSAPIENTAppPlanWriter struct {
+	plans []sapientprojector.Plan
+}
+
+func (w *recordingSAPIENTAppPlanWriter) Apply(_ context.Context, plan sapientprojector.Plan) error {
 	w.plans = append(w.plans, plan)
 	return nil
 }

@@ -11,8 +11,11 @@ import (
 	"sync"
 	"time"
 
+	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/component"
+	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/payloadregistry"
@@ -615,7 +618,274 @@ func (c *DecoderComponent) appendReplay(record sapientcodec.RawMessageRecord) er
 	return nil
 }
 
+type ProjectorConfig struct {
+	Name           string
+	DecodedSubject string
+	Registry       *payloadregistry.Registry
+	Projector      *sapientprojector.Projector
+	Writer         PlanWriter
+	WriteRetries   int
+	WriteTimeout   time.Duration
+	Clock          func() time.Time
+}
+
+type PlanWriter interface {
+	Apply(ctx context.Context, plan sapientprojector.Plan) error
+}
+
+type ProjectorComponent struct {
+	cfg     ProjectorConfig
+	bus     Bus
+	decoder *message.Decoder
+
+	mu           sync.Mutex
+	state        component.State
+	subscription Subscription
+	metrics      flowCounters
+}
+
+func NewProjectorComponent(cfg ProjectorConfig, bus Bus) (*ProjectorComponent, error) {
+	if cfg.Name == "" {
+		cfg.Name = "semops-processor-sapient-project"
+	}
+	if cfg.DecodedSubject == "" {
+		cfg.DecodedSubject = DefaultDecodedSubject
+	}
+	if cfg.Registry == nil {
+		cfg.Registry = payloadregistry.New()
+	}
+	if cfg.Projector == nil {
+		cfg.Projector = sapientprojector.NewProjector(sapientprojector.Config{})
+	}
+	if cfg.Writer == nil {
+		return nil, fmt.Errorf("sapient projector component requires a plan writer")
+	}
+	if cfg.WriteRetries == 0 {
+		cfg.WriteRetries = 4
+	}
+	if cfg.Clock == nil {
+		cfg.Clock = time.Now
+	}
+	if bus == nil {
+		return nil, fmt.Errorf("sapient projector component requires a bus")
+	}
+	return &ProjectorComponent{cfg: cfg, bus: bus, state: component.StateCreated}, nil
+}
+
+func (c *ProjectorComponent) Initialize() error {
+	if err := RegisterPayloads(c.cfg.Registry); err != nil {
+		return err
+	}
+	c.decoder = message.NewDecoder(c.cfg.Registry)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state == component.StateCreated {
+		c.state = component.StateInitialized
+	}
+	return nil
+}
+
+func (c *ProjectorComponent) Start(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if c.decoder == nil {
+		if err := c.Initialize(); err != nil {
+			return err
+		}
+	}
+	c.mu.Lock()
+	if c.state == component.StateStarted {
+		c.mu.Unlock()
+		return nil
+	}
+	c.mu.Unlock()
+
+	sub, err := c.bus.Subscribe(ctx, c.cfg.DecodedSubject, func(msgCtx context.Context, msg *nats.Msg) {
+		if err := c.HandleDecodedMessage(msgCtx, msg.Data); err != nil {
+			c.recordError(err)
+		}
+	})
+	if err != nil {
+		c.markFailed(err)
+		return fmt.Errorf("subscribe SAPIENT projector decoded subject: %w", err)
+	}
+	c.mu.Lock()
+	c.subscription = sub
+	c.state = component.StateStarted
+	c.metrics.startedAt = c.cfg.Clock().UTC()
+	c.mu.Unlock()
+	return nil
+}
+
+func (c *ProjectorComponent) Stop(time.Duration) error {
+	c.mu.Lock()
+	sub := c.subscription
+	c.subscription = nil
+	if c.state == component.StateStarted {
+		c.state = component.StateStopped
+	}
+	c.mu.Unlock()
+	if sub != nil {
+		return sub.Unsubscribe()
+	}
+	return nil
+}
+
+func (c *ProjectorComponent) HandleDecodedMessage(ctx context.Context, data []byte) error {
+	if c.decoder == nil {
+		if err := c.Initialize(); err != nil {
+			return err
+		}
+	}
+	envelope, err := c.decoder.Decode(data)
+	if err != nil {
+		return fmt.Errorf("decode SAPIENT decoded BaseMessage: %w", err)
+	}
+	payload, ok := envelope.Payload().(*DecodedMessagePayload)
+	if !ok {
+		return fmt.Errorf("SAPIENT projector received payload %T, want *DecodedMessagePayload", envelope.Payload())
+	}
+	return c.HandleDecodedPayload(ctx, payload)
+}
+
+func (c *ProjectorComponent) HandleDecodedPayload(ctx context.Context, payload *DecodedMessagePayload) error {
+	msg, err := payload.MessageCopy()
+	if err != nil {
+		return err
+	}
+	plan, err := c.cfg.Projector.ProjectMessage(msg, payload.RawRef)
+	if err != nil {
+		return fmt.Errorf("project SAPIENT message: %w", err)
+	}
+	if len(plan.Mutations) == 0 {
+		c.recordMessage(len(payload.RawRef), c.cfg.Clock().UTC())
+		return nil
+	}
+	if err := c.writePlan(ctx, msg, payload.RawRef, plan); err != nil {
+		return err
+	}
+	c.recordMessage(len(payload.RawRef), c.cfg.Clock().UTC())
+	return nil
+}
+
+func (c *ProjectorComponent) writePlan(
+	ctx context.Context,
+	msg sapientcodec.Message,
+	sourceRef string,
+	plan sapientprojector.Plan,
+) error {
+	attempts := c.cfg.WriteRetries
+	if attempts <= 0 {
+		attempts = 1
+	}
+	for attempt := 0; attempt < attempts; attempt++ {
+		if err := c.cfg.Writer.Apply(ctx, plan); err != nil {
+			entityID, ok := entityAlreadyExists(err)
+			if !ok || !c.cfg.Projector.MarkBornForMessage(msg, entityID) {
+				return fmt.Errorf("write SAPIENT graph plan: %w", err)
+			}
+			next, projectErr := c.cfg.Projector.ProjectMessage(msg, sourceRef)
+			if projectErr != nil {
+				return fmt.Errorf("reproject SAPIENT message after birth reconciliation: %w", projectErr)
+			}
+			plan = next
+			if len(plan.Mutations) == 0 {
+				return nil
+			}
+			continue
+		}
+		c.cfg.Projector.MarkBornForPlan(plan)
+		return nil
+	}
+	return fmt.Errorf("SAPIENT graph birth reconciliation exceeded retry limit")
+}
+
+func (c *ProjectorComponent) Meta() component.Metadata {
+	return component.Metadata{
+		Name:        c.cfg.Name,
+		Type:        "processor",
+		Description: "SAPIENT governed graph projection processor",
+		Version:     "v0.1.0",
+	}
+}
+
+func (c *ProjectorComponent) InputPorts() []component.Port {
+	return []component.Port{
+		streamPort("decoded_messages", component.DirectionInput, c.cfg.DecodedSubject, DecodedMessageType),
+	}
+}
+
+func (c *ProjectorComponent) OutputPorts() []component.Port {
+	timeout := c.outputTimeout()
+	return []component.Port{
+		{
+			Name:        "graph_create",
+			Direction:   component.DirectionOutput,
+			Required:    true,
+			Description: "SemStreams born-first graph mutation request",
+			Config: component.NATSRequestPort{
+				Subject: sapientprojector.SubjectEntityCreateWithTriples,
+				Timeout: timeout.String(),
+				Retries: c.cfg.WriteRetries,
+				Interface: &component.InterfaceContract{
+					Type:    "graph.CreateEntityWithTriplesRequest",
+					Version: "v1",
+				},
+			},
+		},
+		{
+			Name:        "graph_update",
+			Direction:   component.DirectionOutput,
+			Required:    true,
+			Description: "SemStreams current-state graph mutation request",
+			Config: component.NATSRequestPort{
+				Subject: sapientprojector.SubjectEntityUpdateWithTriples,
+				Timeout: timeout.String(),
+				Retries: c.cfg.WriteRetries,
+				Interface: &component.InterfaceContract{
+					Type:    "graph.UpdateEntityWithTriplesRequest",
+					Version: "v1",
+				},
+			},
+		},
+	}
+}
+
+func (c *ProjectorComponent) ConfigSchema() component.ConfigSchema {
+	return component.ConfigSchema{
+		Properties: map[string]component.PropertySchema{
+			"decoded_subject": stringProperty("SemStreams subject carrying decoded SAPIENT messages", c.cfg.DecodedSubject),
+			"owner":           stringProperty("SemStreams projection owner bound through registry/heartbeat", cop.OwnerSAPIENT),
+			"write_timeout":   stringProperty("Graph mutation request timeout", c.outputTimeout().String()),
+		},
+		Required: []string{"decoded_subject", "owner"},
+	}
+}
+
+func (c *ProjectorComponent) Health() component.HealthStatus {
+	return c.metrics.health(c.state)
+}
+
+func (c *ProjectorComponent) DataFlow() component.FlowMetrics {
+	return c.metrics.flow()
+}
+
+func (c *ProjectorComponent) outputTimeout() time.Duration {
+	if c.cfg.WriteTimeout > 0 {
+		return c.cfg.WriteTimeout
+	}
+	return sapientprojector.DefaultWriteTimeout
+}
+
 func (c *DecoderComponent) markFailed(err error) {
+	c.mu.Lock()
+	c.state = component.StateFailed
+	c.mu.Unlock()
+	c.recordError(err)
+}
+
+func (c *ProjectorComponent) markFailed(err error) {
 	c.mu.Lock()
 	c.state = component.StateFailed
 	c.mu.Unlock()
@@ -718,6 +988,14 @@ func (c *DecoderComponent) recordMessage(size int, now time.Time) {
 }
 
 func (c *DecoderComponent) recordError(err error) {
+	c.metrics.recordError(err)
+}
+
+func (c *ProjectorComponent) recordMessage(size int, now time.Time) {
+	c.metrics.recordMessage(size, now)
+}
+
+func (c *ProjectorComponent) recordError(err error) {
 	c.metrics.recordError(err)
 }
 
@@ -838,4 +1116,17 @@ func uptimeSinceAt(startedAt time.Time, now time.Time) time.Duration {
 		return 0
 	}
 	return now.Sub(startedAt)
+}
+
+func entityAlreadyExists(err error) (string, bool) {
+	var mutationErr *sapientprojector.MutationFailureError
+	if !errors.As(err, &mutationErr) {
+		return "", false
+	}
+	if mutationErr.Kind != sapientprojector.MutationCreate ||
+		mutationErr.ErrorCode != graph.ErrorCodeEntityExists ||
+		mutationErr.EntityID == "" {
+		return "", false
+	}
+	return mutationErr.EntityID, true
 }

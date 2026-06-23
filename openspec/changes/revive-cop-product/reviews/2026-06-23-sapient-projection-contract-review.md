@@ -54,8 +54,8 @@ SemOps-hosted SAPIENT service.
 
 ## Follow-Ups
 
-- Keep runtime graph-producing SAPIENT components blocked until graph writer, backpressure, replay, and owner-token
-  registration behavior are reviewed.
+- Promote runtime graph-producing SAPIENT components only through a separate runtime review; the accepted follow-on is
+  recorded in `2026-06-23-sapient-runtime-graph-promotion-review.md`.
 - Run or qualify the Dstl BSI Flex 335 v2 Test Harness before any compliance language.
 - Decide whether generated Go bindings are needed after descriptor-based binary preflight proves insufficient.
 - Design SAPIENT tasking, alert acknowledgements, and detection lifecycle as separate `control` contracts before

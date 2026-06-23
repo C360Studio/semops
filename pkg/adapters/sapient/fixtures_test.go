@@ -14,3 +14,18 @@ func TestTaskAckFixtureJSONParses(t *testing.T) {
 		t.Fatalf("fixture node id = %q", msg.NodeID)
 	}
 }
+
+func TestDetectionFixtureJSONParses(t *testing.T) {
+	msg, err := ParseJSONMessage(DetectionFixtureJSON())
+	if err != nil {
+		t.Fatalf("parse detection fixture: %v", err)
+	}
+	if msg.Content != ContentDetectionReport || msg.DetectionReport == nil {
+		t.Fatalf("fixture content = %s detection=%v, want detectionReport", msg.Content, msg.DetectionReport)
+	}
+	if msg.DetectionReport.Location == nil ||
+		msg.DetectionReport.Location.CoordinateSystem != "LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M" ||
+		msg.DetectionReport.Location.Datum != "LOCATION_DATUM_WGS84_E" {
+		t.Fatalf("detection location = %+v", msg.DetectionReport.Location)
+	}
+}

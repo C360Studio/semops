@@ -134,8 +134,7 @@ ADS-B:
 SAPIENT:
 
 - Demo/MVP boundary: BSI Flex 335 v2 JSON/protobuf preflight fixtures, bounded raw replay for exact payload evidence,
-  preflight input/decoder components, and a narrow absolute-location detection projection/readback gate before runtime
-  graph production.
+  preflight input/decoder components, and a narrow absolute-location detection projection/readback/runtime graph gate.
 - Full product path: SAPIENT-facing service with versioned protobuf, sensor identity, detection lifecycle, tasking,
   fusion, deployment profiles, Apex/middleware interop, and eventual SemOps-owned SAPIENT service capability if
   product demand requires it.
@@ -143,9 +142,9 @@ SAPIENT:
   documented Dstl BSI Flex 335 v2 Test Harness run or explicit decision that the current phase is non-compliance demo
   evidence only.
 - Guardrail: no guessed schema support and no SAPIENT compliance language without harness scope and result. Treat a
-  future portable Linux/CI preflight suite as developer evidence until an accepted authority recognizes it. Keep
-  runtime graph writes, graph-producing hosted components, tasking, association, UTM conversion, and range/bearing
-  projection behind separate gates.
+  future portable Linux/CI preflight suite as developer evidence until an accepted authority recognizes it. Keep the
+  graph-producing runtime behind `SEMOPS_SAPIENT_GRAPH_ENABLED=true`, and keep tasking, association, UTM conversion,
+  range/bearing projection, and service semantics behind separate gates.
 
 KLV/STANAG 4609:
 
@@ -336,15 +335,16 @@ aircraft association, or complete surveillance/radar processing.
 
 Demo/MVP lane:
 Official artifacts now exist: GOV.UK points to BSI Flex 335, Dstl protobufs, a BSI Flex 335 v2 Test Harness, and Apex
-middleware. The first SemOps lane is parser-only: JSON preflight and descriptor-based binary protobuf preflight now
+middleware. The first SemOps lane is parser-first: JSON preflight and descriptor-based binary protobuf preflight now
 validate representative Dstl-harness-shaped messages before graph writes. Bounded raw capture and JSON Lines replay now
 preserve exact JSON/protobuf payload bytes for repeatable preflight and future harness comparison. The first
-SemStreams component lane is preflight-only: HTTP raw input plus decoder processor produce raw/decoded streams without
-graph ports, owner claims, or product support wording. The hosted app can run that preflight chain behind
-`SEMOPS_SAPIENT_ENABLED=true` with an explicit URL, encoding, stale-source settings, raw-lane caps, and optional
-replay capture. The first governed projection lane is narrower still: absolute-location detection reports in
-`LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M` with WGS84 datum can plan source-owned `signal` track mutations and can be
-read back through the COP API when graph state exists. This is not hosted runtime graph production.
+SemStreams component lane has two gates: HTTP raw input plus decoder processor produce raw/decoded streams without
+owner claims when only `SEMOPS_SAPIENT_ENABLED=true`, while the decoded-message graph projector is composed only when
+`SEMOPS_SAPIENT_GRAPH_ENABLED=true`. The hosted app can run preflight with an explicit URL, encoding, stale-source
+settings, raw-lane caps, and optional replay capture; graph mode additionally requires a detection-producing source.
+The first governed projection lane is narrower still: absolute-location detection reports in
+`LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M` with WGS84 datum can write and read back source-owned `signal` track state.
+This is not SAPIENT product support or a SemOps-hosted SAPIENT service.
 
 Full product lane:
 SemOps-hosted SAPIENT-facing service if needed, with sensor/detection/tasking integration, versioned protobuf
@@ -359,13 +359,14 @@ provenance, freshness, replay, and command authority. First graph projection sho
 reports only unless source sensor pose, reference frame, and uncertainty make range/bearing conversion honest.
 Associated detections and cross-source links belong to fusion or evidence contracts rather than the SAPIENT source
 owner. UTM and other coordinate systems require a deliberate conversion/datum policy before projection.
-`internal/components/sapient` and the opt-in app-runtime path are preflight flow boundaries, not a SemOps-hosted
-SAPIENT product service.
+`internal/components/sapient` and the opt-in app-runtime path are flow boundaries, not a SemOps-hosted SAPIENT product
+service. The graph projector may write only the reviewed absolute-location detection contract and must stay separate
+from future service/session/tasking behavior.
 
 Not claimed yet:
 SAPIENT conformance, product support, local test-harness success, portable-suite authority, full-message coverage,
-runtime graph-producing components, hosted SAPIENT service support, tasking, association, range/bearing conversion, or
-inferred schema compatibility.
+hosted SAPIENT service support, tasking, association, UTM conversion, range/bearing conversion, or inferred schema
+compatibility.
 
 ### KLV/STANAG 4609
 

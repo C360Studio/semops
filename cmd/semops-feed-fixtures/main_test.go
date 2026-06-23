@@ -59,6 +59,28 @@ func TestFixtureHandlerServesADSBAndSAPIENTFixtures(t *testing.T) {
 	if msg.Content != sapientcodec.ContentTaskAck {
 		t.Fatalf("sapient fixture content = %s", msg.Content)
 	}
+
+	detectionResp, err := http.Get(server.URL + "/sapient/detections")
+	if err != nil {
+		t.Fatalf("get sapient detection fixture: %v", err)
+	}
+	defer detectionResp.Body.Close()
+	if detectionResp.StatusCode != http.StatusOK {
+		t.Fatalf("sapient detection fixture status = %d", detectionResp.StatusCode)
+	}
+	var detectionRaw json.RawMessage
+	if err := json.NewDecoder(detectionResp.Body).Decode(&detectionRaw); err != nil {
+		t.Fatalf("decode sapient detection fixture: %v", err)
+	}
+	detection, err := sapientcodec.ParseJSONMessage(detectionRaw)
+	if err != nil {
+		t.Fatalf("parse sapient detection fixture: %v", err)
+	}
+	if detection.Content != sapientcodec.ContentDetectionReport ||
+		detection.DetectionReport == nil ||
+		detection.DetectionReport.Location == nil {
+		t.Fatalf("sapient detection fixture = %+v", detection)
+	}
 }
 
 func TestFixtureAddrUsesDefaultAndEnv(t *testing.T) {

@@ -642,9 +642,9 @@ First acceptance gate:
 ### SAPIENT
 
 Status: JSON and binary descriptor preflight, raw replay, preflight input/decoder components, opt-in app-runtime
-preflight wiring, local decoded-stream smoke, and a narrow absolute-location detection projection/readback gate exist;
-harness qualification and runtime graph-production review are still required before product support or conformance
-claims.
+preflight wiring, local decoded-stream smoke, a narrow absolute-location detection projection/readback gate, and an
+explicitly graph-gated SAPIENT projector component exist. Harness qualification, service-mode review, and broader
+message semantics are still required before product support or conformance claims.
 
 Compliance and sample evidence:
 
@@ -670,22 +670,27 @@ Local assets:
 - `pkg/adapters/sapient` now has a bounded raw lane and JSON Lines replay store for JSON and protobuf payloads; replay
   decodes through the same preflight boundary rather than treating captured bytes as normalized graph state.
 - `go test ./pkg/adapters/sapient` rejects malformed JSON and binary required-field cases before graph writes.
-- `internal/components/sapient` now provides a preflight-only SemStreams HTTP input and decoder processor with
-  `HTTPClientPort`, `TimerPort`, registered raw/decoded payloads, stream ports, replay capture, stale-source health,
-  and no graph request ports.
+- `internal/components/sapient` now provides SemStreams SAPIENT HTTP input, decoder processor, and graph-projector
+  processor components. The input/decoder path has `HTTPClientPort`, `TimerPort`, registered raw/decoded payloads,
+  stream ports, replay capture, and stale-source health. The projector path has SemStreams graph request ports and is
+  limited to the reviewed absolute-location detection contract.
 - `cmd/semops` can run that HTTP input -> decoder preflight chain behind `SEMOPS_SAPIENT_ENABLED=true` with explicit
   URL, encoding, stale-source settings, raw-lane caps, and optional replay capture.
+- `cmd/semops` can additionally compose decoded SAPIENT messages into the graph projector only when
+  `SEMOPS_SAPIENT_GRAPH_ENABLED=true`. Runtime ownership registration for `OwnerSAPIENT` occurs only under that second
+  gate, and the default fixture URL remains the task-ack decoded-stream smoke rather than a track-producing detection
+  feed.
 - `cmd/semops-feed-fixtures` serves deterministic SAPIENT task-ack JSON for local Compose smoke tests, and
-  `scripts/cop-stack-smoke.sh` verifies the hosted preflight chain publishes a typed decoded payload on the declared
-  SAPIENT output stream.
+  deterministic absolute-location detection JSON for graph-projection development. `scripts/cop-stack-smoke.sh`
+  verifies the hosted preflight chain publishes a typed decoded payload on the declared SAPIENT output stream.
 - `pkg/cop` now defines `OwnerSAPIENT` and a source-partitioned `signal` track contract for absolute-location
   detection reports only.
 - `internal/projectors/sapient` plans create/update graph mutations for
   `LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M` WGS84 detection reports and rejects range/bearing, UTM, unsupported
   datum, or invalid latitude/longitude inputs.
 - `internal/api/cop` can read prefix-discovered SAPIENT tracks back into COP snapshots and source-health state.
-- No local SAPIENT harness run, generated Go bindings, product service adapter, graph writer, or graph-producing
-  SAPIENT component exists.
+- No local SAPIENT harness run, generated Go bindings, product service adapter, tasking surface, association model,
+  range/bearing conversion, or UTM conversion exists.
 
 Mock or harness:
 
@@ -716,8 +721,12 @@ First acceptance gate:
   without writing graph state or claiming hosted SAPIENT support.
 - Given an HTTP source of SAPIENT JSON or protobuf bytes, SemOps can run a SemStreams input -> decoder processor chain
   against local fixtures, producing raw and decoded preflight streams without graph writes or owner claims.
-- Given `SEMOPS_SAPIENT_ENABLED=true`, the hosted app composes only the SAPIENT preflight HTTP input and decoder,
-  captures optional replay, and avoids SAPIENT owner registration or decoded graph projector subscriptions.
+- Given `SEMOPS_SAPIENT_ENABLED=true` and `SEMOPS_SAPIENT_GRAPH_ENABLED=false`, the hosted app composes only the
+  SAPIENT preflight HTTP input and decoder, captures optional replay, and avoids SAPIENT owner registration or decoded
+  graph projector subscriptions.
+- Given `SEMOPS_SAPIENT_ENABLED=true`, `SEMOPS_SAPIENT_GRAPH_ENABLED=true`, and a detection-producing SAPIENT source,
+  the hosted app registers `OwnerSAPIENT`, composes the decoded-message projector component, writes born-first
+  absolute-location detection track state, and still rejects tasking, association, UTM, and range/bearing semantics.
 - Given the local Compose fixture provider, the one-command stack smoke enables SAPIENT and observes a typed decoded
   task-ack payload on `semops.feed.sapient.decoded` without adding SAPIENT graph ownership or projector subscriptions.
 - The same smoke asserts Prometheus component health and flow samples for the SAPIENT HTTP input and decoder through
@@ -729,9 +738,10 @@ First acceptance gate:
   pose, reference frame, and uncertainty policy are accepted. [done]
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
-- Given a future product-hosted SAPIENT feed, SemOps promotes beyond preflight only after service mode, projection
-  ownership, indexing, backpressure, and harness scope are reviewed. The current runtime path is preflight-only and
-  must not be read as product hosted-service support.
+- Given a future product-hosted SAPIENT feed, SemOps promotes beyond the current opt-in component flow only after
+  service mode, command authority, association, coordinate-conversion policy, and harness scope are reviewed. The
+  current graph-enabled runtime path is absolute-location detection projection only and must not be read as product
+  hosted-service support.
 
 ### KLV/STANAG 4609
 
