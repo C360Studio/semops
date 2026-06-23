@@ -370,7 +370,8 @@
 - [ ] 9.2 File escalation event/status vocabulary ask only after inference evidence proves the need
 - [ ] 9.3 File provenance/confidence convention ask after feed contracts stabilize
 - [ ] 9.4 File spatial-temporal query helper asks from COP workflows
-- [ ] 9.5 File raw-lane/current-state projection guidance after MAVLink and one non-MAVLink feed prove it
+- [x] 9.5 File raw-lane/current-state projection guidance after MAVLink and one non-MAVLink feed prove it:
+      SemStreams issue #340
 - [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need
 - [ ] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask
 - [x] 9.8 Feed back owner-token ergonomics and capture typed-token/evidence-declaration response

@@ -477,7 +477,8 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
   `content`, and `trace` profiles are insufficient with clean entity boundaries.
 - Spatial and temporal query helpers tuned for COP workflows: polygon intersection, nearest track, stale track,
   and moving object windows.
-- A documented raw-lane plus current-state projection pattern for high-rate telemetry.
+- A documented raw-lane plus current-state projection pattern for high-rate telemetry:
+  [SemStreams issue #340](https://github.com/C360Studio/semstreams/issues/340).
 - Component backpressure telemetry for hosted feed flows:
   [SemStreams issue #309](https://github.com/C360Studio/semstreams/issues/309).
 - A reusable SemStreams helper for exporting any `component.Discoverable` `Health()` and `DataFlow()` values as

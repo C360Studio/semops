@@ -1078,7 +1078,8 @@ Do not file all of these immediately. Use SemOps evidence first.
 - Are the four profiles enough if entity boundaries are chosen correctly?
 - Does COP need per-substrate policy examples for high-rate geospatial feeds?
 - Should SemStreams provide first-class profile/cardinality test helpers for adapters?
-- Should raw-lane plus current-state projection guidance become a reusable framework recipe?
+- Raw-lane plus current-state projection guidance has enough repeated feed pressure for an upstream recipe:
+  [SemStreams issue #340](https://github.com/C360Studio/semstreams/issues/340).
 - Do provenance and confidence need standard predicates for source confidence versus fusion confidence?
 - Should object-store references and media-derived graph evidence have a canonical vocabulary?
 - Do spatial-temporal query helpers belong in SemStreams once MAVLink, TAK, CAP, and ADS-B all need them?
