@@ -66,7 +66,7 @@
 - [x] 4.4 Replace old message/processor wiring with SemStreams projection writes
 - [x] 4.5 Project decoded MAVLink current vehicle state into signal-profiled SemStreams mutation plans
 - [x] 4.6 Add real-frame codec tests that do not mock away MAVLink decoding
-- [ ] 4.7 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
+- [x] 4.7 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
 - [x] 4.8 Keep raw frames on a bounded lane and wire projection plans to live SemStreams graph writes
 - [x] 4.9 Add a tested SemStreams graph request/reply writer boundary for MAVLink projection plans
 - [x] 4.10 Add a bounded MAVLink raw frame lane with current-state source references
@@ -131,7 +131,8 @@
 - [x] 5.41 Add SAPIENT preflight component gate without claiming product support, conformance, or graph projection
 - [x] 5.42 Add ADS-B app-runtime component gate without claiming default live OpenSky reliability or receiver support
 - [x] 5.43 Add SAPIENT app-runtime preflight gate without claiming product support, conformance, or graph projection
-- [x] 5.44 Record SemSource binary fixture handoff as synthetic storage/governance proof until a real KLV/SKG fixture exists
+- [x] 5.44 Record SemSource binary fixture handoff as synthetic storage/governance proof until a real KLV/SKG fixture
+      exists
 - [x] 5.45 Identify a legal representative KLV/SKG binary fixture before protocol conformance or streaming-binary
       claims; current artifact is SemOps-authored synthetic packet bytes for storage/governance proof only
 - [x] 5.46 Accept SemSource beta.114 binary boundary while keeping KLV/MISB/STANAG details in SemOps
@@ -189,6 +190,8 @@
 - [x] 5.89 Add committed SAPIENT preflight and absolute-detection fixtures to the manifest without compliance claims
 - [x] 5.90 Run adversarial review on ADS-B and SAPIENT portable fixture claim boundaries
 - [x] 5.91 Record synthetic MPEG-TS generation lineage for KLV fixtures and guard it with a generator test
+- [x] 5.92 Record PX4/Gazebo headless Docker stack-smoke evidence while keeping broader ArduPilot and command/control
+      gates open
 
 ## 6. Structural COP Stack
 

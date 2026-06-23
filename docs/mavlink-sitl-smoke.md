@@ -62,6 +62,13 @@ The official PX4 Docker docs remain useful as the upstream build/reference path.
 documents `px4io/px4-dev:<version>` as the recommended build container and says a dedicated `px4-sim` image is planned.
 Older `px4io/px4-dev-simulation-*` images still exist but are no longer the recommended path.
 
+Latest local evidence:
+
+- 2026-06-23: `SEMOPS_MAVLINK_SITL_DOCKER_PULL=true SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack bash
+  scripts/mavlink-sitl-gate.sh` passed against `jonasvautherin/px4-gazebo-headless:1.17.0`, vehicle `gz_x500`, world
+  `default`, with `TestExternalSITLTelemetryCOPSnapshot` observing the PX4-owned MAVLink track through
+  `http://127.0.0.1:8080/api/cop/snapshot` in 23.52s. The smoke required two updates and did not require motion.
+
 ## Local Readiness Preflight
 
 Before treating a laptop as ready for this gate, check for a real simulator path rather than relying on the SemOps
