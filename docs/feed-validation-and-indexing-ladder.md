@@ -675,6 +675,9 @@ Indexing profile pressure:
   `accepted`, `in_progress` -> `executing`, rejection-style results -> `rejected`, `failed`, and `cancelled`. The
   status projection updates only native ID, status, description, and provenance fields; desired state, authority,
   priority, and target edges stay out of the readback update.
+- Deadline reconciliation maps unaccepted commands that pass their deadline to `expired`, and accepted, executing, or
+  cancel-requested commands that pass their deadline to `timeout`. This is a pure policy and graph-update seam; no
+  hosted scheduler or live driver loop is claimed yet.
 
 First acceptance gate:
 

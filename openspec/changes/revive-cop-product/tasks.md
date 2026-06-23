@@ -354,6 +354,7 @@
       handlers
 - [x] 8.15 Add pure command cancellation-intent helper before CS API/UI/native cancellation handlers
 - [x] 8.16 Add native command-status reconciliation from feed readback evidence to command-intent lifecycle updates
+- [x] 8.17 Add deadline reconciliation for expired and timed-out command intent before hosted scheduler work
 
 ## 9. Upstream SemStreams Asks
 
