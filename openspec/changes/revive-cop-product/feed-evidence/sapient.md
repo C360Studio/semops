@@ -35,6 +35,10 @@ preflight boundary review.
 - `ParseBinaryMessage` compiles those sources through `github.com/bufbuild/protocompile`, decodes binary
   `SapientMessage` payloads with dynamic protobuf descriptors, and validates the result through the same preflight
   model.
+- SemOps will keep descriptor-based dynamic protobuf decoding for the current SAPIENT preflight and runtime component
+  path. Generated Go bindings are deferred until product service mode, outbound tasking, full protobuf round-trip
+  behavior, or performance profiling proves they are needed. See
+  `openspec/changes/revive-cop-product/reviews/2026-06-23-sapient-generated-bindings-review.md`.
 - `pkg/adapters/sapient` stores JSON and protobuf payload bytes on a bounded raw lane, persists replay records as JSON
   Lines, and decodes replay through the same JSON/protobuf preflight boundary.
 - `internal/components/sapient` provides an HTTP raw input component and decoder processor for SAPIENT preflight
@@ -58,8 +62,8 @@ preflight boundary review.
   WGS84 detection reports and rejects range/bearing, UTM, unsupported datum, or invalid latitude/longitude inputs.
 - `internal/api/cop` can read prefix-discovered SAPIENT track state back into the COP snapshot and source-health
   model.
-- No SemOps SAPIENT generated Go bindings, product service adapter, tasking surface, association model,
-  range/bearing conversion, or UTM conversion exists yet.
+- No SemOps SAPIENT product service adapter, tasking surface, association model, range/bearing conversion, or UTM
+  conversion exists yet. Generated Go bindings are deliberately deferred rather than treated as a current blocker.
 - No local SAPIENT test harness run has been performed.
 - The feed ladder assigns detections/tracks to `signal`, tasking/collection state to `control`, and native decode
   traces to `trace`.
@@ -215,7 +219,18 @@ Acceptance:
 
 ### Generated Binding Gate
 
-Target command if SemOps needs generated Go bindings rather than dynamic descriptors:
+Decision:
+
+- Do not add generated SAPIENT Go bindings for the current preflight, raw replay, component-flow, or
+  absolute-location graph projection work.
+- Keep the embedded Dstl BSI Flex 335 v2 proto source as the authoritative version boundary for dynamic descriptor
+  compilation.
+- Reopen this gate when SemOps needs product service mode, outbound SAPIENT tasking, exact typed protobuf
+  round-trips, broad message coverage, or measured performance improvement that dynamic descriptors cannot satisfy.
+- If generated bindings become necessary, prefer a reproducible buf-based generation workflow and record the Dstl
+  proto commit plus generator versions.
+
+Future target command if SemOps needs generated Go bindings:
 
 ```bash
 go test ./pkg/adapters/sapient -run Generated
@@ -223,9 +238,13 @@ go test ./pkg/adapters/sapient -run Generated
 
 Acceptance:
 
-- Generation uses the same vendored Dstl proto source and records the generator version.
-- Generated package paths preserve the BSI Flex 335 version boundary.
-- Generated messages agree with the descriptor-based binary preflight fixtures.
+- Current descriptor-based binary preflight covers representative SAPIENT JSON/protobuf decode without generated
+  bindings. [done]
+- Generated bindings are not required before SAPIENT graph projection for reviewed absolute-location detections.
+  [done]
+- Generation uses the same vendored Dstl proto source and records the generator version. [deferred]
+- Generated package paths preserve the BSI Flex 335 version boundary. [deferred]
+- Generated messages agree with the descriptor-based binary preflight fixtures. [deferred]
 
 ### Projection Gate
 
@@ -304,7 +323,7 @@ Acceptance:
 - The official harness is Windows-focused and requires PostgreSQL 12, so CI automation needs a deliberate plan.
 - A portable Linux/CI-friendly preflight suite does not exist yet; creating one would be a meaningful ecosystem
   contribution.
-- No generated SAPIENT Go bindings exist.
+- Generated SAPIENT Go bindings do not exist by design; descriptor-based decode remains the current product boundary.
 - No full official fixture corpus is vendored yet; redistribution and attribution should be checked before committing
   copies beyond trimmed test shapes.
 - No SemOps mapping exists for SAPIENT node identity, detection lifecycle, tasking, alert acknowledgements, or Apex

@@ -667,6 +667,10 @@ Local assets:
   report, detection report, and task acknowledgement messages.
 - `pkg/adapters/sapient` embeds official Dstl BSI Flex 335 v2 proto sources and compiles them with
   `github.com/bufbuild/protocompile` for dynamic descriptor-based binary `SapientMessage` decode.
+- Generated SAPIENT Go bindings are deliberately deferred. Dynamic descriptors are sufficient for current preflight,
+  raw replay, component-flow, and absolute-location graph projection work; generated bindings should re-enter only for
+  service mode, outbound tasking, exact typed protobuf round trips, broad message coverage, or measured performance
+  need. If that happens, use a reproducible buf-based workflow.
 - `pkg/adapters/sapient` now has a bounded raw lane and JSON Lines replay store for JSON and protobuf payloads; replay
   decodes through the same preflight boundary rather than treating captured bytes as normalized graph state.
 - `go test ./pkg/adapters/sapient` rejects malformed JSON and binary required-field cases before graph writes.
@@ -689,14 +693,14 @@ Local assets:
   `LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M` WGS84 detection reports and rejects range/bearing, UTM, unsupported
   datum, or invalid latitude/longitude inputs.
 - `internal/api/cop` can read prefix-discovered SAPIENT tracks back into COP snapshots and source-health state.
-- No local SAPIENT harness run, generated Go bindings, product service adapter, tasking surface, association model,
-  range/bearing conversion, or UTM conversion exists.
+- No local SAPIENT harness run, product service adapter, tasking surface, association model, range/bearing conversion,
+  or UTM conversion exists. Generated Go bindings are deferred by decision rather than missing as an MVP blocker.
 
 Mock or harness:
 
 - Start with parser-only fixtures from official protobuf/sample-message evidence.
 - Treat the current JSON and binary descriptor preflight as developer evidence only; generated Go bindings remain
-  optional and Dstl harness execution remains a separate gate.
+  optional and deferred, while Dstl harness execution remains a separate gate.
 - Run or qualify the Dstl BSI Flex 335 v2 Test Harness before using compliance language.
 - Track a portable preflight harness as developer evidence, not official compliance, until accepted externally.
 - Treat Apex middleware as an interop and service-shape reference, not as a substitute for SemOps ownership,

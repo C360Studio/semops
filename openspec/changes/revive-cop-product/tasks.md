@@ -107,7 +107,7 @@
 - [x] 5.28 Add parser-only SAPIENT BSI Flex 335 v2 JSON preflight fixture gate before graph projection
 - [ ] 5.29 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
 - [x] 5.30 Add SAPIENT BSI Flex 335 v2 descriptor-based binary payload decode gate
-- [ ] 5.31 Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptors
+- [x] 5.31 Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptors
 - [x] 5.32 Add bounded SAPIENT raw lane and replay for JSON/binary preflight payloads
 - [x] 5.33 Run SAPIENT projection ownership/indexing review before graph writes
 - [x] 5.34 Record CAP component-promotion gate so scenario replay is not mistaken for hosted polling/webhook service
