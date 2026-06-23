@@ -139,6 +139,17 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** SemOps does not claim product support or conformance until a local parser gate and scoped harness result
   exist
 
+#### Scenario: SAPIENT harness is qualified as out of MVP runtime scope
+
+- **WHEN** the Dstl BSI Flex 335 v2 Test Harness is public but requires a Windows-focused runtime, .NET 6,
+  PostgreSQL 12, manual configuration, and phase-specific test planning
+- **THEN** SemOps MAY close the harness task only as a non-compliance MVP qualification
+- **AND** SemOps SHALL record that the official harness was not run for the current phase
+- **AND** SAPIENT compliance, product support, local harness success, and portable-suite authority language remain
+  blocked until a scoped Dstl harness result or accepted authority result is recorded
+- **AND** SemOps MAY continue JSON/protobuf parser preflight, raw replay, SemStreams component-flow, and opt-in
+  absolute-location graph projection as developer evidence only
+
 #### Scenario: MAVLink simulator telemetry is opt-in evidence
 
 - **WHEN** SemOps adds PX4, MAVSDK, ArduPilot SITL, or hardware-adjacent MAVLink evidence

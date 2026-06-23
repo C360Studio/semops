@@ -108,7 +108,9 @@
 - [x] 5.24 Add opt-in ADS-B structural scenario replay through the hosted adapter seam
 - [x] 5.25 Record ADS-B component-promotion gate so scenario replay is not mistaken for a hosted feed service
 - [x] 5.26 Record official SAPIENT GOV.UK, BSI Flex 335 v2, Dstl protobuf, test-harness, and Apex middleware anchors
-- [ ] 5.27 Run or qualify the Dstl BSI Flex 335 v2 Test Harness before SAPIENT compliance claims
+- [x] 5.27 Qualify the Dstl BSI Flex 335 v2 Test Harness before SAPIENT compliance claims; current close is an
+      explicit non-compliance MVP decision, with compliance language blocked until a scoped Windows harness run or
+      accepted authority result exists
 - [x] 5.28 Add parser-only SAPIENT BSI Flex 335 v2 JSON preflight fixture gate before graph projection
 - [x] 5.29 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
 - [x] 5.30 Add SAPIENT BSI Flex 335 v2 descriptor-based binary payload decode gate

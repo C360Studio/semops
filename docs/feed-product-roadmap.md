@@ -350,7 +350,9 @@ owner claims when only `SEMOPS_SAPIENT_ENABLED=true`, while the decoded-message 
 settings, raw-lane caps, and optional replay capture; graph mode additionally requires a detection-producing source.
 The first governed projection lane is narrower still: absolute-location detection reports in
 `LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M` with WGS84 datum can write and read back source-owned `signal` track state.
-This is not SAPIENT product support or a SemOps-hosted SAPIENT service.
+SemOps has qualified the Dstl BSI Flex 335 v2 Test Harness as out of MVP runtime scope because it is a
+Windows/.NET/PostgreSQL 12/manual-configuration validation activity, not a normal Linux CI gate. This is not SAPIENT
+product support, compliance, local harness success, or a SemOps-hosted SAPIENT service.
 
 Full product lane:
 SemOps-hosted SAPIENT-facing service if needed, with sensor/detection/tasking integration, versioned protobuf
@@ -372,7 +374,8 @@ from future service/session/tasking behavior.
 Not claimed yet:
 SAPIENT conformance, product support, local test-harness success, portable-suite authority, full-message coverage,
 hosted SAPIENT service support, tasking, association, UTM conversion, range/bearing conversion, or inferred schema
-compatibility.
+compatibility. Compliance-facing promotion needs a scoped Dstl harness or accepted authority result with environment,
+corpus, and limitations recorded.
 
 ### KLV/STANAG 4609
 

@@ -759,6 +759,9 @@ Compliance and sample evidence:
   it is Windows-focused, .NET 6-based, and requires PostgreSQL 12.
 - Dstl publishes Apex SAPIENT Middleware for routing, optional protobuf validation, archiving, replay, and REST API
   access.
+- 2026-06-23 qualification: SemOps did not run the Dstl BSI Flex 335 v2 Test Harness for the MVP. The official harness
+  remains the compliance-facing path, but its Windows/.NET/PostgreSQL 12/manual-configuration shape makes it a scoped
+  validation activity rather than a normal Linux CI gate.
 - The Windows-only harness posture is itself product pressure: a future SemOps/ecosystem effort should create a
   portable Linux/CI-friendly SAPIENT preflight suite, while keeping official compliance claims tied to the Dstl
   harness or another accepted authority. The portable suite is evaluated as a useful ecosystem contribution and
@@ -807,6 +810,7 @@ Mock or harness:
 - Treat the current JSON and binary descriptor preflight as developer evidence only; generated Go bindings remain
   optional and deferred, while Dstl harness execution remains a separate gate.
 - Run or qualify the Dstl BSI Flex 335 v2 Test Harness before using compliance language.
+- The current Dstl harness qualification is an explicit non-compliance MVP decision, not a harness pass.
 - Track a portable preflight harness as developer evidence, not official compliance, until accepted externally.
 - Treat Apex middleware as an interop and service-shape reference, not as a substitute for SemOps ownership,
   provenance, freshness, and command-authority contracts.
@@ -851,8 +855,11 @@ First acceptance gate:
   `GET /api/cop/snapshot` prefix discovery. [done for projector/API tests only]
 - Given UTM or range/bearing SAPIENT detections, SemOps rejects projection until coordinate conversion, source sensor
   pose, reference frame, and uncertainty policy are accepted. [done]
-- Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
-  compliance claim appears in demo materials.
+- Given SemOps-generated SAPIENT messages, the current MVP records that the Dstl v2 Test Harness was qualified but
+  not run, and no SAPIENT compliance claim may appear in demo materials. [done as non-compliance qualification]
+- Given a future compliance-facing SAPIENT phase, the Dstl v2 Test Harness or another accepted authority result is
+  recorded with harness version, operating environment, corpus scope, pass/fail evidence, and unresolved limitations
+  before compliance, product-support, or local-harness-success language appears.
 - Given a future product-hosted SAPIENT feed, SemOps promotes beyond the current opt-in component flow only after
   service mode, command authority, association, coordinate-conversion policy, and harness scope are reviewed. The
   current graph-enabled runtime path is absolute-location detection projection only and must not be read as product

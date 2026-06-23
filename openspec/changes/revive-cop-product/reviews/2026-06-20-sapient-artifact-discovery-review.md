@@ -15,6 +15,11 @@ Accept that authoritative public SAPIENT artifacts exist and are strong enough t
 Do not start SAPIENT graph projection or claim SAPIENT compliance yet. The next approved step is parser-only BSI Flex
 335 v2 fixture work, followed by a scoped Dstl harness run or a documented non-compliance demo decision.
 
+2026-06-23 update: SemOps has chosen the documented non-compliance MVP lane. The Dstl BSI Flex 335 v2 Test Harness is
+qualified as the compliance-facing path, but it was not run for this phase because it is Windows-focused, .NET 6 and
+PostgreSQL 12 dependent, manually configured, and better suited to a scoped validation event than normal Linux CI.
+Current SemOps SAPIENT evidence remains developer preflight and opt-in absolute-location projection only.
+
 ## Objections Raised
 
 - A public official harness is not the same thing as an automation-friendly Linux CI gate. The Dstl v2 harness README
@@ -49,6 +54,6 @@ Do not start SAPIENT graph projection or claim SAPIENT compliance yet. The next 
 ## Follow-Up Tasks
 
 - Add parser-only BSI Flex 335 v2 protobuf fixtures before any graph projection work.
-- Run or qualify the Dstl v2 Test Harness before SAPIENT compliance claims.
+- Keep the Dstl v2 Test Harness qualification explicit: not run for MVP, required before SAPIENT compliance claims.
 - Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution.
 - Keep Apex middleware as an interop/service-shape reference, not as the owner of SemOps product semantics.
