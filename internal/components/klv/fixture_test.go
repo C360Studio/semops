@@ -1,6 +1,8 @@
 package klv
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -35,14 +37,62 @@ func TestMISB0601TruthFixtureEncodesAndDecodesDeterministically(t *testing.T) {
 	if frame.PlatformDesignation != truth.PlatformDesignation {
 		t.Fatalf("platform designation = %q, want %q", frame.PlatformDesignation, truth.PlatformDesignation)
 	}
-	requireTruthClose(t, "sensor latitude", frame.SensorLatitude, truth.SensorLatitude, signed32QuantizationTolerance(90))
-	requireTruthClose(t, "sensor longitude", frame.SensorLongitude, truth.SensorLongitude, signed32QuantizationTolerance(180))
-	requireTruthClose(t, "sensor altitude", frame.SensorAltitudeMeters, truth.SensorAltitudeMeters, unsignedQuantizationTolerance(-900, 19000, misbMaxUint16))
-	requireTruthClose(t, "sensor azimuth", frame.SensorAzimuthDegrees, truth.SensorAzimuthDegrees, unsignedQuantizationTolerance(0, 360, misbMaxUint32))
-	requireTruthClose(t, "sensor elevation", frame.SensorElevationDegrees, truth.SensorElevationDegrees, signed32QuantizationTolerance(180))
-	requireTruthClose(t, "frame center latitude", frame.FrameCenterLatitude, truth.FrameCenterLatitude, signed32QuantizationTolerance(90))
-	requireTruthClose(t, "frame center longitude", frame.FrameCenterLongitude, truth.FrameCenterLongitude, signed32QuantizationTolerance(180))
-	requireTruthClose(t, "frame center elevation", frame.FrameCenterElevationMeters, truth.FrameCenterElevationMeters, unsignedQuantizationTolerance(-900, 19000, misbMaxUint16))
+	requireTruthClose(
+		t,
+		"sensor latitude",
+		frame.SensorLatitude,
+		truth.SensorLatitude,
+		signed32QuantizationTolerance(90),
+	)
+	requireTruthClose(
+		t,
+		"sensor longitude",
+		frame.SensorLongitude,
+		truth.SensorLongitude,
+		signed32QuantizationTolerance(180),
+	)
+	requireTruthClose(
+		t,
+		"sensor altitude",
+		frame.SensorAltitudeMeters,
+		truth.SensorAltitudeMeters,
+		unsignedQuantizationTolerance(-900, 19000, misbMaxUint16),
+	)
+	requireTruthClose(
+		t,
+		"sensor azimuth",
+		frame.SensorAzimuthDegrees,
+		truth.SensorAzimuthDegrees,
+		unsignedQuantizationTolerance(0, 360, misbMaxUint32),
+	)
+	requireTruthClose(
+		t,
+		"sensor elevation",
+		frame.SensorElevationDegrees,
+		truth.SensorElevationDegrees,
+		signed32QuantizationTolerance(180),
+	)
+	requireTruthClose(
+		t,
+		"frame center latitude",
+		frame.FrameCenterLatitude,
+		truth.FrameCenterLatitude,
+		signed32QuantizationTolerance(90),
+	)
+	requireTruthClose(
+		t,
+		"frame center longitude",
+		frame.FrameCenterLongitude,
+		truth.FrameCenterLongitude,
+		signed32QuantizationTolerance(180),
+	)
+	requireTruthClose(
+		t,
+		"frame center elevation",
+		frame.FrameCenterElevationMeters,
+		truth.FrameCenterElevationMeters,
+		unsignedQuantizationTolerance(-900, 19000, misbMaxUint16),
+	)
 
 	for _, field := range []string{
 		"PrecisionTimeStamp",
@@ -58,6 +108,65 @@ func TestMISB0601TruthFixtureEncodesAndDecodesDeterministically(t *testing.T) {
 	} {
 		requireField(t, frame.Fields, field)
 	}
+}
+
+func TestCommittedMISB0601PacketHexMatchesTruthFixture(t *testing.T) {
+	truth := loadMISB0601TruthFixture(t)
+	packet, err := truth.PacketPayload()
+	if err != nil {
+		t.Fatalf("build packet payload from truth fixture: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "fixtures", "klv", "misb0601-packet.hex"))
+	if err != nil {
+		t.Fatalf("read committed KLV packet fixture: %v", err)
+	}
+	encoded := strings.Join(strings.Fields(string(data)), "")
+	fixtureBytes, err := hex.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("decode committed KLV packet hex fixture: %v", err)
+	}
+	if !bytes.Equal(fixtureBytes, packet.PacketBytes) {
+		t.Fatalf("committed packet fixture bytes differ from truth-generated packet")
+	}
+
+	packet.PacketBytes = fixtureBytes
+	packet.ByteLength = len(fixtureBytes)
+	frame, err := DecodeMISB0601Packet(packet)
+	if err != nil {
+		t.Fatalf("decode committed KLV packet fixture: %v", err)
+	}
+	if !frame.FrameTime.Equal(truth.FrameTime) {
+		t.Fatalf("frame time = %s, want %s", frame.FrameTime, truth.FrameTime)
+	}
+	requireTruthClose(
+		t,
+		"sensor latitude",
+		frame.SensorLatitude,
+		truth.SensorLatitude,
+		signed32QuantizationTolerance(90),
+	)
+	requireTruthClose(
+		t,
+		"sensor longitude",
+		frame.SensorLongitude,
+		truth.SensorLongitude,
+		signed32QuantizationTolerance(180),
+	)
+	requireTruthClose(
+		t,
+		"frame center latitude",
+		frame.FrameCenterLatitude,
+		truth.FrameCenterLatitude,
+		signed32QuantizationTolerance(90),
+	)
+	requireTruthClose(
+		t,
+		"frame center longitude",
+		frame.FrameCenterLongitude,
+		truth.FrameCenterLongitude,
+		signed32QuantizationTolerance(180),
+	)
 }
 
 func TestEncodeMISB0601TruthRejectsOutOfRangeValues(t *testing.T) {

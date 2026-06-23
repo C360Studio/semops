@@ -301,6 +301,8 @@ Target artifact:
   current `Day Flight.mpg` candidate is not cleared for vendoring, CI, or portable demo use.
 - Deterministic fixture: truth JSON, generated KLV payloads, optional generated MPEG-TS wrapper, and expected decoded
   output.
+- Portable synthetic binary fixture: hex-encoded packet bytes derived from the deterministic truth fixture for
+  storage/governance proof work.
 
 Acceptance:
 
@@ -316,6 +318,8 @@ Acceptance:
   ignored local smoke input only. [done]
 - Deterministic fixture output matches the source truth field set and numeric values within MISB integer quantization
   tolerances for the supported fields. [done]
+- The committed `fixtures/klv/misb0601-packet.hex` fixture materializes to the same packet bytes generated from the
+  truth JSON and decodes through the SemOps KLV component path. [done]
 - Deterministic MPEG-TS wrapping proves generated KLV packet bytes survive a local media-container mux/demux cycle
   without network downloads when FFmpeg tooling is available. [done]
 - The deterministic fixture contains enough ST 0601 metadata to extract sensor position and frame-center evidence;
@@ -429,6 +433,8 @@ Acceptance:
   review for vendoring and CI because no explicit media license grant was identified.
 - No committed MPEG-TS binary is vendored; deterministic MPEG-TS wrapping is generated in local tests from the truth
   fixture when FFmpeg tooling is present.
+- A committed hex-encoded synthetic packet fixture exists for portable binary storage/governance proof work, but it is
+  not public-sample, MPEG-TS, or conformance evidence.
 - Media-reference input now publishes configured local file references in the opt-in hosted runtime, but it is not a
   live media receiver, storage watcher, or video service.
 - Demux and decoder workers exist for local file URI fixtures, bounded media and packet storage-ref materialization,

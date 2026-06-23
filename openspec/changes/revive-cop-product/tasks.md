@@ -122,7 +122,8 @@
 - [x] 5.42 Add ADS-B app-runtime component gate without claiming default live OpenSky reliability or receiver support
 - [x] 5.43 Add SAPIENT app-runtime preflight gate without claiming product support, conformance, or graph projection
 - [x] 5.44 Record SemSource binary fixture handoff as synthetic storage/governance proof until a real KLV/SKG fixture exists
-- [ ] 5.45 Identify a legal representative KLV/SKG binary fixture before protocol conformance or streaming-binary claims
+- [x] 5.45 Identify a legal representative KLV/SKG binary fixture before protocol conformance or streaming-binary
+      claims; current artifact is SemOps-authored synthetic packet bytes for storage/governance proof only
 - [x] 5.46 Accept SemSource beta.114 binary boundary while keeping KLV/MISB/STANAG details in SemOps
 - [x] 5.47 Design the SemOps-owned KLV/MISB worker boundary from storage references to governed derived facts
 - [x] 5.48 Record public-sample versus deterministic fixture strategy for KLV/MISB

@@ -321,6 +321,36 @@
         "frame_center_longitude",
         "frame_center_elevation_meters"
       ]
+    },
+    {
+      "id": "klv.misb0601.packet.synthetic-001",
+      "feed": "klv",
+      "tier": "cleared_committed_fixture",
+      "path": "fixtures/klv/misb0601-packet.hex",
+      "source_url": "",
+      "source_description": "Hex-encoded SemOps-authored MISB ST 0601 packet derived from the truth fixture.",
+      "captured_at": "",
+      "derived_at": "2026-06-23T15:00:00Z",
+      "sha256": "d8b5f48643973725fb751e9ce0793b6b35698ab6304ef3beae8e4a34458f12c2",
+      "size_bytes": 178,
+      "license_or_provenance": "SemOps-authored synthetic KLV packet bytes; not captured, vendor, or lab data.",
+      "claim_scope": "Portable synthetic binary storage/governance proof and tested MISB ST 0601 subset decode only.",
+      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-klv-synthetic-packet-fixture-review.md",
+      "commit_status": "committed",
+      "observed_fields": [],
+      "synthetic_fields": [
+        "packet_bytes",
+        "PrecisionTimeStamp",
+        "PlatformDesignation",
+        "SensorLatitude",
+        "SensorLongitude",
+        "SensorTrueAltitude",
+        "SensorRelativeAzimuthAngle",
+        "SensorRelativeElevationAngle",
+        "FrameCenterLatitude",
+        "FrameCenterLongitude",
+        "FrameCenterElevation"
+      ]
     }
   ]
 }
