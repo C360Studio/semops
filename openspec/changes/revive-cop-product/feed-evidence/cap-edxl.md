@@ -32,6 +32,10 @@ semantics.
   `effective`/`expires` ordering, and `areaDesc` fields before graph writes.
 - See `openspec/changes/revive-cop-product/reviews/2026-06-23-cap-consumer-rule-preflight-review.md` for the
   validation-scope review.
+- `pkg/adapters/cap` includes a skipped-by-default schema/sample smoke that uses a developer-supplied CAP 1.2 XSD,
+  local XML files or replay JSONL, and `xmllint` to validate samples before parsing them through SemOps. See
+  `docs/cap-schema-smoke.md` and
+  `openspec/changes/revive-cop-product/reviews/2026-06-23-cap-schema-sample-smoke-review.md`.
 - `pkg/adapters/cap` stores replayable raw XML CAP records and provides a HA/DR flood lifecycle fixture covering
   alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
@@ -87,12 +91,22 @@ Current target command:
 go test ./pkg/adapters/cap
 ```
 
+Opt-in schema/sample command:
+
+```bash
+SEMOPS_CAP_XSD_PATH=fixtures/cap/schema/CAP-v1.2.xsd \
+SEMOPS_CAP_SCHEMA_SAMPLE_PATHS=fixtures/cap/nws-samples \
+go test ./pkg/adapters/cap -run TestCAPSchemaSmokeWithLocalSamples -count=1 -v
+```
+
 Acceptance:
 
 - Local fixtures cover active alert, update, cancel, expired alert, polygon, circle, resource link, and parser
   rejection cases.
 - NWS samples are captured into fixtures rather than required live for CI.
 - Optional live mode respects NWS User-Agent guidance, caching, and rate-limit behavior.
+- Local schema/sample smoke validates supplied CAP XML files or replay records against a supplied XSD and then parses
+  the same samples through SemOps. [done as skipped-by-default harness]
 
 ### Projection Gate
 
@@ -192,14 +206,14 @@ Acceptance:
 - EDXL beyond CAP is not scoped for Phase 1 and is tracked separately in
   `openspec/changes/revive-cop-product/feed-evidence/edxl-beyond-cap.md`.
 - NWS is a useful public source, but live NWS calls should not be required for deterministic CI.
-- CAP conformance should be stated as namespace/consumer-rule preflight evidence until formal XML schema validation
-  and a proper consumer profile exist.
+- CAP conformance should be stated as namespace/consumer-rule preflight plus opt-in schema/sample smoke evidence until
+  a recorded schema run, captured provider fixture set, and proper consumer profile exist.
 - The initial `internal/components/cap` package is wired into the app runtime and Compose as an explicit opt-in, but
   `SEMOPS_CAP_ENABLED` defaults to `false` and does not fetch live NWS alerts by default.
 - `SEMOPS_CAP_REPLAY_PATH` is optional and empty by default; setting it captures decoded CAP raw XML records from the
   opt-in runtime path.
 - Captured NWS update/cancel/expire fixture replay is still missing.
-- Formal CAP 1.2 XSD validation is still missing.
+- A recorded CAP 1.2 XSD run against captured NWS update/cancel/expire samples is still missing.
 - Provider-specific stale-source review is still needed after captured NWS/IPAWS/vendor fixtures exist; the current
   stale-source gate is component-level health behavior with deterministic local HTTP tests.
 - Default live-provider CAP polling is still not enabled in the default Compose stack.

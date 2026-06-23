@@ -55,3 +55,8 @@ blob-report/
 fixtures/klv/public-samples/
 fixtures/klv/generated/
 fixtures/klv/.cache/
+
+# Local CAP/NWS schema and sample captures used by opt-in smoke tests
+fixtures/cap/schema/
+fixtures/cap/nws-samples/
+fixtures/cap/replay/

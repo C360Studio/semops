@@ -275,6 +275,9 @@ Local assets:
 - `pkg/adapters/cap` parses the CAP 1.2 subset needed for deterministic civilian-warning fixtures.
 - `pkg/adapters/cap` rejects wrong or missing CAP 1.2 namespaces and validates enum-shaped consumer fields before
   graph writes. This is namespace/consumer-rule preflight evidence, not formal XSD conformance.
+- `pkg/adapters/cap` has an opt-in schema/sample smoke that uses `SEMOPS_CAP_XSD_PATH`,
+  `SEMOPS_CAP_SCHEMA_SAMPLE_PATHS`, `SEMOPS_CAP_SCHEMA_REPLAY_PATH`, and local `xmllint` to validate supplied CAP XML
+  files or replay records before parsing them through SemOps. This is not default CI and not conformance.
 - `pkg/adapters/cap` stores replayable raw XML CAP alert records and includes a HA/DR flood lifecycle fixture with
   alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
@@ -318,6 +321,17 @@ The CAP adapter command now proves wrong/missing CAP 1.2 namespaces, invalid `st
 invalid `info` category/severity-style values, invalid `expires` ordering, and missing `areaDesc` values fail before
 graph writes.
 
+Optional CAP schema/sample smoke:
+
+```bash
+SEMOPS_CAP_XSD_PATH="fixtures/cap/schema/CAP-v1.2.xsd" \
+SEMOPS_CAP_SCHEMA_SAMPLE_PATHS="fixtures/cap/nws-samples" \
+go test ./pkg/adapters/cap -run TestCAPSchemaSmokeWithLocalSamples -count=1 -v
+```
+
+`docs/cap-schema-smoke.md` records the local XSD/sample and replay JSONL workflow. Local schema copies and captured
+NWS/IPAWS/vendor samples remain ignored until a fixture review clears what may be committed.
+
 Current component gate:
 
 ```bash
@@ -346,7 +360,7 @@ authoritative hazard geometry, severity, or status predicates.
 Remaining gates:
 
 - NWS samples captured as deterministic fixtures.
-- Formal XML schema validation and captured NWS sample replay.
+- Recorded formal XML schema validation and captured NWS sample replay.
 - NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
 - Real NWS/IPAWS/vendor sample capture for the opt-in `SEMOPS_CAP_ENABLED=true` runtime chain.
 - Default live-provider enablement; Compose exposes CAP knobs but keeps hosted public-alert polling disabled by default.

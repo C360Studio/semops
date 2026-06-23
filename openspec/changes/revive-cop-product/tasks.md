@@ -165,6 +165,7 @@
       support, tasking, association, UTM conversion, or range/bearing support
 - [x] 5.78 Add CAP 1.2 namespace and consumer-rule validation before XML schema/NWS sample claims
 - [x] 5.79 Promote DJI and weather to first-class feed-validation requirements outside the KLV proof-spike section
+- [x] 5.80 Add opt-in CAP XSD and local sample smoke without vendoring schema or NWS captures
 
 ## 6. Structural COP Stack
 
