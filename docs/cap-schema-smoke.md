@@ -15,6 +15,10 @@ schemas or public alert captures.
 Local schema and sample directories are ignored by git under `fixtures/cap/schema/`, `fixtures/cap/nws-samples/`, and
 `fixtures/cap/replay/`.
 
+These local captures are **ignored live captures** in the fixture tier model. They can support recorded evidence and
+hashes, but they do not travel with the demo until a fixture review promotes a small sample or a derived story fixture
+into committed data.
+
 ## Run
 
 Capture a local provider sample only when you are intentionally making a live network call:

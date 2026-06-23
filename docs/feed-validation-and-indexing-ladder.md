@@ -59,6 +59,43 @@ absence must be explicit.
 Before a feed enters the structural stack, run an adversarial review against the evidence, indexing profile,
 cardinality risk, stale-data behavior, and claim language.
 
+## Fixture Promotion Tiers
+
+Live feeds are evidence sources before they become traveling demo data. Each feed should track fixtures in three
+tiers:
+
+1. **Ignored live capture:** Raw public, partner, simulator, or vendor feed captures land in ignored local paths first.
+   Record source URL or connection description, capture time, command, contact or credential posture, SHA-256,
+   observed message shape, and claim scope.
+2. **Cleared committed fixture:** Small deterministic fixtures may travel with the repo only after a review records
+   source, provenance or license posture, capture or derivation time, SHA-256, size, retention decision, claim scope,
+   and commit status.
+3. **Derived story fixture:** Coherent demo lifecycles may be derived from live captures, public examples, or
+   hand-authored truth data, but they must be labeled synthetic or derived and must identify which fields were
+   observed versus edited, generated, or time-shifted.
+
+Per-feed evidence records should name which tier each fixture occupies. Ignored live captures are good standards or
+provider evidence, but they do not travel with the demo. Cleared committed fixtures are the portable demo baseline.
+Derived story fixtures are valid for narrative and regression tests, not for captured provider lifecycle or
+conformance claims.
+
+Recommended fixture manifest fields:
+
+- `id`
+- `feed`
+- `tier`
+- `path`
+- `source_url` or `source_description`
+- `captured_at` or `derived_at`
+- `sha256`
+- `size_bytes`
+- `license_or_provenance`
+- `claim_scope`
+- `review`
+- `commit_status`
+- `observed_fields`
+- `synthetic_fields`
+
 The first scenario-runner core lives in `internal/scenario`. It replays generated MAVLink, deterministic TAK/CoT seed
 events, and CAP lifecycle XML records through the real adapter/projector seams and exposes a pollable run status.
 `cmd/semops-scenario-runner` hosts that core in the local Compose stack and the stack smoke polls

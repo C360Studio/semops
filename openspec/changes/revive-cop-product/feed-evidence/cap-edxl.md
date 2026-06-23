@@ -42,6 +42,8 @@ semantics.
 - A 2026-06-23 local smoke validated one captured NWS `Flash Flood Warning` CAP XML sample against the local CAP 1.2
   XSD with `xmllint` and parsed it through SemOps. The schema and sample remain ignored local files; hashes and
   commands are recorded in `docs/cap-schema-smoke.md`.
+- The captured NWS XML sample is an ignored live capture. A traveling CAP demo fixture still requires either a cleared
+  committed fixture review or a derived/synthetic story fixture manifest.
 - `pkg/adapters/cap` stores replayable raw XML CAP records and provides a HA/DR flood lifecycle fixture covering
   alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
@@ -224,6 +226,7 @@ Acceptance:
 - Captured NWS update/cancel/expire fixture replay is still missing.
 - A recorded CAP 1.2 XSD run against captured NWS update/cancel/expire samples is still missing; the current recorded
   XSD run covers one active alert only.
+- A cleared committed CAP fixture manifest is still missing; current live NWS captures are ignored local evidence.
 - Provider-specific stale-source review is still needed after captured NWS/IPAWS/vendor fixtures exist; the current
   stale-source gate is component-level health behavior with deterministic local HTTP tests.
 - Default live-provider CAP polling is still not enabled in the default Compose stack.

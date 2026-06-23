@@ -16,6 +16,36 @@ Each feed SHALL pass documented validation gates before it is treated as a SemOp
 - **AND** broader EDXL formats beyond CAP require separate product need, fixture, projection, and review gates before
   they enter Phase 1 scope
 
+### Requirement: Feed fixtures declare promotion tier and provenance
+
+SemOps SHALL track every feed fixture by promotion tier so live evidence, committed demo data, and synthetic story
+data are not confused.
+
+#### Scenario: Ignored live captures are evidence sources
+
+- **WHEN** SemOps captures data from a live public, partner, simulator, or vendor feed
+- **THEN** the raw capture first lands in an ignored local path
+- **AND** SemOps records source URL or connection description, capture time, capture command, contact or credential
+  posture, SHA-256, observed message shape, and claim scope
+- **AND** ignored live captures may support evidence notes but do not travel with the demo until promoted
+
+#### Scenario: Cleared committed fixtures travel with the demo
+
+- **WHEN** a feed fixture is committed to the repo for portable demos or CI
+- **THEN** a fixture manifest records source, provenance or license posture, capture or derivation time, SHA-256,
+  size, retention decision, claim scope, and review decision
+- **AND** committed fixtures are intentionally small, deterministic, and replayable without live network access
+- **AND** committed fixtures do not imply product, standards, or provider conformance beyond their manifest scope
+
+#### Scenario: Derived story fixtures are labeled synthetic
+
+- **WHEN** SemOps derives a coherent demo lifecycle from live captures, public examples, or hand-authored truth data
+- **THEN** the fixture is labeled as derived or synthetic story data
+- **AND** the manifest identifies which fields came from observed evidence and which were edited, generated, or
+  time-shifted for replay
+- **AND** derived story fixtures may support demo narrative and regression tests but must not be cited as captured
+  provider lifecycle, official compliance, or interoperability evidence
+
 ### Requirement: Feed roadmaps distinguish demo scope from full product scope
 
 SemOps SHALL track the narrow demo path and the eventual full-product path for every feed so Phase 1 shortcuts do not

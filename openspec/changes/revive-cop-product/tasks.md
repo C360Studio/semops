@@ -168,6 +168,7 @@
 - [x] 5.80 Add opt-in CAP XSD and local sample smoke without vendoring schema or NWS captures
 - [x] 5.81 Add opt-in NWS CAP sample capture helper with required URL and User-Agent/contact identity
 - [x] 5.82 Record one local NWS active-alert CAP XSD/sample smoke while keeping lifecycle sample capture open
+- [x] 5.83 Add fixture promotion tiers for ignored live captures, cleared committed fixtures, and derived story data
 
 ## 6. Structural COP Stack
 
