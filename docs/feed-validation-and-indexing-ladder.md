@@ -325,6 +325,8 @@ Local assets:
   URL and User-Agent/contact identity are explicitly configured.
 - `pkg/adapters/cap` stores replayable raw XML CAP alert records and includes a HA/DR flood lifecycle fixture with
   alert, update, cancel, and expired-alert records.
+- `fixtures/cap/lifecycle/hadr-flood.jsonl` is the committed derived-story fixture for portable CAP replay. It is
+  generated from `LifecycleFixtureRecords`, checked back against that generator, and listed in `fixtures/manifest.json`.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
   CAP evidence contract.
 - `internal/api/cop` maps CAP hazard evidence JSON into the COP hazard view model for the map overlay and derives
@@ -364,7 +366,8 @@ go test ./internal/scenario
 
 The CAP adapter command now proves wrong/missing CAP 1.2 namespaces, invalid `status`/`msgType`/`scope` values,
 invalid `info` category/severity-style values, invalid `expires` ordering, and missing `areaDesc` values fail before
-graph writes.
+graph writes. It also checks that `fixtures/cap/lifecycle/hadr-flood.jsonl` still matches the deterministic lifecycle
+generator byte-for-byte, preserving portable demo replay data without claiming captured NWS lifecycle evidence.
 
 Optional CAP schema/sample smoke:
 
@@ -414,7 +417,7 @@ Remaining gates:
 
 - NWS samples captured as deterministic fixtures.
 - Recorded formal XML schema validation and captured NWS sample replay.
-- NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
+- NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local derived lifecycle fixture.
 - Real NWS/IPAWS/vendor sample capture for the opt-in `SEMOPS_CAP_ENABLED=true` runtime chain.
 - Default live-provider enablement; Compose exposes CAP knobs but keeps hosted public-alert polling disabled by default.
 - Webhook, watched-file, or vendor feed service boundaries.

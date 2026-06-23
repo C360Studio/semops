@@ -170,6 +170,7 @@
 - [x] 5.82 Record one local NWS active-alert CAP XSD/sample smoke while keeping lifecycle sample capture open
 - [x] 5.83 Add fixture promotion tiers for ignored live captures, cleared committed fixtures, and derived story data
 - [x] 5.84 Add an executable fixture manifest gate for CAP, DJI, weather, and KLV fixture-tier evidence
+- [x] 5.85 Add a committed derived CAP lifecycle replay fixture for portable demo data without NWS/IPAWS claims
 
 ## 6. Structural COP Stack
 

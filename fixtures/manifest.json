@@ -28,6 +28,37 @@
       "synthetic_fields": []
     },
     {
+      "id": "cap.lifecycle.hadr-flood.derived.v1",
+      "feed": "cap",
+      "tier": "derived_story_fixture",
+      "path": "fixtures/cap/lifecycle/hadr-flood.jsonl",
+      "source_url": "",
+      "source_description": "SemOps-authored deterministic CAP lifecycle story generated from pkg/adapters/cap.LifecycleFixtureRecords.",
+      "captured_at": "",
+      "derived_at": "2026-06-23T14:08:10Z",
+      "sha256": "2d1d3246d40dcc5f844aac3372b3560d2058265f13f3c214cd6173805c020b33",
+      "size_bytes": 7510,
+      "license_or_provenance": "SemOps-authored synthetic CAP lifecycle JSONL; raw XML is generated CAP 1.2-shaped story data, not captured NWS/IPAWS evidence.",
+      "claim_scope": "Portable demo/replay evidence for alert, update, cancel, and expired CAP lifecycle parsing and projection only; not NWS/IPAWS service support or CAP conformance.",
+      "review": "openspec/changes/revive-cop-product/reviews/2026-06-19-cap-lifecycle-fixture-replay-review.md",
+      "commit_status": "committed",
+      "observed_fields": [],
+      "synthetic_fields": [
+        "identifier",
+        "sender",
+        "sent",
+        "status",
+        "msgType",
+        "references",
+        "info.event",
+        "info.urgency",
+        "info.severity",
+        "info.certainty",
+        "info.area.polygon",
+        "info.area.circle"
+      ]
+    },
+    {
       "id": "dji.synthetic.telemetry-media.v1",
       "feed": "dji",
       "tier": "cleared_committed_fixture",

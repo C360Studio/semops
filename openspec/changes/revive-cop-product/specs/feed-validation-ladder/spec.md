@@ -98,6 +98,8 @@ become dead-end architecture.
 - **AND** the opt-in runtime can capture provider-shaped CAP HTTP responses as replayable native CAP XML records
 - **AND** CAP parser preflight rejects wrong or missing CAP 1.2 namespaces and invalid CAP 1.2 consumer-rule fields
   before graph projection
+- **AND** the portable derived CAP lifecycle fixture is committed as replay JSONL, listed in the fixture manifest, and
+  tested against the deterministic generator
 - **AND** local CAP schema/sample smoke may validate developer-supplied CAP XML files or replay JSONL against a
   developer-supplied CAP 1.2 XSD with `xmllint`, then parse the same samples through SemOps, while skipping by default
   when no local schema is configured
