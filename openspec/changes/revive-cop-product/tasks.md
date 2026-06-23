@@ -151,6 +151,8 @@
       provider support, spatial runtime payloads, UI semantics, or route-safety authority
 - [x] 5.73 Add opt-in hosted tactical-weather point-fixture runtime evidence without claiming live provider support,
       cache/stale policy, spatial runtime payloads, UI semantics, or route-safety authority
+- [x] 5.74 Add Caddy-routed COP API readback evidence for opt-in weather point fixtures without claiming tactical
+      weather UI semantics or route-safety authority
 
 ## 6. Structural COP Stack
 
@@ -237,6 +239,8 @@
       cache/stale policy, and route-weather behavior gated
 - [x] 6.65 Wire opt-in weather point-fixture input -> decoder -> projector hosted runtime with ownership and component
       metrics while keeping weather disabled by default
+- [x] 6.66 Add opt-in one-command weather stack smoke for fixture-backed graph projection, COP snapshot readback, and
+      component/runtime flow evidence
 
 ## 7. COP UI
 
@@ -268,6 +272,8 @@
       provenance, and claim posture
 - [x] 7.25 Add KLV sensor-footprint map layer, selected-entity provenance inspector, and Playwright smoke without
       footprint polygon or video-player claims
+- [x] 7.26 Add weather-observation COP API readback with source/provenance claim posture while deferring tactical
+      weather map layers and route-safety UI
 
 ## 8. Tier Escalation And Egress
 

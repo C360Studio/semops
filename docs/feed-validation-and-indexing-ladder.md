@@ -373,6 +373,9 @@ Compliance and source evidence:
   config schema, health, flow metrics, per-payload observation caps, freshness windows, and born-first reconciliation.
 - The hosted app can opt into the local point-forecast fixture flow with `SEMOPS_WEATHER_ENABLED=true`; it registers
   `semops.feed.weather` before composing the SemStreams file input -> decoder -> graph-projector chain.
+- `GET /api/cop/snapshot` can read graph-backed `weather_observation` entities by prefix discovery and expose provider,
+  variable/value/unit, query shape, query geometry, valid/model/freshness time, provenance, and claim posture without
+  adding tactical map semantics.
 - NWS API already fits the CAP lane for alerts and can return CAP content via content negotiation. NWS API explicitly
   points radar display users to separate radar/OGC services rather than treating `/api.weather.gov` as a radar tile
   source.
@@ -414,6 +417,9 @@ First acceptance gate:
 - Given weather graph-projector component promotion, SemOps consumes decoded point forecasts from a declared stream
   port and writes through declared SemStreams graph request ports with max-observation and freshness config gates.
   [done for point-payload component and opt-in hosted runtime composition]
+- Given opt-in stack readback, the Caddy-routed COP snapshot exposes graph-backed local point-forecast weather
+  observations and component/runtime flow evidence without claiming live provider support or tactical UI semantics.
+  [done behind `SEMOPS_COP_SMOKE_WEATHER_ENABLED=true`]
 - Given future OGC EDR-shaped fixtures, SemOps should parse selected broader query shapes before claiming
   standards-facing tactical weather interop beyond point, area, trajectory, and corridor retrieval.
 - Given projection, localized tactical weather writes source-partitioned governed evidence and does not overwrite CAP
@@ -431,6 +437,7 @@ Known gaps:
 - No live weather provider integration exists yet.
 - No live weather HTTP poller, default-stack weather hosting, cache/stale policy, or UI tactical layer exists yet.
 - The current hosted weather runtime path is fixture-backed point-forecast evidence only.
+- The current weather COP API readback path is source/provenance evidence only; it is not a tactical weather map layer.
 - No weather routing/safety rule is accepted yet.
 - No visual tile source has passed license/cache/reliability review.
 

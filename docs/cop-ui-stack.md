@@ -90,6 +90,10 @@ prefix-query error text when a partial read fails. The UI surfaces those counts 
 promotes truncation/error diagnostics into warning alerts so large mixed-feed demos can show index-pressure evidence
 without exposing raw graph triples as an operator workflow.
 
+The COP API also exposes graph-backed weather observations for source/provenance evidence and stack smoke readback.
+That is not yet a tactical weather map layer: visual weather tiles, route-weather semantics, stale/cache policy, and
+operator-facing legends remain separate product gates.
+
 `GET /api/cop/runtime` rolls up SemStreams component `Health()` and `DataFlow()` into feed-level status,
 throughput, healthy component counts, and last activity. The source cards merge this runtime evidence with snapshot
 feed state, so the UI can show whether a hosted MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, or KLV component flow is

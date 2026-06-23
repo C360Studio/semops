@@ -52,6 +52,9 @@ affects assets, operators, hazards, or routes.
 - The hosted app can opt into the local point-forecast fixture flow with `SEMOPS_WEATHER_ENABLED=true`. That runtime
   registers the `semops.feed.weather` owner before composing file input -> decoder -> projector components and keeps
   weather disabled by default in Compose.
+- `GET /api/cop/snapshot` can expose graph-backed `weather_observation` entities with provider, variable/value/unit,
+  query shape, query geometry, valid/model/freshness time, provenance, and claim posture. This is source-evidence
+  readback, not a tactical weather layer.
 - NWS API remains valuable for alerts, forecasts, and observations. Its alert endpoints fit the current CAP lane, and
   CAP can be requested through content negotiation.
 - Radar and raster display data should not be assumed to come from `api.weather.gov`; visual products need their own
@@ -80,6 +83,8 @@ affects assets, operators, hazards, or routes.
   text as `content`, and provider/replay diagnostics as `trace`. [partial: graph contract, graph writer, and
   point-payload projector component plus opt-in hosted point-fixture runtime done; spatial runtime payloads, live HTTP
   polling, cache/stale policy, UI, and route-safety rules still open]
+- Prove the hosted point-fixture runtime through the Caddy-routed COP API and component/runtime flow evidence. [done
+  behind `SEMOPS_COP_SMOKE_WEATHER_ENABLED=true`]
 - Keep browser-only visual layers out of graph state unless an operator workflow turns them into evidence.
 
 ## Known Gaps
@@ -90,6 +95,7 @@ affects assets, operators, hazards, or routes.
 - No live Open-Meteo, NWS forecast/observation, MSC GeoMet, or radar/tile provider integration exists yet.
 - No live weather HTTP poller, default-stack weather hosting, cache/stale policy, or UI tactical layer exists yet.
 - The hosted weather runtime path is local point-forecast fixture evidence only.
+- The COP API weather readback is not a tactical weather visualization, operator decision aid, or route-safety model.
 - No weather routing/safety rule is accepted yet.
 - No tile/radar source has passed license, cache, or reliability review.
 
@@ -98,6 +104,8 @@ affects assets, operators, hazards, or routes.
 - `go test ./pkg/adapters/weather`
 - `go test ./internal/projectors/weather`
 - `go test ./internal/components/weather`
+- `go test ./internal/api/cop ./internal/smoke/cop`
+- `SEMOPS_COP_SMOKE_WEATHER_ENABLED=true bash scripts/cop-stack-smoke.sh`
 - `go test ./internal/contracts`
 - `go test ./...`
 

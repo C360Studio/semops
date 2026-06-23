@@ -12,6 +12,7 @@ import (
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
+	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
 	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
@@ -344,7 +345,7 @@ func TestGraphProviderDiscoversADSBTracksByPrefix(t *testing.T) {
 	if track.Position.Lat != 38.9 || track.Position.Lon != -77.04 {
 		t.Fatalf("ADS-B track position = %+v", track.Position)
 	}
-	if len(snapshot.Feeds) != 5 ||
+	if len(snapshot.Feeds) != 6 ||
 		snapshot.Feeds[3].ID != "feed.adsb" ||
 		snapshot.Feeds[3].Status != "live" {
 		t.Fatalf("ADS-B feed = %+v", snapshot.Feeds)
@@ -447,7 +448,7 @@ func TestGraphProviderMapsKLVSensorFootprints(t *testing.T) {
 		!strings.Contains(footprint.ClaimPosture, "no STANAG conformance") {
 		t.Fatalf("claim posture/warnings = %q / %+v", footprint.ClaimPosture, footprint.Warnings)
 	}
-	if len(snapshot.Feeds) != 5 ||
+	if len(snapshot.Feeds) != 6 ||
 		snapshot.Feeds[4].ID != "feed.klv" ||
 		snapshot.Feeds[4].Status != "live" {
 		t.Fatalf("KLV feed = %+v", snapshot.Feeds)
@@ -460,6 +461,102 @@ func TestGraphProviderMapsKLVSensorFootprints(t *testing.T) {
 		diagnostic.Count != 1 ||
 		diagnostic.AtLimit {
 		t.Fatalf("KLV diagnostic = %+v", diagnostic)
+	}
+}
+
+func TestGraphProviderMapsWeatherObservations(t *testing.T) {
+	now := time.Date(2026, 6, 23, 18, 30, 0, 0, time.UTC)
+	modelTime := now.Add(-5 * time.Minute)
+	validTime := now.Add(35 * time.Minute)
+	freshUntil := now.Add(25 * time.Minute)
+	platform := "edge-weather"
+	sourceRef := "file:///fixtures/weather/open-meteo-point.json"
+	observationID := weatherprojector.EntityID(
+		"c360",
+		platform,
+		"weather.open-meteo.position.fixture.temperature_2m",
+	)
+	requester := &fakeGraphSnapshotRequester{
+		prefixEntities: map[string][]graph.EntityState{
+			graphEntityPrefix("c360", platform, "weather", copmodel.EntityWeatherObservation): {{
+				ID:        observationID,
+				UpdatedAt: modelTime,
+				Triples: []message.Triple{
+					testTriple(observationID, copmodel.WeatherNativeID, "weather.open-meteo.position.fixture.temperature_2m", modelTime),
+					testTriple(observationID, copmodel.WeatherProvider, "open-meteo", modelTime),
+					testTriple(observationID, copmodel.WeatherQueryShape, "position", modelTime),
+					testTriple(observationID, copmodel.WeatherQueryGeometry, "POINT(-77.0400000 38.9000000)", modelTime),
+					testTriple(observationID, copmodel.WeatherValidTime, validTime, modelTime),
+					testTriple(observationID, copmodel.WeatherModelTime, modelTime, modelTime),
+					testTriple(observationID, copmodel.WeatherFreshUntil, freshUntil, modelTime),
+					testTriple(observationID, copmodel.WeatherVariable, "temperature_2m", modelTime),
+					testTriple(observationID, copmodel.WeatherValue, 29.4, modelTime),
+					testTriple(observationID, copmodel.WeatherUnit, "degC", modelTime),
+					testTriple(observationID, copmodel.ProvenanceSource, "weather", modelTime),
+					testTriple(observationID, copmodel.ProvenanceConfidence, 0.75, modelTime),
+					testTriple(observationID, copmodel.ProvenanceObservedAt, modelTime, modelTime),
+					testTriple(observationID, copmodel.ProvenanceSourceRef, sourceRef, modelTime),
+				},
+			}},
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithGraphDiscoveryScopes([]GraphDiscoveryScope{{Org: "c360", Platform: platform}}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveWeather != 1 || len(snapshot.Weather) != 1 {
+		t.Fatalf("weather summary/list = %d/%d", snapshot.Summary.ActiveWeather, len(snapshot.Weather))
+	}
+	observation := snapshot.Weather[0]
+	if observation.ID != observationID ||
+		observation.Source != "weather" ||
+		observation.Provider != "open-meteo" ||
+		observation.QueryShape != "position" ||
+		observation.QueryGeometryWKT != "POINT(-77.0400000 38.9000000)" ||
+		observation.Variable != "temperature_2m" ||
+		observation.Value != 29.4 ||
+		observation.Unit != "degC" ||
+		observation.ValidTime != validTime ||
+		observation.ModelTime != modelTime ||
+		observation.FreshUntil != freshUntil ||
+		observation.UpdatedAt != modelTime ||
+		observation.Status != "fresh" ||
+		observation.Provenance.Owner != copmodel.OwnerWeather ||
+		observation.Provenance.SourceRef != sourceRef {
+		t.Fatalf("weather observation = %+v", observation)
+	}
+	if observation.Position == nil ||
+		observation.Position.Lat != 38.9 ||
+		observation.Position.Lon != -77.04 {
+		t.Fatalf("weather position = %+v", observation.Position)
+	}
+	if !strings.Contains(observation.ClaimPosture, "no live-provider") ||
+		!strings.Contains(observation.Label, "temperature_2m") {
+		t.Fatalf("weather label/posture = %q / %q", observation.Label, observation.ClaimPosture)
+	}
+	if len(snapshot.Feeds) != 6 ||
+		snapshot.Feeds[5].ID != "feed.weather" ||
+		snapshot.Feeds[5].Status != "live" {
+		t.Fatalf("weather feed = %+v", snapshot.Feeds)
+	}
+	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "weather", copmodel.EntityWeatherObservation)
+	if !ok {
+		t.Fatalf("missing weather diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if diagnostic.Family != "weather" ||
+		diagnostic.Count != 1 ||
+		diagnostic.AtLimit {
+		t.Fatalf("weather diagnostic = %+v", diagnostic)
 	}
 }
 
@@ -699,7 +796,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if snapshot.Hazards[0].ID != hazardID || snapshot.Hazards[0].Source != "cap" {
 		t.Fatalf("hazard = %+v", snapshot.Hazards[0])
 	}
-	if len(requester.prefixRequests) != 9 {
+	if len(requester.prefixRequests) != 10 {
 		t.Fatalf("prefix requests = %+v", requester.prefixRequests)
 	}
 	for _, subject := range requester.subjects {
@@ -710,7 +807,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
-	if len(snapshot.Diagnostics.Discovery) != 9 {
+	if len(snapshot.Diagnostics.Discovery) != 10 {
 		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
 	}
 	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)

@@ -3,18 +3,19 @@ package cop
 import "time"
 
 type Snapshot struct {
-	GeneratedAt      time.Time           `json:"generated_at"`
-	Scenario         string              `json:"scenario"`
-	Summary          Summary             `json:"summary"`
-	Diagnostics      SnapshotDiagnostics `json:"diagnostics"`
-	Feeds            []FeedHealth        `json:"feeds"`
-	Assets           []Asset             `json:"assets"`
-	Tracks           []Track             `json:"tracks"`
-	Tasks            []Task              `json:"tasks"`
-	Advisories       []Advisory          `json:"advisories"`
-	Hazards          []Hazard            `json:"hazards"`
-	SensorFootprints []SensorFootprint   `json:"sensor_footprints"`
-	Alerts           []Alert             `json:"alerts"`
+	GeneratedAt      time.Time            `json:"generated_at"`
+	Scenario         string               `json:"scenario"`
+	Summary          Summary              `json:"summary"`
+	Diagnostics      SnapshotDiagnostics  `json:"diagnostics"`
+	Feeds            []FeedHealth         `json:"feeds"`
+	Assets           []Asset              `json:"assets"`
+	Tracks           []Track              `json:"tracks"`
+	Tasks            []Task               `json:"tasks"`
+	Advisories       []Advisory           `json:"advisories"`
+	Hazards          []Hazard             `json:"hazards"`
+	SensorFootprints []SensorFootprint    `json:"sensor_footprints"`
+	Weather          []WeatherObservation `json:"weather_observations"`
+	Alerts           []Alert              `json:"alerts"`
 }
 
 type Summary struct {
@@ -22,6 +23,7 @@ type Summary struct {
 	ActiveTasks            int `json:"active_tasks"`
 	ActiveAdvisories       int `json:"active_advisories"`
 	ActiveSensorFootprints int `json:"active_sensor_footprints"`
+	ActiveWeather          int `json:"active_weather_observations"`
 	ActiveAlerts           int `json:"active_alerts"`
 	StaleFeeds             int `json:"stale_feeds"`
 }
@@ -137,6 +139,27 @@ type SensorFootprint struct {
 	Confidence                 float64    `json:"confidence"`
 	UpdatedAt                  time.Time  `json:"updated_at"`
 	Provenance                 Provenance `json:"provenance"`
+}
+
+type WeatherObservation struct {
+	ID               string     `json:"id"`
+	Label            string     `json:"label"`
+	Source           string     `json:"source"`
+	Status           string     `json:"status"`
+	Provider         string     `json:"provider"`
+	QueryShape       string     `json:"query_shape"`
+	QueryGeometryWKT string     `json:"query_geometry_wkt"`
+	Position         *GeoPoint  `json:"position,omitempty"`
+	ValidTime        time.Time  `json:"valid_time"`
+	ModelTime        time.Time  `json:"model_time,omitempty"`
+	FreshUntil       time.Time  `json:"fresh_until,omitempty"`
+	Variable         string     `json:"variable"`
+	Value            float64    `json:"value"`
+	Unit             string     `json:"unit,omitempty"`
+	ClaimPosture     string     `json:"claim_posture"`
+	Confidence       float64    `json:"confidence"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Provenance       Provenance `json:"provenance"`
 }
 
 type Alert struct {

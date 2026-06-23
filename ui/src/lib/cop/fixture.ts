@@ -14,6 +14,7 @@ export const fixtureSnapshot: Snapshot = {
     active_tasks: 1,
     active_advisories: 1,
     active_sensor_footprints: 1,
+    active_weather_observations: 0,
     active_alerts: 1,
     stale_feeds: 0
   },
@@ -52,6 +53,14 @@ export const fixtureSnapshot: Snapshot = {
       status: 'live',
       last_event_at: klvObserved,
       message: 'Graph-backed KLV sensor/frame-center proof'
+    },
+    {
+      id: 'feed.weather',
+      name: 'Weather',
+      kind: 'tactical-weather',
+      status: 'planned',
+      last_event_at: '2026-06-19T11:08:00Z',
+      message: 'Weather graph proof pending'
     }
   ],
   assets: [
@@ -205,6 +214,7 @@ export const fixtureSnapshot: Snapshot = {
       }
     }
   ],
+  weather_observations: [],
   alerts: [
     {
       id: 'alert.mavlink.track-freshness',

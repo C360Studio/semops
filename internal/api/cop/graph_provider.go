@@ -236,6 +236,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	advisoriesByID := make(map[string]graph.EntityState)
 	hazardsByID := make(map[string]graph.EntityState)
 	footprintsByID := make(map[string]graph.EntityState)
+	weatherByID := make(map[string]graph.EntityState)
 	var firstErr error
 
 	var discovered graphDiscoveryResult
@@ -248,6 +249,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 			advisoriesByID,
 			hazardsByID,
 			footprintsByID,
+			weatherByID,
 		); err != nil {
 			firstErr = errors.Join(firstErr, err)
 			discovered = result
@@ -311,7 +313,8 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		len(tasksByID) == 0 &&
 		len(advisoriesByID) == 0 &&
 		len(hazardsByID) == 0 &&
-		len(footprintsByID) == 0 {
+		len(footprintsByID) == 0 &&
+		len(weatherByID) == 0 {
 		if p.fallback != nil {
 			return p.fallback.Snapshot(ctx)
 		}
@@ -327,6 +330,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		advisoriesByID,
 		hazardsByID,
 		footprintsByID,
+		weatherByID,
 		discovered.diagnostics,
 	), nil
 }
@@ -345,6 +349,7 @@ type graphDiscoveryResult struct {
 	cot         bool
 	cap         bool
 	klv         bool
+	weather     bool
 	diagnostics []DiscoveryDiagnostic
 }
 
@@ -356,6 +361,7 @@ func (p *GraphProvider) discoverInto(
 	advisoriesByID map[string]graph.EntityState,
 	hazardsByID map[string]graph.EntityState,
 	footprintsByID map[string]graph.EntityState,
+	weatherByID map[string]graph.EntityState,
 ) (graphDiscoveryResult, error) {
 	var result graphDiscoveryResult
 	var firstErr error
@@ -381,6 +387,8 @@ func (p *GraphProvider) discoverInto(
 				result.cap = true
 			case "klv":
 				result.klv = true
+			case "weather":
+				result.weather = true
 			}
 			switch target.Kind {
 			case copmodel.EntityAsset:
@@ -395,6 +403,8 @@ func (p *GraphProvider) discoverInto(
 				hazardsByID[entity.ID] = entity
 			case copmodel.EntitySensorFootprint:
 				footprintsByID[entity.ID] = entity
+			case copmodel.EntityWeatherObservation:
+				weatherByID[entity.ID] = entity
 			}
 		}
 		result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, count, truncated, nil))
@@ -415,6 +425,7 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 			newGraphDiscoveryTarget(scope, "cap", copmodel.EntityHazardArea, "cap"),
 			newGraphDiscoveryTarget(scope, "adsb", copmodel.EntityTrack, "adsb"),
 			newGraphDiscoveryTarget(scope, "klv", copmodel.EntitySensorFootprint, "klv"),
+			newGraphDiscoveryTarget(scope, "weather", copmodel.EntityWeatherObservation, "weather"),
 		)
 	}
 	return targets
@@ -605,6 +616,7 @@ func (p *GraphProvider) snapshotFromGraph(
 	advisoriesByID map[string]graph.EntityState,
 	hazardsByID map[string]graph.EntityState,
 	footprintsByID map[string]graph.EntityState,
+	weatherByID map[string]graph.EntityState,
 	discoveryDiagnostics []DiscoveryDiagnostic,
 ) Snapshot {
 	now := p.now().UTC()
@@ -663,7 +675,15 @@ func (p *GraphProvider) snapshotFromGraph(
 		}
 	}
 
-	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories, hazards, footprints)
+	weather := make([]WeatherObservation, 0, len(weatherByID))
+	for _, entity := range sortedEntities(weatherByID) {
+		observation, ok := weatherObservationFromEntity(entity, now, p.freshness)
+		if ok {
+			weather = append(weather, observation)
+		}
+	}
+
+	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories, hazards, footprints, weather)
 	discoveryDiagnostics = normalizeDiscoveryDiagnostics(discoveryDiagnostics)
 	alerts := diagnosticAlertsFromDiscovery(discoveryDiagnostics, now)
 	return Snapshot{
@@ -674,6 +694,7 @@ func (p *GraphProvider) snapshotFromGraph(
 			ActiveTasks:            len(tasks),
 			ActiveAdvisories:       len(advisories),
 			ActiveSensorFootprints: len(footprints),
+			ActiveWeather:          len(weather),
 			ActiveAlerts:           len(alerts),
 			StaleFeeds:             countFeeds(feeds, "stale"),
 		},
@@ -687,6 +708,7 @@ func (p *GraphProvider) snapshotFromGraph(
 		Advisories:       advisories,
 		Hazards:          hazards,
 		SensorFootprints: footprints,
+		Weather:          weather,
 		Alerts:           alerts,
 	}
 }
@@ -761,6 +783,8 @@ func sourceLabel(source string) string {
 		return "ADS-B"
 	case "klv":
 		return "KLV"
+	case "weather":
+		return "Weather"
 	default:
 		return source
 	}
@@ -782,6 +806,8 @@ func feedIDForDiscoverySource(source string) string {
 		return "feed.adsb"
 	case "klv":
 		return "feed.klv"
+	case "weather":
+		return "feed.weather"
 	default:
 		return "feed." + alertIDSegment(source)
 	}
@@ -795,6 +821,7 @@ func firstPhaseFeedHealth(
 	advisories []Advisory,
 	hazards []Hazard,
 	footprints []SensorFootprint,
+	weather []WeatherObservation,
 ) []FeedHealth {
 	mavlink := feedHealthFromObservations(
 		now,
@@ -864,7 +891,34 @@ func firstPhaseFeedHealth(
 		klv.Status = "planned"
 		klv.LastEventAt = now.Add(-50 * time.Minute)
 	}
-	return []FeedHealth{mavlink, tak, cap, adsb, klv}
+	weatherFeed := weatherFeedHealth(now, freshness, weather)
+	return []FeedHealth{mavlink, tak, cap, adsb, klv, weatherFeed}
+}
+
+func weatherFeedHealth(now time.Time, freshness time.Duration, observations []WeatherObservation) FeedHealth {
+	feed := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.weather",
+		"Weather",
+		"tactical-weather",
+		"Weather graph proof pending",
+		"Graph-backed tactical weather observations",
+		weatherObservationTimes(observations),
+	)
+	if len(observations) == 0 {
+		feed.Status = "planned"
+		feed.LastEventAt = now.Add(-52 * time.Minute)
+		return feed
+	}
+	for _, observation := range observations {
+		if observation.Status == "fresh" {
+			feed.Status = "live"
+			feed.Message = "Graph-backed tactical weather observations"
+			return feed
+		}
+	}
+	return feed
 }
 
 func feedHealthFromObservations(
@@ -945,6 +999,14 @@ func sensorFootprintObservationTimes(footprints []SensorFootprint) []time.Time {
 	times := make([]time.Time, 0, len(footprints))
 	for _, footprint := range footprints {
 		times = append(times, footprint.UpdatedAt)
+	}
+	return times
+}
+
+func weatherObservationTimes(observations []WeatherObservation) []time.Time {
+	times := make([]time.Time, 0, len(observations))
+	for _, observation := range observations {
+		times = append(times, observation.UpdatedAt)
 	}
 	return times
 }
@@ -1182,6 +1244,77 @@ func sensorFootprintWarnings(entity graph.EntityState, mediaRef string, packetRe
 	return warnings
 }
 
+func weatherObservationFromEntity(
+	entity graph.EntityState,
+	now time.Time,
+	freshness time.Duration,
+) (WeatherObservation, bool) {
+	variable := latestStringProperty(entity, copmodel.WeatherVariable, "")
+	value, valueOK := latestFloatProperty(entity, copmodel.WeatherValue)
+	validTime, validOK := latestTimeProperty(entity, copmodel.WeatherValidTime)
+	if variable == "" || !valueOK || !validOK {
+		return WeatherObservation{}, false
+	}
+
+	updatedAt := latestObservedAt(entity, copmodel.ProvenanceObservedAt, copmodel.WeatherModelTime, copmodel.WeatherValidTime)
+	modelTime, _ := latestTimeProperty(entity, copmodel.WeatherModelTime)
+	freshUntil, _ := latestTimeProperty(entity, copmodel.WeatherFreshUntil)
+	queryGeometry := latestStringProperty(entity, copmodel.WeatherQueryGeometry, "")
+	position := optionalLatestPoint(entity, copmodel.WeatherQueryGeometry)
+	source := stringProperty(entity, copmodel.ProvenanceSource, sourceFromEntityID(entity.ID))
+	return WeatherObservation{
+		ID:               entity.ID,
+		Label:            weatherObservationLabel(entity, variable),
+		Source:           source,
+		Status:           weatherObservationStatus(now, updatedAt, freshUntil, freshness),
+		Provider:         latestStringProperty(entity, copmodel.WeatherProvider, ""),
+		QueryShape:       latestStringProperty(entity, copmodel.WeatherQueryShape, ""),
+		QueryGeometryWKT: queryGeometry,
+		Position:         position,
+		ValidTime:        validTime,
+		ModelTime:        modelTime,
+		FreshUntil:       freshUntil,
+		Variable:         variable,
+		Value:            value,
+		Unit:             latestStringProperty(entity, copmodel.WeatherUnit, ""),
+		ClaimPosture:     "tactical weather graph readback; fixture/provider-shaped point evidence; no live-provider, cache, route-safety, or OGC conformance claim",
+		Confidence:       confidence(entity),
+		UpdatedAt:        updatedAt,
+		Provenance: Provenance{
+			Owner:     ownerForSource(source),
+			SourceRef: latestStringProperty(entity, copmodel.ProvenanceSourceRef, ""),
+			Observed:  updatedAt,
+		},
+	}, true
+}
+
+func weatherObservationLabel(entity graph.EntityState, variable string) string {
+	provider := latestStringProperty(entity, copmodel.WeatherProvider, "")
+	unit := latestStringProperty(entity, copmodel.WeatherUnit, "")
+	value, ok := latestFloatProperty(entity, copmodel.WeatherValue)
+	if provider == "" {
+		provider = "weather"
+	}
+	if !ok {
+		return provider + " " + variable
+	}
+	rendered := strconv.FormatFloat(value, 'f', -1, 64)
+	if unit != "" {
+		rendered += " " + unit
+	}
+	return provider + " " + variable + " " + rendered
+}
+
+func weatherObservationStatus(now time.Time, updatedAt time.Time, freshUntil time.Time, freshness time.Duration) string {
+	if !freshUntil.IsZero() && !now.IsZero() && !freshUntil.Before(now.UTC()) {
+		return "fresh"
+	}
+	if !freshUntil.IsZero() && !now.IsZero() && freshUntil.Before(now.UTC()) {
+		return "stale"
+	}
+	return freshnessStatus("fresh", now, updatedAt, freshness)
+}
+
 func hazardEvidenceDocument(entity graph.EntityState) (copmodel.HazardEvidenceDocument, bool) {
 	value, ok := latestPropertyValue(entity, copmodel.HazardEvidence)
 	if !ok {
@@ -1344,6 +1477,14 @@ func latestPoint(entity graph.EntityState, predicate string) (GeoPoint, bool) {
 	return geoPointFromWKT(value)
 }
 
+func optionalLatestPoint(entity graph.EntityState, predicate string) *GeoPoint {
+	point, ok := latestPoint(entity, predicate)
+	if !ok {
+		return nil
+	}
+	return &point
+}
+
 func optionalFloat(entity graph.EntityState, predicate string) *float64 {
 	value, ok := latestPropertyValue(entity, predicate)
 	if !ok {
@@ -1354,6 +1495,26 @@ func optionalFloat(entity graph.EntityState, predicate string) *float64 {
 		return nil
 	}
 	return &parsed
+}
+
+func latestFloatProperty(entity graph.EntityState, predicate string) (float64, bool) {
+	value, ok := latestPropertyValue(entity, predicate)
+	if !ok {
+		return 0, false
+	}
+	return floatFromAny(value)
+}
+
+func latestTimeProperty(entity graph.EntityState, predicate string) (time.Time, bool) {
+	value, ok := latestPropertyValue(entity, predicate)
+	if !ok {
+		return time.Time{}, false
+	}
+	parsed, ok := timeFromAny(value)
+	if !ok {
+		return time.Time{}, false
+	}
+	return parsed.UTC(), true
 }
 
 func freshnessStatus(status string, now time.Time, updatedAt time.Time, freshness time.Duration) string {
@@ -1385,6 +1546,9 @@ func sourceFromEntityID(entityID string) string {
 	if strings.Contains(entityID, ".cop.klv.") {
 		return "klv"
 	}
+	if strings.Contains(entityID, ".cop.weather.") {
+		return "weather"
+	}
 	return "graph"
 }
 
@@ -1400,6 +1564,8 @@ func ownerForSource(source string) string {
 		return copmodel.OwnerADSB
 	case "klv":
 		return copmodel.OwnerKLV
+	case "weather":
+		return copmodel.OwnerWeather
 	default:
 		return copmodel.OwnerFusion
 	}

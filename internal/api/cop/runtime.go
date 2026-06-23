@@ -188,6 +188,8 @@ func runtimeFeedLabels(feed string) (string, string) {
 		return "feed.sapient", "SAPIENT"
 	case "klv":
 		return "feed.klv", "KLV"
+	case "weather":
+		return "feed.weather", "Weather"
 	default:
 		if feed == "" {
 			return "feed.unknown", "Unknown"
@@ -210,6 +212,8 @@ func runtimeFeedOrder(id string) int {
 		return 4
 	case "feed.klv":
 		return 5
+	case "feed.weather":
+		return 6
 	default:
 		return 100
 	}

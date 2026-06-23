@@ -189,6 +189,8 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **AND** it waits for the Caddy-routed COP snapshot to expose the scenario runner's MAVLink, TAK/CoT, and CAP state
 - **AND** it waits for the same-origin Caddy COP snapshot path to expose graph-backed MAVLink track state and
   TAK/CoT task/advisory state
+- **AND** it can opt into a weather fixture check that waits for the Caddy-routed COP snapshot to expose graph-backed
+  `weather_observation` evidence and component/runtime flow without enabling a default live weather provider
 - **AND** it runs direct live graph smokes for MAVLink, TAK/CoT, and CAP evidence through SemStreams
 - **AND** it keeps the Svelte immutable asset cache check in place so Caddy remains a reverse proxy rather than a
   replacement static server

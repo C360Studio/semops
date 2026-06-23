@@ -139,6 +139,13 @@ This starts NATS, the SemStreams graph backend, the SemOps runtime/API, the Svel
 Compose. The smoke polls SemStreams health and metrics, the direct SemOps API, and the Caddy-routed browser path before
 running hosted MAVLink/CoT UDP snapshot checks and direct MAVLink, CoT, and CAP live graph smokes.
 
+Opt into the weather fixture stack readback smoke when you want the same Compose/Caddy path to prove the local
+Open-Meteo-shaped point forecast through graph projection and COP API readback:
+
+```bash
+SEMOPS_COP_SMOKE_WEATHER_ENABLED=true bash scripts/cop-stack-smoke.sh
+```
+
 The local browser entrypoint is:
 
 ```text
@@ -147,5 +154,6 @@ http://localhost:8080
 
 Caddy proxies `/api/*` and `/healthz` to SemOps API so the UI uses the same-origin path operators will expect from
 real infrastructure. The direct API remains available on `http://localhost:8088` for diagnostics. The current UI/API
-snapshot has a fixture fallback plus graph-backed MAVLink, CoT, and CAP readback. Stale/lifecycle policy, hosted CAP
-polling, and the scenario runner are still being built.
+snapshot has a fixture fallback plus graph-backed MAVLink, CoT, CAP, KLV, ADS-B, and opt-in weather-observation
+readback. Live weather providers, cache/stale policy, route-safety logic, and tactical weather map layers remain
+future gates.

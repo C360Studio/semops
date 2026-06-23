@@ -253,7 +253,9 @@ provider-shaped point fixtures before graph writes, live provider support, spati
 language. SemOps now also has a governed `weather_observation` graph contract, graph writer, and point-forecast graph
 projector component evidence for localized variable/time samples. The hosted app can now opt into a fixture-backed
 file input -> decoder -> graph-projector runtime flow with owner-token registration and component metrics, but this
-is still local fixture evidence rather than a live weather-provider claim.
+is still local fixture evidence rather than a live weather-provider claim. The COP API can read graph-backed
+`weather_observation` entities and the one-command stack smoke can opt into a Caddy-routed weather fixture readback
+check, but SemOps still does not render a tactical weather map layer or route-safety decision.
 
 Full product lane:
 OGC API EDR and provider-specific weather gateway with point, area, trajectory, corridor, and selected broader EDR

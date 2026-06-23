@@ -34,6 +34,7 @@ const (
 	liveSnapshotADSBHTTPEnv = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
 	liveSnapshotSAPIENTEnv  = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
 	liveSnapshotKLVEnv      = "SEMOPS_COP_SMOKE_KLV_ENABLED"
+	liveSnapshotWeatherEnv  = "SEMOPS_COP_SMOKE_WEATHER_ENABLED"
 	defaultExpectedTrackID  = "c360.edge-compose.cop.mavlink.track.system-42"
 	defaultExpectedCoTTrack = "c360.edge-compose.cop.tak.track.android-alpha"
 	defaultExpectedCoTTask  = "c360.edge-compose.cop.tak.task.marker-north-gate"
@@ -336,6 +337,47 @@ func TestHostedCOPSnapshotReflectsKLVLocalMedia(t *testing.T) {
 	}
 }
 
+func TestHostedCOPSnapshotReflectsWeatherFixture(t *testing.T) {
+	snapshotURL := os.Getenv(liveSnapshotURLEnv)
+	if snapshotURL == "" {
+		t.Skipf("set %s to run the hosted COP weather snapshot smoke", liveSnapshotURLEnv)
+	}
+	expectWeather, err := boolFromEnv(liveSnapshotWeatherEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !expectWeather {
+		t.Skipf("set %s=true to run the hosted COP weather snapshot smoke", liveSnapshotWeatherEnv)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
+		if err != nil {
+			lastErr = err
+		} else if snapshotHasWeatherObservation(snapshot) {
+			return
+		} else {
+			lastErr = fmt.Errorf("snapshot missing weather fixture observations: scenario=%s observations=%d",
+				snapshot.Scenario, len(snapshot.Weather))
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted COP snapshot did not reflect weather fixture before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
 func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 	metricsURL := os.Getenv(liveComponentMetricsEnv)
 	mavlinkAddr := os.Getenv(liveSnapshotUDPAddrEnv)
@@ -353,6 +395,10 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectKLV, err := boolFromEnv(liveSnapshotKLVEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectWeather, err := boolFromEnv(liveSnapshotWeatherEnv)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -392,6 +438,13 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 			componentMetricExpectation{Name: "semops-processor-klv-demux", Feed: "klv", Role: "demux"},
 			componentMetricExpectation{Name: "semops-processor-klv-decode", Feed: "klv", Role: "decoder"},
 			componentMetricExpectation{Name: "semops-processor-klv-project", Feed: "klv", Role: "projector"},
+		)
+	}
+	if expectWeather {
+		expected = append(expected,
+			componentMetricExpectation{Name: "semops-input-weather-fixture", Feed: "weather", Role: "fixture-input"},
+			componentMetricExpectation{Name: "semops-processor-weather-decode", Feed: "weather", Role: "decoder"},
+			componentMetricExpectation{Name: "semops-processor-weather-project", Feed: "weather", Role: "projector"},
 		)
 	}
 
@@ -446,6 +499,10 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	expectWeather, err := boolFromEnv(liveSnapshotWeatherEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
 	defer cancel()
@@ -467,6 +524,9 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 	}
 	if expectKLV {
 		expected = append(expected, runtimeFeedExpectation{ID: "feed.klv", Healthy: 4, Total: 4, RequireFlow: true})
+	}
+	if expectWeather {
+		expected = append(expected, runtimeFeedExpectation{ID: "feed.weather", Healthy: 3, Total: 3, RequireFlow: true})
 	}
 
 	client := &http.Client{Timeout: 2 * time.Second}
@@ -767,6 +827,41 @@ func snapshotHasKLVSensorFootprint(snapshot copapi.Snapshot) bool {
 			return false
 		}
 		if !strings.Contains(footprint.ClaimPosture, "no STANAG conformance") {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func snapshotHasWeatherObservation(snapshot copapi.Snapshot) bool {
+	if snapshot.Scenario != "phase-1-live-graph" {
+		return false
+	}
+	var feedLive bool
+	for _, feed := range snapshot.Feeds {
+		if feed.ID == "feed.weather" && feed.Status == "live" {
+			feedLive = true
+			break
+		}
+	}
+	if !feedLive {
+		return false
+	}
+	for _, observation := range snapshot.Weather {
+		if observation.Source != "weather" || observation.Provider == "" {
+			continue
+		}
+		if observation.Variable == "" || observation.Unit == "" {
+			return false
+		}
+		if observation.QueryShape == "" || observation.QueryGeometryWKT == "" || observation.Position == nil {
+			return false
+		}
+		if observation.Provenance.Owner != "semops.feed.weather" || observation.Provenance.SourceRef == "" {
+			return false
+		}
+		if !strings.Contains(observation.ClaimPosture, "no live-provider") {
 			return false
 		}
 		return true

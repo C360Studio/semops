@@ -159,6 +159,36 @@ func TestBuildRuntimeSnapshotLabelsKLVFeed(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeSnapshotLabelsWeatherFeed(t *testing.T) {
+	now := time.Date(2026, 6, 23, 19, 0, 0, 0, time.UTC)
+	provider := runtimeProviderStub{sources: []componentmetrics.Source{{
+		Feed: "weather",
+		Role: "projector",
+		Component: runtimeComponentStub{
+			meta: component.Metadata{Name: "weather-projector", Type: "processor"},
+			health: component.HealthStatus{
+				Healthy: true,
+				Status:  "running",
+			},
+			flow: component.FlowMetrics{
+				MessagesPerSecond: 1,
+				LastActivity:      now.Add(-time.Second),
+			},
+		},
+	}}}
+
+	snapshot := BuildRuntimeSnapshot(now, provider)
+
+	if len(snapshot.Feeds) != 1 {
+		t.Fatalf("feed count = %d, want 1", len(snapshot.Feeds))
+	}
+	if snapshot.Feeds[0].ID != "feed.weather" ||
+		snapshot.Feeds[0].Name != "Weather" ||
+		snapshot.Feeds[0].Status != "flowing" {
+		t.Fatalf("weather runtime feed = %+v", snapshot.Feeds[0])
+	}
+}
+
 type runtimeProviderStub struct {
 	sources []componentmetrics.Source
 }

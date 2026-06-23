@@ -10,6 +10,7 @@ export type Snapshot = {
   advisories: Advisory[];
   hazards: Hazard[];
   sensor_footprints: SensorFootprint[];
+  weather_observations: WeatherObservation[];
   alerts: Alert[];
 };
 
@@ -18,6 +19,7 @@ export type Summary = {
   active_tasks: number;
   active_advisories: number;
   active_sensor_footprints: number;
+  active_weather_observations: number;
   active_alerts: number;
   stale_feeds: number;
 };
@@ -164,6 +166,27 @@ export type SensorFootprint = {
   claim_posture: string;
   decoded_fields: string[];
   warnings: string[];
+  confidence: number;
+  updated_at: string;
+  provenance: Provenance;
+};
+
+export type WeatherObservation = {
+  id: string;
+  label: string;
+  source: string;
+  status: string;
+  provider: string;
+  query_shape: string;
+  query_geometry_wkt: string;
+  position?: GeoPoint;
+  valid_time: string;
+  model_time?: string;
+  fresh_until?: string;
+  variable: string;
+  value: number;
+  unit?: string;
+  claim_posture: string;
   confidence: number;
   updated_at: string;
   provenance: Provenance;

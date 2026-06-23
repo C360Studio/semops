@@ -66,6 +66,14 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 				LastEventAt: klvObserved,
 				Message:     "Graph-backed KLV sensor/frame-center proof",
 			},
+			{
+				ID:          "feed.weather",
+				Name:        "Weather",
+				Kind:        "tactical-weather",
+				Status:      "planned",
+				LastEventAt: now.Add(-52 * time.Minute),
+				Message:     "Weather graph proof pending",
+			},
 		},
 		Assets: []Asset{
 			{
@@ -215,6 +223,7 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 				},
 			},
 		},
+		Weather: []WeatherObservation{},
 		Alerts: []Alert{
 			{
 				ID:        "alert.mavlink.track-freshness",
@@ -232,6 +241,7 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 		ActiveTasks:            len(snapshot.Tasks),
 		ActiveAdvisories:       len(snapshot.Advisories),
 		ActiveSensorFootprints: len(snapshot.SensorFootprints),
+		ActiveWeather:          len(snapshot.Weather),
 		ActiveAlerts:           len(snapshot.Alerts),
 		StaleFeeds:             countFeeds(snapshot.Feeds, "stale"),
 	}
