@@ -222,6 +222,11 @@ binary-by-reference storage, and memory-bounded handling.
 - **AND** future SemSource media-track extraction is treated as generic substrate support, not SemOps KLV/STANAG
   product support
 
+### Requirement: DJI and weather remain first-class feed gates
+
+SemOps SHALL track DJI and weather as explicit feed or layer gates rather than hiding them under MAVLink, CAP, or
+KLV evidence.
+
 #### Scenario: DJI media reinforces generic media references
 
 - **WHEN** DJI video or recorded media enters SemOps
@@ -256,6 +261,11 @@ binary-by-reference storage, and memory-bounded handling.
   are accepted
 - **AND** tactical weather supports the relevant point, area, and route/trajectory query shapes before it influences
   routing or safety logic
+
+### Requirement: KLV fixture and runtime evidence remains bounded
+
+SemOps SHALL keep KLV public-sample, deterministic fixture, runtime, and UI evidence bounded to the proven MISB ST
+0601 subset until stronger fixture, live media, and conformance gates are accepted.
 
 #### Scenario: Public samples are smoke evidence only
 
