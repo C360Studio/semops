@@ -86,7 +86,8 @@
 - [x] 5.1 Add initial feed validation and indexing ladder documentation
 - [x] 5.2 Record mock, simulator, replay, compliance, and sample-data evidence for each feed
 - [x] 5.3 Define expected `indexing_profile` and cardinality risk for each projected entity type
-- [ ] 5.4 Prove MAVLink parser, generator, ArduPilot SITL, and PX4 SITL evidence gates
+- [x] 5.4 Prove MAVLink parser, generator, and PX4/Gazebo telemetry evidence gates while splitting ArduPilot,
+      MAVSDK parity, and live command/control into separate follow-up gates
 - [x] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
 - [x] 5.6 Prove CAP XML schema, NWS sample, and lifecycle gates before CAP conformance or service claims; bounded MVP
       gate is closed, but CAP conformance, NWS/IPAWS integration, default service support, and captured lifecycle
@@ -197,6 +198,10 @@
       open
 - [x] 5.94 Record COMMAND_ACK readback as governed control-task evidence while keeping live command transmit,
       priority, TTL, and CS API reconciliation gates open
+- [ ] 5.95 Add explicit ArduPilot SITL telemetry parity evidence before claiming ArduPilot simulator interoperability
+- [ ] 5.96 Add MAVSDK/PX4 offboard parity evidence before claiming MAVSDK command/control or offboard interoperability
+- [ ] 5.97 Add a safe live MAVLink command/control simulator gate with ACK and post-command state polling before native
+      command authority claims
 
 ## 6. Structural COP Stack
 

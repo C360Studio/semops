@@ -160,6 +160,8 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the smoke must assert live MAVLink feed health, source-owned provenance, non-empty source reference, position,
   velocity or equivalent state evidence, and repeated simulator updates before it is cited as simulator-fidelity
   evidence
+- **AND** passing telemetry evidence for one simulator family SHALL NOT imply ArduPilot parity, MAVSDK/offboard parity,
+  live command transmit, or broader command/control authority
 - **AND** live command transmit, mission state, command ACK reconciliation, serial/TCP transports, signed links, and
   hardware behavior remain separate gates until reviewed
 

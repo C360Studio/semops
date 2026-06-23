@@ -300,10 +300,11 @@ Acceptance:
 - Focused and stack helpers require a named simulator source before running the evidence gate. [done]
 - Preferred PX4/Gazebo headless Docker helper is wired, fail-closed on missing local image unless pull is explicitly
   enabled, and records simulator image/vehicle/world evidence. [done and passed against pulled image on 2026-06-23]
-- Against explicit ArduPilot SITL, the controller connects, reads status, and performs safe command smoke tests.
+- Against explicit ArduPilot SITL, the controller connects, reads status, and performs telemetry parity checks before
+  any ArduPilot interoperability claim. Live command smoke remains a separate reviewed gate.
   [open]
-- PX4 SITL or MAVSDK smoke evidence is recorded before calling MAVLink Phase 1 complete. [done for telemetry smoke;
-  command/control remains open]
+- PX4 SITL or MAVSDK smoke evidence is recorded before calling MAVLink Phase 1 complete. [done for PX4/Gazebo
+  telemetry smoke; MAVSDK/offboard parity and command/control remain open]
 
 ### Replay Gate
 
@@ -336,14 +337,14 @@ Acceptance:
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before
   command/control demo claims.
 - The external SITL telemetry smoke harness has passed against PX4/Gazebo headless Docker with and without
-  motion-required assertions. ArduPilot parity and live command/control remain open, so `5.4` remains open while `4.7`
-  is now closed.
+  motion-required assertions. The old bundled `5.4` gate is closed only for parser/generator and PX4 telemetry
+  evidence; ArduPilot parity, MAVSDK/offboard parity, and live command/control remain separate open gates.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
 - Command codec coverage and COMMAND_ACK readback projection are active, but live command transmit, command
   reconciliation, priority, TTL, and safety interlocks are not.
-- PX4/Gazebo headless telemetry and motion-required evidence is in SemOps; ArduPilot parity, MAVSDK parity, and live
-  command/control evidence remain open.
+- PX4/Gazebo headless telemetry and motion-required evidence is in SemOps; ArduPilot parity, MAVSDK/offboard parity,
+  and live command/control evidence remain open.
 
 ## Adversarial Feed-Entry Questions
 
@@ -351,4 +352,4 @@ Acceptance:
 - Is there exactly one current vehicle graph entity per vehicle, not one entity per packet?
 - Does low-battery alert state belong to the feed owner or a derived rule owner?
 - Does raw/replay detail stay out of semantic indexing?
-- Does the demo claim PX4 coverage before a PX4 or MAVSDK smoke gate exists?
+- Does the demo claim all-family MAVLink simulator coverage from one PX4/Gazebo telemetry gate?

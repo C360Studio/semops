@@ -206,7 +206,9 @@ Mock or harness:
 - `scripts/mavlink-sitl-gate.sh` now provides guarded `preflight`, `focused`, and `stack` modes. Focused and stack
   modes require `SEMOPS_MAVLINK_SITL_SIMULATOR_NAME`, and require local simulator tooling or an explicit
   `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true` override before running the evidence gate.
-- Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
+- PX4/Gazebo headless telemetry smoke now has local pass evidence with and without motion required. Treat that as
+  PX4 telemetry evidence only; ArduPilot parity, MAVSDK/offboard parity, and live command/control remain separate
+  open gates.
 
 Indexing profile pressure:
 
@@ -242,9 +244,9 @@ Current codec gate:
 - `pkg/adapters/mavlink/replay_test.go` proves durable fixture append/load and parser replay.
 - `go test ./internal/adapters/mavlink` proves parse, raw capture, projection, graph-plan write, and health ordering.
 - `go test ./internal/smoke/mavlink` proves the external SITL smoke skips unless an explicit COP snapshot URL is set.
-  A real PX4/MAVSDK run is still required before MAVLink simulator-fidelity claims.
-- Host/tooling absence must not be upgraded into a simulator qualification. The feed-ladder tasks for PX4/MAVSDK/SITL
-  evidence remain open until the observer-only smoke passes against an explicit simulator source.
+  The observer-only smoke has passed against PX4/Gazebo headless Docker, including motion-required evidence.
+- Host/tooling absence must not be upgraded into simulator qualification, and one simulator pass must not be upgraded
+  into all-family MAVLink parity. ArduPilot SITL, MAVSDK/offboard parity, and live command/control remain open gates.
 
 ### TAK/CoT
 
