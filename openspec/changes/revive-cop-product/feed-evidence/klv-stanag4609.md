@@ -10,12 +10,17 @@ binary-by-reference storage, and memory-bounded handling.
 
 ## Local Evidence
 
-- No production SemOps KLV adapter or live MPEG-TS demuxer exists in the current checkout.
+- No production SemOps KLV adapter or live MPEG-TS ingress service exists in the current checkout.
 - SemSource has video-source and video-handler code that extracts metadata and keyframes with ffprobe/ffmpeg.
 - SemSource video handling streams hashing, but when a storage backend is configured it currently reads the full
   video file into memory before storage.
-- SemSource can publish typed media entity state through SemStreams, but it is not a tested KLV parser.
-- SemOps does not currently have a real legal KLV, STANAG 4609, or SKG binary fixture to provide to SemSource.
+- SemSource now has an opaque synthetic binary proof that stores raw bytes by reference, publishes governed metadata
+  such as hash, size, byte range, and storage reference with trace indexing, and keeps raw binary out of graph
+  triples. This qualifies the SemSource storage/governance side of the proof spike only.
+- SemSource can publish typed media entity state through SemStreams, but it is not a tested KLV parser, live
+  streaming-binary service, or STANAG evidence source.
+- SemOps does not currently have a real legal public or partner KLV, STANAG 4609, or SKG binary fixture to provide to
+  SemSource.
 - `internal/components/klv` now declares the first registered SemStreams payload schemas for the future KLV worker:
   `semops.klv_media_ref.v1`, `semops.klv_packet.v1`, and `semops.klv_misb0601_frame.v1`.
 - `internal/components/klv` now exposes the first SemStreams component skeleton for media-reference input, KLV demux,
@@ -64,6 +69,12 @@ The synthetic fixture may prove:
 The synthetic fixture must not be used to claim KLV/STANAG 4609, SAPIENT, SKG, streaming-binary, or parser
 conformance. Promoting beyond storage/governance proof requires a legal representative fixture, parser strategy,
 metadata extraction tests, and a separate adversarial review.
+
+2026-06-23 qualification: SemSource now carries that opaque synthetic proof as substrate evidence, and SemOps carries
+SemOps-authored deterministic packet and MPEG-TS fixture paths. Together these close the KLV/SemSource binary proof
+spike as storage/governance and cross-product boundary evidence only. They do not close KLV parser support beyond the
+tested SemOps MISB ST 0601 subset, live media ingress, video-service support, streaming-binary product support, or
+STANAG 4609 conformance.
 
 ## SemSource Alignment
 
@@ -357,11 +368,14 @@ Acceptance:
 Target command in SemSource or a SemOps sidecar:
 
 ```bash
+go test ./internal/binaryproof
 go test ./handler/video ./processor/video-source
 ```
 
 Acceptance:
 
+- Opaque synthetic binary storage publishes metadata and storage references without raw binary graph triples. [done in
+  SemSource synthetic binary proof]
 - Video metadata and keyframe extraction work on the small fixture.
 - Binary storage is by reference.
 - Memory use is bounded, or the full-file read path is explicitly bypassed for large/streaming cases.

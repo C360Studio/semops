@@ -265,6 +265,14 @@ binary-by-reference storage, and memory-bounded handling.
 - **THEN** SemOps owns KLV/MISB/STANAG parser choice, derived-fact projection, and conformance claims
 - **AND** SemSource substrate evidence is not treated as feed-specific protocol support
 
+#### Scenario: SemSource proof closes only storage/governance evidence
+
+- **WHEN** SemSource provides an opaque synthetic binary proof with by-reference storage, governed metadata,
+  indexing-profile evidence, and no raw-binary graph triples
+- **THEN** SemOps may count that as the KLV/SemSource storage/governance proof spike
+- **AND** SemOps still SHALL NOT claim KLV parser support, live media ingress, streaming-binary product support,
+  video-service support, or STANAG 4609 conformance from that proof
+
 #### Scenario: KLV demux remains a SemOps product boundary for MVP
 
 - **WHEN** SemOps consumes SemSource media references or native media ingress

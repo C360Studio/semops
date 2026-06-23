@@ -87,7 +87,9 @@
       gate is closed, but CAP conformance, NWS/IPAWS integration, default service support, and captured lifecycle
       corpus claims remain closed
 - [x] 5.7 Verify or reject public SAPIENT compliance/fixture availability before phase commitment
-- [ ] 5.8 Run a KLV/SemSource binary proof spike before claiming streaming-binary support
+- [x] 5.8 Run and qualify a KLV/SemSource binary proof spike before claiming streaming-binary support; current
+      close is storage/governance evidence only, and streaming-binary product support remains blocked until
+      media-scale memory, backpressure, and live-ingress gates pass
 - [x] 5.9 Run adversarial review for each feed before it enters the structural stack
 - [x] 5.10 Treat ADR-055/056 live graph smoke as a MAVLink gate before simulator fidelity claims
 - [x] 5.11 Add SemOps-local TAK/CoT native parser gate before UDP/TCP replay or graph projection

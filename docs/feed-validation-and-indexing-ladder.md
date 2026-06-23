@@ -880,7 +880,12 @@ Local assets:
 - SemSource has draft media support and a video handler that extracts metadata and keyframes with ffprobe/ffmpeg.
 - SemSource can store metadata-only video entities, and can store binary files when a media store is configured.
 - The current video handler streams hashing, but reads the full video into memory when binary storage is enabled.
-- SemOps does not currently have a real legal KLV, STANAG 4609, or SKG binary fixture to hand to SemSource.
+- SemSource now carries an opaque synthetic binary proof that stores bytes by reference, publishes governed metadata
+  such as hash, size, byte range, and storage reference with trace indexing, and keeps raw binary out of graph
+  triples. This qualifies storage/governance evidence only, not KLV parser support or streaming-binary product
+  support.
+- SemOps does not currently have a real legal public or partner KLV, STANAG 4609, or SKG binary fixture to hand to
+  SemSource.
 - `internal/components/klv` declares the first registered KLV payload schemas: `semops.klv_media_ref.v1`,
   `semops.klv_packet.v1`, and `semops.klv_misb0601_frame.v1`.
 - `internal/components/klv` also declares the first component skeleton: media-reference input, KLV demux processor,
@@ -915,6 +920,9 @@ Mock or harness:
 - Treat SemSource as a candidate media sidecar, not a proven KLV solution.
 - SemSource's governed SemStreams migration leaves KLV/MISB/STANAG/SAPIENT/SKG interpretation to SemOps or a
   SemOps-owned worker. That is the product boundary SemOps should preserve.
+- SemSource's synthetic binary proof closes the storage/governance handoff slice only. It does not close SemOps KLV
+  parser support beyond tested deterministic fixtures, live media ingress, video service support, streaming-binary
+  product support, or STANAG 4609 conformance.
 - Demux does not need to happen in SemSource for the MVP. SemOps owns the `media_ref -> demux -> decode -> project`
   flow so MPEG-TS/KLV behavior, MISB decode, and support claims stay in the COP product.
 - A future SemSource or media-stack component may provide generic media-track extraction or byte-range materialization,
@@ -954,6 +962,8 @@ First acceptance gate:
 
 - Given a SemOps-owned KLV/MISB worker design, the input is a SemSource storage reference or native media reference,
   the output is governed derived facts, and component telemetry/backpressure/memory bounds are declared.
+- Given SemSource's opaque synthetic binary proof, SemOps may count the KLV/SemSource storage/governance proof spike
+  as closed while keeping all streaming-binary, live-media, video-service, and STANAG conformance claims blocked.
 - Given hosted KLV/MISB work, SemOps uses a SemStreams media-reference input component, demux processor, MISB decode
   processor, projector processor, and optional interop processors rather than a monolithic COP server feature.
 - Given component promotion, KLV messages use registered `semops.klv.*` payloads and declared ports; graph writes

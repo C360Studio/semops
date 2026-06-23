@@ -16,6 +16,12 @@ Update: SemSource's governed SemStreams migration has aligned with this boundary
 substrate evidence and leaves KLV/MISB/STANAG/SAPIENT/SKG interpretation, parser behavior, translation, and
 conformance to SemOps or a SemOps-owned worker. SemOps accepts that as the right product split.
 
+2026-06-23 qualification update: SemSource now carries the opaque synthetic binary proof this review requested. The
+proof stores raw bytes by reference, publishes governed metadata for hash, size, byte range, storage reference, and
+proof findings, uses trace-indexed SemStreams state, and keeps raw binary out of graph triples. SemOps accepts that as
+closing the SemSource storage/governance portion of the proof spike, not as KLV parser, live media, video-service,
+streaming-binary, or STANAG 4609 evidence.
+
 ## Objections Raised
 
 - A synthetic fixture can easily become accidental compliance theater. The fixture metadata and docs must say
@@ -48,7 +54,7 @@ conformance to SemOps or a SemOps-owned worker. SemOps accepts that as the right
 
 ## Follow-Up Tasks
 
-- Add fixture metadata in SemSource that states the fixture is synthetic and carries no protocol conformance claim.
+- Keep SemSource fixture metadata explicit that the fixture is synthetic and carries no protocol conformance claim.
 - Identify or generate a legal tiny video-plus-KLV/SKG fixture before KLV/SKG feed acceptance.
 - Design the SemOps-owned KLV/MISB worker boundary: storage-reference input, demux/parser choice, derived-fact output,
   and conformance gate.

@@ -148,11 +148,13 @@ SAPIENT:
 
 KLV/STANAG 4609:
 
-- Demo/MVP boundary: tiny video-plus-KLV proof spike with binary-by-reference and memory bounds.
+- Demo/MVP boundary: SemSource opaque-binary storage/governance proof plus SemOps-owned deterministic KLV packet and
+  MPEG-TS fixture gates with binary-by-reference posture and bounded component handling.
 - Full product path: media/KLV pipeline with demux, parser sidecar or native parser, object storage, keyframes,
   footprints, security, replay, and retention.
 - Promotion trigger: real video metadata exploitation or streaming-binary proof need.
-- Guardrail: binary bytes stay in object/media storage, not graph triples.
+- Guardrail: SemSource proof is substrate evidence only; SemOps owns KLV/MISB/STANAG semantics and claims. Binary
+  bytes stay in object/media storage, not graph triples.
 
 ## Feed Roadmaps
 
