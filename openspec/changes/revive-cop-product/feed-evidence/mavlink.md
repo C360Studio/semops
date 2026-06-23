@@ -103,6 +103,12 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   `http://127.0.0.1:8080/api/cop/snapshot`, `min_updates=2`, and `require_motion=false`. The full command also passed
   the hosted COP, MAVLink born-first, CoT born-first, CAP born-first, and SAPIENT preflight smokes before cleaning up
   SemOps compose resources and the PX4 simulator container.
+- 2026-06-23: `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack
+  SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT=60s bash
+  scripts/mavlink-sitl-gate.sh` passed on commit `0884cdd` with the image already local. The generated evidence
+  recorded `result=passed`, `require_motion=true`, `timeout=60s`, `min_updates=2`, vehicle `gz_x500`, world `default`,
+  and expected track `c360.edge-compose.cop.mavlink.track.system-1`. The external SITL snapshot smoke passed in 25.52s,
+  proving the PX4/Gazebo headless route produced enough position delta for the motion-required gate.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -248,7 +254,7 @@ Acceptance:
 - The track uses `semops.feed.mavlink` provenance, carries a non-empty source reference, has non-zero position and
   velocity evidence, and appears while `feed.mavlink` is live. [done against PX4/Gazebo headless Docker on 2026-06-23]
 - The smoke observes repeated simulator updates and can require actual position motion with
-  `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true`. [done with two updates on 2026-06-23; motion-required mode open]
+  `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true`. [done against PX4/Gazebo headless Docker on 2026-06-23]
 - Local readiness preflight records whether PX4, MAVSDK, ArduPilot, or equivalent simulator tooling is actually
   available before attempting the stack gate. [done: 2026-06-23 no simulator runtime found]
 - Focused and stack helpers require a named simulator source before running the evidence gate. [done]
@@ -289,9 +295,9 @@ Acceptance:
   recovery and scenario-runner replay integration remain open.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before
   command/control demo claims.
-- The external SITL telemetry smoke harness has passed against PX4/Gazebo headless Docker. ArduPilot parity,
-  motion-required telemetry evidence, and live command/control remain open, so `5.4` remains open while `4.7` is now
-  closed.
+- The external SITL telemetry smoke harness has passed against PX4/Gazebo headless Docker with and without
+  motion-required assertions. ArduPilot parity and live command/control remain open, so `5.4` remains open while `4.7`
+  is now closed.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
 - Command codec coverage is active for COMMAND_LONG and COMMAND_ACK, but live command/control is not.

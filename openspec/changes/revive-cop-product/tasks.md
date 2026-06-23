@@ -192,6 +192,8 @@
 - [x] 5.91 Record synthetic MPEG-TS generation lineage for KLV fixtures and guard it with a generator test
 - [x] 5.92 Record PX4/Gazebo headless Docker stack-smoke evidence while keeping broader ArduPilot and command/control
       gates open
+- [x] 5.93 Record PX4/Gazebo headless Docker motion-required stack-smoke evidence while keeping command/control gates
+      open
 
 ## 6. Structural COP Stack
 

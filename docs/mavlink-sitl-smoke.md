@@ -68,6 +68,10 @@ Latest local evidence:
   scripts/mavlink-sitl-gate.sh` passed against `jonasvautherin/px4-gazebo-headless:1.17.0`, vehicle `gz_x500`, world
   `default`, with `TestExternalSITLTelemetryCOPSnapshot` observing the PX4-owned MAVLink track through
   `http://127.0.0.1:8080/api/cop/snapshot` in 23.52s. The smoke required two updates and did not require motion.
+- 2026-06-23: `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack
+  SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT=60s bash
+  scripts/mavlink-sitl-gate.sh` passed against the same local image and route, with
+  `TestExternalSITLTelemetryCOPSnapshot` observing the required position delta in 25.52s.
 
 ## Local Readiness Preflight
 
