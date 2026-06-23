@@ -39,6 +39,9 @@ semantics.
 - `scripts/cap-capture-nws-sample.sh` can make an explicit live NWS/API capture into ignored local sample storage
   when `SEMOPS_CAP_CAPTURE_URL` and `SEMOPS_CAP_CAPTURE_USER_AGENT` are set. The script records source URL,
   user-agent, capture time, and SHA-256 metadata beside the XML.
+- A 2026-06-23 local smoke validated one captured NWS `Flash Flood Warning` CAP XML sample against the local CAP 1.2
+  XSD with `xmllint` and parsed it through SemOps. The schema and sample remain ignored local files; hashes and
+  commands are recorded in `docs/cap-schema-smoke.md`.
 - `pkg/adapters/cap` stores replayable raw XML CAP records and provides a HA/DR flood lifecycle fixture covering
   alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
@@ -112,6 +115,7 @@ Acceptance:
   the same samples through SemOps. [done as skipped-by-default harness]
 - Live provider sample capture is an explicit local action with a required URL and User-Agent/contact identity, not a
   default CI behavior. [done as skipped-by-default script]
+- One local NWS active-alert sample has a recorded passing schema/sample smoke with hashes. [done for one alert sample]
 
 ### Projection Gate
 
@@ -218,7 +222,8 @@ Acceptance:
 - `SEMOPS_CAP_REPLAY_PATH` is optional and empty by default; setting it captures decoded CAP raw XML records from the
   opt-in runtime path.
 - Captured NWS update/cancel/expire fixture replay is still missing.
-- A recorded CAP 1.2 XSD run against captured NWS update/cancel/expire samples is still missing.
+- A recorded CAP 1.2 XSD run against captured NWS update/cancel/expire samples is still missing; the current recorded
+  XSD run covers one active alert only.
 - Provider-specific stale-source review is still needed after captured NWS/IPAWS/vendor fixtures exist; the current
   stale-source gate is component-level health behavior with deterministic local HTTP tests.
 - Default live-provider CAP polling is still not enabled in the default Compose stack.

@@ -334,6 +334,14 @@ go test ./pkg/adapters/cap -run TestCAPSchemaSmokeWithLocalSamples -count=1 -v
 `docs/cap-schema-smoke.md` records the local XSD/sample and replay JSONL workflow. Local schema copies and captured
 NWS/IPAWS/vendor samples remain ignored until a fixture review clears what may be committed.
 
+Recorded local CAP schema/sample run:
+
+- On 2026-06-23, SemOps validated one captured NWS `Flash Flood Warning` CAP XML sample against a local CAP 1.2 XSD
+  and parsed it through the SemOps CAP adapter.
+- Schema SHA-256: `b7798ef25868b068c97b268bda02d067c7d4ba9373adc5638bf37105804ee723`.
+- Sample SHA-256: `c91278df362ac125b08c0152d7fbea1eade60ea84e6dbd21c941185882cd0a97`.
+- This is one active-alert sample, not NWS update/cancel/expired lifecycle coverage or CAP conformance.
+
 Current component gate:
 
 ```bash
