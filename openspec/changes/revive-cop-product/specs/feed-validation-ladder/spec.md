@@ -196,6 +196,8 @@ binary-by-reference storage, and memory-bounded handling.
   actually emits KLV
 - **AND** deterministic synthetic DJI-shaped fixtures prove telemetry, media-reference, and command-authority posture
   shape before live DJI product support claims
+- **AND** DJI fixture promotion uses SemStreams input and processor components with registered payloads, declared
+  ports, config schema, health, and flow metrics before any graph projector or live bridge is added
 - **AND** the existence of DJI video does not move KLV/STANAG product claims into SemSource
 
 #### Scenario: Weather layers are tracked separately

@@ -394,7 +394,7 @@ Known gaps:
 
 ### DJI
 
-Status: critical HADR drone/vendor layer with first synthetic parser fixture evidence.
+Status: critical HADR drone/vendor layer with first synthetic parser fixture and SemStreams component-flow evidence.
 
 Compliance and source evidence:
 
@@ -411,6 +411,8 @@ Compliance and source evidence:
 - SemOps now carries a synthetic DJI-shaped parser fixture at `fixtures/dji/telemetry-media.json`.
 - `pkg/adapters/dji` parses aircraft pose, altitude, heading, speed, battery, gimbal/camera state, media references,
   source identity, and command-authority posture without graph writes.
+- `internal/components/dji` wraps the fixture as a SemStreams file input component and decoder processor with
+  registered payloads, file/NATS ports, config schema, health, and flow metrics.
 
 Mock or harness:
 
@@ -418,6 +420,8 @@ Mock or harness:
 - The current fixture is synthetic SemOps contract evidence only, not captured SDK, Cloud API, flight-log, subtitle,
   media metadata, or product-compatibility evidence.
 - Keep DJI telemetry, media references, command authority, and graph projection as separate seams.
+- Keep the current component flow preflight-only until live ingress surface, replay store, ownership, and safety
+  posture are reviewed.
 - Use SemSource or a media sidecar only for generic storage/reference/track extraction; SemOps owns DJI semantics.
 
 Indexing profile pressure:
@@ -435,6 +439,9 @@ First acceptance gate:
   triples. [done for synthetic fixture]
 - Given DJI command-authority posture, SemOps records the authority mode, holder, local override requirement, and
   remote-command disabled posture as data only. [done for synthetic fixture]
+- Given DJI component promotion, SemOps publishes raw and decoded DJI-shaped telemetry through SemStreams registered
+  BaseMessage payloads and NATS stream ports without graph writes, owner claims, or runtime live-bridge claims. [done
+  for synthetic fixture]
 - Given DJI video metadata, SemOps routes it to a DJI or generic media decoder path unless the source actually emits
   KLV/MISB packets.
 - Given any DJI command/control work, command authority, local override, and safety policy are reviewed before graph
@@ -446,6 +453,7 @@ Known gaps:
 - No DJI replay store exists beyond the committed synthetic JSON fixture.
 - No DJI SDK/cloud integration strategy has been chosen.
 - No live DJI bridge, media relay, or command authority path exists.
+- No DJI graph projector, runtime wiring, ownership claim, or UI layer exists yet.
 - No DJI product support or compatibility claim is allowed yet.
 
 ### CS API Bidirectional Interop

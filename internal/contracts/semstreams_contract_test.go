@@ -10,6 +10,7 @@ import (
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
+	djicomponent "github.com/c360studio/semops/internal/components/dji"
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
@@ -704,6 +705,86 @@ func TestSAPIENTPreflightBoundaryUsesSemStreamsComponentShapeWithoutGraphWrites(
 	}
 }
 
+func TestDJIPreflightBoundaryUsesSemStreamsComponentShapeWithoutGraphWrites(t *testing.T) {
+	var _ component.LifecycleComponent = (*djicomponent.FixtureInputComponent)(nil)
+	var _ component.LifecycleComponent = (*djicomponent.DecoderComponent)(nil)
+
+	bus := djiContractBus{}
+	input, err := djicomponent.NewFixtureInputComponent(djicomponent.FixtureInputConfig{
+		FixturePath: filepath.Join("..", "..", "fixtures", "dji", "telemetry-media.json"),
+		Bus:         bus,
+	})
+	if err != nil {
+		t.Fatalf("new DJI fixture input: %v", err)
+	}
+	decoder, err := djicomponent.NewDecoderComponent(djicomponent.DecoderConfig{}, bus)
+	if err != nil {
+		t.Fatalf("new DJI decoder: %v", err)
+	}
+	for name, lifecycle := range map[string]component.LifecycleComponent{
+		"input":   input,
+		"decoder": decoder,
+	} {
+		if err := lifecycle.Initialize(); err != nil {
+			t.Fatalf("initialize %s: %v", name, err)
+		}
+		if err := lifecycle.Start(context.Background()); err != nil {
+			t.Fatalf("start %s: %v", name, err)
+		}
+		if err := lifecycle.Stop(time.Second); err != nil {
+			t.Fatalf("stop %s: %v", name, err)
+		}
+	}
+
+	if input.Meta().Type != "input" {
+		t.Fatalf("DJI input component type = %q, want input", input.Meta().Type)
+	}
+	if decoder.Meta().Type != "processor" {
+		t.Fatalf("DJI decoder component type = %q, want processor", decoder.Meta().Type)
+	}
+	filePort, ok := input.InputPorts()[0].Config.(component.FilePort)
+	if !ok {
+		t.Fatalf("DJI input telemetry_fixture config = %T, want FilePort", input.InputPorts()[0].Config)
+	}
+	if got, want := filePort.Type(), "file"; got != want {
+		t.Fatalf("file port type = %q, want %q", got, want)
+	}
+	if got, want := input.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		djicomponent.DefaultRawSubject; got != want {
+		t.Fatalf("DJI input raw subject = %q, want %q", got, want)
+	}
+	if got, want := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		djicomponent.DefaultDecodedSubject; got != want {
+		t.Fatalf("DJI decoder decoded subject = %q, want %q", got, want)
+	}
+	for _, port := range decoder.OutputPorts() {
+		if got, want := port.Config.Type(), "nats"; got != want {
+			t.Fatalf("DJI decoder output port %q type = %q, want %q", port.Name, got, want)
+		}
+	}
+
+	requireProperty(t, input.ConfigSchema(), "fixture_path")
+	requireProperty(t, input.ConfigSchema(), "raw_subject")
+	requireProperty(t, decoder.ConfigSchema(), "decoded_subject")
+
+	fg := flowgraph.NewFlowGraph()
+	if err := fg.AddComponentNode(input.Meta().Name, input); err != nil {
+		t.Fatalf("add DJI fixture input to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
+		t.Fatalf("add DJI decoder to flow graph: %v", err)
+	}
+	if err := fg.ConnectComponentsByPatterns(); err != nil {
+		t.Fatalf("connect DJI fixture flow graph: %v", err)
+	}
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: input.Meta().Name, PortName: "raw_telemetry"},
+		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_telemetry"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: djicomponent.DefaultRawSubject,
+	})
+}
+
 func TestKLVWorkerBoundaryUsesMediaRefDemuxDecodeAndProjectorComponents(t *testing.T) {
 	var _ component.LifecycleComponent = (*klvcomponent.MediaRefInputComponent)(nil)
 	var _ component.LifecycleComponent = (*klvcomponent.DemuxComponent)(nil)
@@ -979,6 +1060,20 @@ type adsbContractPlanWriter struct{}
 
 func (adsbContractPlanWriter) Apply(context.Context, adsbprojector.Plan) error {
 	return nil
+}
+
+type djiContractBus struct{}
+
+func (djiContractBus) Publish(context.Context, string, []byte) error {
+	return nil
+}
+
+func (djiContractBus) Subscribe(
+	context.Context,
+	string,
+	func(context.Context, *nats.Msg),
+) (djicomponent.Subscription, error) {
+	return contractSubscription{}, nil
 }
 
 type sapientContractBus struct{}

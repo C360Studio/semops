@@ -1,7 +1,7 @@
 # DJI Feed Evidence
 
-Status: critical HADR drone/vendor layer with first synthetic parser fixture evidence; not yet implemented as a
-SemStreams component or live DJI bridge.
+Status: critical HADR drone/vendor layer with first synthetic parser fixture and SemStreams component-flow evidence;
+not yet implemented as a live DJI bridge or graph-writing feed.
 
 ## Decision
 
@@ -32,6 +32,8 @@ change the KLV worker boundary.
   media references. [done]
 - Preserve command-authority posture as data, with remote command execution disabled in the first fixture. [done]
 - Publish bounded raw/vendor payload references rather than raw video bytes. [done]
+- Publish raw and decoded DJI-shaped telemetry through SemStreams registered payloads and NATS stream ports without
+  graph writes. [done]
 - Project DJI current aircraft/sensor state as `signal`, session/control state as `control`, annotations as
   `content`, and vendor replay/extraction records as `trace`.
 - Review command authority, local override, credentials, and safety policy before any live driver or command path.
@@ -42,6 +44,8 @@ change the KLV worker boundary.
 - The fixture is not captured DJI SDK, Cloud API, flight-log, subtitle, or media metadata evidence.
 - `pkg/adapters/dji` parses aircraft state, battery, gimbal, camera, media references, source identity, and
   command-authority posture without graph writes.
+- `internal/components/dji` exposes a fixture file input component and decoder processor component using SemStreams
+  lifecycle, payload registry, file/NATS ports, config schema, health, and flow metrics.
 - Media references are URI and metadata records only; this slice does not embed video bytes or decode media.
 - Command authority is represented as posture data only. The fixture sets `remote_commands_enabled=false` and
   `local_override_required=true`.
@@ -52,11 +56,14 @@ change the KLV worker boundary.
 - No DJI replay store exists beyond the committed synthetic JSON fixture.
 - No DJI SDK/cloud integration strategy has been chosen.
 - No live DJI bridge, media relay, or command authority path exists.
+- No DJI graph projector, ownership claim, runtime wiring, or UI layer exists yet.
 - No DJI product support, compatibility, or certification claim is allowed yet.
 
 ## Verification
 
 - `go test ./pkg/adapters/dji`
+- `go test ./internal/components/dji`
+- `go test ./internal/contracts`
 - `go test ./...`
 
 ## Source Links
