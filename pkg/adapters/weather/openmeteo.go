@@ -16,9 +16,12 @@ import (
 )
 
 const (
-	ProviderOpenMeteo  = "open-meteo"
-	ProviderOGCEDR     = "ogc-edr"
-	QueryShapePosition = "position"
+	ProviderOpenMeteo    = "open-meteo"
+	ProviderOGCEDR       = "ogc-edr"
+	QueryShapePosition   = "position"
+	QueryShapeArea       = "area"
+	QueryShapeTrajectory = "trajectory"
+	QueryShapeCorridor   = "corridor"
 )
 
 type PointForecast struct {

@@ -247,8 +247,10 @@ Three separate layers: visual weather context in the browser, public alerts thro
 tactical weather telemetry for points, incident areas, or routes. The first backend slice should use deterministic
 fixtures or a provider-shaped HTTP response before live provider claims. SemOps now has the first Open-Meteo-shaped
 point forecast parser fixture plus a synthetic OGC EDR-shaped CoverageJSON point fixture for tactical weather
-variables. The SemStreams fixture input -> decoder component flow publishes raw and decoded BaseMessages for those
-provider-shaped point fixtures, without graph writes, owner claims, live provider support, or conformance language.
+variables, plus synthetic OGC EDR-shaped area, trajectory, and corridor parser fixtures for spatial weather query
+preflight. The SemStreams fixture input -> decoder component flow publishes raw and decoded BaseMessages for
+provider-shaped point fixtures, without graph writes, owner claims, live provider support, spatial payload promotion,
+or conformance language.
 
 Full product lane:
 OGC API EDR and provider-specific weather gateway with point, area, trajectory, corridor, and selected broader EDR
@@ -260,14 +262,14 @@ Boundary to preserve now:
 Visual raster or tile layers can stay browser-only unless they produce operator decisions or evidence. Tactical
 weather that affects routing, safety, alerts, or fusion must become governed graph evidence with freshness and
 provenance. CAP-style alerts remain append-evidence and must not overwrite stricter hazard truth. The current
-Open-Meteo-shaped and OGC EDR-shaped point parser fixtures are provider-shaped tactical telemetry evidence only; they
-are not a weather gateway, OGC ETS/conformance result, live EDR capture, or route-safety rule. The current components
-are preflight file/decoder components, not an HTTP poller, cache/stale policy, graph projector, tactical-weather UI
-layer, or provider reliability claim.
+Open-Meteo-shaped and OGC EDR-shaped parser fixtures are provider-shaped tactical telemetry evidence only; they are
+not a weather gateway, OGC ETS/conformance result, live EDR capture, spatial component payload, or route-safety rule.
+The current components are preflight file/decoder components for point payloads, not an HTTP poller, cache/stale
+policy, graph projector, tactical-weather UI layer, or provider reliability claim.
 
 Not claimed yet:
-Default live weather service reliability, weather-routing authority, provider conformance, non-point EDR query
-support, cache/stale policy, tactical weather graph projection, or radar product hosting.
+Default live weather service reliability, weather-routing authority, provider conformance, broader EDR query support,
+spatial weather runtime payloads, cache/stale policy, tactical weather graph projection, or radar product hosting.
 
 ### CS API Bidirectional Interop
 

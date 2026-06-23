@@ -11,16 +11,21 @@ import (
 	"time"
 )
 
-const SyntheticOGCEDRPositionFixtureClass = "semops.synthetic.ogc-edr.position.v1"
+const (
+	SyntheticOGCEDRPositionFixtureClass   = "semops.synthetic.ogc-edr.position.v1"
+	SyntheticOGCEDRAreaFixtureClass       = "semops.synthetic.ogc-edr.area.v1"
+	SyntheticOGCEDRTrajectoryFixtureClass = "semops.synthetic.ogc-edr.trajectory.v1"
+	SyntheticOGCEDRCorridorFixtureClass   = "semops.synthetic.ogc-edr.corridor.v1"
+)
 
 func ParseOGCEDRPositionForecast(data []byte) (PointForecast, error) {
-	var raw edrPositionResponse
+	var raw edrResponse
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 	if err := decoder.Decode(&raw); err != nil {
 		return PointForecast{}, err
 	}
-	if err := raw.validate(); err != nil {
+	if err := raw.validatePosition(); err != nil {
 		return PointForecast{}, err
 	}
 
@@ -60,7 +65,68 @@ func ParseOGCEDRPositionForecast(data []byte) (PointForecast, error) {
 	return out, nil
 }
 
-type edrPositionResponse struct {
+type SpatialForecast struct {
+	Provider            string
+	QueryShape          string
+	QueryGeometryWKT    string
+	GeometryType        string
+	CoordinateCount     int
+	CRS                 string
+	VerticalLevel       string
+	CorridorWidth       *float64
+	CorridorWidthUnits  string
+	CorridorHeight      *float64
+	CorridorHeightUnits string
+	Units               map[string]string
+	Samples             []WeatherSample
+}
+
+func ParseOGCEDRSpatialForecast(data []byte) (SpatialForecast, error) {
+	var raw edrResponse
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(&raw); err != nil {
+		return SpatialForecast{}, err
+	}
+	if err := raw.validateSpatial(); err != nil {
+		return SpatialForecast{}, err
+	}
+	geometryType, coordinateCount, err := validateSpatialWKT(raw.EDR.QueryType, raw.EDR.Query.Coords)
+	if err != nil {
+		return SpatialForecast{}, err
+	}
+	times, err := raw.Coverage.timeValues()
+	if err != nil {
+		return SpatialForecast{}, err
+	}
+
+	out := SpatialForecast{
+		Provider:            ProviderOGCEDR,
+		QueryShape:          strings.TrimSpace(raw.EDR.QueryType),
+		QueryGeometryWKT:    strings.TrimSpace(raw.EDR.Query.Coords),
+		GeometryType:        geometryType,
+		CoordinateCount:     coordinateCount,
+		CRS:                 strings.TrimSpace(raw.EDR.Query.CRS),
+		VerticalLevel:       strings.TrimSpace(raw.EDR.Query.Z),
+		CorridorWidth:       cloneFloat(raw.EDR.Query.CorridorWidth),
+		CorridorWidthUnits:  strings.TrimSpace(raw.EDR.Query.WidthUnits),
+		CorridorHeight:      cloneFloat(raw.EDR.Query.CorridorHeight),
+		CorridorHeightUnits: strings.TrimSpace(raw.EDR.Query.HeightUnits),
+		Units:               raw.Coverage.unitMap(),
+		Samples:             make([]WeatherSample, 0, len(times)),
+	}
+	for i, sampleTime := range times {
+		sample, err := raw.Coverage.sampleAt(i, len(times))
+		if err != nil {
+			return SpatialForecast{}, fmt.Errorf("ogc edr coverage sample %d: %w", i+1, err)
+		}
+		sample.Time = sampleTime
+		out.Samples = append(out.Samples, sample)
+	}
+	return out, nil
+}
+
+type edrResponse struct {
 	FixtureClass string      `json:"fixture_class"`
 	EDR          edrMetadata `json:"edr"`
 	Coverage     edrCoverage `json:"coverage"`
@@ -77,6 +143,11 @@ type edrMetadata struct {
 type edrQuery struct {
 	Coords         string   `json:"coords"`
 	DateTime       string   `json:"datetime"`
+	Z              string   `json:"z"`
+	CorridorWidth  *float64 `json:"corridor-width"`
+	WidthUnits     string   `json:"width-units"`
+	CorridorHeight *float64 `json:"corridor-height"`
+	HeightUnits    string   `json:"height-units"`
 	ParameterNames []string `json:"parameter_names"`
 	CRS            string   `json:"crs"`
 	Format         string   `json:"f"`
@@ -113,13 +184,48 @@ type edrRange struct {
 	Shape  []int             `json:"shape"`
 }
 
-func (r edrPositionResponse) validate() error {
+func (r edrResponse) validatePosition() error {
 	if strings.TrimSpace(r.FixtureClass) != SyntheticOGCEDRPositionFixtureClass {
 		return fmt.Errorf("ogc edr fixture_class must be %q", SyntheticOGCEDRPositionFixtureClass)
 	}
 	if strings.TrimSpace(r.EDR.QueryType) != QueryShapePosition {
 		return fmt.Errorf("ogc edr query_type must be %q", QueryShapePosition)
 	}
+	return r.validateCommon()
+}
+
+func (r edrResponse) validateSpatial() error {
+	queryShape := strings.TrimSpace(r.EDR.QueryType)
+	expectedClass, ok := spatialFixtureClass(queryShape)
+	if !ok {
+		return fmt.Errorf("ogc edr spatial query_type must be %s, %s, or %s, got %q",
+			QueryShapeArea,
+			QueryShapeTrajectory,
+			QueryShapeCorridor,
+			queryShape,
+		)
+	}
+	if strings.TrimSpace(r.FixtureClass) != expectedClass {
+		return fmt.Errorf("ogc edr fixture_class must be %q", expectedClass)
+	}
+	if queryShape == QueryShapeCorridor {
+		if r.EDR.Query.CorridorWidth == nil {
+			return errors.New("ogc edr corridor-width is required for corridor queries")
+		}
+		if strings.TrimSpace(r.EDR.Query.WidthUnits) == "" {
+			return errors.New("ogc edr width-units is required for corridor queries")
+		}
+		if r.EDR.Query.CorridorHeight == nil {
+			return errors.New("ogc edr corridor-height is required for corridor queries")
+		}
+		if strings.TrimSpace(r.EDR.Query.HeightUnits) == "" {
+			return errors.New("ogc edr height-units is required for corridor queries")
+		}
+	}
+	return r.validateCommon()
+}
+
+func (r edrResponse) validateCommon() error {
 	if strings.TrimSpace(r.EDR.Query.Coords) == "" {
 		return errors.New("ogc edr query coords are required")
 	}
@@ -133,6 +239,19 @@ func (r edrPositionResponse) validate() error {
 		return errors.New("ogc edr coverage ranges are required")
 	}
 	return nil
+}
+
+func spatialFixtureClass(queryShape string) (string, bool) {
+	switch queryShape {
+	case QueryShapeArea:
+		return SyntheticOGCEDRAreaFixtureClass, true
+	case QueryShapeTrajectory:
+		return SyntheticOGCEDRTrajectoryFixtureClass, true
+	case QueryShapeCorridor:
+		return SyntheticOGCEDRCorridorFixtureClass, true
+	default:
+		return "", false
+	}
 }
 
 func (c edrCoverage) validatePointAxes(lon, lat float64) error {
@@ -320,4 +439,148 @@ func parseWKTPoint(value string) (float64, float64, error) {
 		return 0, 0, fmt.Errorf("ogc edr coords latitude %v out of range", lat)
 	}
 	return lon, lat, nil
+}
+
+func validateSpatialWKT(queryShape string, value string) (string, int, error) {
+	switch queryShape {
+	case QueryShapeArea:
+		count, err := validatePolygonWKT(value)
+		if err != nil {
+			return "", 0, err
+		}
+		return "POLYGON", count, nil
+	case QueryShapeTrajectory:
+		geometryType, count, err := validateLineWKT(value)
+		if err != nil {
+			return "", 0, fmt.Errorf("ogc edr trajectory coords: %w", err)
+		}
+		return geometryType, count, nil
+	case QueryShapeCorridor:
+		geometryType, count, err := validateLineWKT(value)
+		if err != nil {
+			return "", 0, fmt.Errorf("ogc edr corridor coords: %w", err)
+		}
+		return geometryType, count, nil
+	default:
+		return "", 0, fmt.Errorf("ogc edr unsupported spatial query_type %q", queryShape)
+	}
+}
+
+func validatePolygonWKT(value string) (int, error) {
+	value = strings.TrimSpace(value)
+	upper := strings.ToUpper(value)
+	if !strings.HasPrefix(upper, "POLYGON") {
+		return 0, fmt.Errorf("ogc edr area coords must be WKT POLYGON, got %q", value)
+	}
+	open := strings.Index(value, "((")
+	close := strings.LastIndex(value, "))")
+	if open < 0 || close <= open {
+		return 0, fmt.Errorf("ogc edr area coords must be WKT POLYGON, got %q", value)
+	}
+	coords := splitCoordinateList(value[open+2 : close])
+	if len(coords) < 4 {
+		return 0, fmt.Errorf("ogc edr area polygon must contain at least 4 coordinates, got %d", len(coords))
+	}
+	first := strings.Join(strings.Fields(coords[0]), " ")
+	last := strings.Join(strings.Fields(coords[len(coords)-1]), " ")
+	if first != last {
+		return 0, errors.New("ogc edr area polygon ring must be closed")
+	}
+	for i, coord := range coords {
+		if _, _, err := parseLonLatFields(coord); err != nil {
+			return 0, fmt.Errorf("ogc edr area polygon coordinate %d: %w", i+1, err)
+		}
+	}
+	return len(coords), nil
+}
+
+func validateLineWKT(value string) (string, int, error) {
+	value = strings.TrimSpace(value)
+	upper := strings.ToUpper(value)
+	switch {
+	case strings.HasPrefix(upper, "LINESTRING"):
+		open := strings.Index(value, "(")
+		close := strings.LastIndex(value, ")")
+		if open < 0 || close <= open {
+			return "", 0, fmt.Errorf("must be WKT LINESTRING, got %q", value)
+		}
+		count, err := validateLineCoordinates(value[open+1 : close])
+		if err != nil {
+			return "", 0, err
+		}
+		return "LINESTRING", count, nil
+	case strings.HasPrefix(upper, "MULTILINESTRING"):
+		open := strings.Index(value, "((")
+		close := strings.LastIndex(value, "))")
+		if open < 0 || close <= open {
+			return "", 0, fmt.Errorf("must be WKT MULTILINESTRING, got %q", value)
+		}
+		segments := strings.Split(value[open+2:close], "),(")
+		total := 0
+		for i, segment := range segments {
+			count, err := validateLineCoordinates(segment)
+			if err != nil {
+				return "", 0, fmt.Errorf("segment %d: %w", i+1, err)
+			}
+			total += count
+		}
+		return "MULTILINESTRING", total, nil
+	default:
+		return "", 0, fmt.Errorf("must be WKT LINESTRING or MULTILINESTRING, got %q", value)
+	}
+}
+
+func validateLineCoordinates(value string) (int, error) {
+	coords := splitCoordinateList(value)
+	if len(coords) < 2 {
+		return 0, fmt.Errorf("line must contain at least 2 coordinates, got %d", len(coords))
+	}
+	for i, coord := range coords {
+		if _, _, err := parseLonLatFields(coord); err != nil {
+			return 0, fmt.Errorf("line coordinate %d: %w", i+1, err)
+		}
+	}
+	return len(coords), nil
+}
+
+func splitCoordinateList(value string) []string {
+	raw := strings.Split(value, ",")
+	out := make([]string, 0, len(raw))
+	for _, coord := range raw {
+		coord = strings.TrimSpace(coord)
+		if coord != "" {
+			out = append(out, coord)
+		}
+	}
+	return out
+}
+
+func parseLonLatFields(value string) (float64, float64, error) {
+	parts := strings.Fields(value)
+	if len(parts) < 2 {
+		return 0, 0, fmt.Errorf("coordinate must contain longitude latitude, got %q", value)
+	}
+	lon, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("longitude: %w", err)
+	}
+	lat, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("latitude: %w", err)
+	}
+	if lon < -180 || lon > 180 {
+		return 0, 0, fmt.Errorf("longitude %v out of range", lon)
+	}
+	if lat < -90 || lat > 90 {
+		return 0, 0, fmt.Errorf("latitude %v out of range", lat)
+	}
+	return lon, lat, nil
+}
+
+func cloneFloat(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	out := *value
+	return &out
 }

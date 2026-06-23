@@ -336,15 +336,16 @@ Remaining gates:
 
 ### Weather
 
-Status: critical COP layer with first Open-Meteo-shaped and OGC EDR-shaped point parser fixtures plus SemStreams
-component-flow evidence, split into visual context, alert evidence, and tactical telemetry.
+Status: critical COP layer with first Open-Meteo-shaped point, OGC EDR-shaped point, and OGC EDR-shaped spatial parser
+fixtures plus SemStreams component-flow evidence for point payloads, split into visual context, alert evidence, and
+tactical telemetry.
 
 Compliance and source evidence:
 
 - OGC API - Environmental Data Retrieval is the standards-facing target for tactical weather because it defines
   discovery plus query operations and supports position, area, trajectory, and corridor query shapes.
 - The OGC API EDR 1.1 standard also defines radius, cube, items, locations, and instances query resources. The current
-  SemOps gate covers point-shaped CoverageJSON only.
+  SemOps gate covers point, area, trajectory, and corridor-shaped synthetic CoverageJSON only.
 - Environment and Climate Change Canada's MSC GeoMet is a practical public OGC API/WMS/WCS source for testing open
   weather interoperability.
 - Open-Meteo is a useful developer-friendly JSON source for deterministic provider-shaped fixtures and early
@@ -354,11 +355,16 @@ Compliance and source evidence:
 - SemOps also carries `fixtures/weather/ogc-edr-position.json` as a synthetic OGC EDR-shaped CoverageJSON point
   fixture. It is parser/storage/governance evidence only, not an official OGC ETS run, live EDR server capture, or
   conformance sample.
+- SemOps also carries synthetic OGC EDR-shaped area, trajectory, and corridor fixtures. They prove simple WKT
+  `POLYGON`, `LINESTRING`, corridor width/height, unit, and time-series variable parsing before route-weather
+  projection; they are not route-safety, provider-dimensionality, Z/M coordinate-time, or conformance evidence.
 - `pkg/adapters/weather` parses Open-Meteo-shaped and OGC EDR-shaped point forecasts and preserves provider, query
   shape, position, elevation, units, sample time, temperature, precipitation, visibility, surface pressure, wind speed,
   gusts, wind direction, and weather code without graph writes.
+- `pkg/adapters/weather` also parses OGC EDR-shaped area, trajectory, and corridor spatial forecasts without graph
+  writes or point-payload promotion.
 - `internal/components/weather` wraps provider-shaped weather fixtures as SemStreams file input components and decoder
-  processors with registered payloads, file/NATS ports, config schema, health, and flow metrics.
+  processors with registered payloads, file/NATS ports, config schema, health, and flow metrics for point forecasts.
 - NWS API already fits the CAP lane for alerts and can return CAP content via content negotiation. NWS API explicitly
   points radar display users to separate radar/OGC services rather than treating `/api.weather.gov` as a radar tile
   source.
@@ -387,11 +393,14 @@ First acceptance gate:
   writes.
 - Given the synthetic OGC EDR-shaped point CoverageJSON fixture, SemOps parses the equivalent tactical weather
   variables without graph writes, live provider claims, or OGC conformance claims.
+- Given the synthetic OGC EDR-shaped area, trajectory, and corridor fixtures, SemOps parses simple spatial query
+  geometry, corridor dimensions, units, and tactical weather variables without graph writes, live provider claims,
+  route-safety claims, or OGC conformance claims.
 - Given weather component promotion, SemOps publishes raw and decoded provider-shaped weather forecasts through
   SemStreams registered BaseMessage payloads and NATS stream ports without graph writes, owner claims, runtime
   live-provider claims, or route-safety decisions. [done for Open-Meteo-shaped and OGC EDR-shaped point fixtures]
-- Given future OGC EDR-shaped fixtures, SemOps should parse area, trajectory, corridor, and other selected query
-  shapes before claiming standards-facing tactical weather interop beyond point retrieval.
+- Given future OGC EDR-shaped fixtures, SemOps should parse selected broader query shapes before claiming
+  standards-facing tactical weather interop beyond point, area, trajectory, and corridor retrieval.
 - Given projection, localized tactical weather writes source-partitioned governed evidence and does not overwrite CAP
   hazard or operator task state.
 - Given UI rendering, visual weather tiles may be configured in the browser without implying backend weather
@@ -401,7 +410,9 @@ First acceptance gate:
 
 Known gaps:
 
-- No OGC EDR area, trajectory, corridor, radius, cube, item, location, or instance fixture exists yet.
+- No OGC EDR radius, cube, item, location, or instance fixture exists yet.
+- No OGC EDR spatial runtime component payload, graph projector, route-weather model, or UI tactical-weather layer
+  exists yet.
 - No OGC EDR conformance/ETS run, live EDR server capture, or standards-facing bridge test exists yet.
 - No live weather provider integration exists yet.
 - No weather graph projector, runtime wiring, ownership claim, cache/stale policy, or UI tactical layer exists yet.

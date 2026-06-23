@@ -1,0 +1,177 @@
+{
+  "fixture_class": "semops.synthetic.ogc-edr.corridor.v1",
+  "edr": {
+    "api": "OGC API - Environmental Data Retrieval",
+    "version": "1.1",
+    "collection_id": "semops-tactical-corridor-forecast",
+    "query_type": "corridor",
+    "query": {
+      "coords": "LINESTRING(-77.06 38.88,-77.04 38.90,-77.02 38.93)",
+      "datetime": "2026-06-22T15:00:00Z/2026-06-22T16:00:00Z",
+      "z": "120",
+      "corridor-width": 500,
+      "width-units": "m",
+      "corridor-height": 150,
+      "height-units": "m",
+      "parameter_names": [
+        "temperature_2m",
+        "precipitation",
+        "visibility",
+        "surface_pressure",
+        "wind_speed_10m",
+        "wind_gusts_10m",
+        "wind_direction_10m",
+        "weather_code"
+      ],
+      "crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84",
+      "f": "CoverageJSON"
+    }
+  },
+  "coverage": {
+    "type": "Coverage",
+    "domain": {
+      "type": "Domain",
+      "domainType": "CorridorSeries",
+      "axes": {
+        "t": {
+          "values": [
+            "2026-06-22T15:00:00Z",
+            "2026-06-22T16:00:00Z"
+          ]
+        }
+      }
+    },
+    "parameters": {
+      "temperature_2m": {
+        "type": "Parameter",
+        "unit": {
+          "label": "degree Celsius",
+          "symbol": {
+            "value": "Cel"
+          }
+        }
+      },
+      "precipitation": {
+        "type": "Parameter",
+        "unit": {
+          "label": "millimetre",
+          "symbol": {
+            "value": "mm"
+          }
+        }
+      },
+      "visibility": {
+        "type": "Parameter",
+        "unit": {
+          "label": "metre",
+          "symbol": {
+            "value": "m"
+          }
+        }
+      },
+      "surface_pressure": {
+        "type": "Parameter",
+        "unit": {
+          "label": "hectopascal",
+          "symbol": {
+            "value": "hPa"
+          }
+        }
+      },
+      "wind_speed_10m": {
+        "type": "Parameter",
+        "unit": {
+          "label": "kilometre per hour",
+          "symbol": {
+            "value": "km/h"
+          }
+        }
+      },
+      "wind_gusts_10m": {
+        "type": "Parameter",
+        "unit": {
+          "label": "kilometre per hour",
+          "symbol": {
+            "value": "km/h"
+          }
+        }
+      },
+      "wind_direction_10m": {
+        "type": "Parameter",
+        "unit": {
+          "label": "degree true",
+          "symbol": {
+            "value": "degree"
+          }
+        }
+      },
+      "weather_code": {
+        "type": "Parameter",
+        "unit": {
+          "label": "WMO code",
+          "symbol": {
+            "value": "1"
+          }
+        }
+      }
+    },
+    "ranges": {
+      "temperature_2m": {
+        "type": "NdArray",
+        "dataType": "float",
+        "axisNames": ["t"],
+        "shape": [2],
+        "values": [28.5, 27.9]
+      },
+      "precipitation": {
+        "type": "NdArray",
+        "dataType": "float",
+        "axisNames": ["t"],
+        "shape": [2],
+        "values": [0.1, 0.6]
+      },
+      "visibility": {
+        "type": "NdArray",
+        "dataType": "float",
+        "axisNames": ["t"],
+        "shape": [2],
+        "values": [14000, 11500]
+      },
+      "surface_pressure": {
+        "type": "NdArray",
+        "dataType": "float",
+        "axisNames": ["t"],
+        "shape": [2],
+        "values": [1004.0, 1003.5]
+      },
+      "wind_speed_10m": {
+        "type": "NdArray",
+        "dataType": "float",
+        "axisNames": ["t"],
+        "shape": [2],
+        "values": [18.0, 23.2]
+      },
+      "wind_gusts_10m": {
+        "type": "NdArray",
+        "dataType": "float",
+        "axisNames": ["t"],
+        "shape": [2],
+        "values": [32.0, 40.0]
+      },
+      "wind_direction_10m": {
+        "type": "NdArray",
+        "dataType": "float",
+        "axisNames": ["t"],
+        "shape": [2],
+        "values": [212, 225]
+      },
+      "weather_code": {
+        "type": "NdArray",
+        "dataType": "integer",
+        "axisNames": ["t"],
+        "shape": [2],
+        "values": [61, 63]
+      }
+    }
+  }
+}

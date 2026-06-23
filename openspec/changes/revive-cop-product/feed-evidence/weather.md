@@ -1,8 +1,8 @@
 # Weather Feed Evidence
 
-Status: critical COP layer with first Open-Meteo-shaped and OGC EDR-shaped point parser fixtures plus SemStreams
-component-flow evidence; not yet implemented as a live weather provider, graph-writing feed, conformance target, or
-routing/safety authority.
+Status: critical COP layer with first Open-Meteo-shaped point, OGC EDR-shaped point, and OGC EDR-shaped spatial parser
+fixtures plus SemStreams component-flow evidence for point payloads; not yet implemented as a live weather provider,
+graph-writing feed, conformance target, or routing/safety authority.
 
 ## Decision
 
@@ -20,8 +20,8 @@ affects assets, operators, hazards, or routes.
 
 - OGC API - Environmental Data Retrieval is the standards-facing architecture for tactical weather queries because it
   supports discovery plus position, area, trajectory, and corridor retrieval patterns. The OGC API EDR 1.1 standard
-  also defines radius, cube, items, locations, and instances query resources; SemOps only has point fixture evidence
-  today.
+  also defines radius, cube, items, locations, and instances query resources; SemOps only has point, area, trajectory,
+  and corridor fixture evidence today.
 - MSC GeoMet is a strong public interoperability target because it exposes ECCC/MSC data through OGC APIs and WMS/WCS.
 - Open-Meteo is a useful JSON source for early fixtures and non-compliance demo telemetry.
 - `fixtures/weather/open-meteo-point.json` is the first selected provider-shaped fixture. It is deterministic point
@@ -29,11 +29,18 @@ affects assets, operators, hazards, or routes.
 - `fixtures/weather/ogc-edr-position.json` is a synthetic OGC EDR-shaped CoverageJSON point fixture. It is a
   storage/governance/parser proof for point query handling, not an official OGC ETS run, live EDR server response, or
   conformance sample.
+- `fixtures/weather/ogc-edr-area.json`, `fixtures/weather/ogc-edr-trajectory.json`, and
+  `fixtures/weather/ogc-edr-corridor.json` are synthetic OGC EDR-shaped spatial fixtures. They prove simple WKT
+  `POLYGON`, `LINESTRING`, and corridor width/height parsing for time-series tactical variables; they do not prove
+  provider-specific CoverageJSON dimensionality, Z/M time-coordinate handling, route-safety decisions, or standards
+  conformance.
 - `pkg/adapters/weather` now parses Open-Meteo-shaped and OGC EDR-shaped point forecasts and preserves provider,
   query shape, position, elevation, units, sample time, temperature, precipitation, visibility, surface pressure, wind
   speed, gusts, wind direction, and weather code without graph writes.
+- `pkg/adapters/weather` also parses OGC EDR-shaped area, trajectory, and corridor fixtures into spatial forecast
+  preflight evidence without graph writes or point-payload promotion.
 - `internal/components/weather` wraps provider-shaped weather fixtures as SemStreams file input components and decoder
-  processors with registered payloads, file/NATS ports, config schema, health, and flow metrics.
+  processors with registered payloads, file/NATS ports, config schema, health, and flow metrics for point forecasts.
 - NWS API remains valuable for alerts, forecasts, and observations. Its alert endpoints fit the current CAP lane, and
   CAP can be requested through content negotiation.
 - Radar and raster display data should not be assumed to come from `api.weather.gov`; visual products need their own
@@ -50,10 +57,12 @@ affects assets, operators, hazards, or routes.
 ## First Acceptance Gates
 
 - Parse deterministic Open-Meteo-shaped or OGC EDR-shaped JSON without graph writes. [partial: Open-Meteo-shaped point
-  forecast fixture done; OGC EDR-shaped point CoverageJSON fixture done; area/trajectory/corridor shapes still open]
+  forecast fixture done; OGC EDR-shaped point, area, trajectory, and corridor CoverageJSON fixtures done; broader EDR
+  query shapes still open]
 - Preserve wind, gusts, visibility, pressure, precipitation, temperature, weather code, source time, provider, query
   geometry, and freshness. [partial: Open-Meteo and OGC EDR point forecast variables, provider, point geometry, units,
-  and sample time done; stale/freshness policy remains a component/projection gate]
+  and sample time done; OGC EDR spatial fixtures preserve simple WKT geometry, units, and sample time; stale/freshness
+  policy remains a component/projection gate]
 - Publish raw and decoded provider-shaped weather forecasts through SemStreams registered payloads and NATS stream
   ports without graph writes. [done for Open-Meteo-shaped and OGC EDR-shaped point fixtures]
 - Project localized tactical weather as `signal`, route/weather decision state as `control`, advisory text as
@@ -62,7 +71,9 @@ affects assets, operators, hazards, or routes.
 
 ## Known Gaps
 
-- No OGC EDR area, trajectory, corridor, radius, cube, item, location, or instance fixture exists yet.
+- No OGC EDR radius, cube, item, location, or instance fixture exists yet.
+- No OGC EDR spatial runtime component payload, graph projector, route-weather model, or UI tactical-weather layer
+  exists yet.
 - No OGC EDR conformance/ETS run, live EDR server capture, or standards-facing bridge test exists yet.
 - No live Open-Meteo, NWS forecast/observation, MSC GeoMet, or radar/tile provider integration exists yet.
 - No weather graph projector, ownership claim, runtime wiring, cache/stale policy, or UI tactical layer exists yet.

@@ -210,6 +210,8 @@ binary-by-reference storage, and memory-bounded handling.
   policy, or route-safety rule is added
 - **AND** OGC EDR-shaped fixtures prove point first, then area, trajectory, corridor, and selected broader query-shape
   parsing before standards-facing tactical weather interop claims exceed point retrieval
+- **AND** OGC EDR area, trajectory, and corridor parser fixtures remain parser evidence until spatial runtime
+  payloads, graph projection, freshness/confidence policy, and route-weather UI semantics are accepted
 - **AND** tactical weather supports the relevant point, area, and route/trajectory query shapes before it influences
   routing or safety logic
 
