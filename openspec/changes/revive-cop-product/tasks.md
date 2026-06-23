@@ -172,6 +172,7 @@
 - [x] 5.84 Add an executable fixture manifest gate for CAP, DJI, weather, and KLV fixture-tier evidence
 - [x] 5.85 Add a committed derived CAP lifecycle replay fixture for portable demo data without NWS/IPAWS claims
 - [x] 5.86 Make portable fixture files fail tests when they bypass the fixture manifest
+- [x] 5.87 Run adversarial review on fixture manifest tiers and portable-demo data claim boundaries
 
 ## 6. Structural COP Stack
 
