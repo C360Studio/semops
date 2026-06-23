@@ -56,6 +56,9 @@ preflight boundary review.
   `SEMOPS_SAPIENT_GRAPH_ENABLED=true`.
 - `cmd/semops-feed-fixtures` serves `/sapient/messages` for the task-ack preflight smoke and `/sapient/detections`
   for deterministic absolute-location detection projection development.
+- `fixtures/sapient/task-ack.json` and `fixtures/sapient/absolute-detection.json` are committed portable fixtures for
+  those two runtime fixture-service paths. They are manifest-listed representative JSON, not captured Apex traffic,
+  Dstl harness output, or SAPIENT compliance evidence.
 - `pkg/cop` now defines `OwnerSAPIENT` and a source-partitioned, signal-profiled track contract for absolute-location
   detection reports only.
 - `internal/projectors/sapient` plans create/update graph mutations for `LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M`
@@ -98,6 +101,7 @@ Acceptance:
 - Message samples or fixtures are available. [done: Dstl test harness true/false JSON corpora]
 - License and redistribution constraints are understood. [done: Apache-2.0 except where noted for Dstl assets]
 - If a compliance suite exists, its install/run path is documented. [open: Windows/.NET/PostgreSQL 12 harness path]
+- SemOps portable runtime fixtures are manifest-listed and checked against the local fixture-service payloads. [done]
 
 ### Harness Qualification Gate
 

@@ -668,6 +668,8 @@ Local assets:
 - `go test ./pkg/adapters/adsb` is the first executable ADS-B boundary.
 - `pkg/adapters/adsb` also provides deterministic OpenSky snapshot fixture records plus JSONL replay load/store
   support.
+- `fixtures/adsb/opensky-hadr.jsonl` is the committed derived-story fixture for portable ADS-B replay. It is generated
+  from `OpenSkyFixtureRecords`, checked back against that generator, and listed in `fixtures/manifest.json`.
 - `internal/projectors/adsb` projects aircraft current state to source-partitioned ADS-B tracks with `signal`
   indexing, provenance, confidence, and source references.
 - `internal/scenario` can replay ADS-B snapshots through parse, projection, graph-plan writing, and born-state
@@ -712,6 +714,8 @@ First acceptance gate:
   fields preserved and malformed rows rejected before any graph writes.
 - Given deterministic OpenSky replay records, SemOps loads raw snapshot refs and replays them through the scenario
   runner without live network access.
+- Given portable fixture validation, `go test ./pkg/adapters/adsb ./internal/fixturemanifest` proves the committed
+  OpenSky-shaped replay file still matches the generator and fixture manifest.
 - Given a hosted ADS-B snapshot ingest, SemOps captures raw JSON, appends replay records, projects current-state
   tracks, writes graph plans, reconciles already-born tracks, and reports health counters.
 - Given an OpenSky-compatible HTTP endpoint, SemOps can run a SemStreams input -> decoder processor -> graph projector
@@ -779,6 +783,8 @@ Local assets:
 - `cmd/semops-feed-fixtures` serves deterministic SAPIENT task-ack JSON for local Compose smoke tests, and
   deterministic absolute-location detection JSON for graph-projection development. `scripts/cop-stack-smoke.sh`
   verifies the hosted preflight chain publishes a typed decoded payload on the declared SAPIENT output stream.
+- `fixtures/sapient/task-ack.json` and `fixtures/sapient/absolute-detection.json` are committed portable fixtures
+  listed in `fixtures/manifest.json`; `pkg/adapters/sapient` checks them against the runtime fixture-service payloads.
 - `pkg/cop` now defines `OwnerSAPIENT` and a source-partitioned `signal` track contract for absolute-location
   detection reports only.
 - `internal/projectors/sapient` plans create/update graph mutations for
@@ -817,6 +823,8 @@ First acceptance gate:
   without writing graph state or claiming hosted SAPIENT support.
 - Given an HTTP source of SAPIENT JSON or protobuf bytes, SemOps can run a SemStreams input -> decoder processor chain
   against local fixtures, producing raw and decoded preflight streams without graph writes or owner claims.
+- Given portable fixture validation, `go test ./pkg/adapters/sapient ./internal/fixturemanifest` proves the committed
+  task-ack and absolute-location detection fixtures still match the runtime fixture-service payloads.
 - Given `SEMOPS_SAPIENT_ENABLED=true` and `SEMOPS_SAPIENT_GRAPH_ENABLED=false`, the hosted app composes only the
   SAPIENT preflight HTTP input and decoder, captures optional replay, and avoids SAPIENT owner registration or decoded
   graph projector subscriptions.

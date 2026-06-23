@@ -63,7 +63,7 @@ func TestFixtureManifestDeclaresTiersAndValidatesCommittedArtifacts(t *testing.T
 		feeds[entry.Feed] = true
 		manifestedPaths[filepath.Clean(entry.Path)] = true
 	}
-	for _, feed := range []string{"cap", "dji", "weather", "klv"} {
+	for _, feed := range []string{"cap", "dji", "weather", "adsb", "sapient", "klv"} {
 		if !feeds[feed] {
 			t.Fatalf("fixture manifest missing feed %q", feed)
 		}

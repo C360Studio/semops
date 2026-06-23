@@ -30,6 +30,9 @@ cover readsb/dump1090, receiver TCP/UDP, ASTERIX, or provider reliability. See
 - Parser tests preserve nullable callsign, position timestamp, longitude, latitude, altitude, velocity, track,
   vertical rate, receiver IDs, squawk, position source, and category fields before projection.
 - `pkg/adapters/adsb` provides deterministic OpenSky snapshot fixture records plus JSONL replay load/store support.
+- `fixtures/adsb/opensky-hadr.jsonl` is the committed portable replay fixture for this OpenSky-shaped ADS-B gate. It
+  is manifest-listed, generated from `OpenSkyFixtureRecords`, and not captured OpenSky, raw ADS-B, receiver, or
+  ASTERIX evidence.
 - `internal/projectors/adsb` projects aircraft current state into source-partitioned ADS-B track entities with
   `indexing_profile=signal`, provenance, confidence, source references, and no cross-source association edge.
 - `internal/projectors/adsb` has a graph writer boundary for SemStreams create/update mutation request/reply
@@ -95,6 +98,7 @@ Acceptance:
 - Replay produces deterministic current aircraft state, missing-position state, and non-ADS-B position-source state.
   [done]
 - Fixture replay is the CI default; live OpenSky access is optional. [done]
+- The committed replay JSONL matches the generator and fixture manifest. [done]
 - Replay records carry source refs without putting receiver rows directly into canonical track entities. [done]
 - Scenario replay can process two OpenSky snapshots so repeated ICAO24 state updates after the first birth. [done]
 

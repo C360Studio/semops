@@ -173,6 +173,9 @@
 - [x] 5.85 Add a committed derived CAP lifecycle replay fixture for portable demo data without NWS/IPAWS claims
 - [x] 5.86 Make portable fixture files fail tests when they bypass the fixture manifest
 - [x] 5.87 Run adversarial review on fixture manifest tiers and portable-demo data claim boundaries
+- [x] 5.88 Add committed ADS-B OpenSky-shaped replay fixture to the manifest without live OpenSky claims
+- [x] 5.89 Add committed SAPIENT preflight and absolute-detection fixtures to the manifest without compliance claims
+- [x] 5.90 Run adversarial review on ADS-B and SAPIENT portable fixture claim boundaries
 
 ## 6. Structural COP Stack
 

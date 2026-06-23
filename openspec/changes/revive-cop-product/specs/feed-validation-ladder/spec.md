@@ -170,6 +170,8 @@ public conformance suite, or documented interoperability test backs the claim.
   `SEMOPS_SAPIENT_GRAPH_ENABLED=true`, with `OwnerSAPIENT` registered only for that graph-enabled runtime path
 - **AND** stack smoke coverage for SAPIENT graph projection remains opt-in, fixture-backed, and detection-source
   explicit so the default task-ack preflight smoke is not mistaken for graph or tasking support
+- **AND** committed SAPIENT task-ack and absolute-location detection fixtures are listed in the fixture manifest and
+  tested against the runtime fixture-service payloads
 - **AND** SemOps does not claim compliance until scoped Dstl harness evidence exists
 - **AND** SemOps does not claim product service support, tasking, association, UTM conversion, range/bearing
   conversion, or Apex middleware behavior until service mode, backpressure, command authority, and harness scope have
@@ -214,6 +216,8 @@ canonical graph state.
 - **AND** aircraft current state projects to source-partitioned ADS-B `track` entities with `signal` indexing,
   provenance, confidence, and source references
 - **AND** deterministic OpenSky snapshot records can replay through the scenario runner without live network access
+- **AND** committed OpenSky-shaped replay JSONL is listed in the fixture manifest and tested against the deterministic
+  fixture generator
 - **AND** a hosted snapshot-ingest seam captures bounded raw snapshots, appends replay, writes projection plans, and
   reports health without requiring live OpenSky
 - **AND** the first OpenSky-compatible HTTP hosted ingress is expressed as SemStreams input and processor components
