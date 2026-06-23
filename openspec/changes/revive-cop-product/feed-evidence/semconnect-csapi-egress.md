@@ -155,8 +155,11 @@ Acceptance:
   any CS API/UI/native status handler exists, and can build pure `cancel_requested` updates for active command intents.
   Native status reconciliation can map feed readback evidence such as MAVLink COMMAND_ACK into constrained status-only
   command-intent updates. Deadline reconciliation can map stale requested commands to `expired` and stale active
-  commands to `timeout`. Hosted deadline scheduling, CS API request handling, native cancellation acknowledgement, and
-  live actuation remain open.
+  commands to `timeout`. SemOps now carries a manifest-listed synthetic command lifecycle replay fixture for route
+  cancellation, accepted survey timeout, and stale-command expiry; it is useful for CS API/UI/native-status plumbing
+  tests, but is not CS API service support, hosted scheduling, native cancellation acknowledgement, native transmit, or
+  live actuation evidence. Hosted deadline scheduling, CS API request handling, native cancellation acknowledgement,
+  and live actuation remain open.
 - CS API interop should not block Phase 1 structural COP.
 - Native adapter support can be strong while CS API projection is still incomplete; keep those claims separate.
 - CS API conformance can be green while a native feed remains only fixture/replay-tested; keep those claims separate.

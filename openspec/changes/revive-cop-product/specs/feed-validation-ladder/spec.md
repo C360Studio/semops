@@ -198,6 +198,9 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** deadline reconciliation SHALL map unaccepted expired commands to `expired` and accepted, executing, or
   cancel-requested commands past deadline to `timeout` without rewriting desired-state, authority, priority, or target
   edges
+- **AND** portable command lifecycle replay fixtures SHALL be synthetic, listed in the fixture manifest, tested against
+  their deterministic generator, and capable of exercising requested, accepted, executing, cancel-requested,
+  cancelled, timeout, and expired policy states without live native transmit
 - **AND** native feed drivers SHALL publish ACK/status evidence separately rather than owning desired command intent
 - **AND** live command transmission SHALL remain blocked until safety interlocks, local override, stale-command
   rejection, cancellation, supersession, and async status reconciliation are reviewed

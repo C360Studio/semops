@@ -82,6 +82,19 @@ func TestReconcileDeadlineRejectsEarlyOrTerminalCommands(t *testing.T) {
 	}
 }
 
+func TestReconcileDeadlineRejectsMismatchedEvidence(t *testing.T) {
+	current := sampleIntent()
+	current.Status = StatusAccepted
+
+	_, err := ReconcileDeadline(current, DeadlineEvidence{
+		NativeID:   "other-command",
+		ObservedAt: current.ExpiresAt.Add(time.Second),
+	})
+	if err == nil || !strings.Contains(err.Error(), "native_id") {
+		t.Fatalf("native mismatch error = %v", err)
+	}
+}
+
 func TestReconcileDeadlineRequiresObservedAt(t *testing.T) {
 	_, err := ReconcileDeadline(sampleIntent(), DeadlineEvidence{})
 	if err == nil {

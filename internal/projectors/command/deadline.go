@@ -7,6 +7,7 @@ import (
 )
 
 type DeadlineEvidence struct {
+	NativeID   string
 	ObservedAt time.Time
 	Reason     string
 	Source     string
@@ -16,6 +17,9 @@ type DeadlineEvidence struct {
 func ReconcileDeadline(current Intent, evidence DeadlineEvidence) (StatusUpdate, error) {
 	if err := current.validate(); err != nil {
 		return StatusUpdate{}, fmt.Errorf("current command intent: %w", err)
+	}
+	if evidence.NativeID != "" && strings.TrimSpace(evidence.NativeID) != strings.TrimSpace(current.NativeID) {
+		return StatusUpdate{}, fmt.Errorf("command deadline evidence native_id %q does not match current command %q", evidence.NativeID, current.NativeID)
 	}
 	if evidence.ObservedAt.IsZero() {
 		return StatusUpdate{}, fmt.Errorf("command deadline evidence observed_at is required")
