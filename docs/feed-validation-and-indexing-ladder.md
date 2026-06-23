@@ -337,8 +337,8 @@ Remaining gates:
 ### Weather
 
 Status: critical COP layer with first Open-Meteo-shaped point, OGC EDR-shaped point, OGC EDR-shaped spatial parser
-fixtures, SemStreams component-flow evidence for point payloads, and a governed tactical-weather graph contract, split
-into visual context, alert evidence, and tactical telemetry.
+fixtures, SemStreams component-flow evidence for point payloads, and a governed tactical-weather graph writer and
+projector component gate, split into visual context, alert evidence, and tactical telemetry.
 
 Compliance and source evidence:
 
@@ -365,10 +365,11 @@ Compliance and source evidence:
   writes or point-payload promotion.
 - `pkg/cop` defines `weather_observation` as source-partitioned `signal` evidence for localized weather variable
   samples under `semops.feed.weather`.
-- `internal/projectors/weather` plans weather observation graph mutations for point and spatial forecasts without
-  graph writer wiring, runtime component promotion, UI semantics, or route-safety decisions.
-- `internal/components/weather` wraps provider-shaped weather fixtures as SemStreams file input components and decoder
-  processors with registered payloads, file/NATS ports, config schema, health, and flow metrics for point forecasts.
+- `internal/projectors/weather` plans and writes weather observation graph mutations for point and spatial forecasts
+  without hosted runtime wiring, UI semantics, or route-safety decisions.
+- `internal/components/weather` wraps provider-shaped weather fixtures as SemStreams file input components, decoder
+  processors, and point-forecast graph projector processors with registered payloads, file/NATS/NATS-request ports,
+  config schema, health, flow metrics, per-payload observation caps, freshness windows, and born-first reconciliation.
 - NWS API already fits the CAP lane for alerts and can return CAP content via content negotiation. NWS API explicitly
   points radar display users to separate radar/OGC services rather than treating `/api.weather.gov` as a radar tile
   source.
@@ -401,11 +402,14 @@ First acceptance gate:
   geometry, corridor dimensions, units, and tactical weather variables without graph writes, live provider claims,
   route-safety claims, or OGC conformance claims.
 - Given weather component promotion, SemOps publishes raw and decoded provider-shaped weather forecasts through
-  SemStreams registered BaseMessage payloads and NATS stream ports without graph writes, owner claims, runtime
-  live-provider claims, or route-safety decisions. [done for Open-Meteo-shaped and OGC EDR-shaped point fixtures]
+  SemStreams registered BaseMessage payloads and NATS stream ports before tactical graph projection, live-provider
+  claims, or route-safety decisions. [done for Open-Meteo-shaped and OGC EDR-shaped point fixtures]
 - Given tactical weather graph-contract promotion, SemOps represents each bounded weather variable/time sample as a
   source-partitioned `weather_observation` signal entity with provider, query shape, geometry, valid time, model time,
-  freshness, unit, value, confidence, and source reference. [done as pure projector-plan evidence only]
+  freshness, unit, value, confidence, and source reference. [done for pure planner, graph writer, and point-payload
+  projector component evidence]
+- Given weather graph-projector component promotion, SemOps consumes decoded point forecasts from a declared stream
+  port and writes through declared SemStreams graph request ports with max-observation and freshness config gates.
 - Given future OGC EDR-shaped fixtures, SemOps should parse selected broader query shapes before claiming
   standards-facing tactical weather interop beyond point, area, trajectory, and corridor retrieval.
 - Given projection, localized tactical weather writes source-partitioned governed evidence and does not overwrite CAP
@@ -418,11 +422,10 @@ First acceptance gate:
 Known gaps:
 
 - No OGC EDR radius, cube, item, location, or instance fixture exists yet.
-- No OGC EDR spatial runtime component payload, graph writer, route-weather model, or UI tactical-weather layer exists
-  yet.
+- No OGC EDR spatial runtime component payload, route-weather model, or UI tactical-weather layer exists yet.
 - No OGC EDR conformance/ETS run, live EDR server capture, or standards-facing bridge test exists yet.
 - No live weather provider integration exists yet.
-- No weather graph writer, runtime wiring, cache/stale policy, or UI tactical layer exists yet.
+- No weather hosted runtime wiring, live HTTP poller, cache/stale policy, or UI tactical layer exists yet.
 - No weather routing/safety rule is accepted yet.
 - No visual tile source has passed license/cache/reliability review.
 

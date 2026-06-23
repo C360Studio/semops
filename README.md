@@ -22,6 +22,8 @@ schema, NATS/JetStream runtime primitives, shared utility packages, and reusable
 - Active TAK/CoT SemStreams component boundary: `internal/components/cot`
 - Active CAP codec, replay fixture, append-evidence projection, graph-wiring, and COP readback boundary:
   `pkg/adapters/cap`, `internal/projectors/cap`, `internal/smoke/cap`
+- Active weather parser, tactical graph contract, graph writer, and SemStreams component boundary:
+  `pkg/adapters/weather`, `internal/projectors/weather`, `internal/components/weather`
 
 The active Go path is modernized to `github.com/c360studio/semops` and current SemStreams module imports. Old
 StreamKit, EntityStore, ObjectStore, BaseProcessor, and raw-subject flow product paths have been removed or are outside
@@ -39,6 +41,11 @@ JetStream, KV, retry, and request/reply behavior; `pkg/errs` for framework-consi
 The first concrete MAVLink and TAK/CoT component packages now define transport input components, decoder processors,
 graph projection processors, and registered raw/decoded payload types. The hosted app starts projector -> decoder ->
 input order for both feeds so UDP/TCP listeners no longer bypass SemStreams component ports.
+
+Weather currently follows the same component discipline for fixture-backed point forecasts: file input -> decoder ->
+graph projector, with registered payloads, declared stream/request ports, flow metrics, observation caps, and
+born-first graph reconciliation. It is not yet a hosted live weather provider, cache/stale policy, tactical UI layer,
+or route-safety authority.
 
 ## First Product Model
 

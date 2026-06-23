@@ -249,9 +249,9 @@ fixtures or a provider-shaped HTTP response before live provider claims. SemOps 
 point forecast parser fixture plus a synthetic OGC EDR-shaped CoverageJSON point fixture for tactical weather
 variables, plus synthetic OGC EDR-shaped area, trajectory, and corridor parser fixtures for spatial weather query
 preflight. The SemStreams fixture input -> decoder component flow publishes raw and decoded BaseMessages for
-provider-shaped point fixtures, without graph writes, owner claims, live provider support, spatial payload promotion,
-or conformance language. SemOps now also has a governed `weather_observation` graph contract and pure projector-plan
-evidence for localized variable/time samples, but no graph writer or runtime weather projection flow.
+provider-shaped point fixtures before graph writes, live provider support, spatial payload promotion, or conformance
+language. SemOps now also has a governed `weather_observation` graph contract, graph writer, and point-forecast graph
+projector component evidence for localized variable/time samples, but no hosted runtime weather projection flow.
 
 Full product lane:
 OGC API EDR and provider-specific weather gateway with point, area, trajectory, corridor, and selected broader EDR
@@ -266,13 +266,13 @@ provenance. CAP-style alerts remain append-evidence and must not overwrite stric
 Open-Meteo-shaped and OGC EDR-shaped parser fixtures plus the `weather_observation` graph contract are tactical
 telemetry evidence only; they are not a weather gateway, OGC ETS/conformance result, live EDR capture, runtime spatial
 component payload, or route-safety rule. The current components are preflight file/decoder components for point
-payloads, not an HTTP poller, cache/stale policy, graph writer, tactical-weather UI layer, or provider reliability
-claim.
+payloads plus a point-forecast graph projector component, not an HTTP poller, hosted runtime, cache/stale policy,
+tactical-weather UI layer, or provider reliability claim.
 
 Not claimed yet:
 Default live weather service reliability, weather-routing authority, provider conformance, broader EDR query support,
-spatial weather runtime payloads, cache/stale policy, tactical weather graph writer/runtime projection, or radar
-product hosting.
+spatial weather runtime payloads, cache/stale policy, tactical weather hosted runtime projection, or radar product
+hosting.
 
 ### CS API Bidirectional Interop
 

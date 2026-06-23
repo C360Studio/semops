@@ -11,8 +11,11 @@ import (
 	"sync"
 	"time"
 
+	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
 	weathercodec "github.com/c360studio/semops/pkg/adapters/weather"
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/component"
+	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/payloadregistry"
@@ -20,6 +23,8 @@ import (
 )
 
 const DefaultFixturePath = "fixtures/weather/open-meteo-point.json"
+const DefaultMaxObservations = 64
+const DefaultFreshness = 30 * time.Minute
 
 type Subscription interface {
 	Unsubscribe() error
@@ -377,6 +382,297 @@ func (c *DecoderComponent) DataFlow() component.FlowMetrics {
 	return c.state.DataFlow()
 }
 
+type ProjectorConfig struct {
+	Name            string
+	DecodedSubject  string
+	Registry        *payloadregistry.Registry
+	Projector       *weatherprojector.Projector
+	Writer          PlanWriter
+	WriteRetries    int
+	WriteTimeout    time.Duration
+	Freshness       time.Duration
+	MaxObservations int
+	Clock           func() time.Time
+}
+
+type PlanWriter interface {
+	Apply(ctx context.Context, plan weatherprojector.Plan) error
+}
+
+type ProjectorComponent struct {
+	cfg     ProjectorConfig
+	bus     Bus
+	state   componentState
+	decoder *message.Decoder
+
+	mu           sync.Mutex
+	subscription Subscription
+}
+
+func NewProjectorComponent(cfg ProjectorConfig, bus Bus) (*ProjectorComponent, error) {
+	if cfg.Name == "" {
+		cfg.Name = "semops-processor-weather-project"
+	}
+	if cfg.DecodedSubject == "" {
+		cfg.DecodedSubject = DefaultDecodedSubject
+	}
+	if cfg.Registry == nil {
+		cfg.Registry = payloadregistry.New()
+	}
+	if cfg.Projector == nil {
+		cfg.Projector = weatherprojector.NewProjector(weatherprojector.Config{})
+	}
+	if cfg.Writer == nil {
+		return nil, errors.New("weather projector component requires a plan writer")
+	}
+	if cfg.WriteRetries == 0 {
+		cfg.WriteRetries = 4
+	}
+	if cfg.Freshness == 0 {
+		cfg.Freshness = DefaultFreshness
+	}
+	if cfg.MaxObservations == 0 {
+		cfg.MaxObservations = DefaultMaxObservations
+	}
+	if cfg.MaxObservations < 0 {
+		return nil, errors.New("weather projector max_observations must be non-negative")
+	}
+	if cfg.Clock == nil {
+		cfg.Clock = time.Now
+	}
+	if bus == nil {
+		return nil, errors.New("weather projector component requires a bus")
+	}
+	return &ProjectorComponent{cfg: cfg, bus: bus, state: newComponentState(cfg.Clock)}, nil
+}
+
+func (c *ProjectorComponent) Initialize() error {
+	if err := RegisterPayloads(c.cfg.Registry); err != nil {
+		return err
+	}
+	c.decoder = message.NewDecoder(c.cfg.Registry)
+	return c.state.Initialize()
+}
+
+func (c *ProjectorComponent) Start(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if c.decoder == nil {
+		if err := c.Initialize(); err != nil {
+			return err
+		}
+	}
+	if c.state.Current() == component.StateStarted {
+		return nil
+	}
+	sub, err := c.bus.Subscribe(ctx, c.cfg.DecodedSubject, func(msgCtx context.Context, msg *nats.Msg) {
+		if err := c.HandleDecodedMessage(msgCtx, msg.Data); err != nil {
+			c.state.metrics.recordError(err)
+		}
+	})
+	if err != nil {
+		c.state.Fail(err)
+		return fmt.Errorf("subscribe weather projector decoded subject: %w", err)
+	}
+	c.mu.Lock()
+	c.subscription = sub
+	c.mu.Unlock()
+	return c.state.Start(ctx)
+}
+
+func (c *ProjectorComponent) Stop(timeout time.Duration) error {
+	c.mu.Lock()
+	sub := c.subscription
+	c.subscription = nil
+	c.mu.Unlock()
+	if sub != nil {
+		if err := sub.Unsubscribe(); err != nil {
+			c.state.metrics.recordError(err)
+			return err
+		}
+	}
+	return c.state.Stop(timeout)
+}
+
+func (c *ProjectorComponent) HandleDecodedMessage(ctx context.Context, data []byte) error {
+	if c.decoder == nil {
+		if err := c.Initialize(); err != nil {
+			return err
+		}
+	}
+	envelope, err := c.decoder.Decode(data)
+	if err != nil {
+		return fmt.Errorf("decode weather forecast BaseMessage: %w", err)
+	}
+	payload, ok := envelope.Payload().(*DecodedForecastPayload)
+	if !ok {
+		return fmt.Errorf("weather projector received payload %T, want *DecodedForecastPayload", envelope.Payload())
+	}
+	return c.HandleDecodedPayload(ctx, payload)
+}
+
+func (c *ProjectorComponent) HandleDecodedPayload(ctx context.Context, payload *DecodedForecastPayload) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	forecast, err := payload.ForecastCopy()
+	if err != nil {
+		return err
+	}
+	observations, err := weatherprojector.ObservationsFromPointForecast(
+		forecast,
+		payload.RawRef,
+		payload.ReceivedAt,
+		c.cfg.Freshness,
+	)
+	if err != nil {
+		return fmt.Errorf("build weather observations: %w", err)
+	}
+	if c.cfg.MaxObservations > 0 && len(observations) > c.cfg.MaxObservations {
+		return fmt.Errorf(
+			"weather observation count %d exceeds max_observations %d",
+			len(observations),
+			c.cfg.MaxObservations,
+		)
+	}
+	plan, err := c.cfg.Projector.ProjectObservations(observations)
+	if err != nil {
+		return fmt.Errorf("project weather observations: %w", err)
+	}
+	if len(plan.Mutations) == 0 {
+		c.state.metrics.recordMessage(len(payload.RawRef), c.cfg.Clock().UTC())
+		return nil
+	}
+	if err := c.writePlan(ctx, observations, plan); err != nil {
+		return err
+	}
+	c.state.metrics.recordMessage(len(payload.RawRef), c.cfg.Clock().UTC())
+	return nil
+}
+
+func (c *ProjectorComponent) writePlan(
+	ctx context.Context,
+	observations []weatherprojector.Observation,
+	plan weatherprojector.Plan,
+) error {
+	attempts := c.cfg.WriteRetries
+	if attempts <= 0 {
+		attempts = 1
+	}
+	for attempt := 0; attempt < attempts; attempt++ {
+		if err := c.cfg.Writer.Apply(ctx, plan); err != nil {
+			entityID, ok := weatherEntityAlreadyExists(err)
+			if !ok || !c.markBornForObservations(observations, entityID) {
+				return fmt.Errorf("write weather graph plan: %w", err)
+			}
+			next, projectErr := c.cfg.Projector.ProjectObservations(observations)
+			if projectErr != nil {
+				return fmt.Errorf("reproject weather observations after birth reconciliation: %w", projectErr)
+			}
+			plan = next
+			if len(plan.Mutations) == 0 {
+				return nil
+			}
+			continue
+		}
+		c.cfg.Projector.MarkBornForPlan(plan)
+		return nil
+	}
+	return fmt.Errorf("weather graph birth reconciliation exceeded retry limit")
+}
+
+func (c *ProjectorComponent) markBornForObservations(
+	observations []weatherprojector.Observation,
+	entityID string,
+) bool {
+	for _, observation := range observations {
+		if c.cfg.Projector.MarkBornForObservation(observation, entityID) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *ProjectorComponent) Meta() component.Metadata {
+	return component.Metadata{
+		Name:        c.cfg.Name,
+		Type:        "processor",
+		Description: "Weather governed graph projection processor",
+		Version:     "v0.1.0",
+	}
+}
+
+func (c *ProjectorComponent) InputPorts() []component.Port {
+	return []component.Port{
+		streamPort("decoded_forecasts", component.DirectionInput, c.cfg.DecodedSubject, DecodedForecastType),
+	}
+}
+
+func (c *ProjectorComponent) OutputPorts() []component.Port {
+	timeout := c.outputTimeout()
+	return []component.Port{
+		{
+			Name:        "graph_create",
+			Direction:   component.DirectionOutput,
+			Required:    true,
+			Description: "SemStreams born-first graph mutation request",
+			Config: component.NATSRequestPort{
+				Subject: weatherprojector.SubjectEntityCreateWithTriples,
+				Timeout: timeout.String(),
+				Retries: c.cfg.WriteRetries,
+				Interface: &component.InterfaceContract{
+					Type:    "graph.CreateEntityWithTriplesRequest",
+					Version: "v1",
+				},
+			},
+		},
+		{
+			Name:        "graph_update",
+			Direction:   component.DirectionOutput,
+			Required:    true,
+			Description: "SemStreams append-evidence graph mutation request",
+			Config: component.NATSRequestPort{
+				Subject: weatherprojector.SubjectEntityUpdateWithTriples,
+				Timeout: timeout.String(),
+				Retries: c.cfg.WriteRetries,
+				Interface: &component.InterfaceContract{
+					Type:    "graph.UpdateEntityWithTriplesRequest",
+					Version: "v1",
+				},
+			},
+		},
+	}
+}
+
+func (c *ProjectorComponent) ConfigSchema() component.ConfigSchema {
+	return component.ConfigSchema{
+		Properties: map[string]component.PropertySchema{
+			"decoded_subject":  stringProperty("SemStreams subject carrying decoded weather forecasts", c.cfg.DecodedSubject),
+			"owner":            stringProperty("SemStreams projection owner bound through registry/heartbeat", cop.OwnerWeather),
+			"write_timeout":    stringProperty("Graph mutation request timeout", c.outputTimeout().String()),
+			"freshness":        stringProperty("Weather observation freshness window", c.cfg.Freshness.String()),
+			"max_observations": intProperty("Maximum observations accepted per decoded forecast payload", c.cfg.MaxObservations),
+		},
+		Required: []string{"decoded_subject", "owner", "max_observations"},
+	}
+}
+
+func (c *ProjectorComponent) Health() component.HealthStatus {
+	return c.state.Health()
+}
+
+func (c *ProjectorComponent) DataFlow() component.FlowMetrics {
+	return c.state.DataFlow()
+}
+
+func (c *ProjectorComponent) outputTimeout() time.Duration {
+	if c.cfg.WriteTimeout > 0 {
+		return c.cfg.WriteTimeout
+	}
+	return weatherprojector.DefaultWriteTimeout
+}
+
 type componentState struct {
 	mu      sync.Mutex
 	state   component.State
@@ -540,6 +836,21 @@ func marshalBaseMessage(
 
 func stringProperty(description, fallback string) component.PropertySchema {
 	return component.PropertySchema{Type: "string", Description: description, Default: fallback}
+}
+
+func intProperty(description string, fallback int) component.PropertySchema {
+	return component.PropertySchema{Type: "int", Description: description, Default: fallback}
+}
+
+func weatherEntityAlreadyExists(err error) (string, bool) {
+	var mutationErr *weatherprojector.MutationFailureError
+	if !errors.As(err, &mutationErr) ||
+		mutationErr.Kind != weatherprojector.MutationCreate ||
+		mutationErr.ErrorCode != graph.ErrorCodeEntityExists ||
+		mutationErr.EntityID == "" {
+		return "", false
+	}
+	return mutationErr.EntityID, true
 }
 
 func fileURI(path string) (string, error) {

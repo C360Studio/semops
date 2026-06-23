@@ -4,14 +4,19 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
 	weathercodec "github.com/c360studio/semops/pkg/adapters/weather"
+	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/component"
 	"github.com/c360studio/semstreams/component/flowgraph"
+	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/payloadregistry"
+	"github.com/c360studio/semstreams/pkg/ownership"
 	"github.com/nats-io/nats.go"
 )
 
@@ -69,6 +74,7 @@ func TestPayloadRegistryRoundTripsRawAndDecodedForecasts(t *testing.T) {
 func TestWeatherComponentsExposeFileAndStreamPorts(t *testing.T) {
 	var _ component.LifecycleComponent = (*FixtureInputComponent)(nil)
 	var _ component.LifecycleComponent = (*DecoderComponent)(nil)
+	var _ component.LifecycleComponent = (*ProjectorComponent)(nil)
 
 	bus := &recordingBus{}
 	input, err := NewFixtureInputComponent(FixtureInputConfig{
@@ -82,9 +88,18 @@ func TestWeatherComponentsExposeFileAndStreamPorts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new decoder: %v", err)
 	}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Writer:       &recordingWeatherPlanWriter{},
+		WriteTimeout: 250 * time.Millisecond,
+		WriteRetries: 2,
+	}, bus)
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
 	for name, lifecycle := range map[string]component.LifecycleComponent{
-		"input":   input,
-		"decoder": decoder,
+		"input":     input,
+		"decoder":   decoder,
+		"projector": projector,
 	} {
 		if err := lifecycle.Initialize(); err != nil {
 			t.Fatalf("initialize %s: %v", name, err)
@@ -103,6 +118,9 @@ func TestWeatherComponentsExposeFileAndStreamPorts(t *testing.T) {
 	if decoder.Meta().Type != "processor" {
 		t.Fatalf("decoder component type = %q, want processor", decoder.Meta().Type)
 	}
+	if projector.Meta().Type != "processor" {
+		t.Fatalf("projector component type = %q, want processor", projector.Meta().Type)
+	}
 	filePort, ok := input.InputPorts()[0].Config.(component.FilePort)
 	if !ok {
 		t.Fatalf("input forecast_fixture config = %T, want FilePort", input.InputPorts()[0].Config)
@@ -116,13 +134,42 @@ func TestWeatherComponentsExposeFileAndStreamPorts(t *testing.T) {
 	if got := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject; got != DefaultDecodedSubject {
 		t.Fatalf("decoder decoded subject = %q, want %q", got, DefaultDecodedSubject)
 	}
+	if got := projector.InputPorts()[0].Config.(component.NATSPort).Subject; got != DefaultDecodedSubject {
+		t.Fatalf("projector decoded subject = %q, want %q", got, DefaultDecodedSubject)
+	}
 	if len(input.OutputPorts()) != 1 || len(decoder.OutputPorts()) != 1 {
 		t.Fatalf("weather fixture components must not expose graph request ports")
+	}
+	graphPorts := projector.OutputPorts()
+	if len(graphPorts) != 2 {
+		t.Fatalf("projector graph ports = %d, want 2", len(graphPorts))
+	}
+	createPort, ok := graphPorts[0].Config.(component.NATSRequestPort)
+	if !ok {
+		t.Fatalf("graph_create config = %T, want NATSRequestPort", graphPorts[0].Config)
+	}
+	if createPort.Subject != weatherprojector.SubjectEntityCreateWithTriples ||
+		createPort.Timeout != "250ms" ||
+		createPort.Retries != 2 ||
+		createPort.Interface.Type != "graph.CreateEntityWithTriplesRequest" {
+		t.Fatalf("graph_create port = %+v", createPort)
+	}
+	updatePort, ok := graphPorts[1].Config.(component.NATSRequestPort)
+	if !ok {
+		t.Fatalf("graph_update config = %T, want NATSRequestPort", graphPorts[1].Config)
+	}
+	if updatePort.Subject != weatherprojector.SubjectEntityUpdateWithTriples ||
+		updatePort.Interface.Type != "graph.UpdateEntityWithTriplesRequest" {
+		t.Fatalf("graph_update port = %+v", updatePort)
 	}
 	requireProperty(t, input.ConfigSchema(), "fixture_path")
 	requireProperty(t, input.ConfigSchema(), "provider")
 	requireProperty(t, input.ConfigSchema(), "query_shape")
 	requireProperty(t, decoder.ConfigSchema(), "decoded_subject")
+	requireProperty(t, projector.ConfigSchema(), "decoded_subject")
+	requireProperty(t, projector.ConfigSchema(), "freshness")
+	requireProperty(t, projector.ConfigSchema(), "max_observations")
+	requireProperty(t, projector.ConfigSchema(), "owner")
 
 	fg := flowgraph.NewFlowGraph()
 	if err := fg.AddComponentNode(input.Meta().Name, input); err != nil {
@@ -131,10 +178,14 @@ func TestWeatherComponentsExposeFileAndStreamPorts(t *testing.T) {
 	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
 		t.Fatalf("add weather decoder to flow graph: %v", err)
 	}
+	if err := fg.AddComponentNode(projector.Meta().Name, projector); err != nil {
+		t.Fatalf("add weather projector to flow graph: %v", err)
+	}
 	if err := fg.ConnectComponentsByPatterns(); err != nil {
 		t.Fatalf("connect weather flow graph: %v", err)
 	}
 	requireEdge(t, fg.GetEdges(), input.Meta().Name, "raw_forecasts", decoder.Meta().Name, "raw_forecasts", DefaultRawSubject)
+	requireEdge(t, fg.GetEdges(), decoder.Meta().Name, "decoded_forecasts", projector.Meta().Name, "decoded_forecasts", DefaultDecodedSubject)
 }
 
 func TestFixtureInputAndDecoderPublishBaseMessages(t *testing.T) {
@@ -278,6 +329,133 @@ func TestDecoderRejectsUnsupportedWeatherShape(t *testing.T) {
 	}
 }
 
+func TestProjectorConsumesDecodedForecastAndWritesGraphPlan(t *testing.T) {
+	now := time.Date(2026, 6, 23, 14, 30, 0, 0, time.UTC)
+	registry := payloadregistry.New()
+	writer := &recordingWeatherPlanWriter{}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Registry: registry,
+		Projector: weatherprojector.NewProjector(weatherprojector.Config{
+			OwnerTokens: map[string]ownership.OwnerToken{
+				cop.OwnerWeather: ownership.ExpectedOwnerToken(cop.OwnerWeather, "component-test"),
+			},
+			TraceID: "component-weather-001",
+		}),
+		Writer:          writer,
+		Freshness:       45 * time.Minute,
+		MaxObservations: 32,
+		Clock:           func() time.Time { return now },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+	if err := projector.Initialize(); err != nil {
+		t.Fatalf("initialize projector: %v", err)
+	}
+
+	payload := decodedOpenMeteoPayload(t, now)
+	wire := mustBaseMessageJSON(t, DecodedForecastType, payload, "semops-processor-weather-decode", now)
+	if err := projector.HandleDecodedMessage(context.Background(), wire); err != nil {
+		t.Fatalf("handle decoded forecast: %v", err)
+	}
+
+	if len(writer.plans) != 1 {
+		t.Fatalf("plans = %d, want 1", len(writer.plans))
+	}
+	plan := writer.plans[0]
+	if len(plan.Mutations) != 16 {
+		t.Fatalf("mutations = %d, want 16 weather observations", len(plan.Mutations))
+	}
+	create := plan.Mutations[0].Create
+	if plan.Mutations[0].Kind != weatherprojector.MutationCreate {
+		t.Fatalf("first mutation = %+v, want create", plan.Mutations[0])
+	}
+	if create.OwnerToken != "semops.feed.weather#component-test" {
+		t.Fatalf("owner token = %q", create.OwnerToken)
+	}
+	if create.TraceID != "component-weather-001" {
+		t.Fatalf("trace id = %q", create.TraceID)
+	}
+	requireWeatherTriple(t, create.Triples, cop.WeatherVariable, "temperature_2m")
+	requireWeatherTriple(t, create.Triples, cop.WeatherValue, 29.4)
+	requireWeatherTriple(t, create.Triples, cop.WeatherFreshUntil, now.Add(45*time.Minute))
+	if got := projector.DataFlow().MessagesPerSecond; got <= 0 {
+		t.Fatalf("projector messages per second = %f, want > 0", got)
+	}
+}
+
+func TestProjectorRejectsObservationCapExceeded(t *testing.T) {
+	now := time.Date(2026, 6, 23, 14, 45, 0, 0, time.UTC)
+	writer := &recordingWeatherPlanWriter{}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Writer:          writer,
+		MaxObservations: 1,
+		Clock:           func() time.Time { return now },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+	err = projector.HandleDecodedPayload(context.Background(), decodedOpenMeteoPayload(t, now))
+	if err == nil {
+		t.Fatal("expected max_observations error")
+	}
+	if !strings.Contains(err.Error(), "max_observations") {
+		t.Fatalf("error = %v, want max_observations", err)
+	}
+	if len(writer.plans) != 0 {
+		t.Fatalf("plans = %d, want no graph writes", len(writer.plans))
+	}
+}
+
+func TestProjectorReconcilesExistingWeatherObservationBirth(t *testing.T) {
+	now := time.Date(2026, 6, 23, 15, 0, 0, 0, time.UTC)
+	payload := decodedOpenMeteoPayload(t, now)
+	observations, err := weatherprojector.ObservationsFromPointForecast(
+		payload.Forecast,
+		payload.RawRef,
+		payload.ReceivedAt,
+		DefaultFreshness,
+	)
+	if err != nil {
+		t.Fatalf("build observations: %v", err)
+	}
+	firstEntityID := weatherprojector.EntityID("c360", "edge", observations[0].NativeID)
+	writer := &recordingWeatherPlanWriter{
+		failures: []error{
+			&weatherprojector.MutationFailureError{
+				Operation: "create_with_triples",
+				Kind:      weatherprojector.MutationCreate,
+				EntityID:  firstEntityID,
+				ErrorCode: graph.ErrorCodeEntityExists,
+				Message:   "already exists",
+			},
+		},
+	}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Projector: weatherprojector.NewProjector(weatherprojector.Config{
+			OwnerTokens: map[string]ownership.OwnerToken{
+				cop.OwnerWeather: ownership.ExpectedOwnerToken(cop.OwnerWeather, "component-test"),
+			},
+		}),
+		Writer: writer,
+		Clock:  func() time.Time { return now },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+
+	if err := projector.HandleDecodedPayload(context.Background(), payload); err != nil {
+		t.Fatalf("handle decoded with birth reconciliation: %v", err)
+	}
+	if len(writer.plans) != 2 {
+		t.Fatalf("plans = %d, want create retry then update", len(writer.plans))
+	}
+	last := writer.plans[len(writer.plans)-1]
+	if len(last.Mutations) != 16 || last.Mutations[0].Kind != weatherprojector.MutationUpdate {
+		t.Fatalf("last plan = %+v, want first observation update after reconciling existing birth", last)
+	}
+}
+
 func readEDRFixture(t *testing.T) []byte {
 	t.Helper()
 	data, err := os.ReadFile(edrFixturePath())
@@ -392,4 +570,47 @@ func requireProperty(t *testing.T, schema component.ConfigSchema, name string) {
 	if _, ok := schema.Properties[name]; !ok {
 		t.Fatalf("missing config schema property %q in %+v", name, schema.Properties)
 	}
+}
+
+type recordingWeatherPlanWriter struct {
+	plans    []weatherprojector.Plan
+	failures []error
+}
+
+func (w *recordingWeatherPlanWriter) Apply(_ context.Context, plan weatherprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	if len(w.failures) == 0 {
+		return nil
+	}
+	err := w.failures[0]
+	w.failures = w.failures[1:]
+	return err
+}
+
+func decodedOpenMeteoPayload(t *testing.T, receivedAt time.Time) *DecodedForecastPayload {
+	t.Helper()
+	raw := NewRawForecastPayload(
+		"weather:fixture:test",
+		weathercodec.ProviderOpenMeteo,
+		weathercodec.QueryShapePosition,
+		fixturePath(),
+		"file:///tmp/weather.json",
+		receivedAt,
+		readFixture(t),
+	)
+	forecast, err := weathercodec.ParseOpenMeteoPointForecast(raw.RawJSON)
+	if err != nil {
+		t.Fatalf("parse Open-Meteo fixture: %v", err)
+	}
+	return NewDecodedForecastPayload(raw, forecast)
+}
+
+func requireWeatherTriple(t *testing.T, triples []message.Triple, predicate string, object any) {
+	t.Helper()
+	for _, triple := range triples {
+		if triple.Predicate == predicate && triple.Object == object {
+			return
+		}
+	}
+	t.Fatalf("missing triple %s=%v in %#v", predicate, object, triples)
 }

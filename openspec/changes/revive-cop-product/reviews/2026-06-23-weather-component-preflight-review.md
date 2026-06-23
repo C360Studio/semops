@@ -54,7 +54,7 @@ Mitigation:
 
 ## Follow-Ups
 
-- Add an OGC EDR-shaped fixture before standards-facing tactical weather claims.
+- OGC EDR-shaped point, area, trajectory, and corridor fixtures were added as parser/preflight evidence.
 - Decide whether live Open-Meteo/EDR polling belongs in a SemStreams HTTP poller component or a SemOps weather gateway.
-- Add a graph projector only after ownership, indexing profile, freshness, confidence, and route-safety posture are
-  reviewed.
+- A point-forecast graph projector component was added after the ownership, indexing profile, freshness, and
+  route-safety posture review in `2026-06-23-weather-projector-component-review.md`.

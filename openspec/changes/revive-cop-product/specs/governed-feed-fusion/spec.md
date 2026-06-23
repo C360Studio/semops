@@ -183,6 +183,8 @@ preserved as evidence.
   evidence with provenance and freshness
 - **AND** tactical weather variable/time samples are `signal`-profiled `weather_observation` entities rather than
   CAP hazard, route-decision, task, alert, or advisory authority
+- **AND** graph-writing weather components use declared SemStreams graph request ports and per-payload caps rather
+  than publishing directly to graph mutation subjects from transport or decode stages
 - **AND** visual raster or tile layers may be browser-only unless an operator workflow requires graph state
 
 #### Scenario: DJI video does not redefine KLV semantics

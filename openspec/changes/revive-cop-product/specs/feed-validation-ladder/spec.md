@@ -214,6 +214,9 @@ binary-by-reference storage, and memory-bounded handling.
   payloads, graph projection, freshness/confidence policy, and route-weather UI semantics are accepted
 - **AND** tactical weather graph projection uses source-partitioned `weather_observation` signal entities for bounded
   variable/time samples without claiming hazard, task, alert, route-decision, or advisory authority
+- **AND** weather graph-projector promotion uses decoded forecast stream ports, declared SemStreams graph request
+  ports, bounded observation caps, freshness configuration, and born-first reconciliation before hosted runtime
+  enablement or live-provider claims
 - **AND** tactical weather supports the relevant point, area, and route/trajectory query shapes before it influences
   routing or safety logic
 

@@ -41,6 +41,8 @@
 - [x] 2.20 Wire the SAPIENT preflight HTTP input -> decoder component chain into app runtime without graph ownership
       claims
 - [x] 2.21 Add local HTTP fixture-provider service evidence for ADS-B and SAPIENT component-flow smoke tests
+- [x] 2.22 Add the first concrete weather graph projector processor component using SemStreams request ports,
+      payload registry, health, flow metrics, and born-first reconciliation for point forecasts
 
 ## 3. COP Model And Governance
 
@@ -143,6 +145,8 @@
 - [x] 5.69 Add OGC EDR-shaped position fixture and decoder gate before standards-facing tactical weather claims
 - [x] 5.70 Add OGC EDR-shaped area, trajectory, and corridor parser gates before route-weather claims
 - [x] 5.71 Add tactical-weather graph contract and pure projector-plan gate before UI or route-safety claims
+- [x] 5.72 Add tactical-weather graph writer and projector component gate for point forecasts without claiming live
+      provider support, spatial runtime payloads, UI semantics, or route-safety authority
 
 ## 6. Structural COP Stack
 
@@ -225,6 +229,8 @@
 - [x] 6.62 Wire opt-in KLV local media-ref -> demux -> decode -> projector hosted runtime with ownership and
       component metrics
 - [x] 6.63 Add a one-command opt-in KLV stack smoke after fixture provenance and runtime-resource posture are clean
+- [x] 6.64 Add initial weather point-forecast graph projector component while keeping hosted runtime, live provider,
+      cache/stale policy, and route-weather behavior gated
 
 ## 7. COP UI
 
