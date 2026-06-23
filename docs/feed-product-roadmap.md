@@ -226,6 +226,8 @@ Demo/MVP lane:
 CAP XML parser with local lifecycle fixtures, deterministic HTTP poller, decoder, and projector components, NWS
 samples, schema/consumer-rule validation, hazard/advisory evidence, expiry/staleness, and append-evidence ownership.
 This lane is CAP-specific; broader EDXL variants stay out of Phase 1 unless a separate feed gate promotes them.
+The later gate is tracked in `openspec/changes/revive-cop-product/feed-evidence/edxl-beyond-cap.md` so CAP evidence
+does not accidentally imply broader EDXL support.
 
 Full product lane:
 Polling and webhook adapters for NWS/IPAWS/vendor feeds, alert update/cancel/expire lifecycle, multilingual

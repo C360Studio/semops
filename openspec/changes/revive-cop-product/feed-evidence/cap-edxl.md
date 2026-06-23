@@ -5,7 +5,8 @@ derived lifecycle-status readback, a skipped-by-default live graph smoke for bor
 the first hosted HTTP poller, decoder, and graph-projector component package. The app runtime can compose that chain
 behind `SEMOPS_CAP_ENABLED=true`, and `SEMOPS_CAP_REPLAY_PATH` can capture provider-shaped raw CAP XML replay records,
 while default live-provider enablement remains off. CAP 1.2 namespace and consumer-rule preflight validation exists,
-but live NWS fixture capture and formal XML schema validation remain open.
+but live NWS fixture capture and formal XML schema validation remain open. Broader EDXL formats are split into
+`openspec/changes/revive-cop-product/feed-evidence/edxl-beyond-cap.md` as a later feed-validation gate.
 
 ## Decision
 
@@ -188,7 +189,8 @@ Acceptance:
 
 ## Known Gaps
 
-- EDXL beyond CAP is not scoped for Phase 1.
+- EDXL beyond CAP is not scoped for Phase 1 and is tracked separately in
+  `openspec/changes/revive-cop-product/feed-evidence/edxl-beyond-cap.md`.
 - NWS is a useful public source, but live NWS calls should not be required for deterministic CI.
 - CAP conformance should be stated as namespace/consumer-rule preflight evidence until formal XML schema validation
   and a proper consumer profile exist.

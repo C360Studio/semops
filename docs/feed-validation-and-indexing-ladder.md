@@ -261,7 +261,9 @@ Current component and graph-wiring gate:
 
 Status: third feed. CAP has parser, deterministic raw XML lifecycle fixture replay, append-evidence projection, graph
 writer, COP readback, first lifecycle-status readback, skipped-by-default live graph smoke, and initial HTTP poller,
-decoder, and graph-projector component package. Broader EDXL is not Phase 1 scope.
+decoder, and graph-projector component package. Broader EDXL is split into
+`openspec/changes/revive-cop-product/feed-evidence/edxl-beyond-cap.md` as a later feed-validation gate and is not
+Phase 1 scope.
 
 Compliance and sample evidence:
 

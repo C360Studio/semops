@@ -62,6 +62,14 @@ become dead-end architecture.
 - **AND** SemOps does not claim hosted CAP polling, webhook, NWS/IPAWS integration, or alert feed service support until
   opt-in runtime wiring is backed by captured provider samples and alert lifecycle gates for that boundary
 
+#### Scenario: Broader EDXL is not CAP evidence
+
+- **WHEN** SemOps considers EDXL formats beyond CAP
+- **THEN** each selected EDXL family requires a separate product need, legal fixture or captured provider sample,
+  parser/schema evidence, component boundary, projection contract, indexing profile, replay behavior, and adversarial
+  review
+- **AND** CAP parser, CAP HTTP polling, and CAP hazard projection evidence must not be cited as broader EDXL support
+
 ### Requirement: Compliance claims require reproducible evidence
 
 SemOps SHALL NOT claim protocol or standards conformance unless a reproducible local harness, official schema,
