@@ -3,8 +3,8 @@
 Status: critical COP layer with first Open-Meteo-shaped point, OGC EDR-shaped point, OGC EDR-shaped spatial parser
 fixtures, SemStreams component-flow evidence for point payloads, a governed tactical-weather graph writer and
 projector component gate, and opt-in hosted runtime composition for the local point-forecast fixture. It is not yet
-implemented as a live weather provider, conformance target, UI layer, cache/stale policy, spatial runtime payload, or
-routing/safety authority.
+implemented as a live weather provider, conformance target, visual weather tile layer, cache/stale policy, spatial
+runtime payload, or routing/safety authority.
 
 ## Decision
 
@@ -55,6 +55,9 @@ affects assets, operators, hazards, or routes.
 - `GET /api/cop/snapshot` can expose graph-backed `weather_observation` entities with provider, variable/value/unit,
   query shape, query geometry, valid/model/freshness time, provenance, and claim posture. This is source-evidence
   readback, not a tactical weather layer.
+- The COP UI can render graph-backed weather observations as selectable localized point evidence with
+  provider/value/query/freshness/provenance details and claim posture. This is browser readback of governed evidence,
+  not a live provider, visual tile layer, route-safety, incident-area weather product, or OGC conformance claim.
 - NWS API remains valuable for alerts, forecasts, and observations. Its alert endpoints fit the current CAP lane, and
   CAP can be requested through content negotiation.
 - Radar and raster display data should not be assumed to come from `api.weather.gov`; visual products need their own
@@ -85,17 +88,21 @@ affects assets, operators, hazards, or routes.
   polling, cache/stale policy, UI, and route-safety rules still open]
 - Prove the hosted point-fixture runtime through the Caddy-routed COP API and component/runtime flow evidence. [done
   behind `SEMOPS_COP_SMOKE_WEATHER_ENABLED=true`]
+- Prove browser readback for graph-backed point observations through a selectable weather evidence marker and
+  inspector. [done with fixture-backed Playwright coverage]
 - Keep browser-only visual layers out of graph state unless an operator workflow turns them into evidence.
 
 ## Known Gaps
 
 - No OGC EDR radius, cube, item, location, or instance fixture exists yet.
-- No OGC EDR spatial runtime component payload, route-weather model, or UI tactical-weather layer exists yet.
+- No OGC EDR spatial runtime component payload, route-weather model, or visual weather tile layer exists yet.
 - No OGC EDR conformance/ETS run, live EDR server capture, or standards-facing bridge test exists yet.
 - No live Open-Meteo, NWS forecast/observation, MSC GeoMet, or radar/tile provider integration exists yet.
-- No live weather HTTP poller, default-stack weather hosting, cache/stale policy, or UI tactical layer exists yet.
+- No live weather HTTP poller, default-stack weather hosting, cache/stale policy, incident-area weather layer, or route
+  weather UI exists yet.
 - The hosted weather runtime path is local point-forecast fixture evidence only.
-- The COP API weather readback is not a tactical weather visualization, operator decision aid, or route-safety model.
+- The COP API/UI weather readback is a localized point-observation evidence marker, not an operator decision aid,
+  visual weather product, or route-safety model.
 - No weather routing/safety rule is accepted yet.
 - No tile/radar source has passed license, cache, or reliability review.
 
@@ -105,6 +112,8 @@ affects assets, operators, hazards, or routes.
 - `go test ./internal/projectors/weather`
 - `go test ./internal/components/weather`
 - `go test ./internal/api/cop ./internal/smoke/cop`
+- `npm --prefix ui run test`
+- `npm --prefix ui run test:e2e`
 - `SEMOPS_COP_SMOKE_WEATHER_ENABLED=true bash scripts/cop-stack-smoke.sh`
 - `go test ./internal/contracts`
 - `go test ./...`

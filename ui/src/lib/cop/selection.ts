@@ -1,6 +1,17 @@
-import type { Advisory, Alert, Asset, EntityRef, Hazard, SensorFootprint, Snapshot, Task, Track } from './types';
+import type {
+  Advisory,
+  Alert,
+  Asset,
+  EntityRef,
+  Hazard,
+  SensorFootprint,
+  Snapshot,
+  Task,
+  Track,
+  WeatherObservation
+} from './types';
 
-export type SelectableEntity = Track | Asset | Task | Advisory | Hazard | SensorFootprint | Alert;
+export type SelectableEntity = Track | Asset | Task | Advisory | Hazard | SensorFootprint | WeatherObservation | Alert;
 
 export function resolveEntity(snapshot: Snapshot | null, selected: EntityRef): SelectableEntity | undefined {
   if (!snapshot) {
@@ -23,6 +34,9 @@ export function resolveEntity(snapshot: Snapshot | null, selected: EntityRef): S
   }
   if (selected.kind === 'sensor-footprint') {
     return (snapshot.sensor_footprints ?? []).find((footprint) => footprint.id === selected.id);
+  }
+  if (selected.kind === 'weather-observation') {
+    return (snapshot.weather_observations ?? []).find((observation) => observation.id === selected.id);
   }
   return snapshot.alerts.find((alert) => alert.id === selected.id);
 }
@@ -63,6 +77,9 @@ export function reconcileSelection(snapshot: Snapshot | null, selected: EntityRe
   if ((snapshot.sensor_footprints ?? [])[0]) {
     return { kind: 'sensor-footprint', id: snapshot.sensor_footprints[0].id };
   }
+  if ((snapshot.weather_observations ?? [])[0]) {
+    return { kind: 'weather-observation', id: snapshot.weather_observations[0].id };
+  }
   if (snapshot.alerts[0]) {
     return { kind: 'alert', id: snapshot.alerts[0].id };
   }
@@ -87,6 +104,9 @@ function resolveEntityRefByID(snapshot: Snapshot, id: string): EntityRef | undef
   }
   if ((snapshot.sensor_footprints ?? []).some((footprint) => footprint.id === id)) {
     return { kind: 'sensor-footprint', id };
+  }
+  if ((snapshot.weather_observations ?? []).some((observation) => observation.id === id)) {
+    return { kind: 'weather-observation', id };
   }
   return undefined;
 }

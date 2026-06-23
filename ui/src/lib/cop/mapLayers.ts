@@ -1,10 +1,20 @@
 import type { EntityRef, GeoPoint, Hazard, Snapshot } from './types';
 
-export type TacticalEntityKind = 'track' | 'asset' | 'task' | 'advisory' | 'hazard' | 'sensor-footprint';
+export type TacticalEntityKind =
+  | 'track'
+  | 'asset'
+  | 'task'
+  | 'advisory'
+  | 'hazard'
+  | 'sensor-footprint'
+  | 'weather-observation';
 
 export type TacticalPoint = {
   id: string;
-  kind: Extract<TacticalEntityKind, 'track' | 'asset' | 'task' | 'advisory' | 'sensor-footprint'>;
+  kind: Extract<
+    TacticalEntityKind,
+    'track' | 'asset' | 'task' | 'advisory' | 'sensor-footprint' | 'weather-observation'
+  >;
   label: string;
   position: [number, number];
   selected: boolean;
@@ -146,7 +156,25 @@ export function tacticalPoints(snapshot: Snapshot, selected: EntityRef): Tactica
     ];
   });
 
-  return [...assetPoints, ...trackPoints, ...taskPoints, ...advisoryPoints, ...footprintPoints];
+  const weatherPoints = (snapshot.weather_observations ?? []).flatMap((observation): TacticalPoint[] => {
+    if (!observation.position) {
+      return [];
+    }
+    const isSelected = selected.kind === 'weather-observation' && selected.id === observation.id;
+    return [
+      {
+        id: observation.id,
+        kind: 'weather-observation',
+        label: observation.label,
+        position: lngLat(observation.position),
+        selected: isSelected,
+        color: isSelected ? [62, 115, 131, 248] : [78, 134, 151, 224],
+        radius: isSelected ? 82 : 58
+      }
+    ];
+  });
+
+  return [...assetPoints, ...trackPoints, ...taskPoints, ...advisoryPoints, ...footprintPoints, ...weatherPoints];
 }
 
 export function tacticalPolygons(snapshot: Snapshot, selected: EntityRef): TacticalPolygon[] {
@@ -255,7 +283,22 @@ export function tacticalLabels(snapshot: Snapshot): TacticalLabel[] {
     anchor: 'start' as const
   }));
 
-  return [...pointLabels, ...hazardLabels, ...footprintLabels];
+  const weatherLabels = (snapshot.weather_observations ?? []).flatMap((observation) =>
+    observation.position
+      ? [
+          {
+            id: observation.id,
+            kind: 'weather-observation' as const,
+            label: observation.label,
+            position: lngLat(observation.position),
+            offset: [-16, -28] as [number, number],
+            anchor: 'end' as const
+          }
+        ]
+      : []
+  );
+
+  return [...pointLabels, ...hazardLabels, ...footprintLabels, ...weatherLabels];
 }
 
 export function tacticalSelectionItems(snapshot: Snapshot): TacticalSelectionItem[] {
@@ -269,6 +312,11 @@ export function tacticalSelectionItems(snapshot: Snapshot): TacticalSelectionIte
       id: footprint.id,
       kind: 'sensor-footprint' as const,
       label: footprint.label
+    })),
+    ...(snapshot.weather_observations ?? []).map((observation) => ({
+      id: observation.id,
+      kind: 'weather-observation' as const,
+      label: observation.label
     }))
   ];
 }
@@ -280,7 +328,10 @@ export function tacticalMapView(snapshot: Snapshot): TacticalMapView {
     ...snapshot.tasks.flatMap((task) => (task.position ? [task.position] : [])),
     ...snapshot.advisories.flatMap((advisory) => (advisory.position ? [advisory.position] : [])),
     ...snapshot.hazards.flatMap((hazard) => hazard.geometry),
-    ...(snapshot.sensor_footprints ?? []).flatMap((footprint) => [footprint.sensor_position, footprint.frame_center])
+    ...(snapshot.sensor_footprints ?? []).flatMap((footprint) => [footprint.sensor_position, footprint.frame_center]),
+    ...(snapshot.weather_observations ?? []).flatMap((observation) =>
+      observation.position ? [observation.position] : []
+    )
   ];
   if (points.length === 0) {
     return {

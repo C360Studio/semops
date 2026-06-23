@@ -109,7 +109,9 @@ Weather:
 - Promotion trigger: drone safety/routing logic, route planning, incident-area weather overlays, or multiple weather
   providers.
 - Guardrail: visual raster/tiles do not need graph ingestion. Only localized tactical observations, forecasts,
-  alerts, and decisions become governed graph evidence.
+  alerts, and decisions become governed graph evidence. The current UI can render fixture-backed localized
+  `weather_observation` points as source/provenance evidence, but it still does not claim visual weather tiles,
+  route-safety decisions, live provider reliability, or provider conformance.
 
 CS API:
 
@@ -254,8 +256,10 @@ language. SemOps now also has a governed `weather_observation` graph contract, g
 projector component evidence for localized variable/time samples. The hosted app can now opt into a fixture-backed
 file input -> decoder -> graph-projector runtime flow with owner-token registration and component metrics, but this
 is still local fixture evidence rather than a live weather-provider claim. The COP API can read graph-backed
-`weather_observation` entities and the one-command stack smoke can opt into a Caddy-routed weather fixture readback
-check, but SemOps still does not render a tactical weather map layer or route-safety decision.
+`weather_observation` entities, the one-command stack smoke can opt into a Caddy-routed weather fixture readback
+check, and the UI can render a selectable point-observation evidence marker with provider/value/query/provenance
+details. SemOps still does not render visual weather tiles, route-safety decisions, incident-area weather products, or
+live provider reliability.
 
 Full product lane:
 OGC API EDR and provider-specific weather gateway with point, area, trajectory, corridor, and selected broader EDR
@@ -269,9 +273,9 @@ weather that affects routing, safety, alerts, or fusion must become governed gra
 provenance. CAP-style alerts remain append-evidence and must not overwrite stricter hazard truth. The current
 Open-Meteo-shaped and OGC EDR-shaped parser fixtures plus the `weather_observation` graph contract are tactical
 telemetry evidence only; they are not a weather gateway, OGC ETS/conformance result, live EDR capture, runtime spatial
-component payload, or route-safety rule. The current hosted runtime path is an opt-in local point-forecast fixture
-chain, not an HTTP poller, live provider integration, cache/stale policy, tactical-weather UI layer, spatial runtime
-payload, or provider reliability claim.
+component payload, or route-safety rule. The current hosted runtime path plus selectable point-observation UI marker is
+an opt-in local point-forecast fixture chain, not an HTTP poller, live provider integration, cache/stale policy, visual
+weather tile layer, spatial runtime payload, route-weather model, or provider reliability claim.
 
 Not claimed yet:
 Default live weather service reliability, weather-routing authority, provider conformance, broader EDR query support,

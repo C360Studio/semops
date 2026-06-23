@@ -45,7 +45,8 @@ input order for both feeds so UDP/TCP listeners no longer bypass SemStreams comp
 Weather currently follows the same component discipline for fixture-backed point forecasts: file input -> decoder ->
 graph projector, with registered payloads, declared stream/request ports, flow metrics, observation caps, and
 born-first graph reconciliation. The hosted app can opt into that fixture-backed flow, but this is still not a live
-weather provider, cache/stale policy, tactical UI layer, or route-safety authority.
+weather provider, cache/stale policy, visual weather tile layer, or route-safety authority. The COP UI can show a
+selectable weather-observation point with provider/value/query/provenance evidence from the snapshot contract.
 
 ## First Product Model
 

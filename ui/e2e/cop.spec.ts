@@ -44,6 +44,17 @@ const snapshotWithADSB: Snapshot = {
       {
         org: 'c360',
         platform: 'edge-compose',
+        source: 'weather',
+        family: 'weather',
+        entity_type: 'weather_observation',
+        prefix: 'c360.edge-compose.cop.weather.weather_observation',
+        count: 1,
+        limit: 500,
+        at_limit: false
+      },
+      {
+        org: 'c360',
+        platform: 'edge-compose',
         source: 'klv',
         family: 'klv',
         entity_type: 'sensor_footprint',
@@ -116,6 +127,17 @@ const runtimeSnapshot: RuntimeSnapshot = {
       last_activity_age_seconds: 6
     },
     {
+      id: 'feed.weather',
+      name: 'Weather',
+      status: 'flowing',
+      message: 'fixture-backed point observation flow active',
+      healthy_components: 3,
+      total_components: 3,
+      messages_per_second: 1,
+      last_activity: '2026-06-21T16:20:52Z',
+      last_activity_age_seconds: 8
+    },
+    {
       id: 'feed.sapient',
       name: 'SAPIENT',
       status: 'idle',
@@ -177,6 +199,10 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('KLV discovery counts')).toContainText('sensor footprint 1');
   await expect(page.getByLabel('KLV runtime flow')).toContainText('1.3 msg/s');
   await expect(page.getByRole('button', { name: 'Select TEST-UAS-01 sensor footprint' })).toBeVisible();
+  await expect(page.getByLabel('Weather source state')).toBeVisible();
+  await expect(page.getByLabel('Weather discovery counts')).toContainText('weather observation 1');
+  await expect(page.getByLabel('Weather runtime flow')).toContainText('1 msg/s');
+  await expect(page.getByRole('button', { name: 'Select 29.4 degC temperature_2m' })).toBeVisible();
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT runtime flow')).toContainText('2/2 healthy');
   await expect(page.getByRole('button', { name: 'Select N123AB' })).toBeVisible();
@@ -191,6 +217,12 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByText('object://semops/klv/deterministic-001.ts')).toBeVisible();
   await expect(page.getByText('klv://packet/deterministic/00000001').first()).toBeVisible();
   await expect(page.getByText(/no footprint polygon/)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Select 29.4 degC temperature_2m' }).click();
+  await expect(page.getByRole('heading', { name: '29.4 degC temperature_2m' })).toBeVisible();
+  await expect(page.getByText('open-meteo', { exact: true })).toBeVisible();
+  await expect(page.getByText('POINT(-77.0400000 38.9000000)')).toBeVisible();
+  await expect(page.getByText(/no live provider/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Refresh COP snapshot' }).click();
   await expect.poll(routes.snapshotRequests).toBeGreaterThanOrEqual(2);
@@ -207,6 +239,7 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await expect(page.getByLabel('Map entities')).toBeVisible();
   await expect(page.getByLabel('ADS-B source state')).toBeVisible();
   await expect(page.getByLabel('KLV source state')).toBeVisible();
+  await expect(page.getByLabel('Weather source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
@@ -223,6 +256,13 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'TEST-UAS-01 sensor footprint' })).toBeVisible();
   await expect(page.getByLabel('Entity inspector')).toContainText('no STANAG conformance');
+
+  const weatherButton = page.getByRole('button', { name: 'Select 29.4 degC temperature_2m' });
+  await weatherButton.focus();
+  await expect(weatherButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: '29.4 degC temperature_2m' })).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('no live provider');
 
   const alertButton = page.getByRole('button', { name: /Track freshness nominal/ });
   await alertButton.focus();

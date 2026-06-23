@@ -91,8 +91,10 @@ promotes truncation/error diagnostics into warning alerts so large mixed-feed de
 without exposing raw graph triples as an operator workflow.
 
 The COP API also exposes graph-backed weather observations for source/provenance evidence and stack smoke readback.
-That is not yet a tactical weather map layer: visual weather tiles, route-weather semantics, stale/cache policy, and
-operator-facing legends remain separate product gates.
+The browser now renders localized weather observations as selectable point evidence with provider, variable/value,
+query geometry, freshness, provenance, and claim-posture readback. That is not a visual weather tile layer,
+route-weather decision aid, live-provider claim, stale/cache policy, or operator weather legend; those remain separate
+product gates.
 
 `GET /api/cop/runtime` rolls up SemStreams component `Health()` and `DataFlow()` into feed-level status,
 throughput, healthy component counts, and last activity. The source cards merge this runtime evidence with snapshot
@@ -105,10 +107,10 @@ In local development, Caddy is the browser-facing entrypoint. It serves the Svel
 diagnostics and smoke tests.
 
 The browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts `GET /api/cop/snapshot` and
-`GET /api/cop/runtime`, serves API-shaped ADS-B discovery plus runtime-flow evidence, and verifies the operator
-surface renders source cards, prefix-discovery counts, runtime flow, map selection controls, keyboard selection,
-selected-entity provenance, alert-to-map target highlighting, and a narrow viewport without horizontal overflow. This
-complements the Docker stack smoke: Playwright proves the browser contract and interaction path, while
+`GET /api/cop/runtime`, serves API-shaped ADS-B, KLV, and weather discovery plus runtime-flow evidence, and verifies
+the operator surface renders source cards, prefix-discovery counts, runtime flow, map selection controls, keyboard
+selection, selected-entity provenance, alert-to-map target highlighting, and a narrow viewport without horizontal
+overflow. This complements the Docker stack smoke: Playwright proves the browser contract and interaction path, while
 `scripts/cop-stack-smoke.sh` proves the live SemOps/SemStreams/Caddy plumbing.
 
 ## KLV Sensor-Footprint UI Gate

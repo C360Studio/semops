@@ -86,7 +86,7 @@ h3 {
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(64px, 1fr));
+  grid-template-columns: repeat(5, minmax(64px, 1fr));
   gap: 8px;
 }
 
@@ -290,6 +290,11 @@ h3 {
 .map-selector-button.sensor-footprint {
   border-color: #135c70;
   background: #1a7588;
+}
+
+.map-selector-button.weather-observation {
+  border-color: #3e7383;
+  background: #4e8697;
 }
 
 .map-selector-button.selected {

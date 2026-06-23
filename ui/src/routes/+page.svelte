@@ -16,7 +16,8 @@
     SensorFootprint,
     Snapshot,
     Task,
-    Track
+    Track,
+    WeatherObservation
   } from '$lib/cop/types';
 
   let snapshot = $state<Snapshot | null>(null);
@@ -53,6 +54,16 @@
     if (!entity) return 'No selection';
     return entity.label;
   }
+
+  function formatWeatherValue(entity: WeatherObservation) {
+    const value = Number.isFinite(entity.value) ? entity.value.toFixed(1).replace(/\.0$/, '') : 'unknown';
+    return entity.unit ? `${value} ${entity.unit}` : value;
+  }
+
+  function formatInstant(isoTime: string | undefined) {
+    if (!isoTime) return 'unknown';
+    return isoTime.replace('T', ' ').replace('Z', 'Z');
+  }
 </script>
 
 <svelte:head>
@@ -78,6 +89,10 @@
         <div>
           <dt>Msgs</dt>
           <dd>{snapshot.summary.active_advisories}</dd>
+        </div>
+        <div>
+          <dt>Weather</dt>
+          <dd>{snapshot.summary.active_weather_observations}</dd>
         </div>
         <div>
           <dt>Feeds</dt>
@@ -157,7 +172,7 @@
   {/if}
 </main>
 
-{#snippet entityInspector(entity: Track | Asset | Task | Advisory | Hazard | SensorFootprint | Alert)}
+{#snippet entityInspector(entity: Track | Asset | Task | Advisory | Hazard | SensorFootprint | WeatherObservation | Alert)}
   <div class="inspector-grid">
     {#if 'source' in entity}
       <div>
@@ -249,6 +264,47 @@
       {#if entity.warnings.length > 0}
         <p class="reason">{entity.warnings.join('; ')}</p>
       {/if}
+    </section>
+  {/if}
+
+  {#if 'variable' in entity}
+    <section class="provenance">
+      <h3>Weather Evidence</h3>
+      <dl class="detail-list">
+        <div>
+          <dt>Provider</dt>
+          <dd>{entity.provider || 'unknown'}</dd>
+        </div>
+        <div>
+          <dt>Variable</dt>
+          <dd>{entity.variable}</dd>
+        </div>
+        <div>
+          <dt>Value</dt>
+          <dd>{formatWeatherValue(entity)}</dd>
+        </div>
+        <div>
+          <dt>Query shape</dt>
+          <dd>{entity.query_shape || 'unknown'}</dd>
+        </div>
+        <div>
+          <dt>Valid time</dt>
+          <dd>{formatInstant(entity.valid_time)}</dd>
+        </div>
+        <div>
+          <dt>Model time</dt>
+          <dd>{formatInstant(entity.model_time)}</dd>
+        </div>
+        <div>
+          <dt>Fresh until</dt>
+          <dd>{formatInstant(entity.fresh_until)}</dd>
+        </div>
+        <div>
+          <dt>Query geometry</dt>
+          <dd>{entity.query_geometry_wkt || 'unknown'}</dd>
+        </div>
+      </dl>
+      <p class="reason">{entity.claim_posture}</p>
     </section>
   {/if}
 

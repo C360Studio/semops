@@ -21,7 +21,8 @@ deck.gl for high-rate tactical overlays.
 
 - **WHEN** the first MapLibre/deck.gl implementation is present
 - **THEN** it renders snapshot tracks, assets, TAK/CoT tasks, TAK/CoT advisories, hazard areas, and KLV
-  sensor/frame-center footprints through deck.gl point, polygon, line, label, and picking overlays
+  sensor/frame-center footprints, plus localized weather observation points, through deck.gl point, polygon, line,
+  label, and picking overlays
 - **AND** when an alert references an existing spatial entity, selecting the alert highlights the referenced map
   geometry while keeping the alert itself selected in the inspector
 - **AND** it does not claim finished basemap tiles, terrain, track trails, an independent alert geometry model, full
@@ -106,6 +107,17 @@ Phase 1.
   evidence for the tested MISB ST 0601 subset
 - **AND** the UI does not show a footprint polygon, video player, thumbnail wall, 3D frustum, or STANAG conformance
   claim until those gates have separate graph, media, and review evidence
+
+#### Scenario: Weather observation UI proves localized source evidence
+
+- **WHEN** weather observations have been projected into governed `weather_observation` graph entities
+- **THEN** the SemOps COP API exposes a curated weather view model with provider, query shape, query geometry,
+  variable/value/unit, valid time, model time, freshness, confidence, provenance, and claim posture
+- **AND** the browser renders the localized weather observation as a selectable point evidence layer
+- **AND** the selected-entity inspector shows provider, value, query geometry, valid/model/freshness time, provenance,
+  and claim posture
+- **AND** the UI does not show visual weather tiles, incident-area weather products, route-safety decisions, live
+  provider reliability, or OGC conformance claims until those gates have separate evidence and review
 
 ### Requirement: Ontology hydrates inspectors, not the whole UI
 

@@ -274,6 +274,8 @@
       footprint polygon or video-player claims
 - [x] 7.26 Add weather-observation COP API readback with source/provenance claim posture while deferring tactical
       weather map layers and route-safety UI
+- [x] 7.27 Add weather-observation point evidence to the COP UI with source diagnostics, provenance inspector, and
+      Playwright smoke while deferring visual weather tiles, live providers, and route-safety decisions
 
 ## 8. Tier Escalation And Egress
 

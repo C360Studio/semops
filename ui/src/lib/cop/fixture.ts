@@ -5,6 +5,7 @@ const observed = '2026-06-19T11:59:42Z';
 const takObserved = '2026-06-19T11:59:14Z';
 const advisoryObserved = '2026-06-19T11:58:00Z';
 const klvObserved = '2026-06-19T11:58:45Z';
+const weatherObserved = '2026-06-19T11:57:30Z';
 
 export const fixtureSnapshot: Snapshot = {
   generated_at: now,
@@ -14,7 +15,7 @@ export const fixtureSnapshot: Snapshot = {
     active_tasks: 1,
     active_advisories: 1,
     active_sensor_footprints: 1,
-    active_weather_observations: 0,
+    active_weather_observations: 1,
     active_alerts: 1,
     stale_feeds: 0
   },
@@ -58,9 +59,9 @@ export const fixtureSnapshot: Snapshot = {
       id: 'feed.weather',
       name: 'Weather',
       kind: 'tactical-weather',
-      status: 'planned',
-      last_event_at: '2026-06-19T11:08:00Z',
-      message: 'Weather graph proof pending'
+      status: 'live',
+      last_event_at: weatherObserved,
+      message: 'Fixture-backed point weather observation readback'
     }
   ],
   assets: [
@@ -214,7 +215,32 @@ export const fixtureSnapshot: Snapshot = {
       }
     }
   ],
-  weather_observations: [],
+  weather_observations: [
+    {
+      id: 'c360.edge.cop.weather.weather_observation.open-meteo-position-fixture-temperature-2m',
+      label: '29.4 degC temperature_2m',
+      source: 'weather',
+      status: 'fresh',
+      provider: 'open-meteo',
+      query_shape: 'position',
+      query_geometry_wkt: 'POINT(-77.0400000 38.9000000)',
+      position: { lat: 38.9, lon: -77.04 },
+      valid_time: weatherObserved,
+      model_time: '2026-06-19T11:00:00Z',
+      fresh_until: '2026-06-19T12:57:30Z',
+      variable: 'temperature_2m',
+      value: 29.4,
+      unit: 'degC',
+      claim_posture: 'fixture-backed point observation; no live provider, weather tile, route-safety, or OGC conformance claim',
+      confidence: 0.78,
+      updated_at: weatherObserved,
+      provenance: {
+        owner: 'semops.feed.weather',
+        source_ref: 'weather://open-meteo/fixture/position/temperature_2m/2026-06-19T11:57:30Z',
+        observed_at: weatherObserved
+      }
+    }
+  ],
   alerts: [
     {
       id: 'alert.mavlink.track-freshness',

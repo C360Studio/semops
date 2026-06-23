@@ -375,7 +375,10 @@ Compliance and source evidence:
   `semops.feed.weather` before composing the SemStreams file input -> decoder -> graph-projector chain.
 - `GET /api/cop/snapshot` can read graph-backed `weather_observation` entities by prefix discovery and expose provider,
   variable/value/unit, query shape, query geometry, valid/model/freshness time, provenance, and claim posture without
-  adding tactical map semantics.
+  adding route-safety or visual weather-tile semantics.
+- The COP UI can render a selectable point-observation evidence marker and inspector details for graph-backed weather
+  observations. This proves browser readback of localized weather evidence only; it does not prove a tactical weather
+  product, incident-area layer, route-weather model, or live provider reliability.
 - NWS API already fits the CAP lane for alerts and can return CAP content via content negotiation. NWS API explicitly
   points radar display users to separate radar/OGC services rather than treating `/api.weather.gov` as a radar tile
   source.
@@ -420,6 +423,8 @@ First acceptance gate:
 - Given opt-in stack readback, the Caddy-routed COP snapshot exposes graph-backed local point-forecast weather
   observations and component/runtime flow evidence without claiming live provider support or tactical UI semantics.
   [done behind `SEMOPS_COP_SMOKE_WEATHER_ENABLED=true`]
+- Given UI rendering, the COP browser shows a selectable weather-observation point and inspector evidence from the
+  snapshot contract without claiming live provider support, visual weather tiles, or route-safety decisions. [done]
 - Given future OGC EDR-shaped fixtures, SemOps should parse selected broader query shapes before claiming
   standards-facing tactical weather interop beyond point, area, trajectory, and corridor retrieval.
 - Given projection, localized tactical weather writes source-partitioned governed evidence and does not overwrite CAP

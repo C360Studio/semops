@@ -8,6 +8,7 @@ const sourceByFeed: Record<string, string> = {
   'feed.cap': 'cap',
   'feed.adsb': 'adsb',
   'feed.klv': 'klv',
+  'feed.weather': 'weather',
   'feed.sapient': 'sapient'
 };
 

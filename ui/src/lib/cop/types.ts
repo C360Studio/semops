@@ -220,4 +220,5 @@ export type EntityRef =
   | { kind: 'advisory'; id: string }
   | { kind: 'hazard'; id: string }
   | { kind: 'sensor-footprint'; id: string }
+  | { kind: 'weather-observation'; id: string }
   | { kind: 'alert'; id: string };

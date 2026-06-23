@@ -82,6 +82,17 @@ describe('discoveryDiagnosticsForFeed', () => {
           {
             org: 'c360',
             platform: 'edge',
+            source: 'weather',
+            family: 'weather',
+            entity_type: 'weather_observation',
+            prefix: 'c360.edge.cop.weather.weather_observation',
+            count: 1,
+            limit: 500,
+            at_limit: false
+          },
+          {
+            org: 'c360',
+            platform: 'edge',
             source: 'mavlink',
             family: 'mavlink',
             entity_type: 'asset',
@@ -95,6 +106,7 @@ describe('discoveryDiagnosticsForFeed', () => {
     };
 
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.adsb')).toEqual([snapshot.diagnostics!.discovery[0]]);
+    expect(discoveryDiagnosticsForFeed(snapshot, 'feed.weather')).toEqual([snapshot.diagnostics!.discovery[1]]);
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.sapient')).toEqual([]);
   });
 

@@ -24,7 +24,8 @@ describe('tactical map layer helpers', () => {
       'task',
       'advisory',
       'sensor-footprint',
-      'sensor-footprint'
+      'sensor-footprint',
+      'weather-observation'
     ]);
     expect(points[1]).toMatchObject({
       id: fixtureSnapshot.tracks[0].id,
@@ -39,6 +40,11 @@ describe('tactical map layer helpers', () => {
       source: [-77.0254, 38.9022],
       target: [-77.0108, 38.8956]
     });
+    expect(points.at(-1)).toMatchObject({
+      id: fixtureSnapshot.weather_observations[0].id,
+      kind: 'weather-observation',
+      position: [-77.04, 38.9]
+    });
   });
 
   it('builds readable labels, selection affordances, and stable map bounds', () => {
@@ -46,9 +52,9 @@ describe('tactical map layer helpers', () => {
     const items = tacticalSelectionItems(fixtureSnapshot);
     const labels = tacticalLabels(fixtureSnapshot);
 
-    expect(view.center[0]).toBeGreaterThan(-77.02);
+    expect(view.center[0]).toBeGreaterThan(-77.03);
     expect(view.center[0]).toBeLessThan(-76.99);
-    expect(view.bounds[0][0]).toBeLessThan(-77.012);
+    expect(view.bounds[0][0]).toBeLessThan(-77.04);
     expect(view.bounds[1][1]).toBeGreaterThan(38.908);
     expect(items.map((item) => item.kind)).toEqual([
       'track',
@@ -57,7 +63,8 @@ describe('tactical map layer helpers', () => {
       'task',
       'advisory',
       'hazard',
-      'sensor-footprint'
+      'sensor-footprint',
+      'weather-observation'
     ]);
     expect(labels.map((label) => [label.kind, label.anchor, label.offset])).toEqual([
       ['asset', 'end', [-14, 18]],
@@ -66,7 +73,8 @@ describe('tactical map layer helpers', () => {
       ['task', 'start', [14, 18]],
       ['advisory', 'middle', [0, 30]],
       ['hazard', 'middle', [0, -48]],
-      ['sensor-footprint', 'start', [18, 20]]
+      ['sensor-footprint', 'start', [18, 20]],
+      ['weather-observation', 'end', [-16, -28]]
     ]);
   });
 });
