@@ -201,6 +201,9 @@ Mock or harness:
 - 2026-06-23 local readiness preflight found no `px4`, `mavsdk_server`, or `sim_vehicle.py` on PATH and no local
   PX4/MAVSDK/ArduPilot simulator Docker image. The external SITL smoke skip behavior passed, and focused
   parser/projector/component tests passed, but this is readiness-gap evidence only.
+- `scripts/mavlink-sitl-gate.sh` now provides guarded `preflight`, `focused`, and `stack` modes. Focused and stack
+  modes require `SEMOPS_MAVLINK_SITL_SIMULATOR_NAME`, and require local simulator tooling or an explicit
+  `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true` override before running the evidence gate.
 - Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 
 Indexing profile pressure:

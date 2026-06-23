@@ -173,6 +173,14 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the future pass records simulator name, version, launch command, system ID, UDP route, SemOps commit,
   pass/fail result, and any motion requirement
 
+#### Scenario: MAVLink SITL helper requires simulator attestation
+
+- **WHEN** SemOps provides a helper for the external SITL gate
+- **THEN** preflight mode MAY run local readiness checks and the guarded skip test without simulator attestation
+- **AND** focused or stack mode SHALL require a named simulator source before running the evidence gate
+- **AND** focused or stack mode SHALL require local simulator tooling or an explicit remote-source override
+- **AND** helper evidence SHALL be written to ignored local paths rather than committed as portable demo evidence
+
 #### Scenario: SAPIENT parser preflight is not conformance
 
 - **WHEN** SemOps parses BSI Flex 335 v2 JSON fixtures derived from official SAPIENT sample shapes

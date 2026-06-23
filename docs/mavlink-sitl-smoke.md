@@ -20,25 +20,25 @@ Before treating a laptop as ready for this gate, check for a real simulator path
 generated-frame smoke:
 
 ```bash
-command -v px4
-command -v mavsdk_server
-command -v sim_vehicle.py
-docker image ls
-go test ./internal/smoke/mavlink -run TestExternalSITLTelemetryCOPSnapshot -count=1 -v
+SEMOPS_MAVLINK_SITL_GATE_MODE=preflight \
+bash scripts/mavlink-sitl-gate.sh
 ```
 
 The smoke should skip when `SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL` is unset. That skip proves the test is guarded; it
 does not prove simulator fidelity. If no PX4, MAVSDK, ArduPilot, or equivalent simulator runtime is available on the
 host or in local Docker images, do not run the stack gate and do not close the PX4/MAVSDK evidence task.
 
+The helper writes a local ignored evidence file under `tmp/mavlink-sitl-evidence/`.
+
 ## One-Command Stack Gate
 
 Start the simulator first, or keep it ready to emit telemetry while the stack starts. Then run:
 
 ```bash
-SEMOPS_COP_MAVLINK_SYSTEM_IDS=1,42 \
-SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true \
-bash scripts/cop-stack-smoke.sh
+SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL <version>" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="<simulator launch command>" \
+bash scripts/mavlink-sitl-gate.sh
 ```
 
 The script still runs the deterministic generated-frame graph smoke for system `42`. The external SITL smoke observes
@@ -47,10 +47,11 @@ system `1` through `GET /api/cop/snapshot` and does not inject its own MAVLink f
 For stricter motion evidence:
 
 ```bash
-SEMOPS_COP_MAVLINK_SYSTEM_IDS=1,42 \
-SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true \
+SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL <version>" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="<simulator launch command>" \
 SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true \
-bash scripts/cop-stack-smoke.sh
+bash scripts/mavlink-sitl-gate.sh
 ```
 
 ## Focused Smoke Against A Running Stack
@@ -58,9 +59,11 @@ bash scripts/cop-stack-smoke.sh
 If the COP stack is already running and a simulator is emitting telemetry:
 
 ```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=focused \
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL <version>" \
 SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL=http://127.0.0.1:8080/api/cop/snapshot \
 SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID=c360.edge-compose.cop.mavlink.track.system-1 \
-go test ./internal/smoke/mavlink -run TestExternalSITLTelemetryCOPSnapshot -count=1 -v
+bash scripts/mavlink-sitl-gate.sh
 ```
 
 Useful optional knobs:
@@ -68,6 +71,8 @@ Useful optional knobs:
 - `SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT`: default `2m`.
 - `SEMOPS_MAVLINK_SITL_SMOKE_MIN_UPDATES`: default `2`.
 - `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION`: default `false`.
+- `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE`: set to `true` only when the simulator or hardware-adjacent source runs
+  outside the local PATH/Docker environment but is already routing MAVLink to SemOps.
 
 ## Acceptance
 

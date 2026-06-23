@@ -75,6 +75,8 @@
 - [x] 4.13 Add MAVLink restart create-conflict reconciliation for existing asset/track births
 - [x] 4.14 Add opt-in MAVLink UDP datagram transport reader for hosted runtime
 - [x] 4.15 Add skipped-by-default external PX4/MAVSDK/SITL telemetry smoke harness against the hosted COP snapshot
+- [x] 4.16 Add a guarded MAVLink external SITL gate helper with preflight, simulator attestation, and ignored local
+      evidence output
 
 ## 5. Feed Validation And Indexing Ladder
 

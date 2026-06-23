@@ -85,6 +85,9 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   TestExternalSITLTelemetryCOPSnapshot -count=1 -v` skipped as designed without a snapshot URL, and focused MAVLink
   parser/projector/component tests passed. This is readiness-gap evidence only; it does not close the simulator
   fidelity gate.
+- `scripts/mavlink-sitl-gate.sh` now wraps the external SITL gate in `preflight`, `focused`, and `stack` modes. The
+  focused and stack modes require a named simulator source and refuse to run without local simulator tooling or an
+  explicit remote-source override.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -196,9 +199,10 @@ go test ./internal/smoke/mavlink -run TestExternalSITLTelemetryCOPSnapshot -coun
 Stack target when an external simulator is already emitting MAVLink UDP to the SemOps host port:
 
 ```bash
-SEMOPS_COP_MAVLINK_SYSTEM_IDS=1,42 \
-SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true \
-bash scripts/cop-stack-smoke.sh
+SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL <version>" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="<simulator launch command>" \
+bash scripts/mavlink-sitl-gate.sh
 ```
 
 Acceptance:
@@ -212,6 +216,7 @@ Acceptance:
   `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true`. [done in harness; not yet run against PX4/MAVSDK]
 - Local readiness preflight records whether PX4, MAVSDK, ArduPilot, or equivalent simulator tooling is actually
   available before attempting the stack gate. [done: 2026-06-23 no simulator runtime found]
+- Focused and stack helpers require a named simulator source before running the evidence gate. [done]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs safe command smoke tests.
   [open]
 - PX4 SITL or MAVSDK smoke evidence is recorded before calling MAVLink Phase 1 complete. [open]
