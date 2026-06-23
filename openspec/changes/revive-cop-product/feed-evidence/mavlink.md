@@ -75,6 +75,8 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   plans without birthing target assets, bypassing born-first target checks, or transmitting native commands.
 - `internal/projectors/command` constrains command-intent statuses to the current lifecycle vocabulary and provides a
   transition guard before CS API, UI, or native-driver status handlers exist.
+- `internal/projectors/command` can build a pure cancellation intent that updates the existing command task to
+  `cancel_requested` with request authority, idempotency, correlation, provenance, and desired cancel state.
 - `internal/projectors/command` also includes a guarded admission path that rejects unresolved target assets, rejects
   expired intents against wall clock, and collapses duplicate idempotency keys before producing mutation plans.
 - `internal/projectors/command` includes deterministic command-intent arbitration that selects at most one active

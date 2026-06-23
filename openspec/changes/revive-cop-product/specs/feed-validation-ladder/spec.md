@@ -181,6 +181,9 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the command-intent planner SHALL reject malformed or expired desired state before producing graph mutations
 - **AND** command-intent status values SHALL be constrained to a documented lifecycle vocabulary with deterministic
   terminal-status and transition validation before handler or native-driver code can invent new states
+- **AND** cancellation requests SHALL update the existing command intent to `cancel_requested` with a matching target,
+  request authority, correlation, idempotency, provenance, and desired cancel state before any native cancellation is
+  attempted
 - **AND** the command-intent planner SHALL NOT birth target assets or transmit native feed commands
 - **AND** admission SHALL reject unresolved target assets before producing graph mutations
 - **AND** admission SHALL collapse duplicate idempotency keys before producing graph mutations

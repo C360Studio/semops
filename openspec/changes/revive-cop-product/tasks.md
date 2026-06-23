@@ -352,6 +352,7 @@
 - [x] 8.13 Add guarded batch projection for admitted/arbitrated command-intent status before native execution
 - [x] 8.14 Add command-intent status lifecycle vocabulary and transition guard before CS API/UI/native status
       handlers
+- [x] 8.15 Add pure command cancellation-intent helper before CS API/UI/native cancellation handlers
 
 ## 9. Upstream SemStreams Asks
 

@@ -660,6 +660,9 @@ Indexing profile pressure:
 - The command-intent lifecycle vocabulary is constrained to requested, accepted, executing, cancel_requested,
   cancelled, superseded, succeeded, failed, rejected, expired, timeout, and duplicate. Transition validation blocks
   unsafe jumps such as requested-to-executing or terminal-to-active before handler code exists.
+- The cancellation helper converts an active command into a `cancel_requested` update on the same command-intent
+  entity, preserving the target and original command kind while carrying the cancellation request authority,
+  correlation, idempotency, provenance, and desired cancel state.
 - The guarded command-intent projector adds admission checks before planning: target asset resolution, wall-clock
   expiry rejection, and duplicate idempotency collapse. It still has no live writer, UI, CS API handler, or transmitter.
 - The command-intent arbitrator ranks active intents per target by local override, authority rank, priority,

@@ -152,8 +152,9 @@ Acceptance:
   fields, target resolution, expiry, duplicate idempotency, local override, authority ranking, and per-target priority
   selection. The guarded batch path projects accepted/superseded command-intent status before exposing accepted native
   execution candidates. SemOps also constrains command-intent lifecycle vocabulary and transition validation before
-  any CS API/UI/native status handler exists. TTL/deadline semantics beyond expiry, cancellation request handling,
-  CS API request handling, and native actuation reconciliation remain open.
+  any CS API/UI/native status handler exists, and can build pure `cancel_requested` updates for active command intents.
+  TTL/deadline semantics beyond expiry, CS API request handling, native cancellation acknowledgement, and native
+  actuation reconciliation remain open.
 - CS API interop should not block Phase 1 structural COP.
 - Native adapter support can be strong while CS API projection is still incomplete; keep those claims separate.
 - CS API conformance can be green while a native feed remains only fixture/replay-tested; keep those claims separate.
