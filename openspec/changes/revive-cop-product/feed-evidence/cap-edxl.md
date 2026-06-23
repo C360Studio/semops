@@ -36,6 +36,9 @@ semantics.
   local XML files or replay JSONL, and `xmllint` to validate samples before parsing them through SemOps. See
   `docs/cap-schema-smoke.md` and
   `openspec/changes/revive-cop-product/reviews/2026-06-23-cap-schema-sample-smoke-review.md`.
+- `scripts/cap-capture-nws-sample.sh` can make an explicit live NWS/API capture into ignored local sample storage
+  when `SEMOPS_CAP_CAPTURE_URL` and `SEMOPS_CAP_CAPTURE_USER_AGENT` are set. The script records source URL,
+  user-agent, capture time, and SHA-256 metadata beside the XML.
 - `pkg/adapters/cap` stores replayable raw XML CAP records and provides a HA/DR flood lifecycle fixture covering
   alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
@@ -107,6 +110,8 @@ Acceptance:
 - Optional live mode respects NWS User-Agent guidance, caching, and rate-limit behavior.
 - Local schema/sample smoke validates supplied CAP XML files or replay records against a supplied XSD and then parses
   the same samples through SemOps. [done as skipped-by-default harness]
+- Live provider sample capture is an explicit local action with a required URL and User-Agent/contact identity, not a
+  default CI behavior. [done as skipped-by-default script]
 
 ### Projection Gate
 

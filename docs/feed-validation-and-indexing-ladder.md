@@ -278,6 +278,8 @@ Local assets:
 - `pkg/adapters/cap` has an opt-in schema/sample smoke that uses `SEMOPS_CAP_XSD_PATH`,
   `SEMOPS_CAP_SCHEMA_SAMPLE_PATHS`, `SEMOPS_CAP_SCHEMA_REPLAY_PATH`, and local `xmllint` to validate supplied CAP XML
   files or replay records before parsing them through SemOps. This is not default CI and not conformance.
+- `scripts/cap-capture-nws-sample.sh` can capture a live CAP response into ignored local sample storage only when a
+  URL and User-Agent/contact identity are explicitly configured.
 - `pkg/adapters/cap` stores replayable raw XML CAP alert records and includes a HA/DR flood lifecycle fixture with
   alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the

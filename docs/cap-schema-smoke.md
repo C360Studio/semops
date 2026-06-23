@@ -17,6 +17,17 @@ Local schema and sample directories are ignored by git under `fixtures/cap/schem
 
 ## Run
 
+Capture a local provider sample only when you are intentionally making a live network call:
+
+```bash
+SEMOPS_CAP_CAPTURE_URL="https://api.weather.gov/alerts/active?area=TX" \
+SEMOPS_CAP_CAPTURE_USER_AGENT="semops-demo contact@example.invalid" \
+bash scripts/cap-capture-nws-sample.sh
+```
+
+The script requests `application/cap+xml`, writes the XML to `fixtures/cap/nws-samples/`, and writes a sibling
+metadata file with source URL, user-agent, capture time, and SHA-256 when `shasum` is available.
+
 ```bash
 SEMOPS_CAP_XSD_PATH="fixtures/cap/schema/CAP-v1.2.xsd" \
 SEMOPS_CAP_SCHEMA_SAMPLE_PATHS="fixtures/cap/nws-samples" \

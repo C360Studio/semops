@@ -166,6 +166,7 @@
 - [x] 5.78 Add CAP 1.2 namespace and consumer-rule validation before XML schema/NWS sample claims
 - [x] 5.79 Promote DJI and weather to first-class feed-validation requirements outside the KLV proof-spike section
 - [x] 5.80 Add opt-in CAP XSD and local sample smoke without vendoring schema or NWS captures
+- [x] 5.81 Add opt-in NWS CAP sample capture helper with required URL and User-Agent/contact identity
 
 ## 6. Structural COP Stack
 
