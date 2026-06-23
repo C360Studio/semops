@@ -343,6 +343,8 @@
       service, tasking, association, UTM, and range/bearing gates closed
 - [x] 8.9 Add product-owned command-intent graph contract for desired tasking state before CS API or native
       command-control writers
+- [x] 8.10 Add pure command-intent projector gate with TTL/authority/idempotency validation and no target-asset birth
+      or native transmit
 
 ## 9. Upstream SemStreams Asks
 

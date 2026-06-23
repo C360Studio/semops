@@ -655,6 +655,8 @@ Indexing profile pressure:
 - SemOps now has a `semops.command.intent` control-profile contract for desired tasking state. It carries source
   authority, priority, expiry, idempotency, correlation, requested-by, and desired-state fields before any live native
   transmitter is connected.
+- `internal/projectors/command` is the pure planner gate for desired tasking state. It validates impedance fields,
+  writes only command-intent task mutations, and deliberately does not birth target assets or transmit native commands.
 
 First acceptance gate:
 

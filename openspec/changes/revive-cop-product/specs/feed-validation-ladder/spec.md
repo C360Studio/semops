@@ -178,6 +178,8 @@ public conformance suite, or documented interoperability test backs the claim.
 - **THEN** the desired command SHALL be written through a product-owned `control`-profiled command-intent contract
 - **AND** the command intent SHALL include authority, priority, expiry or TTL-derived deadline, correlation ID,
   idempotency key, requested-by, desired-state, status, provenance, and a strict born-first target asset edge
+- **AND** the command-intent planner SHALL reject malformed or expired desired state before producing graph mutations
+- **AND** the command-intent planner SHALL NOT birth target assets or transmit native feed commands
 - **AND** native feed drivers SHALL publish ACK/status evidence separately rather than owning desired command intent
 - **AND** live command transmission SHALL remain blocked until safety interlocks, local override, stale-command
   rejection, cancellation, supersession, and async status reconciliation are reviewed

@@ -71,6 +71,8 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   and returns typed `ownership.OwnerToken` values minted by the registry/bind path.
 - `pkg/cop` defines `semops.command.intent.v1` as the product-owned desired command/tasking state contract, separate
   from MAVLink COMMAND_ACK readback evidence.
+- `internal/projectors/command` validates desired command intent and produces command-intent create/update mutation
+  plans without birthing target assets, bypassing born-first target checks, or transmitting native commands.
 - `internal/app` and `cmd/semops` connect to SemStreams, register first-phase COP ownership, enroll heartbeat, and
   compose the hosted MAVLink adapter with registry-derived owner tokens.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
@@ -122,6 +124,9 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - 2026-06-23: `pkg/cop` gained the `semops.command.intent.v1` command-intent contract with authority, priority,
   expiry, correlation, idempotency, requested-by, desired-state, status, provenance, and strict target edge fields.
   This is a graph governance contract only; no CS API ingress, local operator UI, or native transmitter writes it yet.
+- 2026-06-23: `go test ./internal/projectors/command` passed for the pure command-intent planner. The gate proves
+  valid desired command state writes a control-profiled task with a strict target edge, known intents update without
+  repeating that edge, malformed or expired intents fail closed, and the planner does not birth target assets.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
