@@ -13,7 +13,20 @@ SIMULATOR_COMMAND="${SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND:-}"
 SIMULATOR_ROUTE="${SEMOPS_MAVLINK_SITL_SIMULATOR_UDP_ROUTE:-127.0.0.1:${SEMOPS_MAVLINK_UDP_HOST_PORT:-14550}}"
 ALLOW_REMOTE_SOURCE="${SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE:-false}"
 
-SNAPSHOT_URL="${SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL:-http://127.0.0.1:${SEMOPS_CADDY_HOST_PORT:-8080}/api/cop/snapshot}"
+PX4_HEADLESS_IMAGE="${SEMOPS_MAVLINK_SITL_DOCKER_IMAGE:-jonasvautherin/px4-gazebo-headless:1.17.0}"
+PX4_HEADLESS_CONTAINER="${SEMOPS_MAVLINK_SITL_DOCKER_CONTAINER:-semops-px4-gazebo-headless}"
+PX4_HEADLESS_VEHICLE="${SEMOPS_MAVLINK_SITL_PX4_VEHICLE:-gz_x500}"
+PX4_HEADLESS_WORLD="${SEMOPS_MAVLINK_SITL_PX4_WORLD:-default}"
+PX4_HEADLESS_HOST_QGC="${SEMOPS_MAVLINK_SITL_PX4_HOST_QGC:-}"
+PX4_HEADLESS_HOST_API="${SEMOPS_MAVLINK_SITL_PX4_HOST_API:-}"
+PX4_HEADLESS_BOOT_WAIT="${SEMOPS_MAVLINK_SITL_PX4_BOOT_WAIT:-20}"
+PX4_HEADLESS_PULL="${SEMOPS_MAVLINK_SITL_DOCKER_PULL:-false}"
+PX4_HEADLESS_REPLACE="${SEMOPS_MAVLINK_SITL_DOCKER_REPLACE:-false}"
+PX4_HEADLESS_KEEP="${SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR:-false}"
+PX4_HEADLESS_STARTED=false
+
+DEFAULT_SNAPSHOT_URL="http://127.0.0.1:${SEMOPS_CADDY_HOST_PORT:-8080}/api/cop/snapshot"
+SNAPSHOT_URL="${SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL:-$DEFAULT_SNAPSHOT_URL}"
 EXPECTED_TRACK_ID="${SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID:-c360.edge-compose.cop.mavlink.track.system-1}"
 TIMEOUT="${SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT:-2m}"
 MIN_UPDATES="${SEMOPS_MAVLINK_SITL_SMOKE_MIN_UPDATES:-2}"
@@ -34,11 +47,15 @@ have_command() {
   command -v "$1" >/dev/null 2>&1
 }
 
+have_px4_headless_image() {
+  have_command docker && docker image inspect "$PX4_HEADLESS_IMAGE" >/dev/null 2>&1
+}
+
 have_simulator_image() {
   if ! have_command docker; then
     return 1
   fi
-  docker image ls --format '{{.Repository}}:{{.Tag}}' 2>/dev/null |
+  have_px4_headless_image || docker image ls --format '{{.Repository}}:{{.Tag}}' 2>/dev/null |
     grep -Eiq 'px4|mavsdk|ardupilot|arducopter'
 }
 
@@ -61,6 +78,15 @@ write_evidence() {
     echo "simulator_version=$SIMULATOR_VERSION"
     echo "simulator_command=$SIMULATOR_COMMAND"
     echo "simulator_udp_route=$SIMULATOR_ROUTE"
+    echo "px4_headless_image=$PX4_HEADLESS_IMAGE"
+    echo "px4_headless_image_present=$(if have_px4_headless_image; then echo true; else echo false; fi)"
+    echo "px4_headless_container=$PX4_HEADLESS_CONTAINER"
+    echo "px4_headless_vehicle=$PX4_HEADLESS_VEHICLE"
+    echo "px4_headless_world=$PX4_HEADLESS_WORLD"
+    echo "px4_headless_host_qgc=$PX4_HEADLESS_HOST_QGC"
+    echo "px4_headless_host_api=$PX4_HEADLESS_HOST_API"
+    echo "px4_headless_boot_wait=$PX4_HEADLESS_BOOT_WAIT"
+    echo "px4_headless_pull_allowed=$PX4_HEADLESS_PULL"
     echo "expected_track_id=$EXPECTED_TRACK_ID"
     echo "snapshot_url=$SNAPSHOT_URL"
     echo "timeout=$TIMEOUT"
@@ -86,10 +112,116 @@ print_preflight() {
   echo "  sim_vehicle.py: $(command -v sim_vehicle.py 2>/dev/null || echo missing)"
   if have_command docker; then
     echo
+    echo "Preferred PX4 headless Docker lane:"
+    echo "  image: $PX4_HEADLESS_IMAGE"
+    echo "  image present: $(if have_px4_headless_image; then echo yes; else echo no; fi)"
+    echo "  container: $PX4_HEADLESS_CONTAINER"
+    echo "  vehicle/world: $PX4_HEADLESS_VEHICLE / $PX4_HEADLESS_WORLD"
+    echo "  pull allowed: $PX4_HEADLESS_PULL"
+    echo
     echo "Local simulator-ish Docker images:"
     docker image ls --format '  {{.Repository}}:{{.Tag}}' 2>/dev/null |
       grep -Ei 'px4|mavsdk|ardupilot|arducopter' || echo "  none"
   fi
+}
+
+px4_headless_args() {
+  PX4_HEADLESS_ARGS=(-v "$PX4_HEADLESS_VEHICLE" -w "$PX4_HEADLESS_WORLD")
+  if [[ -n "$PX4_HEADLESS_HOST_QGC" && -n "$PX4_HEADLESS_HOST_API" ]]; then
+    PX4_HEADLESS_ARGS+=("$PX4_HEADLESS_HOST_QGC" "$PX4_HEADLESS_HOST_API")
+  elif [[ -n "$PX4_HEADLESS_HOST_API" ]]; then
+    PX4_HEADLESS_ARGS+=("$PX4_HEADLESS_HOST_API")
+  elif [[ -n "$PX4_HEADLESS_HOST_QGC" ]]; then
+    cat >&2 <<'EOF'
+SEMOPS_MAVLINK_SITL_PX4_HOST_QGC requires SEMOPS_MAVLINK_SITL_PX4_HOST_API.
+
+The headless PX4 entrypoint accepts either:
+  [HOST_API]
+  [HOST_QGC HOST_API]
+EOF
+    write_evidence "blocked_bad_px4_headless_hosts" 2
+    exit 2
+  fi
+}
+
+px4_headless_command_string() {
+  px4_headless_args
+  printf 'docker run -d --rm --name %q %q' "$PX4_HEADLESS_CONTAINER" "$PX4_HEADLESS_IMAGE"
+  printf ' %q' "${PX4_HEADLESS_ARGS[@]}"
+  printf '\n'
+}
+
+ensure_px4_headless_image() {
+  if have_px4_headless_image; then
+    return
+  fi
+  if bool_is_true "$PX4_HEADLESS_PULL"; then
+    docker pull "$PX4_HEADLESS_IMAGE"
+    return
+  fi
+  cat >&2 <<EOF
+PX4 headless Docker image is not local: $PX4_HEADLESS_IMAGE
+
+Pull it explicitly, or let this helper pull it:
+  docker pull $PX4_HEADLESS_IMAGE
+EOF
+  cat >&2 <<'EOF'
+  SEMOPS_MAVLINK_SITL_DOCKER_PULL=true \
+    SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack \
+    bash scripts/mavlink-sitl-gate.sh
+
+The pull is intentionally opt-in because the image is large.
+EOF
+  write_evidence "blocked_missing_px4_headless_image" 2
+  exit 2
+}
+
+container_exists() {
+  docker ps -a --format '{{.Names}}' | grep -Fxq "$PX4_HEADLESS_CONTAINER"
+}
+
+container_running() {
+  docker ps --format '{{.Names}}' | grep -Fxq "$PX4_HEADLESS_CONTAINER"
+}
+
+start_px4_headless_container() {
+  if ! have_command docker; then
+    echo "Docker is required for px4-headless-stack mode." >&2
+    write_evidence "blocked_missing_docker" 2
+    exit 2
+  fi
+  ensure_px4_headless_image
+  if container_running; then
+    echo "Reusing running PX4 headless container: $PX4_HEADLESS_CONTAINER"
+    return
+  fi
+  if container_exists; then
+    if bool_is_true "$PX4_HEADLESS_REPLACE"; then
+      docker rm "$PX4_HEADLESS_CONTAINER" >/dev/null
+    else
+      cat >&2 <<EOF
+PX4 headless container name already exists but is not running: $PX4_HEADLESS_CONTAINER
+
+Remove it yourself or set:
+  SEMOPS_MAVLINK_SITL_DOCKER_REPLACE=true
+EOF
+      write_evidence "blocked_existing_px4_headless_container" 2
+      exit 2
+    fi
+  fi
+  px4_headless_args
+  docker run -d --rm --name "$PX4_HEADLESS_CONTAINER" "$PX4_HEADLESS_IMAGE" "${PX4_HEADLESS_ARGS[@]}" >/dev/null
+  PX4_HEADLESS_STARTED=true
+  echo "Started PX4 headless container: $PX4_HEADLESS_CONTAINER"
+  echo "Waiting $PX4_HEADLESS_BOOT_WAIT for PX4/Gazebo boot before launching the COP stack..."
+  sleep "$PX4_HEADLESS_BOOT_WAIT"
+}
+
+cleanup_px4_headless_container() {
+  if [[ "$PX4_HEADLESS_STARTED" != "true" ]] || bool_is_true "$PX4_HEADLESS_KEEP"; then
+    return
+  fi
+  docker stop "$PX4_HEADLESS_CONTAINER" >/dev/null 2>&1 || true
 }
 
 require_simulator_attestation() {
@@ -154,6 +286,28 @@ run_stack_smoke() {
   )
 }
 
+run_px4_headless_stack_smoke() {
+  if [[ -z "$SIMULATOR_NAME" ]]; then
+    SIMULATOR_NAME="PX4 Gazebo headless Docker"
+  fi
+  if [[ -z "$SIMULATOR_VERSION" ]]; then
+    SIMULATOR_VERSION="${PX4_HEADLESS_IMAGE##*:}"
+  fi
+  if [[ -z "$SIMULATOR_COMMAND" ]]; then
+    SIMULATOR_COMMAND="$(px4_headless_command_string)"
+  fi
+  start_px4_headless_container
+  trap cleanup_px4_headless_container EXIT
+  require_simulator_attestation
+  if run_stack_smoke; then
+    write_evidence "passed" 0
+  else
+    status=$?
+    write_evidence "failed" "$status"
+    exit "$status"
+  fi
+}
+
 print_preflight
 
 case "$MODE" in
@@ -181,8 +335,12 @@ case "$MODE" in
       exit "$status"
     fi
     ;;
+  px4-headless-stack)
+    run_px4_headless_stack_smoke
+    ;;
   *)
-    echo "Unsupported SEMOPS_MAVLINK_SITL_GATE_MODE=$MODE; expected preflight, focused, or stack." >&2
+    echo "Unsupported SEMOPS_MAVLINK_SITL_GATE_MODE=$MODE" >&2
+    echo "Expected preflight, focused, stack, or px4-headless-stack." >&2
     write_evidence "blocked_bad_mode" 2
     exit 2
     ;;

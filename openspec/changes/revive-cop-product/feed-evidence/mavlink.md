@@ -88,6 +88,13 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - `scripts/mavlink-sitl-gate.sh` now wraps the external SITL gate in `preflight`, `focused`, and `stack` modes. The
   focused and stack modes require a named simulator source and refuse to run without local simulator tooling or an
   explicit remote-source override.
+- 2026-06-23 PX4 Docker review selected `jonasvautherin/px4-gazebo-headless:1.17.0` as the preferred dev/demo SITL
+  image because it packages a runnable headless PX4/Gazebo simulator, defaults to `gz_x500`, targets host UDP `14550`
+  and `14540`, carries Apache-2.0 repo licensing, and has active Docker Hub `1.17.0`/`latest` tags. The image is
+  unofficial and large, so the helper will not pull it unless `SEMOPS_MAVLINK_SITL_DOCKER_PULL=true`.
+- `scripts/mavlink-sitl-gate.sh` now has `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack`, which starts the preferred
+  PX4/Gazebo headless container, waits for boot, runs the full hosted COP stack smoke with the external SITL telemetry
+  assertion enabled, and stops only the simulator container it started unless `SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR=true`.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -95,6 +102,11 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 
 - MAVLink developer guide documents MAVLink as a lightweight messaging protocol for drones and onboard components.
 - PX4 documents a simulator path and a Simulator MAVLink API for exchanging simulated sensor and actuator data.
+- PX4's current Docker docs recommend `px4io/px4-dev:<version>` for builds, note that a dedicated `px4-sim` container is
+  planned, and mark older per-distro simulation containers as legacy.
+- `JonasVautherin/px4-gazebo-headless` is an Apache-2.0 unofficial PX4/Gazebo headless runtime image. Its README
+  identifies PX4 `v1.17.0` as the latest supported release, shows `docker run --rm -it
+  jonasvautherin/px4-gazebo-headless:1.17.0`, and documents host UDP `14550`/`14540` MAVLink routing.
 - ArduPilot documents SITL as a way to run Plane, Copter, or Rover without hardware.
 
 ## Gates
@@ -205,6 +217,21 @@ SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="<simulator launch command>" \
 bash scripts/mavlink-sitl-gate.sh
 ```
 
+Preferred PX4/Gazebo headless Docker target:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+If the image is not local and the operator deliberately accepts the large pull:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack \
+SEMOPS_MAVLINK_SITL_DOCKER_PULL=true \
+bash scripts/mavlink-sitl-gate.sh
+```
+
 Acceptance:
 
 - The smoke skips cleanly unless `SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL` is set. [done]
@@ -217,6 +244,8 @@ Acceptance:
 - Local readiness preflight records whether PX4, MAVSDK, ArduPilot, or equivalent simulator tooling is actually
   available before attempting the stack gate. [done: 2026-06-23 no simulator runtime found]
 - Focused and stack helpers require a named simulator source before running the evidence gate. [done]
+- Preferred PX4/Gazebo headless Docker helper is wired, fail-closed on missing local image unless pull is explicitly
+  enabled, and records simulator image/vehicle/world evidence. [done in helper; not yet run against pulled image]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs safe command smoke tests.
   [open]
 - PX4 SITL or MAVSDK smoke evidence is recorded before calling MAVLink Phase 1 complete. [open]
@@ -252,8 +281,9 @@ Acceptance:
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before
   command/control demo claims.
 - The external SITL telemetry smoke harness exists, but no local PX4, MAVSDK, or ArduPilot simulator run has been
-  recorded yet. The 2026-06-23 laptop preflight found no local simulator runtime or image, so tasks `4.7` and `5.4`
-  remain open.
+  recorded yet. The 2026-06-23 laptop preflight found no local simulator runtime or image. The preferred PX4/Gazebo
+  headless Docker path is now wired, but the image has not been pulled or run in SemOps evidence yet, so tasks `4.7`
+  and `5.4` remain open.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
 - Command codec coverage is active for COMMAND_LONG and COMMAND_ACK, but live command/control is not.

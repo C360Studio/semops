@@ -77,6 +77,8 @@
 - [x] 4.15 Add skipped-by-default external PX4/MAVSDK/SITL telemetry smoke harness against the hosted COP snapshot
 - [x] 4.16 Add a guarded MAVLink external SITL gate helper with preflight, simulator attestation, and ignored local
       evidence output
+- [x] 4.17 Add a preferred PX4/Gazebo headless Docker stack gate path while keeping the simulator evidence task open
+      until the image is pulled and the gate passes locally
 
 ## 5. Feed Validation And Indexing Ladder
 

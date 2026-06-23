@@ -14,6 +14,54 @@ conformance.
   should be set to the expected graph track ID.
 - Docker resources sufficient to run the COP stack.
 
+## Preferred PX4 Docker Path
+
+For the dev/demo lane, use `jonasvautherin/px4-gazebo-headless:1.17.0`. It is an Apache-2.0, unofficial
+PX4/Gazebo headless image that packages a runnable simulator instead of only a PX4 build toolchain. The upstream
+README says the current supported PX4 release is `v1.17.0`, the default vehicle is `gz_x500`, and the container sends
+MAVLink to the host on UDP `14550` for QGroundControl and `14540` for offboard/MAVSDK-style clients.
+
+The SemOps helper keeps the pull opt-in because the image is large:
+
+```bash
+docker pull jonasvautherin/px4-gazebo-headless:1.17.0
+```
+
+Then run the full SemOps stack smoke with the simulator container managed by the gate helper:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+If the image is not local and you deliberately want the helper to pull it:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack \
+SEMOPS_MAVLINK_SITL_DOCKER_PULL=true \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+Useful optional knobs:
+
+- `SEMOPS_MAVLINK_SITL_DOCKER_IMAGE`: default `jonasvautherin/px4-gazebo-headless:1.17.0`.
+- `SEMOPS_MAVLINK_SITL_DOCKER_CONTAINER`: default `semops-px4-gazebo-headless`.
+- `SEMOPS_MAVLINK_SITL_PX4_VEHICLE`: default `gz_x500`.
+- `SEMOPS_MAVLINK_SITL_PX4_WORLD`: default `default`.
+- `SEMOPS_MAVLINK_SITL_PX4_BOOT_WAIT`: default `20`, in seconds.
+- `SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR`: set `true` to leave the PX4 container running after the smoke.
+- `SEMOPS_MAVLINK_SITL_DOCKER_REPLACE`: set `true` to remove a stopped container with the configured name.
+- `SEMOPS_MAVLINK_SITL_PX4_HOST_API`: optional explicit target IP for PX4 UDP `14540`.
+- `SEMOPS_MAVLINK_SITL_PX4_HOST_QGC`: optional explicit target IP for PX4 UDP `14550`; requires
+  `SEMOPS_MAVLINK_SITL_PX4_HOST_API`.
+
+This is the fastest path to simulator-fidelity telemetry evidence. It is not official PX4 conformance and should not
+be used for command authority claims without a separate reviewed command/ACK/state gate.
+
+The official PX4 Docker docs remain useful as the upstream build/reference path. As of the 2026-06-23 check, PX4
+documents `px4io/px4-dev:<version>` as the recommended build container and says a dedicated `px4-sim` image is planned.
+Older `px4io/px4-dev-simulation-*` images still exist but are no longer the recommended path.
+
 ## Local Readiness Preflight
 
 Before treating a laptop as ready for this gate, check for a real simulator path rather than relying on the SemOps
@@ -73,6 +121,8 @@ Useful optional knobs:
 - `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION`: default `false`.
 - `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE`: set to `true` only when the simulator or hardware-adjacent source runs
   outside the local PATH/Docker environment but is already routing MAVLink to SemOps.
+- `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack`: starts the preferred PX4/Gazebo headless container and then runs
+  the full stack gate.
 
 ## Acceptance
 
