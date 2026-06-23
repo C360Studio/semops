@@ -209,6 +209,55 @@ func TestFixtureInputAndDecoderPublishBaseMessages(t *testing.T) {
 	}
 }
 
+func TestDecoderPublishesOGCEDRPositionFixture(t *testing.T) {
+	now := time.Date(2026, 6, 23, 14, 0, 0, 0, time.UTC)
+	bus := &recordingBus{}
+	registry := payloadregistry.New()
+	decoder, err := NewDecoderComponent(DecoderConfig{
+		Registry: registry,
+		Clock:    func() time.Time { return now },
+	}, bus)
+	if err != nil {
+		t.Fatalf("new decoder: %v", err)
+	}
+	if err := decoder.Initialize(); err != nil {
+		t.Fatalf("initialize decoder: %v", err)
+	}
+
+	raw := NewRawForecastPayload(
+		"weather:fixture:ogc-edr",
+		weathercodec.ProviderOGCEDR,
+		weathercodec.QueryShapePosition,
+		edrFixturePath(),
+		"file:///tmp/ogc-edr-weather.json",
+		now,
+		readEDRFixture(t),
+	)
+	if err := decoder.HandleRawPayload(context.Background(), raw); err != nil {
+		t.Fatalf("decode OGC EDR raw fixture: %v", err)
+	}
+
+	decoded := bus.singlePublished(t, DefaultDecodedSubject)
+	envelope, err := message.NewDecoder(registry).Decode(decoded.data)
+	if err != nil {
+		t.Fatalf("decode decoded OGC EDR payload: %v", err)
+	}
+	payload, ok := envelope.Payload().(*DecodedForecastPayload)
+	if !ok {
+		t.Fatalf("decoded payload = %T, want *DecodedForecastPayload", envelope.Payload())
+	}
+	if payload.Source != "weather:fixture:ogc-edr" ||
+		payload.Provider != weathercodec.ProviderOGCEDR ||
+		payload.QueryShape != weathercodec.QueryShapePosition ||
+		payload.Forecast.Longitude != -77.04 ||
+		payload.Forecast.Latitude != 38.9 ||
+		len(payload.Forecast.Samples) != 2 ||
+		payload.Forecast.Samples[1].WindGusts10MKPH == nil ||
+		*payload.Forecast.Samples[1].WindGusts10MKPH != 31.4 {
+		t.Fatalf("decoded OGC EDR payload = %+v", payload)
+	}
+}
+
 func TestDecoderRejectsUnsupportedWeatherShape(t *testing.T) {
 	decoder, err := NewDecoderComponent(DecoderConfig{}, &recordingBus{})
 	if err != nil {
@@ -229,6 +278,15 @@ func TestDecoderRejectsUnsupportedWeatherShape(t *testing.T) {
 	}
 }
 
+func readEDRFixture(t *testing.T) []byte {
+	t.Helper()
+	data, err := os.ReadFile(edrFixturePath())
+	if err != nil {
+		t.Fatalf("read OGC EDR fixture: %v", err)
+	}
+	return data
+}
+
 func readFixture(t *testing.T) []byte {
 	t.Helper()
 	data, err := os.ReadFile(fixturePath())
@@ -240,6 +298,10 @@ func readFixture(t *testing.T) []byte {
 
 func fixturePath() string {
 	return filepath.Join("..", "..", "..", DefaultFixturePath)
+}
+
+func edrFixturePath() string {
+	return filepath.Join("..", "..", "..", "fixtures", "weather", "ogc-edr-position.json")
 }
 
 func mustBaseMessageJSON(t *testing.T, msgType message.Type, payload message.Payload, source string, at time.Time) []byte {

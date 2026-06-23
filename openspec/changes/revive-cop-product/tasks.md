@@ -140,6 +140,7 @@
       writes or live bridge claims
 - [x] 5.68 Add weather fixture input and decoder components using SemStreams payload registry and ports without graph
       writes or live provider claims
+- [x] 5.69 Add OGC EDR-shaped position fixture and decoder gate before standards-facing tactical weather claims
 
 ## 6. Structural COP Stack
 

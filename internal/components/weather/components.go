@@ -551,21 +551,32 @@ func fileURI(path string) (string, error) {
 }
 
 func parseForecast(payload *RawForecastPayload) (weathercodec.PointForecast, error) {
-	if payload.Provider != weathercodec.ProviderOpenMeteo ||
-		payload.QueryShape != weathercodec.QueryShapePosition {
+	switch {
+	case payload.Provider == weathercodec.ProviderOpenMeteo &&
+		payload.QueryShape == weathercodec.QueryShapePosition:
+		forecast, err := weathercodec.ParseOpenMeteoPointForecast(payload.RawJSON)
+		if err != nil {
+			return weathercodec.PointForecast{}, fmt.Errorf("parse Open-Meteo point forecast: %w", err)
+		}
+		return forecast, nil
+	case payload.Provider == weathercodec.ProviderOGCEDR &&
+		payload.QueryShape == weathercodec.QueryShapePosition:
+		forecast, err := weathercodec.ParseOGCEDRPositionForecast(payload.RawJSON)
+		if err != nil {
+			return weathercodec.PointForecast{}, fmt.Errorf("parse OGC EDR position forecast: %w", err)
+		}
+		return forecast, nil
+	default:
 		return weathercodec.PointForecast{}, fmt.Errorf(
-			"weather decoder supports %s/%s, got %s/%s",
+			"weather decoder supports %s/%s or %s/%s, got %s/%s",
 			weathercodec.ProviderOpenMeteo,
+			weathercodec.QueryShapePosition,
+			weathercodec.ProviderOGCEDR,
 			weathercodec.QueryShapePosition,
 			payload.Provider,
 			payload.QueryShape,
 		)
 	}
-	forecast, err := weathercodec.ParseOpenMeteoPointForecast(payload.RawJSON)
-	if err != nil {
-		return weathercodec.PointForecast{}, fmt.Errorf("parse Open-Meteo point forecast: %w", err)
-	}
-	return forecast, nil
 }
 
 func uptimeSinceAt(startedAt time.Time, now time.Time) time.Duration {

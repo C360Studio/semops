@@ -17,6 +17,7 @@ import (
 
 const (
 	ProviderOpenMeteo  = "open-meteo"
+	ProviderOGCEDR     = "ogc-edr"
 	QueryShapePosition = "position"
 )
 

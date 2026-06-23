@@ -208,8 +208,10 @@ binary-by-reference storage, and memory-bounded handling.
 - **AND** provider-shaped weather fixture promotion uses SemStreams input and processor components with registered
   payloads, declared ports, config schema, health, and flow metrics before any graph projector, HTTP poller, cache
   policy, or route-safety rule is added
-- **AND** tactical weather supports point, area, and route/trajectory query shapes before it influences routing or
-  safety logic
+- **AND** OGC EDR-shaped fixtures prove point first, then area, trajectory, corridor, and selected broader query-shape
+  parsing before standards-facing tactical weather interop claims exceed point retrieval
+- **AND** tactical weather supports the relevant point, area, and route/trajectory query shapes before it influences
+  routing or safety logic
 
 #### Scenario: Public samples are smoke evidence only
 
