@@ -42,6 +42,10 @@ binary-by-reference storage, and memory-bounded handling.
   MPEG-TS fixture, builds the opt-in `media-tools` container target with FFmpeg, enables the local-media KLV
   component flow, and asserts COP snapshot readback plus shared Prometheus/runtime flow evidence through Caddy. The
   default Compose target remains the production image with KLV disabled.
+- `openspec/changes/revive-cop-product/reviews/2026-06-23-klv-claim-language-review.md` defines the allowed and
+  blocked demo language for KLV, MISB ST 0601, STANAG 4609, and streaming-binary claims. This permits narrow
+  engineering-support language for the tested MISB ST 0601 subset while blocking conformance, certification,
+  full-parser, live-media, footprint-polygon, and general streaming-binary claims.
 
 ## SemSource Fixture Handoff
 
@@ -93,7 +97,8 @@ Recommended SemOps fixture ladder:
 
 Engineering support language may cite public examples commonly used by open-source FMV/KLV tooling plus deterministic
 fixtures. It must not use "official conformance", "certification", or equivalent language until a funded validator or
-lab effort with proper access exists.
+lab effort with proper access exists. The accepted claim-language boundary is recorded in
+`openspec/changes/revive-cop-product/reviews/2026-06-23-klv-claim-language-review.md`.
 
 ## Current Parser Strategy
 

@@ -818,6 +818,9 @@ Local assets:
 - The one-command hosted stack smoke can opt into KLV with `SEMOPS_COP_SMOKE_KLV_ENABLED=true`, building the
   `media-tools` image target with FFmpeg, running the local-media KLV component flow, and verifying COP snapshot plus
   Prometheus/runtime readback. The default stack keeps KLV disabled and uses the production image target.
+- `openspec/changes/revive-cop-product/reviews/2026-06-23-klv-claim-language-review.md` records the allowed
+  engineering-support wording for the tested MISB ST 0601 subset and blocks STANAG conformance, certification,
+  full-parser, live-media, footprint-polygon, and general streaming-binary claims.
 
 Mock or harness:
 
@@ -844,7 +847,8 @@ Mock or harness:
   or conformance claim.
 - Public examples commonly used by open-source FMV/KLV tooling plus deterministic fixtures are acceptable for
   demo-grade engineering support. Official STANAG 4609 conformance or certification stays blocked until someone funds
-  a validator or lab effort with proper access.
+  a validator or lab effort with proper access. Demo copy must follow the KLV claim-language review rather than
+  upgrading smoke evidence into conformance language.
 - First parser strategy: keep the first spike Go-native and deterministic for the supported MISB ST 0601 local-set
   subset. Keep MPEG-TS demux behind the demux component boundary, use FFmpeg/ffprobe for the first fixture-grade
   extraction path, and defer GStreamer, `klvdata`, jMISB, or a Rust worker until public-sample smoke or production

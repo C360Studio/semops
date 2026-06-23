@@ -131,7 +131,7 @@
 - [x] 5.51 Define first `semops.klv_*` payload registry schemas with SemStreams BaseMessage round-trip tests
 - [x] 5.52 Define SemStreams component port skeletons for media-ref input, demux, decode, and projector stages
 - [x] 5.53 Add an opt-in KLV worker spike against a local deterministic fixture without graph writes
-- [ ] 5.54 Add adversarial review before any MISB/STANAG engineering-support language appears in demo copy
+- [x] 5.54 Add adversarial review before any MISB/STANAG engineering-support language appears in demo copy
 - [x] 5.55 Add a deterministic MISB ST 0601 local-set decoder core test without graph writes
 - [x] 5.56 Add DJI sensor/telemetry and weather as first-class feed/layer roadmap entries
 - [x] 5.57 Record that DJI video reinforces generic media-reference handling without moving KLV demux into SemSource

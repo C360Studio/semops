@@ -296,6 +296,8 @@ binary-by-reference storage, and memory-bounded handling.
 
 - **WHEN** SemOps uses public examples and deterministic fixtures for KLV/MISB acceptance
 - **THEN** demo and documentation language may claim engineering support for the tested subset
+- **AND** engineering-support wording for KLV, MISB ST 0601, STANAG 4609, and streaming-binary claims must pass a
+  dedicated adversarial claim-language review before it appears in demo copy
 - **AND** official STANAG 4609 conformance or certification remains blocked until a funded validator or lab effort
   with proper access exists
 
