@@ -105,6 +105,30 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 		t.Fatalf("ADS-B derived foreign edges = %+v, want none", adsbRegistration.ForeignEdges)
 	}
 
+	sapient := SAPIENTTrackContract()
+	if err := sapient.Validate(); err != nil {
+		t.Fatalf("SAPIENT track contract should validate: %v", err)
+	}
+	if got := sapient.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("SAPIENT mode = %q, want replace-owned", got)
+	}
+	if sapient.IndexingProfile != "signal" {
+		t.Fatalf("SAPIENT indexing profile = %q, want signal", sapient.IndexingProfile)
+	}
+	if sapient.EntityPattern == mavlink.EntityPattern || sapient.EntityPattern == tak.EntityPattern || sapient.EntityPattern == adsb.EntityPattern {
+		t.Fatalf("SAPIENT strict track contract must be source-partitioned")
+	}
+	if len(sapient.ForeignEdges) != 0 {
+		t.Fatalf("SAPIENT feed must not claim association foreign edges: %+v", sapient.ForeignEdges)
+	}
+	sapientRegistration, err := projection.Derive(OwnerSAPIENT, sapient)
+	if err != nil {
+		t.Fatalf("derive SAPIENT ownership: %v", err)
+	}
+	if len(sapientRegistration.ForeignEdges) != 0 {
+		t.Fatalf("SAPIENT derived foreign edges = %+v, want none before fusion association claims", sapientRegistration.ForeignEdges)
+	}
+
 	klv := KLVSensorFootprintContract()
 	if err := klv.Validate(); err != nil {
 		t.Fatalf("KLV sensor-footprint contract should validate: %v", err)
@@ -115,7 +139,7 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 	if klv.IndexingProfile != "signal" {
 		t.Fatalf("KLV sensor-footprint indexing profile = %q, want signal", klv.IndexingProfile)
 	}
-	if klv.EntityPattern == mavlink.EntityPattern || klv.EntityPattern == tak.EntityPattern || klv.EntityPattern == adsb.EntityPattern {
+	if klv.EntityPattern == mavlink.EntityPattern || klv.EntityPattern == tak.EntityPattern || klv.EntityPattern == adsb.EntityPattern || klv.EntityPattern == sapient.EntityPattern {
 		t.Fatalf("KLV sensor-footprint contract must be source-partitioned")
 	}
 	klvRegistration, err := projection.Derive(OwnerKLV, klv)
@@ -139,6 +163,7 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 	if weather.EntityPattern == mavlink.EntityPattern ||
 		weather.EntityPattern == tak.EntityPattern ||
 		weather.EntityPattern == adsb.EntityPattern ||
+		weather.EntityPattern == sapient.EntityPattern ||
 		weather.EntityPattern == klv.EntityPattern {
 		t.Fatalf("weather observation contract must be source-partitioned")
 	}
@@ -269,6 +294,30 @@ func TestTolerantCAPContractDoesNotClaimAuthoritativeHazardState(t *testing.T) {
 			switch predicate {
 			case HazardGeometry, HazardSeverity, HazardStatus:
 				t.Fatalf("CAP evidence contract must not own authoritative predicate %q", predicate)
+			}
+		}
+	}
+}
+
+func TestSAPIENTTrackContractDoesNotClaimTaskAlertOrAssociationAuthority(t *testing.T) {
+	contract := SAPIENTTrackContract()
+	for _, group := range contract.Groups {
+		if group.Mode != ownership.ModeReplaceOwned {
+			t.Fatalf("SAPIENT group mode = %q, want replace-owned signal state", group.Mode)
+		}
+		for _, predicate := range group.Predicates {
+			switch predicate {
+			case TrackSource,
+				TaskName,
+				TaskStatus,
+				TaskPosition,
+				TaskDescription,
+				AlertSeverity,
+				AlertStatus,
+				AlertReason,
+				AlertAffectedEntity,
+				AlertSource:
+				t.Fatalf("SAPIENT track contract must not own authority predicate %q", predicate)
 			}
 		}
 	}

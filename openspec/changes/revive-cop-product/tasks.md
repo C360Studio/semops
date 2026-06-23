@@ -153,6 +153,8 @@
       cache/stale policy, spatial runtime payloads, UI semantics, or route-safety authority
 - [x] 5.74 Add Caddy-routed COP API readback evidence for opt-in weather point fixtures without claiming tactical
       weather UI semantics or route-safety authority
+- [x] 5.75 Add narrow SAPIENT absolute-location detection projection and readback evidence without claiming
+      conformance, hosted graph production, tasking, association, UTM conversion, or range/bearing support
 
 ## 6. Structural COP Stack
 
@@ -276,6 +278,8 @@
       weather map layers and route-safety UI
 - [x] 7.27 Add weather-observation point evidence to the COP UI with source diagnostics, provenance inspector, and
       Playwright smoke while deferring visual weather tiles, live providers, and route-safety decisions
+- [x] 7.28 Add SAPIENT graph-prefix COP API readback for absolute-location detections while deferring runtime graph
+      production and dedicated SAPIENT UI semantics
 
 ## 8. Tier Escalation And Egress
 
@@ -288,6 +292,8 @@
 - [ ] 8.6 Run adversarial review before SAPIENT, KLV, semantic, or standards-conformance claims are demoed
 - [x] 8.7 Record CS API tasking impedance gate for TTL, priority, authority, local override, and async status edge
       cases before command/control implementation
+- [x] 8.8 Run SAPIENT projection ownership/indexing review for absolute-location detections while keeping hosted
+      service, tasking, association, UTM, and range/bearing gates closed
 
 ## 9. Upstream SemStreams Asks
 

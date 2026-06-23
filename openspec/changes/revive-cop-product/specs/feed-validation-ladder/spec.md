@@ -93,9 +93,13 @@ public conformance suite, or documented interoperability test backs the claim.
   when they publish raw/decoded streams and avoid graph mutation ports, owner claims, and product support wording
 - **AND** the hosted app may compose that HTTP input -> decoder chain behind `SEMOPS_SAPIENT_ENABLED=true` only when
   URL, encoding, replay, and stale-source settings remain explicit preflight configuration
+- **AND** SemOps may add `OwnerSAPIENT` and a source-partitioned `signal` track projection contract only for reviewed
+  absolute-location detection reports
+- **AND** that first projection rejects range/bearing, UTM, unsupported datum, tasking, association, and lifecycle
+  semantics until those policies are reviewed
 - **AND** SemOps does not claim compliance until scoped Dstl harness evidence exists
-- **AND** SemOps does not add SAPIENT owner claims, graph projection, graph-producing hosted components, or product
-  service support until projection ownership, indexing, service mode, and harness scope have been reviewed
+- **AND** SemOps does not add graph-producing hosted components, runtime graph writers, or product service support
+  until projection ownership, indexing, service mode, backpressure, and harness scope have been reviewed
 
 #### Scenario: CS API conformance is standards-edge evidence
 

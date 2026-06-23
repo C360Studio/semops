@@ -22,6 +22,7 @@ const (
 	OwnerMAVLink = "semops.feed.mavlink"
 	OwnerTAK     = "semops.feed.tak"
 	OwnerADSB    = "semops.feed.adsb"
+	OwnerSAPIENT = "semops.feed.sapient"
 	OwnerAsset   = "semops.feed.asset"
 	OwnerCAP     = "semops.feed.cap"
 	OwnerKLV     = "semops.feed.klv"
@@ -234,6 +235,31 @@ func ADSBTrackContract() projection.Contract {
 			Predicates: []string{
 				TrackPosition,
 				TrackVelocity,
+				TrackStatus,
+				TrackObservedAt,
+				TrackNativeID,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+	}
+}
+
+// SAPIENTTrackContract owns the first narrow SAPIENT detection projection:
+// absolute-location detection current state only. Range/bearing detections,
+// tasking, alert acknowledgements, and association edges remain separate gates.
+func SAPIENTTrackContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.track.sapient-detection-current-state",
+		MessageType:     "semops.sapient.track.v1",
+		EntityPattern:   SourceEntityPattern("sapient", EntityTrack),
+		IndexingProfile: "signal",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				TrackPosition,
 				TrackStatus,
 				TrackObservedAt,
 				TrackNativeID,

@@ -83,8 +83,10 @@ so this is not a live OpenSky reliability, receiver, or ASTERIX claim. The Compo
 component readback through the COP snapshot without live network access.
 SAPIENT now has a preflight-only HTTP input -> decoder component package for raw/decoded JSON or protobuf payload
 streams, and the hosted app can run it behind `SEMOPS_SAPIENT_ENABLED=true` with an explicit URL, encoding, and replay
-settings. It deliberately has no graph request ports or owner claim. The stack smoke enables SAPIENT against the local
-fixture provider and only verifies the declared decoded output stream, not graph projection or conformance.
+settings. It deliberately has no graph request ports or runtime owner registration. The stack smoke enables SAPIENT
+against the local fixture provider and only verifies the declared decoded output stream, not hosted graph projection or
+conformance. The separate SAPIENT graph contract is currently a pure absolute-location detection projection/readback
+gate, not a hosted runtime feed.
 The first SAPIENT smoke exposed a hosted lifecycle bug: components were inheriting the startup/connect timeout
 context and stopping after startup. Runtime components are now owned by `App.Close`, so connection deadlines no longer
 silently cancel long-running input and processor components.
@@ -518,8 +520,10 @@ profile semantics.
 - Move SAPIENT from artifact discovery to parser/harness planning now that GOV.UK, BSI Flex 335 v2, Dstl protobufs,
   the Dstl v2 Test Harness, and Apex middleware are identified; keep the current SemStreams component work
   preflight-only.
-- Keep SAPIENT out of graph projection and demo compliance language until SemOps has local parser fixtures, a
-  documented harness result or an explicit non-compliance demo decision, and an accepted source-owner model.
+- Keep hosted SAPIENT graph production and demo compliance language gated until SemOps has local parser fixtures, a
+  documented harness result or an explicit non-compliance demo decision, an accepted source-owner model, and runtime
+  graph-writer/backpressure review. The accepted first graph slice is absolute-location detection projection/readback
+  only.
 - Add a statistical track association service for ambiguous air tracks.
 - Write association evidence back to the graph; add UI only if it helps operator decisions.
 

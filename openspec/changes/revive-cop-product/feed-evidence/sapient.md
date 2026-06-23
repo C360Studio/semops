@@ -1,20 +1,23 @@
 # SAPIENT Feed Evidence
 
-Status: JSON and binary descriptor preflight, raw replay, preflight input/decoder components, and opt-in app-runtime
-preflight wiring exist; harness qualification is still required before product support or conformance claims.
+Status: JSON and binary descriptor preflight, raw replay, preflight input/decoder components, opt-in app-runtime
+preflight wiring, and a narrow absolute-location detection projection contract exist. Harness qualification and
+runtime graph-production review are still required before product support or conformance claims.
 
 ## Decision
 
 SAPIENT has moved from artifact discovery to a parser/harness planning lane. SemOps now has a dependency-light JSON
-preflight parser, a descriptor-based binary protobuf preflight, bounded raw replay, and a SemStreams raw HTTP
-input -> decoder processor component chain for representative BSI Flex 335 v2 message shapes. It must not claim
-SAPIENT product support or compliance until a documented Dstl harness run proves the boundary. `cmd/semops` may now
-compose that preflight input -> decoder chain behind `SEMOPS_SAPIENT_ENABLED=true`, but it still produces raw/decoded
-streams only.
+preflight parser, a descriptor-based binary protobuf preflight, bounded raw replay, a SemStreams raw HTTP
+input -> decoder processor component chain for representative BSI Flex 335 v2 message shapes, and a reviewed first
+projection contract for absolute-location detection reports only. It must not claim SAPIENT product support or
+compliance until a documented Dstl harness run proves the boundary. `cmd/semops` may now compose the preflight
+input -> decoder chain behind `SEMOPS_SAPIENT_ENABLED=true`, but it still produces raw/decoded streams only.
 
-Graph projection remains blocked. SemOps has no SAPIENT owner constant, projection contract, graph-producing hosted
-component, or graph writer by design. The first graph slice needs a reviewed source identity model, entity choice,
-indexing profile, and harness or explicit non-compliance-demo scope before `OwnerSAPIENT` exists.
+Runtime graph projection remains blocked. SemOps now has `OwnerSAPIENT`, a source-partitioned
+`semops.cop.track.sapient-detection-current-state` contract, a pure projector that plans create/update mutations, and
+COP API readback for prefix-discovered SAPIENT tracks. It has no graph-producing hosted SAPIENT component or graph
+writer by design. Range/bearing, UTM, tasking, alerts, lifecycle, Apex service behavior, and association semantics
+remain later gates.
 See `openspec/changes/revive-cop-product/reviews/2026-06-21-sapient-runtime-preflight-review.md` for the runtime
 preflight boundary review.
 
@@ -36,9 +39,16 @@ preflight boundary review.
   replay capture, stale-source health, and no graph request ports.
 - `cmd/semops` can opt into that preflight HTTP input -> decoder chain with `SEMOPS_SAPIENT_ENABLED=true`,
   `SEMOPS_SAPIENT_HTTP_URL`, explicit encoding, stale-source config, raw-lane caps, and optional replay capture.
-- App-runtime SAPIENT preflight does not append ownership contracts, mint `OwnerSAPIENT`, or subscribe any decoded
+- App-runtime SAPIENT preflight does not append ownership contracts, register `OwnerSAPIENT`, or subscribe any decoded
   graph projector path.
-- No SemOps SAPIENT generated Go bindings, product service adapter, or graph projector exists yet.
+- `pkg/cop` now defines `OwnerSAPIENT` and a source-partitioned, signal-profiled track contract for absolute-location
+  detection reports only.
+- `internal/projectors/sapient` plans create/update graph mutations for `LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M`
+  WGS84 detection reports and rejects range/bearing, UTM, unsupported datum, or invalid latitude/longitude inputs.
+- `internal/api/cop` can read prefix-discovered SAPIENT track state back into the COP snapshot and source-health
+  model.
+- No SemOps SAPIENT generated Go bindings, product service adapter, graph-producing component, or graph writer exists
+  yet.
 - No local SAPIENT test harness run has been performed.
 - The feed ladder assigns detections/tracks to `signal`, tasking/collection state to `control`, and native decode
   traces to `trace`.
@@ -169,7 +179,7 @@ Acceptance:
 - The decoder captures JSON/protobuf bytes into the SAPIENT replay store before publishing decoded preflight
   messages. [done]
 - Malformed messages are captured and replayed before parse failure, without graph writes. [done]
-- The component package exposes no graph request ports and does not introduce `OwnerSAPIENT`. [done]
+- The component package exposes no graph request ports and does not register runtime SAPIENT owner claims. [done]
 
 ### App Runtime Preflight Gate
 
@@ -206,24 +216,25 @@ Acceptance:
 
 ### Projection Gate
 
-Target command after SemOps graph contracts exist:
+Target command:
 
 ```bash
-go test ./internal/projectors/sapient
+go test ./pkg/cop ./internal/projectors/sapient ./internal/api/cop
 ```
 
 Acceptance:
 
-- Detections and tracks use `indexing_profile=signal`.
+- Detections and tracks use `indexing_profile=signal`. [done for absolute-location detection reports]
 - Sensor tasking, collection plans, and alert state use `indexing_profile=control`.
 - Native decode/replay records use `indexing_profile=trace`.
-- SAPIENT does not overwrite stricter source facts without an explicit ownership contract.
+- SAPIENT does not overwrite stricter source facts without an explicit ownership contract. [done: source-partitioned
+  track pattern and no foreign edges]
 - First projection starts with absolute-location reports only, unless source sensor pose, reference frame, and
-  uncertainty are available for range/bearing detections.
+  uncertainty are available for range/bearing detections. [done: range/bearing rejected]
+- UTM or other coordinate systems are rejected until a deliberate conversion and datum policy exists. [done]
 - Associated detections, derived links, and cross-source correlation use fusion or evidence contracts rather than the
-  SAPIENT adapter's source-owner contract.
-- `OwnerSAPIENT` is added only after the projection ownership/indexing review is accepted and tests prove the narrow
-  entity model.
+  SAPIENT adapter's source-owner contract. [done: no association edges]
+- Runtime graph writes remain blocked until a graph-producing component/writer boundary is reviewed. [open]
 
 ## Known Gaps
 
@@ -236,10 +247,10 @@ Acceptance:
   copies beyond trimmed test shapes.
 - No SemOps mapping exists for SAPIENT node identity, detection lifecycle, tasking, alert acknowledgements, or Apex
   middleware interop.
-- No product-hosted SAPIENT service or graph projection path exists yet; the opt-in app-runtime chain is preflight
-  only.
-- No `OwnerSAPIENT`, SAPIENT projection contract, graph-producing SAPIENT component, or SAPIENT graph writer exists
-  yet; that is intentional until projection ownership and service mode are reviewed.
+- No product-hosted SAPIENT service or runtime graph projection path exists yet; the opt-in app-runtime chain is
+  preflight only.
+- No graph-producing SAPIENT component or SAPIENT graph writer exists yet; that is intentional until runtime
+  projection ownership, backpressure, service mode, and harness scope are reviewed.
 
 ## Adversarial Feed-Entry Questions
 

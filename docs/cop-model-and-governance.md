@@ -26,7 +26,10 @@ Code source: `pkg/cop/contracts.go`
 | `semops.feed.tak` | TAK/CoT current track state | `c360.*.cop.tak.track.*` | `replace-owned` | `signal` |
 | `semops.feed.tak` | TAK/CoT marker and task control state | `c360.*.cop.tak.task.*` | `replace-owned` | `control` |
 | `semops.feed.tak` | TAK/CoT GeoChat and advisory text | `c360.*.cop.tak.advisory.*` | `replace-owned` | `content` |
+| `semops.feed.adsb` | ADS-B/OpenSky-shaped aircraft current state | `c360.*.cop.adsb.track.*` | `replace-owned` | `signal` |
+| `semops.feed.sapient` | SAPIENT absolute-location detection current state | `c360.*.cop.sapient.track.*` | `replace-owned` | `signal` |
 | `semops.feed.cap` | CAP hazard/advisory evidence | `c360.*.cop.cap.hazard_area.*` | `append-evidence` | `content` |
+| `semops.feed.klv` | KLV-derived sensor/frame-center state | `c360.*.cop.klv.sensor_footprint.*` | `replace-owned` | `signal` |
 | `semops.feed.weather` | Tactical weather samples | `c360.*.cop.weather.weather_observation.*` | `replace-owned` | `signal` |
 | `semops.fusion.structural` | Fusion alert state | `c360.*.cop.fusion.alert.*` | `replace-owned` | `control` |
 
@@ -43,6 +46,10 @@ references, evidence, observed time, and confidence until a deterministic hazard
 Weather observation evidence is source-partitioned and signal-profiled. It owns localized variable samples with query
 shape, geometry, valid time, model time, freshness, unit, provenance, and confidence. It does not own CAP-style hazard
 authority, route decisions, task state, or operator advisories.
+
+SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
+absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are
+reviewed, and declares no association or tasking foreign edges.
 
 ## ADR-055/056 Born-First Discipline
 
@@ -111,8 +118,11 @@ failing SemOps tests or awkward duplicated code:
 - MAVLink and TAK strict track contracts are source-partitioned.
 - TAK binds track, task/control, and advisory/content contracts under the same feed owner without overlapping
   replace-owned predicates.
+- ADS-B and SAPIENT track contracts are source-partitioned, signal-profiled, and do not claim association foreign
+  edges.
 - Track foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with producer and target pattern.
 - Overlapping `replace-owned` predicates are rejected.
 - CAP evidence does not claim authoritative hazard state.
+- KLV sensor-footprint evidence owns sensor/frame-center state without claiming footprint polygons.
 - Weather observation evidence uses `signal` indexing and does not claim hazard, alert, task, or route-decision
   authority.

@@ -12,6 +12,7 @@ import (
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
+	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
 	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
 	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
@@ -345,7 +346,7 @@ func TestGraphProviderDiscoversADSBTracksByPrefix(t *testing.T) {
 	if track.Position.Lat != 38.9 || track.Position.Lon != -77.04 {
 		t.Fatalf("ADS-B track position = %+v", track.Position)
 	}
-	if len(snapshot.Feeds) != 6 ||
+	if len(snapshot.Feeds) != 7 ||
 		snapshot.Feeds[3].ID != "feed.adsb" ||
 		snapshot.Feeds[3].Status != "live" {
 		t.Fatalf("ADS-B feed = %+v", snapshot.Feeds)
@@ -358,6 +359,75 @@ func TestGraphProviderDiscoversADSBTracksByPrefix(t *testing.T) {
 		diagnostic.Count != 1 ||
 		diagnostic.AtLimit {
 		t.Fatalf("ADS-B diagnostic = %+v", diagnostic)
+	}
+}
+
+func TestGraphProviderDiscoversSAPIENTTracksByPrefix(t *testing.T) {
+	now := time.Date(2026, 6, 23, 16, 0, 0, 0, time.UTC)
+	observed := now.Add(-12 * time.Second)
+	platform := "edge-sapient"
+	objectID := "01GGYFBAXH4VYRQYEX7S3XGK3H"
+	trackID := sapientprojector.EntityID("c360", platform, objectID)
+	sourceRef := "sapient://raw/fixture/detection-001"
+	requester := &fakeGraphSnapshotRequester{
+		prefixEntities: map[string][]graph.EntityState{
+			graphEntityPrefix("c360", platform, "sapient", copmodel.EntityTrack): {{
+				ID:        trackID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(trackID, copmodel.TrackNativeID, "sapient.object.01ggyfbaxh4vyrqyex7s3xgk3h.node.a8654cdf-4328-47de-81fa-c495589e30c8.report.01ggyfbaxgdg7agahrz6xsny12", observed),
+					testTriple(trackID, copmodel.TrackStatus, "active.detection.person", observed),
+					testTriple(trackID, copmodel.TrackPosition, "POINT(-1.8223767 51.1739726)", observed),
+					testTriple(trackID, copmodel.TrackObservedAt, observed, observed),
+					testTriple(trackID, copmodel.ProvenanceSource, "sapient", observed),
+					testTriple(trackID, copmodel.ProvenanceConfidence, 0.91, observed),
+					testTriple(trackID, copmodel.ProvenanceObservedAt, observed, observed),
+					testTriple(trackID, copmodel.ProvenanceSourceRef, sourceRef, observed),
+				},
+			}},
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithGraphDiscoveryScopes([]GraphDiscoveryScope{{Org: "c360", Platform: platform}}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveTracks != 1 || len(snapshot.Tracks) != 1 {
+		t.Fatalf("track summary/list = %d/%d", snapshot.Summary.ActiveTracks, len(snapshot.Tracks))
+	}
+	track := snapshot.Tracks[0]
+	if track.ID != trackID ||
+		track.Label != objectID ||
+		track.Source != "sapient" ||
+		track.Provenance.Owner != copmodel.OwnerSAPIENT ||
+		track.Provenance.SourceRef != sourceRef {
+		t.Fatalf("SAPIENT track = %+v", track)
+	}
+	if track.Position.Lat != 51.1739726 || track.Position.Lon != -1.8223767 {
+		t.Fatalf("SAPIENT track position = %+v", track.Position)
+	}
+	if len(snapshot.Feeds) != 7 ||
+		snapshot.Feeds[4].ID != "feed.sapient" ||
+		snapshot.Feeds[4].Status != "live" {
+		t.Fatalf("SAPIENT feed = %+v", snapshot.Feeds)
+	}
+	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "sapient", copmodel.EntityTrack)
+	if !ok {
+		t.Fatalf("missing SAPIENT track discovery diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if diagnostic.Family != "sapient" ||
+		diagnostic.Count != 1 ||
+		diagnostic.AtLimit {
+		t.Fatalf("SAPIENT diagnostic = %+v", diagnostic)
 	}
 }
 
@@ -448,9 +518,9 @@ func TestGraphProviderMapsKLVSensorFootprints(t *testing.T) {
 		!strings.Contains(footprint.ClaimPosture, "no STANAG conformance") {
 		t.Fatalf("claim posture/warnings = %q / %+v", footprint.ClaimPosture, footprint.Warnings)
 	}
-	if len(snapshot.Feeds) != 6 ||
-		snapshot.Feeds[4].ID != "feed.klv" ||
-		snapshot.Feeds[4].Status != "live" {
+	if len(snapshot.Feeds) != 7 ||
+		snapshot.Feeds[5].ID != "feed.klv" ||
+		snapshot.Feeds[5].Status != "live" {
 		t.Fatalf("KLV feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "klv", copmodel.EntitySensorFootprint)
@@ -544,9 +614,9 @@ func TestGraphProviderMapsWeatherObservations(t *testing.T) {
 		!strings.Contains(observation.Label, "temperature_2m") {
 		t.Fatalf("weather label/posture = %q / %q", observation.Label, observation.ClaimPosture)
 	}
-	if len(snapshot.Feeds) != 6 ||
-		snapshot.Feeds[5].ID != "feed.weather" ||
-		snapshot.Feeds[5].Status != "live" {
+	if len(snapshot.Feeds) != 7 ||
+		snapshot.Feeds[6].ID != "feed.weather" ||
+		snapshot.Feeds[6].Status != "live" {
 		t.Fatalf("weather feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "weather", copmodel.EntityWeatherObservation)
@@ -796,7 +866,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if snapshot.Hazards[0].ID != hazardID || snapshot.Hazards[0].Source != "cap" {
 		t.Fatalf("hazard = %+v", snapshot.Hazards[0])
 	}
-	if len(requester.prefixRequests) != 10 {
+	if len(requester.prefixRequests) != 11 {
 		t.Fatalf("prefix requests = %+v", requester.prefixRequests)
 	}
 	for _, subject := range requester.subjects {
@@ -807,7 +877,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
-	if len(snapshot.Diagnostics.Discovery) != 10 {
+	if len(snapshot.Diagnostics.Discovery) != 11 {
 		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
 	}
 	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)

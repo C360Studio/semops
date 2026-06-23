@@ -642,8 +642,9 @@ First acceptance gate:
 ### SAPIENT
 
 Status: JSON and binary descriptor preflight, raw replay, preflight input/decoder components, opt-in app-runtime
-preflight wiring, and local decoded-stream smoke exist; harness qualification is still required before product support
-or conformance claims.
+preflight wiring, local decoded-stream smoke, and a narrow absolute-location detection projection/readback gate exist;
+harness qualification and runtime graph-production review are still required before product support or conformance
+claims.
 
 Compliance and sample evidence:
 
@@ -677,9 +678,14 @@ Local assets:
 - `cmd/semops-feed-fixtures` serves deterministic SAPIENT task-ack JSON for local Compose smoke tests, and
   `scripts/cop-stack-smoke.sh` verifies the hosted preflight chain publishes a typed decoded payload on the declared
   SAPIENT output stream.
-- No local SAPIENT harness run, generated Go bindings, product service adapter, or graph projector exists.
-- No `OwnerSAPIENT`, SAPIENT projection contract, graph writer, or graph-producing SAPIENT component exists yet. This
-  is intentional until projection ownership, indexing, and product service mode are reviewed.
+- `pkg/cop` now defines `OwnerSAPIENT` and a source-partitioned `signal` track contract for absolute-location
+  detection reports only.
+- `internal/projectors/sapient` plans create/update graph mutations for
+  `LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M` WGS84 detection reports and rejects range/bearing, UTM, unsupported
+  datum, or invalid latitude/longitude inputs.
+- `internal/api/cop` can read prefix-discovered SAPIENT tracks back into COP snapshots and source-health state.
+- No local SAPIENT harness run, generated Go bindings, product service adapter, graph writer, or graph-producing
+  SAPIENT component exists.
 
 Mock or harness:
 
@@ -716,11 +722,16 @@ First acceptance gate:
   task-ack payload on `semops.feed.sapient.decoded` without adding SAPIENT graph ownership or projector subscriptions.
 - The same smoke asserts Prometheus component health and flow samples for the SAPIENT HTTP input and decoder through
   SemOps `/metrics`; this remains preflight telemetry, not product support or conformance evidence.
+- Given an absolute-location SAPIENT detection report using `LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M` and WGS84
+  datum, SemOps can plan signal-profiled source-owned track mutations and read equivalent graph state through
+  `GET /api/cop/snapshot` prefix discovery. [done for projector/API tests only]
+- Given UTM or range/bearing SAPIENT detections, SemOps rejects projection until coordinate conversion, source sensor
+  pose, reference frame, and uncertainty policy are accepted. [done]
 - Given SemOps-generated SAPIENT messages, the Dstl v2 Test Harness result is recorded before any SAPIENT
   compliance claim appears in demo materials.
 - Given a future product-hosted SAPIENT feed, SemOps promotes beyond preflight only after service mode, projection
-  ownership, indexing, and harness scope are reviewed. The current runtime path is preflight-only and must not be read
-  as product hosted-service support.
+  ownership, indexing, backpressure, and harness scope are reviewed. The current runtime path is preflight-only and
+  must not be read as product hosted-service support.
 
 ### KLV/STANAG 4609
 

@@ -348,6 +348,7 @@ type graphDiscoveryResult struct {
 	mavlink     bool
 	cot         bool
 	cap         bool
+	sapient     bool
 	klv         bool
 	weather     bool
 	diagnostics []DiscoveryDiagnostic
@@ -387,6 +388,8 @@ func (p *GraphProvider) discoverInto(
 				result.cap = true
 			case "klv":
 				result.klv = true
+			case "sapient":
+				result.sapient = true
 			case "weather":
 				result.weather = true
 			}
@@ -413,7 +416,7 @@ func (p *GraphProvider) discoverInto(
 }
 
 func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
-	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*8)
+	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*11)
 	for _, scope := range p.discovery.Scopes {
 		targets = append(targets,
 			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityAsset, "mavlink"),
@@ -424,6 +427,7 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityAdvisory, "cot"),
 			newGraphDiscoveryTarget(scope, "cap", copmodel.EntityHazardArea, "cap"),
 			newGraphDiscoveryTarget(scope, "adsb", copmodel.EntityTrack, "adsb"),
+			newGraphDiscoveryTarget(scope, "sapient", copmodel.EntityTrack, "sapient"),
 			newGraphDiscoveryTarget(scope, "klv", copmodel.EntitySensorFootprint, "klv"),
 			newGraphDiscoveryTarget(scope, "weather", copmodel.EntityWeatherObservation, "weather"),
 		)
@@ -781,6 +785,8 @@ func sourceLabel(source string) string {
 		return "CAP"
 	case "adsb":
 		return "ADS-B"
+	case "sapient":
+		return "SAPIENT"
 	case "klv":
 		return "KLV"
 	case "weather":
@@ -804,6 +810,8 @@ func feedIDForDiscoverySource(source string) string {
 		return "feed.cap"
 	case "adsb":
 		return "feed.adsb"
+	case "sapient":
+		return "feed.sapient"
 	case "klv":
 		return "feed.klv"
 	case "weather":
@@ -877,6 +885,21 @@ func firstPhaseFeedHealth(
 		adsb.Status = "planned"
 		adsb.LastEventAt = now.Add(-45 * time.Minute)
 	}
+	sapientTracks := filterTracksBySource(tracks, "sapient")
+	sapient := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.sapient",
+		"SAPIENT",
+		"sensor-network",
+		"SAPIENT projection gate pending",
+		"Graph-backed SAPIENT absolute-location detections",
+		trackObservationTimes(sapientTracks),
+	)
+	if len(sapientTracks) == 0 {
+		sapient.Status = "planned"
+		sapient.LastEventAt = now.Add(-47 * time.Minute)
+	}
 	klv := feedHealthFromObservations(
 		now,
 		freshness,
@@ -892,7 +915,7 @@ func firstPhaseFeedHealth(
 		klv.LastEventAt = now.Add(-50 * time.Minute)
 	}
 	weatherFeed := weatherFeedHealth(now, freshness, weather)
-	return []FeedHealth{mavlink, tak, cap, adsb, klv, weatherFeed}
+	return []FeedHealth{mavlink, tak, cap, adsb, sapient, klv, weatherFeed}
 }
 
 func weatherFeedHealth(now time.Time, freshness time.Duration, observations []WeatherObservation) FeedHealth {
@@ -1543,6 +1566,9 @@ func sourceFromEntityID(entityID string) string {
 	if strings.Contains(entityID, ".cop.adsb.") {
 		return "adsb"
 	}
+	if strings.Contains(entityID, ".cop.sapient.") {
+		return "sapient"
+	}
 	if strings.Contains(entityID, ".cop.klv.") {
 		return "klv"
 	}
@@ -1562,6 +1588,8 @@ func ownerForSource(source string) string {
 		return copmodel.OwnerCAP
 	case "adsb":
 		return copmodel.OwnerADSB
+	case "sapient":
+		return copmodel.OwnerSAPIENT
 	case "klv":
 		return copmodel.OwnerKLV
 	case "weather":
@@ -1751,6 +1779,9 @@ func trackLabel(entity graph.EntityState) string {
 	if aircraftID := adsbIDFromNativeID(nativeID); aircraftID != "" {
 		return aircraftID
 	}
+	if objectID := sapientObjectIDFromNativeID(nativeID); objectID != "" {
+		return objectID
+	}
 	if systemID := systemIDFromNativeID(nativeID); systemID != "" {
 		return "UAS " + systemID
 	}
@@ -1773,6 +1804,14 @@ func cotUIDFromNativeID(nativeID string) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.TrimPrefix(nativeID, "cot.uid."))
+}
+
+func sapientObjectIDFromNativeID(nativeID string) string {
+	parts := strings.Split(strings.TrimSpace(nativeID), ".")
+	if len(parts) < 3 || parts[0] != "sapient" || parts[1] != "object" {
+		return ""
+	}
+	return strings.ToUpper(strings.TrimSpace(parts[2]))
 }
 
 func adsbIDFromNativeID(nativeID string) string {
