@@ -37,6 +37,15 @@ data are not confused.
 - **AND** committed fixtures are intentionally small, deterministic, and replayable without live network access
 - **AND** committed fixtures do not imply product, standards, or provider conformance beyond their manifest scope
 
+#### Scenario: Fixture manifest is executable evidence
+
+- **WHEN** a fixture manifest entry is added or changed
+- **THEN** an automated manifest test verifies the manifest version, unique fixture IDs, required provenance and claim
+  scope fields, allowed promotion tier and commit status values, and readable review files
+- **AND** committed fixture artifacts must match the manifest SHA-256 and byte size
+- **AND** ignored live captures remain optional local files, but when present they must match the manifest SHA-256 and
+  byte size
+
 #### Scenario: Derived story fixtures are labeled synthetic
 
 - **WHEN** SemOps derives a coherent demo lifecycle from live captures, public examples, or hand-authored truth data

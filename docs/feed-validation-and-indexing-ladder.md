@@ -96,6 +96,12 @@ Recommended fixture manifest fields:
 - `observed_fields`
 - `synthetic_fields`
 
+SemOps keeps the first executable fixture ledger at `fixtures/manifest.json`. `go test ./internal/fixturemanifest`
+validates the manifest version, unique fixture IDs, allowed tier/status values, required provenance/scope/review
+fields, readable review files, and SHA-256/size for committed artifacts. Ignored live captures remain optional local
+files, but the same test verifies their SHA-256/size when they are present. New portable fixture files should enter
+the manifest in the same change that introduces or promotes them.
+
 The first scenario-runner core lives in `internal/scenario`. It replays generated MAVLink, deterministic TAK/CoT seed
 events, and CAP lifecycle XML records through the real adapter/projector seams and exposes a pollable run status.
 `cmd/semops-scenario-runner` hosts that core in the local Compose stack and the stack smoke polls
