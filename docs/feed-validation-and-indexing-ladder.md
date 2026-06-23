@@ -271,6 +271,8 @@ Compliance and sample evidence:
 Local assets:
 
 - `pkg/adapters/cap` parses the CAP 1.2 subset needed for deterministic civilian-warning fixtures.
+- `pkg/adapters/cap` rejects wrong or missing CAP 1.2 namespaces and validates enum-shaped consumer fields before
+  graph writes. This is namespace/consumer-rule preflight evidence, not formal XSD conformance.
 - `pkg/adapters/cap` stores replayable raw XML CAP alert records and includes a HA/DR flood lifecycle fixture with
   alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
@@ -288,7 +290,7 @@ Mock or harness:
 - Use local CAP fixtures for the parser gate.
 - Use the local HA/DR flood lifecycle fixture for deterministic replay without requiring live NWS calls.
 - Use NWS alert samples for realistic civilian-warning input.
-- Validate XML schema and CAP consumer rules before claiming CAP consumer conformance.
+- Validate formal XML schema and CAP consumer profile rules before claiming CAP consumer conformance.
 
 Indexing profile pressure:
 
@@ -309,6 +311,10 @@ Current commands:
 go test ./pkg/adapters/cap ./internal/projectors/cap ./internal/api/cop ./internal/smoke/cap ./internal/components/cap
 go test ./internal/scenario
 ```
+
+The CAP adapter command now proves wrong/missing CAP 1.2 namespaces, invalid `status`/`msgType`/`scope` values,
+invalid `info` category/severity-style values, invalid `expires` ordering, and missing `areaDesc` values fail before
+graph writes.
 
 Current component gate:
 
@@ -338,7 +344,7 @@ authoritative hazard geometry, severity, or status predicates.
 Remaining gates:
 
 - NWS samples captured as deterministic fixtures.
-- XML schema and CAP consumer-rule validation.
+- Formal XML schema validation and captured NWS sample replay.
 - NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local synthetic lifecycle fixture.
 - Real NWS/IPAWS/vendor sample capture for the opt-in `SEMOPS_CAP_ENABLED=true` runtime chain.
 - Default live-provider enablement; Compose exposes CAP knobs but keeps hosted public-alert polling disabled by default.

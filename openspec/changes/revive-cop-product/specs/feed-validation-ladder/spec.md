@@ -57,6 +57,8 @@ become dead-end architecture.
 - **AND** component health can report stale CAP polling when no fresh payload arrives within the configured
   `stale_after` threshold
 - **AND** the opt-in runtime can capture provider-shaped CAP HTTP responses as replayable native CAP XML records
+- **AND** CAP parser preflight rejects wrong or missing CAP 1.2 namespaces and invalid CAP 1.2 consumer-rule fields
+  before graph projection
 - **AND** SemOps does not claim hosted CAP polling, webhook, NWS/IPAWS integration, or alert feed service support until
   opt-in runtime wiring is backed by captured provider samples and alert lifecycle gates for that boundary
 

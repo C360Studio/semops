@@ -102,14 +102,76 @@ func (a Alert) Validate() error {
 	if strings.TrimSpace(a.Status) == "" {
 		return errors.New("cap alert status is required")
 	}
+	if !capAllowedStatus[a.Status] {
+		return fmt.Errorf("cap alert status %q is not valid CAP 1.2", a.Status)
+	}
 	if strings.TrimSpace(a.MsgType) == "" {
 		return errors.New("cap alert msgType is required")
+	}
+	if !capAllowedMsgType[a.MsgType] {
+		return fmt.Errorf("cap alert msgType %q is not valid CAP 1.2", a.MsgType)
 	}
 	if strings.TrimSpace(a.Scope) == "" {
 		return errors.New("cap alert scope is required")
 	}
+	if !capAllowedScope[a.Scope] {
+		return fmt.Errorf("cap alert scope %q is not valid CAP 1.2", a.Scope)
+	}
 	if len(a.Infos) == 0 {
 		return errors.New("cap alert requires at least one info block")
+	}
+	for index, info := range a.Infos {
+		if err := info.Validate(); err != nil {
+			return fmt.Errorf("cap info %d: %w", index+1, err)
+		}
+	}
+	return nil
+}
+
+func (i Info) Validate() error {
+	if len(i.Categories) == 0 {
+		return errors.New("category is required")
+	}
+	for _, category := range i.Categories {
+		if !capAllowedCategory[category] {
+			return fmt.Errorf("category %q is not valid CAP 1.2", category)
+		}
+	}
+	if strings.TrimSpace(i.Event) == "" {
+		return errors.New("event is required")
+	}
+	if strings.TrimSpace(i.Urgency) == "" {
+		return errors.New("urgency is required")
+	}
+	if !capAllowedUrgency[i.Urgency] {
+		return fmt.Errorf("urgency %q is not valid CAP 1.2", i.Urgency)
+	}
+	if strings.TrimSpace(i.Severity) == "" {
+		return errors.New("severity is required")
+	}
+	if !capAllowedSeverity[i.Severity] {
+		return fmt.Errorf("severity %q is not valid CAP 1.2", i.Severity)
+	}
+	if strings.TrimSpace(i.Certainty) == "" {
+		return errors.New("certainty is required")
+	}
+	if !capAllowedCertainty[i.Certainty] {
+		return fmt.Errorf("certainty %q is not valid CAP 1.2", i.Certainty)
+	}
+	if !i.Effective.IsZero() && !i.Expires.IsZero() && i.Expires.Before(i.Effective) {
+		return errors.New("expires must not be before effective")
+	}
+	for index, area := range i.Areas {
+		if err := area.Validate(); err != nil {
+			return fmt.Errorf("area %d: %w", index+1, err)
+		}
+	}
+	return nil
+}
+
+func (a Area) Validate() error {
+	if strings.TrimSpace(a.AreaDesc) == "" {
+		return errors.New("areaDesc is required")
 	}
 	return nil
 }
@@ -184,6 +246,9 @@ type xmlResource struct {
 }
 
 func (x xmlAlert) toAlert() (Alert, error) {
+	if x.XMLName.Space != NamespaceCAP12 {
+		return Alert{}, fmt.Errorf("cap alert namespace = %q, want %q", x.XMLName.Space, NamespaceCAP12)
+	}
 	sent, err := parseOptionalTime(x.Sent)
 	if err != nil {
 		return Alert{}, fmt.Errorf("cap sent: %w", err)
@@ -368,3 +433,60 @@ func convertNameValues(values []xmlNameValue) []NameValue {
 	}
 	return out
 }
+
+var (
+	capAllowedStatus = map[string]bool{
+		"Actual":   true,
+		"Exercise": true,
+		"System":   true,
+		"Test":     true,
+		"Draft":    true,
+	}
+	capAllowedMsgType = map[string]bool{
+		"Alert":  true,
+		"Update": true,
+		"Cancel": true,
+		"Ack":    true,
+		"Error":  true,
+	}
+	capAllowedScope = map[string]bool{
+		"Public":     true,
+		"Restricted": true,
+		"Private":    true,
+	}
+	capAllowedCategory = map[string]bool{
+		"Geo":       true,
+		"Met":       true,
+		"Safety":    true,
+		"Security":  true,
+		"Rescue":    true,
+		"Fire":      true,
+		"Health":    true,
+		"Env":       true,
+		"Transport": true,
+		"Infra":     true,
+		"CBRNE":     true,
+		"Other":     true,
+	}
+	capAllowedUrgency = map[string]bool{
+		"Immediate": true,
+		"Expected":  true,
+		"Future":    true,
+		"Past":      true,
+		"Unknown":   true,
+	}
+	capAllowedSeverity = map[string]bool{
+		"Extreme":  true,
+		"Severe":   true,
+		"Moderate": true,
+		"Minor":    true,
+		"Unknown":  true,
+	}
+	capAllowedCertainty = map[string]bool{
+		"Observed": true,
+		"Likely":   true,
+		"Possible": true,
+		"Unlikely": true,
+		"Unknown":  true,
+	}
+)

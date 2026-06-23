@@ -4,8 +4,8 @@ Status: initial Phase 1 parser/projection/readback slice exists, with determinis
 derived lifecycle-status readback, a skipped-by-default live graph smoke for born-first append-evidence behavior, and
 the first hosted HTTP poller, decoder, and graph-projector component package. The app runtime can compose that chain
 behind `SEMOPS_CAP_ENABLED=true`, and `SEMOPS_CAP_REPLAY_PATH` can capture provider-shaped raw CAP XML replay records,
-while default live-provider enablement remains off. Live NWS fixture capture, XML schema validation, and consumer-rule
-coverage remain open.
+while default live-provider enablement remains off. CAP 1.2 namespace and consumer-rule preflight validation exists,
+but live NWS fixture capture and formal XML schema validation remain open.
 
 ## Decision
 
@@ -26,6 +26,11 @@ semantics.
 
 - `pkg/adapters/cap` parses CAP alert, info, area, polygon, circle, resource, geocode, and parameter fields used by
   the first civilian-warning fixtures.
+- `pkg/adapters/cap` rejects wrong or missing CAP 1.2 namespaces and validates top-level CAP 1.2 `status`,
+  `msgType`, and `scope` enumerations plus required `info` category/event/urgency/severity/certainty,
+  `effective`/`expires` ordering, and `areaDesc` fields before graph writes.
+- See `openspec/changes/revive-cop-product/reviews/2026-06-23-cap-consumer-rule-preflight-review.md` for the
+  validation-scope review.
 - `pkg/adapters/cap` stores replayable raw XML CAP records and provides a HA/DR flood lifecycle fixture covering
   alert, update, cancel, and expired-alert records.
 - `internal/projectors/cap` births source-partitioned `hazard_area` entities and appends CAP evidence through the
@@ -68,8 +73,10 @@ Acceptance:
 
 - Local CAP examples parse into alert, info, resource, and area structures.
 - Polygon and circle areas are preserved as geometry evidence.
-- Message, producer, and consumer conformance rules are represented as tests where practical.
+- Message and consumer-rule preflight coverage is represented as tests where practical.
 - Malformed XML and invalid required fields fail before graph writes.
+- Wrong/missing CAP 1.2 namespaces, invalid enumerations, invalid lifecycle time ordering, and missing `areaDesc`
+  values fail before graph writes. [done]
 
 ### Sample Source Gate
 
@@ -183,12 +190,14 @@ Acceptance:
 
 - EDXL beyond CAP is not scoped for Phase 1.
 - NWS is a useful public source, but live NWS calls should not be required for deterministic CI.
-- CAP conformance should be stated as schema/consumer-rule evidence until we implement a proper consumer profile.
+- CAP conformance should be stated as namespace/consumer-rule preflight evidence until formal XML schema validation
+  and a proper consumer profile exist.
 - The initial `internal/components/cap` package is wired into the app runtime and Compose as an explicit opt-in, but
   `SEMOPS_CAP_ENABLED` defaults to `false` and does not fetch live NWS alerts by default.
 - `SEMOPS_CAP_REPLAY_PATH` is optional and empty by default; setting it captures decoded CAP raw XML records from the
   opt-in runtime path.
 - Captured NWS update/cancel/expire fixture replay is still missing.
+- Formal CAP 1.2 XSD validation is still missing.
 - Provider-specific stale-source review is still needed after captured NWS/IPAWS/vendor fixtures exist; the current
   stale-source gate is component-level health behavior with deterministic local HTTP tests.
 - Default live-provider CAP polling is still not enabled in the default Compose stack.

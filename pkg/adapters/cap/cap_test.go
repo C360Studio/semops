@@ -89,6 +89,46 @@ func TestParseRejectsInvalidCAP(t *testing.T) {
 			want: "identifier",
 		},
 		{
+			name: "missing namespace",
+			body: strings.Replace(sampleCAPAlert, `<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">`, `<alert>`, 1),
+			want: "namespace",
+		},
+		{
+			name: "wrong namespace",
+			body: strings.Replace(sampleCAPAlert, NamespaceCAP12, "urn:example:not-cap", 1),
+			want: "namespace",
+		},
+		{
+			name: "invalid status enum",
+			body: strings.Replace(sampleCAPAlert, "<status>Actual</status>", "<status>Live</status>", 1),
+			want: "status",
+		},
+		{
+			name: "invalid msgType enum",
+			body: strings.Replace(sampleCAPAlert, "<msgType>Alert</msgType>", "<msgType>Notice</msgType>", 1),
+			want: "msgType",
+		},
+		{
+			name: "missing info category",
+			body: strings.Replace(sampleCAPAlert, "    <category>Met</category>\n", "", 1),
+			want: "category",
+		},
+		{
+			name: "invalid severity enum",
+			body: strings.Replace(sampleCAPAlert, "<severity>Severe</severity>", "<severity>Bad</severity>", 1),
+			want: "severity",
+		},
+		{
+			name: "expires before effective",
+			body: strings.Replace(sampleCAPAlert, "<expires>2026-06-19T18:04:05Z</expires>", "<expires>2026-06-19T14:04:05Z</expires>", 1),
+			want: "expires",
+		},
+		{
+			name: "missing areaDesc",
+			body: strings.Replace(sampleCAPAlert, "      <areaDesc>North Branch</areaDesc>\n", "", 1),
+			want: "areaDesc",
+		},
+		{
 			name: "invalid polygon",
 			body: strings.Replace(sampleCAPAlert, "38.895,-77.012 38.907,-77.011 38.908,-76.992 38.896,-76.991", "38.895,-77.012 38.907,-77.011", 1),
 			want: "polygon",
