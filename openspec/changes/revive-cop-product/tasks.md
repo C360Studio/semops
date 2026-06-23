@@ -105,7 +105,7 @@
 - [x] 5.26 Record official SAPIENT GOV.UK, BSI Flex 335 v2, Dstl protobuf, test-harness, and Apex middleware anchors
 - [ ] 5.27 Run or qualify the Dstl BSI Flex 335 v2 Test Harness before SAPIENT compliance claims
 - [x] 5.28 Add parser-only SAPIENT BSI Flex 335 v2 JSON preflight fixture gate before graph projection
-- [ ] 5.29 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
+- [x] 5.29 Evaluate a portable Linux/CI-friendly SAPIENT preflight suite as an ecosystem contribution
 - [x] 5.30 Add SAPIENT BSI Flex 335 v2 descriptor-based binary payload decode gate
 - [x] 5.31 Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptors
 - [x] 5.32 Add bounded SAPIENT raw lane and replay for JSON/binary preflight payloads

@@ -659,7 +659,8 @@ Compliance and sample evidence:
   access.
 - The Windows-only harness posture is itself product pressure: a future SemOps/ecosystem effort should create a
   portable Linux/CI-friendly SAPIENT preflight suite, while keeping official compliance claims tied to the Dstl
-  harness or another accepted authority.
+  harness or another accepted authority. The portable suite is evaluated as a useful ecosystem contribution and
+  developer-preflight gate, not an MVP blocker or a compliance substitute.
 
 Local assets:
 

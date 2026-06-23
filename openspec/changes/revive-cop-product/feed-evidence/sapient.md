@@ -114,6 +114,18 @@ Acceptance:
 
 ### Portable Preflight Suite Gate
 
+Decision:
+
+- A portable Linux/CI-friendly SAPIENT preflight suite would be valuable as an ecosystem contribution and developer
+  preflight gate.
+- It is not required for the SemOps COP MVP because SemOps already has bounded parser, descriptor-binary, replay,
+  component-flow, and graph-projection evidence for its narrow SAPIENT subset.
+- It must not be described as compliance unless Dstl, BSI, or another accepted authority treats it as a substitute for
+  the official harness.
+- It should reuse official BSI Flex 335 v2 protobufs and fixture corpora where redistribution allows, and use
+  synthetic fixtures only when clearly labeled as developer interoperability evidence.
+- See `openspec/changes/revive-cop-product/reviews/2026-06-23-sapient-portable-preflight-suite-review.md`.
+
 Future effort:
 
 - Create or contribute a cross-platform SAPIENT preflight suite that can run in Linux CI from official BSI Flex 335 v2
@@ -126,6 +138,7 @@ Acceptance:
   messages, and malformed binary payloads.
 - It is described as developer preflight or interoperability evidence until Dstl, BSI, or another accepted authority
   treats it as a compliance substitute.
+- SemOps records this as evaluated and deferred from the MVP critical path. [done]
 
 ### Parser Gate
 
