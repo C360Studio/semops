@@ -297,7 +297,8 @@ Acceptance:
 
 Target artifact:
 
-- Public sample smoke: a small or locally cached video-plus-KLV sample with documented license and provenance.
+- Public sample smoke: a small or locally cached video-plus-KLV sample with documented source and provenance. The
+  current `Day Flight.mpg` candidate is not cleared for vendoring, CI, or portable demo use.
 - Deterministic fixture: truth JSON, generated KLV payloads, optional generated MPEG-TS wrapper, and expected decoded
   output.
 
@@ -311,6 +312,8 @@ Acceptance:
 - The 2026-06-22 local `Day Flight.mpg` candidate smoke passed with SHA-256
   `a491ceff524b0008e3076d9eb30782badac2d53053731accc0a4e1226177260e`, size `102004664` bytes, FFmpeg `8.1.1`, and
   ffprobe `8.1.1`. This is real-world smoke evidence only, not redistribution clearance or conformance. [done]
+- The 2026-06-23 provenance review found no explicit redistribution license grant for `Day Flight.mpg`; keep it as
+  ignored local smoke input only. [done]
 - Deterministic fixture output matches the source truth field set and numeric values within MISB integer quantization
   tolerances for the supported fields. [done]
 - Deterministic MPEG-TS wrapping proves generated KLV packet bytes survive a local media-container mux/demux cycle
@@ -422,8 +425,8 @@ Acceptance:
 - No public small legal KLV MPEG-TS sample has passed SemOps redistribution/license review yet; the opt-in smoke gate
   now exists for local candidate samples with explicit provenance notes.
 - No production MPEG-TS/live-media demux strategy chosen beyond the fixture-grade FFmpeg/ffprobe worker path.
-- Public `Day Flight.mpg` candidate smoke has passed locally, but no public KLV sample has passed SemOps
-  redistribution/license review.
+- Public `Day Flight.mpg` candidate smoke has passed locally, but it failed current SemOps redistribution/license
+  review for vendoring and CI because no explicit media license grant was identified.
 - No committed MPEG-TS binary is vendored; deterministic MPEG-TS wrapping is generated in local tests from the truth
   fixture when FFmpeg tooling is present.
 - Media-reference input now publishes configured local file references in the opt-in hosted runtime, but it is not a

@@ -16,6 +16,8 @@ explicit provenance notes.
   repository license does not clear the FFmpeg-hosted MPEG-TS sample for redistribution.
 - FFmpeg legal notes: <https://ffmpeg.org/legal.html> apply to FFmpeg itself. SemOps invokes an installed FFmpeg
   binary for optional smoke tests and does not vendor FFmpeg or media samples.
+- 2026-06-23 provenance review: the FFmpeg-hosted `Day Flight.mpg` sample remains ignored local smoke evidence only
+  because no explicit redistribution license grant was identified for the MPEG-TS media sample.
 
 ## Run
 
@@ -57,6 +59,8 @@ Passing this smoke means "real-world demux/parser path exercised once." It does 
 official STANAG 4609 conformance, public-sample redistribution clearance, live media support, or streaming-binary
 product support.
 
+The public sample remains outside `fixtures/manifest.json` because it is not cleared as portable demo data.
+
 ## Recorded Runs
 
 2026-06-22 local candidate smoke:
@@ -69,9 +73,11 @@ product support.
 - Command:
 
 ```bash
+PROVENANCE="local-download-from-ffmpeg-sample-archive-2026-06-22-"
+PROVENANCE="${PROVENANCE}sha256-a491ceff524b0008e3076d9eb30782badac2d53053731accc0a4e1226177260e"
 SEMOPS_KLV_PUBLIC_SAMPLE_PATH="fixtures/klv/public-samples/day-flight.mpg" \
 SEMOPS_KLV_PUBLIC_SAMPLE_SOURCE_URL="https://samples.ffmpeg.org/MPEG2/mpegts-klv/Day%20Flight.mpg" \
-SEMOPS_KLV_PUBLIC_SAMPLE_PROVENANCE="local-download-from-ffmpeg-sample-archive-2026-06-22-sha256-a491ceff524b0008e3076d9eb30782badac2d53053731accc0a4e1226177260e" \
+SEMOPS_KLV_PUBLIC_SAMPLE_PROVENANCE="$PROVENANCE" \
 go test ./internal/components/klv -run TestPublicKLVSampleSmokeWithLocalPath -count=1 -v
 ```
 

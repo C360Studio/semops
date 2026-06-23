@@ -126,7 +126,8 @@
 - [x] 5.46 Accept SemSource beta.114 binary boundary while keeping KLV/MISB/STANAG details in SemOps
 - [x] 5.47 Design the SemOps-owned KLV/MISB worker boundary from storage references to governed derived facts
 - [x] 5.48 Record public-sample versus deterministic fixture strategy for KLV/MISB
-- [ ] 5.49 Verify public KLV sample license/provenance before vendoring, downloading, or using in CI
+- [x] 5.49 Verify public KLV sample license/provenance before vendoring, downloading, or using in CI; conclusion:
+      `Day Flight.mpg` stays ignored local smoke input only
 - [x] 5.50 Choose parser and demux strategy for the first KLV/MISB worker spike
 - [x] 5.51 Define first `semops.klv_*` payload registry schemas with SemStreams BaseMessage round-trip tests
 - [x] 5.52 Define SemStreams component port skeletons for media-ref input, demux, decode, and projector stages
