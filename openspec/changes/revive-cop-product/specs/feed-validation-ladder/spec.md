@@ -179,6 +179,8 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the command intent SHALL include authority, priority, expiry or TTL-derived deadline, correlation ID,
   idempotency key, requested-by, desired-state, status, provenance, and a strict born-first target asset edge
 - **AND** the command-intent planner SHALL reject malformed or expired desired state before producing graph mutations
+- **AND** command-intent status values SHALL be constrained to a documented lifecycle vocabulary with deterministic
+  terminal-status and transition validation before handler or native-driver code can invent new states
 - **AND** the command-intent planner SHALL NOT birth target assets or transmit native feed commands
 - **AND** admission SHALL reject unresolved target assets before producing graph mutations
 - **AND** admission SHALL collapse duplicate idempotency keys before producing graph mutations

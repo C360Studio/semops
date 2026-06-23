@@ -113,6 +113,7 @@ func TestProjectorRejectsMalformedCommandIntent(t *testing.T) {
 		{name: "missing native id", edit: func(i *Intent) { i.NativeID = "" }, want: "native_id"},
 		{name: "missing target", edit: func(i *Intent) { i.TargetAssetID = "" }, want: "target asset id"},
 		{name: "missing kind", edit: func(i *Intent) { i.Kind = "" }, want: "kind"},
+		{name: "unknown status", edit: func(i *Intent) { i.Status = "approved" }, want: "approved"},
 		{name: "missing desired state", edit: func(i *Intent) { i.DesiredState = "" }, want: "desired_state"},
 		{name: "missing authority", edit: func(i *Intent) { i.Authority = "" }, want: "authority"},
 		{name: "priority too low", edit: func(i *Intent) { i.Priority = 0 }, want: "priority"},

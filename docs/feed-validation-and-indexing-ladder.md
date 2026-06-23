@@ -657,6 +657,9 @@ Indexing profile pressure:
   transmitter is connected.
 - `internal/projectors/command` is the pure planner gate for desired tasking state. It validates impedance fields,
   writes only command-intent task mutations, and deliberately does not birth target assets or transmit native commands.
+- The command-intent lifecycle vocabulary is constrained to requested, accepted, executing, cancel_requested,
+  cancelled, superseded, succeeded, failed, rejected, expired, timeout, and duplicate. Transition validation blocks
+  unsafe jumps such as requested-to-executing or terminal-to-active before handler code exists.
 - The guarded command-intent projector adds admission checks before planning: target asset resolution, wall-clock
   expiry rejection, and duplicate idempotency collapse. It still has no live writer, UI, CS API handler, or transmitter.
 - The command-intent arbitrator ranks active intents per target by local override, authority rank, priority,

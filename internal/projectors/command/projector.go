@@ -238,6 +238,9 @@ func (i Intent) validate() error {
 	if strings.TrimSpace(i.Kind) == "" {
 		return fmt.Errorf("command intent kind is required")
 	}
+	if err := validateStatus(i.Status); err != nil {
+		return err
+	}
 	if strings.TrimSpace(i.DesiredState) == "" {
 		return fmt.Errorf("command intent desired_state is required")
 	}

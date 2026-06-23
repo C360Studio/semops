@@ -13,11 +13,6 @@ const (
 	ArbitrationIgnored    ArbitrationOutcome = "ignored"
 )
 
-const (
-	StatusAccepted   = "accepted"
-	StatusSuperseded = "superseded"
-)
-
 type ArbitrationConfig struct {
 	AuthorityRanks         map[string]int
 	LocalAuthorities       []string
@@ -110,7 +105,7 @@ func (a *Arbitrator) Arbitrate(intents []Intent) (ArbitrationResult, error) {
 func (r ArbitrationResult) NativeExecutionCandidates() []Intent {
 	out := make([]Intent, 0, len(r.Decisions))
 	for _, decision := range r.Decisions {
-		if decision.Outcome != ArbitrationAccepted {
+		if decision.Outcome != ArbitrationAccepted || !nativeExecutionEligible(decision.Status) {
 			continue
 		}
 		intent := decision.Intent
@@ -187,21 +182,8 @@ func (a *Arbitrator) authorityRank(authority string) int {
 	return 100
 }
 
-func isTerminalStatus(status string) bool {
-	switch normalizeStatus(status) {
-	case "cancelled", "duplicate", "expired", "failed", "rejected", "succeeded", "superseded", "timeout":
-		return true
-	default:
-		return false
-	}
-}
-
 func normalizeAuthority(authority string) string {
 	return strings.ToLower(strings.TrimSpace(authority))
-}
-
-func normalizeStatus(status string) string {
-	return strings.ToLower(strings.TrimSpace(status))
 }
 
 func defaultAuthorityRanks() map[string]int {
