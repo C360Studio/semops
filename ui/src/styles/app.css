@@ -86,7 +86,7 @@ h3 {
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(64px, 1fr));
+  grid-template-columns: repeat(6, minmax(64px, 1fr));
   gap: 8px;
 }
 
@@ -132,6 +132,7 @@ h3 {
 
 .icon-button:hover,
 .task-row:hover,
+.association-row:hover,
 .alert-row:hover {
   border-color: #5d8f7d;
   background: #f4fbf8;
@@ -140,6 +141,7 @@ h3 {
 .icon-button:focus-visible,
 .map-selector-button:focus-visible,
 .task-row:focus-visible,
+.association-row:focus-visible,
 .alert-row:focus-visible {
   outline: 3px solid rgba(29, 120, 150, 0.38);
   outline-offset: 2px;
@@ -156,6 +158,7 @@ h3 {
 .side-panel,
 .feed-strip,
 .task-strip,
+.association-strip,
 .alert-strip {
   border: 1px solid #cbd6d0;
   border-radius: 8px;
@@ -300,6 +303,11 @@ h3 {
   background: #4e8697;
 }
 
+.map-selector-button.association {
+  border-color: #3a6b67;
+  background: #4d837c;
+}
+
 .map-selector-button.selected {
   outline: 3px solid rgba(255, 255, 255, 0.9);
   box-shadow:
@@ -389,6 +397,7 @@ h3 {
 
 .feed-strip,
 .task-strip,
+.association-strip,
 .alert-strip {
   display: grid;
   gap: 10px;
@@ -515,11 +524,13 @@ h3 {
 }
 
 .task-strip,
+.association-strip,
 .alert-strip {
   align-content: start;
 }
 
 .task-row,
+.association-row,
 .alert-row {
   min-height: 44px;
   display: grid;
@@ -543,8 +554,19 @@ h3 {
   color: #312541;
 }
 
+.association-row {
+  border-color: #cfdedb;
+  border-left-color: #4d837c;
+  background: #f4fbfa;
+  color: #243b38;
+}
+
 .task-row.selected {
   outline: 2px solid rgba(118, 86, 166, 0.32);
+}
+
+.association-row.selected {
+  outline: 2px solid rgba(77, 131, 124, 0.32);
 }
 
 .alert-row.selected {
@@ -552,6 +574,7 @@ h3 {
 }
 
 .task-row span,
+.association-row span,
 .alert-row span {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -560,6 +583,7 @@ h3 {
 }
 
 .task-row small,
+.association-row small,
 .alert-row small {
   font-size: 0.72rem;
   font-weight: 850;
@@ -568,6 +592,10 @@ h3 {
 
 .task-row small {
   color: #694b95;
+}
+
+.association-row small {
+  color: #356a64;
 }
 
 .alert-row small {

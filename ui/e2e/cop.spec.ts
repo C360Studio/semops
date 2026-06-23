@@ -73,20 +73,29 @@ const snapshotWithADSB: Snapshot = {
         count: 1,
         limit: 500,
         at_limit: false
+      },
+      {
+        org: 'c360',
+        platform: 'edge-compose',
+        source: 'fusion',
+        family: 'fusion',
+        entity_type: 'association',
+        prefix: 'c360.edge-compose.cop.fusion.association',
+        count: 1,
+        limit: 500,
+        at_limit: false
       }
     ]
   },
-  feeds: [
-    ...fixtureSnapshot.feeds,
-    {
-      id: 'feed.adsb',
-      name: 'ADS-B',
-      kind: 'air-picture',
-      status: 'live',
-      last_event_at: '2026-06-21T16:20:00Z',
-      message: 'OpenSky-compatible fixture via SemStreams component flow'
-    }
-  ],
+  feeds: fixtureSnapshot.feeds.map((feed) =>
+    feed.id === 'feed.adsb'
+      ? {
+          ...feed,
+          last_event_at: '2026-06-21T16:20:00Z',
+          message: 'OpenSky-compatible fixture via SemStreams component flow'
+        }
+      : feed
+  ),
   tracks: [...fixtureSnapshot.tracks, adsbTrack]
 };
 
@@ -147,6 +156,17 @@ const runtimeSnapshot: RuntimeSnapshot = {
       messages_per_second: 1,
       last_activity: '2026-06-21T16:20:52Z',
       last_activity_age_seconds: 8
+    },
+    {
+      id: 'feed.fusion',
+      name: 'Fusion',
+      status: 'flowing',
+      message: 'component flow active',
+      healthy_components: 2,
+      total_components: 2,
+      messages_per_second: 0.5,
+      last_activity: '2026-06-21T16:20:51Z',
+      last_activity_age_seconds: 9
     },
     {
       id: 'feed.sapient',
@@ -218,6 +238,11 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('Weather discovery counts')).toContainText('weather observation 1');
   await expect(page.getByLabel('Weather runtime flow')).toContainText('1 msg/s');
   await expect(page.getByRole('button', { name: 'Select 29.4 degC temperature_2m' })).toBeVisible();
+  await expect(page.getByLabel('Fusion source state')).toBeVisible();
+  await expect(page.getByLabel('Fusion discovery counts')).toContainText('association 1');
+  await expect(page.getByLabel('Fusion runtime flow')).toContainText('0.5 msg/s');
+  const associationRow = page.getByRole('button', { name: 'Inspect Track association UAS 42 -> N42CX ambiguous' });
+  await expect(associationRow).toBeVisible();
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT runtime flow')).toContainText('2/2 healthy');
   await expect(page.getByRole('button', { name: 'Select N123AB' })).toBeVisible();
@@ -245,6 +270,15 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByText('POINT(-77.0400000 38.9000000)')).toBeVisible();
   await expect(page.getByText(/no live provider/)).toBeVisible();
 
+  await associationRow.click();
+  await expect(page.getByRole('heading', { name: 'Track association UAS 42 -> N42CX ambiguous' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Association Evidence' })).toBeVisible();
+  await expect(page.getByText('c360.edge.cop.mavlink.track.system-42')).toBeVisible();
+  await expect(page.getByText('c360.edge.cop.adsb.track.a1b2c3')).toBeVisible();
+  await expect(page.getByText('semops.association.geotemporal.v1')).toBeVisible();
+  await expect(page.getByText(/no source-track merge/)).toBeVisible();
+  await expect(page.getByText('semops.fusion.structural')).toBeVisible();
+
   await page.getByRole('button', { name: 'Refresh COP snapshot' }).click();
   await expect.poll(routes.snapshotRequests).toBeGreaterThanOrEqual(2);
 });
@@ -261,6 +295,7 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await expect(page.getByLabel('ADS-B source state')).toBeVisible();
   await expect(page.getByLabel('KLV source state')).toBeVisible();
   await expect(page.getByLabel('Weather source state')).toBeVisible();
+  await expect(page.getByLabel('Fusion source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
@@ -284,6 +319,15 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: '29.4 degC temperature_2m' })).toBeVisible();
   await expect(page.getByLabel('Entity inspector')).toContainText('no live provider');
+
+  const associationButton = page.getByRole('button', {
+    name: 'Inspect Track association UAS 42 -> N42CX ambiguous'
+  });
+  await associationButton.focus();
+  await expect(associationButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Track association UAS 42 -> N42CX ambiguous' })).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('no source-track merge');
 
   const alertButton = page.getByRole('button', { name: /Track freshness nominal/ });
   await alertButton.focus();

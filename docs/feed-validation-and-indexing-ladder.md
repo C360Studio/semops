@@ -789,6 +789,8 @@ First acceptance gate:
   adapter seam and token-backed graph writes without live network access.
 - Given a projected ADS-B aircraft state, SemOps writes current-state track evidence without source-asset or
   cross-source association edges and reads it back through prefix discovery.
+- Given fusion-owned association evidence between ADS-B and another source track, SemOps projects and reads back the
+  association as separate `control` evidence without merging or mutating either source track.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress

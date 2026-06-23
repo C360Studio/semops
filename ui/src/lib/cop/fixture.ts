@@ -7,16 +7,19 @@ const advisoryObserved = '2026-06-19T11:58:00Z';
 const klvObserved = '2026-06-19T11:58:45Z';
 const weatherObserved = '2026-06-19T11:57:30Z';
 const commandObserved = '2026-06-19T11:59:30Z';
+const adsbObserved = '2026-06-19T11:59:35Z';
+const fusionObserved = '2026-06-19T11:59:36Z';
 
 export const fixtureSnapshot: Snapshot = {
   generated_at: now,
   scenario: 'phase-1-fixture',
   summary: {
-    active_tracks: 2,
+    active_tracks: 3,
     active_tasks: 2,
     active_advisories: 1,
     active_sensor_footprints: 1,
     active_weather_observations: 1,
+    active_associations: 1,
     active_alerts: 1,
     stale_feeds: 0
   },
@@ -57,6 +60,14 @@ export const fixtureSnapshot: Snapshot = {
       message: 'Schema/sample gate pending'
     },
     {
+      id: 'feed.adsb',
+      name: 'ADS-B',
+      kind: 'air-picture',
+      status: 'live',
+      last_event_at: adsbObserved,
+      message: 'Fixture-backed ADS-B aircraft track'
+    },
+    {
       id: 'feed.klv',
       name: 'KLV',
       kind: 'sensor-footprint',
@@ -71,6 +82,14 @@ export const fixtureSnapshot: Snapshot = {
       status: 'live',
       last_event_at: weatherObserved,
       message: 'Fixture-backed point weather observation readback'
+    },
+    {
+      id: 'feed.fusion',
+      name: 'Fusion',
+      kind: 'inference',
+      status: 'live',
+      last_event_at: fusionObserved,
+      message: 'Fixture-backed fusion association evidence'
     }
   ],
   assets: [
@@ -118,6 +137,21 @@ export const fixtureSnapshot: Snapshot = {
         owner: 'semops.feed.tak',
         source_ref: 'cot://fixture/0001',
         observed_at: takObserved
+      }
+    },
+    {
+      id: 'c360.edge.cop.adsb.track.a1b2c3',
+      label: 'N42CX',
+      source: 'adsb',
+      status: 'active.aircraft',
+      position: { lat: 38.90028, lon: -77.00005 },
+      velocity: 'GROUND_KTS(73)',
+      confidence: 0.88,
+      updated_at: adsbObserved,
+      provenance: {
+        owner: 'semops.feed.adsb',
+        source_ref: 'adsb://opensky/fixture/a1b2c3',
+        observed_at: adsbObserved
       }
     }
   ],
@@ -269,6 +303,29 @@ export const fixtureSnapshot: Snapshot = {
         owner: 'semops.feed.weather',
         source_ref: 'weather://open-meteo/fixture/position/temperature_2m/2026-06-19T11:57:30Z',
         observed_at: weatherObserved
+      }
+    }
+  ],
+  associations: [
+    {
+      id: 'c360.edge.cop.fusion.association.mavlink-to-adsb',
+      label: 'Track association UAS 42 -> N42CX ambiguous',
+      kind: 'track',
+      source: 'fusion',
+      status: 'ambiguous',
+      primary_track_id: 'c360.edge.cop.mavlink.track.system-42',
+      candidate_track_id: 'c360.edge.cop.adsb.track.a1b2c3',
+      algorithm: 'semops.association.geotemporal.v1',
+      reason: 'sources=mavlink,adsb; distance_meters=24; time_delta_seconds=7.000; ambiguous_with=adsb-altitude-shadow',
+      distance_meters: 24,
+      time_delta_seconds: 7,
+      claim_posture: 'fusion association evidence; no source-track merge; no identity authority',
+      confidence: 0.87,
+      updated_at: fusionObserved,
+      provenance: {
+        owner: 'semops.fusion.structural',
+        source_ref: 'primary=mavlink://raw/udp/0002 candidate=adsb://opensky/fixture/a1b2c3',
+        observed_at: fusionObserved
       }
     }
   ],

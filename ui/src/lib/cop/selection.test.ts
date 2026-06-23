@@ -21,6 +21,9 @@ describe('COP selection helpers', () => {
       resolveEntity(fixtureSnapshot, { kind: 'weather-observation', id: fixtureSnapshot.weather_observations[0].id })
         ?.label
     ).toBe('29.4 degC temperature_2m');
+    expect(resolveEntity(fixtureSnapshot, { kind: 'association', id: fixtureSnapshot.associations[0].id })?.label).toBe(
+      'Track association UAS 42 -> N42CX ambiguous'
+    );
     expect(resolveEntity(fixtureSnapshot, { kind: 'alert', id: fixtureSnapshot.alerts[0].id })?.label).toBe(
       'Track freshness nominal'
     );
@@ -129,6 +132,27 @@ describe('COP selection helpers', () => {
         stale
       )
     ).toEqual({
+      kind: 'association',
+      id: fixtureSnapshot.associations[0].id
+    });
+    expect(
+      reconcileSelection(
+        without(
+          without(
+            without(
+              without(
+                without(without(without(without(fixtureSnapshot, 'tracks'), 'assets'), 'tasks'), 'advisories'),
+                'hazards'
+              ),
+              'sensor_footprints'
+            ),
+            'weather_observations'
+          ),
+          'associations'
+        ),
+        stale
+      )
+    ).toEqual({
       kind: 'alert',
       id: fixtureSnapshot.alerts[0].id
     });
@@ -138,7 +162,15 @@ describe('COP selection helpers', () => {
 function without<
   K extends keyof Pick<
     Snapshot,
-    'tracks' | 'assets' | 'tasks' | 'advisories' | 'hazards' | 'sensor_footprints' | 'weather_observations' | 'alerts'
+    | 'tracks'
+    | 'assets'
+    | 'tasks'
+    | 'advisories'
+    | 'hazards'
+    | 'sensor_footprints'
+    | 'weather_observations'
+    | 'associations'
+    | 'alerts'
   >
 >(
   snapshot: Snapshot,

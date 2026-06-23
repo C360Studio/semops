@@ -364,8 +364,10 @@
 - [x] 8.17 Add deadline reconciliation for expired and timed-out command intent before hosted scheduler work
 - [x] 8.18 Add manifest-backed synthetic command lifecycle replay fixture before CS API/UI/native command handlers
 - [x] 8.19 Add command-intent prefix discovery and read-only lifecycle UI before CS API/UI/native command controls
-- [ ] 8.20 Wire fusion track-association evidence through graph projection and COP API/UI readback after the pure
+- [x] 8.20 Wire fusion track-association evidence through graph projection and COP API/UI readback after the pure
       scorer is reviewed against scenario data
+- [ ] 8.21 Promote fusion track association into a hosted SemStreams component flow with runtime telemetry, bounded
+      input subscriptions, born-state reconciliation, and adversarial review before demo identity-fusion claims
 
 ## 9. Upstream SemStreams Asks
 

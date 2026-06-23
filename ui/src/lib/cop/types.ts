@@ -11,6 +11,7 @@ export type Snapshot = {
   hazards: Hazard[];
   sensor_footprints: SensorFootprint[];
   weather_observations: WeatherObservation[];
+  associations: Association[];
   alerts: Alert[];
 };
 
@@ -20,6 +21,7 @@ export type Summary = {
   active_advisories: number;
   active_sensor_footprints: number;
   active_weather_observations: number;
+  active_associations: number;
   active_alerts: number;
   stale_feeds: number;
 };
@@ -199,6 +201,24 @@ export type WeatherObservation = {
   provenance: Provenance;
 };
 
+export type Association = {
+  id: string;
+  label: string;
+  kind: string;
+  source: string;
+  status: string;
+  primary_track_id: string;
+  candidate_track_id: string;
+  algorithm: string;
+  reason: string;
+  distance_meters?: number;
+  time_delta_seconds?: number;
+  claim_posture: string;
+  confidence: number;
+  updated_at: string;
+  provenance: Provenance;
+};
+
 export type Alert = {
   id: string;
   label: string;
@@ -228,4 +248,5 @@ export type EntityRef =
   | { kind: 'hazard'; id: string }
   | { kind: 'sensor-footprint'; id: string }
   | { kind: 'weather-observation'; id: string }
+  | { kind: 'association'; id: string }
   | { kind: 'alert'; id: string };

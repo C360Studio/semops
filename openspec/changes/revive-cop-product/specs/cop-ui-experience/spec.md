@@ -131,6 +131,19 @@ Phase 1.
 - **AND** the UI does not expose execute, cancel, retry, arbitration override, CS API tasking, or native transmit
   controls until those gates have separate safety and adversarial UX review
 
+#### Scenario: Fusion association UI is evidence, not identity merge
+
+- **WHEN** fusion-owned track association evidence has been projected into governed graph entities
+- **THEN** the SemOps COP API discovers association entities by fusion prefix and maps source tracks, confidence,
+  status, algorithm identity, distance/time evidence, source references, owner, and claim posture into the curated
+  snapshot
+- **AND** the browser renders association records as selectable evidence rows and map-selector affordances without
+  drawing new merged-track geometry
+- **AND** the selected-entity inspector shows primary track, candidate track, algorithm, metrics, reason, provenance,
+  and the explicit no-merge/no-identity-authority posture
+- **AND** the UI does not expose merge, split, override, source-track mutation, or identity-authority controls until a
+  hosted fusion component and adversarial operator review prove those workflows are safe
+
 ### Requirement: Ontology hydrates inspectors, not the whole UI
 
 SemOps MUST NOT treat dynamic ontology-generated UI as a Phase 1 feature.

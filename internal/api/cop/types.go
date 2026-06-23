@@ -15,6 +15,7 @@ type Snapshot struct {
 	Hazards          []Hazard             `json:"hazards"`
 	SensorFootprints []SensorFootprint    `json:"sensor_footprints"`
 	Weather          []WeatherObservation `json:"weather_observations"`
+	Associations     []Association        `json:"associations"`
 	Alerts           []Alert              `json:"alerts"`
 }
 
@@ -24,6 +25,7 @@ type Summary struct {
 	ActiveAdvisories       int `json:"active_advisories"`
 	ActiveSensorFootprints int `json:"active_sensor_footprints"`
 	ActiveWeather          int `json:"active_weather_observations"`
+	ActiveAssociations     int `json:"active_associations"`
 	ActiveAlerts           int `json:"active_alerts"`
 	StaleFeeds             int `json:"stale_feeds"`
 }
@@ -163,6 +165,24 @@ type WeatherObservation struct {
 	Variable         string     `json:"variable"`
 	Value            float64    `json:"value"`
 	Unit             string     `json:"unit,omitempty"`
+	ClaimPosture     string     `json:"claim_posture"`
+	Confidence       float64    `json:"confidence"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Provenance       Provenance `json:"provenance"`
+}
+
+type Association struct {
+	ID               string     `json:"id"`
+	Label            string     `json:"label"`
+	Kind             string     `json:"kind"`
+	Source           string     `json:"source"`
+	Status           string     `json:"status"`
+	PrimaryTrackID   string     `json:"primary_track_id"`
+	CandidateTrackID string     `json:"candidate_track_id"`
+	Algorithm        string     `json:"algorithm"`
+	Reason           string     `json:"reason"`
+	DistanceMeters   *float64   `json:"distance_meters,omitempty"`
+	TimeDeltaSeconds *float64   `json:"time_delta_seconds,omitempty"`
 	ClaimPosture     string     `json:"claim_posture"`
 	Confidence       float64    `json:"confidence"`
 	UpdatedAt        time.Time  `json:"updated_at"`

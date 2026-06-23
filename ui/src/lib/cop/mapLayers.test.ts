@@ -21,6 +21,7 @@ describe('tactical map layer helpers', () => {
       'asset',
       'track',
       'track',
+      'track',
       'task',
       'advisory',
       'sensor-footprint',
@@ -59,17 +60,21 @@ describe('tactical map layer helpers', () => {
     expect(items.map((item) => item.kind)).toEqual([
       'track',
       'track',
+      'track',
       'asset',
       'task',
       'task',
       'advisory',
       'hazard',
       'sensor-footprint',
-      'weather-observation'
+      'weather-observation',
+      'association'
     ]);
+    expect(items.map((item) => item.label)).toContain('Track association UAS 42 -> N42CX ambiguous');
     expect(items.map((item) => item.label)).toContain('Route MAVLink system 42 to North Gate');
     expect(labels.map((label) => [label.kind, label.anchor, label.offset])).toEqual([
       ['asset', 'end', [-14, 18]],
+      ['track', 'start', [16, -18]],
       ['track', 'start', [16, -18]],
       ['track', 'start', [16, -18]],
       ['task', 'start', [14, 18]],

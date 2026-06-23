@@ -10,7 +10,8 @@ const sourceByFeed: Record<string, string> = {
   'feed.adsb': 'adsb',
   'feed.klv': 'klv',
   'feed.weather': 'weather',
-  'feed.sapient': 'sapient'
+  'feed.sapient': 'sapient',
+  'feed.fusion': 'fusion'
 };
 
 export function buildFeedRows(snapshot: Snapshot | null, runtime: RuntimeSnapshot | null): FeedRow[] {

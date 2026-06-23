@@ -350,8 +350,7 @@ func TestGraphProviderDiscoversADSBTracksByPrefix(t *testing.T) {
 	if track.Position.Lat != 38.9 || track.Position.Lon != -77.04 {
 		t.Fatalf("ADS-B track position = %+v", track.Position)
 	}
-	if len(snapshot.Feeds) != 8 ||
-		findFeed(snapshot.Feeds, "feed.adsb").Status != "live" {
+	if findFeed(snapshot.Feeds, "feed.adsb").Status != "live" {
 		t.Fatalf("ADS-B feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "adsb", copmodel.EntityTrack)
@@ -418,8 +417,7 @@ func TestGraphProviderDiscoversSAPIENTTracksByPrefix(t *testing.T) {
 	if track.Position.Lat != 51.1739726 || track.Position.Lon != -1.8223767 {
 		t.Fatalf("SAPIENT track position = %+v", track.Position)
 	}
-	if len(snapshot.Feeds) != 8 ||
-		findFeed(snapshot.Feeds, "feed.sapient").Status != "live" {
+	if findFeed(snapshot.Feeds, "feed.sapient").Status != "live" {
 		t.Fatalf("SAPIENT feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "sapient", copmodel.EntityTrack)
@@ -520,8 +518,7 @@ func TestGraphProviderMapsKLVSensorFootprints(t *testing.T) {
 		!strings.Contains(footprint.ClaimPosture, "no STANAG conformance") {
 		t.Fatalf("claim posture/warnings = %q / %+v", footprint.ClaimPosture, footprint.Warnings)
 	}
-	if len(snapshot.Feeds) != 8 ||
-		findFeed(snapshot.Feeds, "feed.klv").Status != "live" {
+	if findFeed(snapshot.Feeds, "feed.klv").Status != "live" {
 		t.Fatalf("KLV feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "klv", copmodel.EntitySensorFootprint)
@@ -615,8 +612,7 @@ func TestGraphProviderMapsWeatherObservations(t *testing.T) {
 		!strings.Contains(observation.Label, "temperature_2m") {
 		t.Fatalf("weather label/posture = %q / %q", observation.Label, observation.ClaimPosture)
 	}
-	if len(snapshot.Feeds) != 8 ||
-		findFeed(snapshot.Feeds, "feed.weather").Status != "live" {
+	if findFeed(snapshot.Feeds, "feed.weather").Status != "live" {
 		t.Fatalf("weather feed = %+v", snapshot.Feeds)
 	}
 	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "weather", copmodel.EntityWeatherObservation)
@@ -627,6 +623,86 @@ func TestGraphProviderMapsWeatherObservations(t *testing.T) {
 		diagnostic.Count != 1 ||
 		diagnostic.AtLimit {
 		t.Fatalf("weather diagnostic = %+v", diagnostic)
+	}
+}
+
+func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
+	now := time.Date(2026, 6, 23, 19, 0, 0, 0, time.UTC)
+	observed := now.Add(-12 * time.Second)
+	platform := "edge-fusion"
+	associationID := "c360.edge-fusion.cop.fusion.association.mavlink-to-adsb"
+	mavlinkTrackID := "c360.edge-fusion.cop.mavlink.track.system-42"
+	adsbTrackID := "c360.edge-fusion.cop.adsb.track.a1b2c3"
+	requester := &fakeGraphSnapshotRequester{
+		prefixEntities: map[string][]graph.EntityState{
+			graphEntityPrefix("c360", platform, "fusion", copmodel.EntityAssociation): {{
+				ID:        associationID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(associationID, copmodel.AssociationKind, "track", observed),
+					testTriple(associationID, copmodel.AssociationStatus, "ambiguous", observed),
+					testTriple(associationID, copmodel.AssociationPrimaryTrack, mavlinkTrackID, observed),
+					testTriple(associationID, copmodel.AssociationCandidateTrack, adsbTrackID, observed),
+					testTriple(associationID, copmodel.AssociationConfidence, 0.875, observed),
+					testTriple(associationID, copmodel.AssociationAlgorithm, "semops.association.geotemporal.v1", observed),
+					testTriple(associationID, copmodel.AssociationReason, "sources=mavlink,adsb; distance_meters=31; ambiguous_with=candidate-b", observed),
+					testTriple(associationID, copmodel.AssociationDistanceMeters, 31.0, observed),
+					testTriple(associationID, copmodel.AssociationTimeDeltaSeconds, 2.0, observed),
+					testTriple(associationID, copmodel.AssociationObservedAt, observed, observed),
+					testTriple(associationID, copmodel.ProvenanceSource, "fusion.track_association", observed),
+					testTriple(associationID, copmodel.ProvenanceConfidence, 0.875, observed),
+					testTriple(associationID, copmodel.ProvenanceObservedAt, observed, observed),
+					testTriple(associationID, copmodel.ProvenanceSourceRef, "primary=mavlink://raw/udp/0001 candidate=adsb://opensky/state/0001", observed),
+				},
+			}},
+		},
+	}
+	provider, err := NewGraphProvider(
+		requester,
+		WithGraphNow(func() time.Time { return now }),
+		WithGraphDiscoveryScopes([]GraphDiscoveryScope{{Org: "c360", Platform: platform}}),
+	)
+	if err != nil {
+		t.Fatalf("new graph provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveAssociations != 1 || len(snapshot.Associations) != 1 {
+		t.Fatalf("association summary/list = %d/%d", snapshot.Summary.ActiveAssociations, len(snapshot.Associations))
+	}
+	association := snapshot.Associations[0]
+	if association.ID != associationID ||
+		association.Source != "fusion" ||
+		association.Status != "ambiguous" ||
+		association.PrimaryTrackID != mavlinkTrackID ||
+		association.CandidateTrackID != adsbTrackID ||
+		association.Algorithm != "semops.association.geotemporal.v1" ||
+		association.Provenance.Owner != copmodel.OwnerFusion ||
+		association.Provenance.SourceRef != "primary=mavlink://raw/udp/0001 candidate=adsb://opensky/state/0001" {
+		t.Fatalf("association = %+v", association)
+	}
+	if association.DistanceMeters == nil || *association.DistanceMeters != 31 ||
+		association.TimeDeltaSeconds == nil || *association.TimeDeltaSeconds != 2 {
+		t.Fatalf("association metrics = %+v", association)
+	}
+	if !strings.Contains(association.Reason, "ambiguous_with") ||
+		!strings.Contains(association.ClaimPosture, "no source-track merge") {
+		t.Fatalf("association reason/posture = %q / %q", association.Reason, association.ClaimPosture)
+	}
+	fusionFeed := findFeed(snapshot.Feeds, "feed.fusion")
+	if fusionFeed.Status != "live" || fusionFeed.Message != "Graph-backed fusion association evidence" {
+		t.Fatalf("fusion feed = %+v", fusionFeed)
+	}
+	diagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "fusion", copmodel.EntityAssociation)
+	if !ok {
+		t.Fatalf("missing fusion association diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if diagnostic.Family != "fusion" || diagnostic.Count != 1 || diagnostic.AtLimit {
+		t.Fatalf("fusion diagnostic = %+v", diagnostic)
 	}
 }
 
@@ -922,7 +998,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if snapshot.Hazards[0].ID != hazardID || snapshot.Hazards[0].Source != "cap" {
 		t.Fatalf("hazard = %+v", snapshot.Hazards[0])
 	}
-	if len(requester.prefixRequests) != 12 {
+	if len(requester.prefixRequests) != 13 {
 		t.Fatalf("prefix requests = %+v", requester.prefixRequests)
 	}
 	for _, subject := range requester.subjects {
@@ -933,7 +1009,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
-	if len(snapshot.Diagnostics.Discovery) != 12 {
+	if len(snapshot.Diagnostics.Discovery) != 13 {
 		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
 	}
 	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)

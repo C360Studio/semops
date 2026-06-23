@@ -237,6 +237,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	hazardsByID := make(map[string]graph.EntityState)
 	footprintsByID := make(map[string]graph.EntityState)
 	weatherByID := make(map[string]graph.EntityState)
+	associationsByID := make(map[string]graph.EntityState)
 	var firstErr error
 
 	var discovered graphDiscoveryResult
@@ -250,6 +251,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 			hazardsByID,
 			footprintsByID,
 			weatherByID,
+			associationsByID,
 		); err != nil {
 			firstErr = errors.Join(firstErr, err)
 			discovered = result
@@ -314,7 +316,8 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		len(advisoriesByID) == 0 &&
 		len(hazardsByID) == 0 &&
 		len(footprintsByID) == 0 &&
-		len(weatherByID) == 0 {
+		len(weatherByID) == 0 &&
+		len(associationsByID) == 0 {
 		if p.fallback != nil {
 			return p.fallback.Snapshot(ctx)
 		}
@@ -331,6 +334,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		hazardsByID,
 		footprintsByID,
 		weatherByID,
+		associationsByID,
 		discovered.diagnostics,
 	), nil
 }
@@ -352,6 +356,7 @@ type graphDiscoveryResult struct {
 	sapient     bool
 	klv         bool
 	weather     bool
+	fusion      bool
 	diagnostics []DiscoveryDiagnostic
 }
 
@@ -364,6 +369,7 @@ func (p *GraphProvider) discoverInto(
 	hazardsByID map[string]graph.EntityState,
 	footprintsByID map[string]graph.EntityState,
 	weatherByID map[string]graph.EntityState,
+	associationsByID map[string]graph.EntityState,
 ) (graphDiscoveryResult, error) {
 	var result graphDiscoveryResult
 	var firstErr error
@@ -395,6 +401,8 @@ func (p *GraphProvider) discoverInto(
 				result.sapient = true
 			case "weather":
 				result.weather = true
+			case "fusion":
+				result.fusion = true
 			}
 			switch target.Kind {
 			case copmodel.EntityAsset:
@@ -411,6 +419,8 @@ func (p *GraphProvider) discoverInto(
 				footprintsByID[entity.ID] = entity
 			case copmodel.EntityWeatherObservation:
 				weatherByID[entity.ID] = entity
+			case copmodel.EntityAssociation:
+				associationsByID[entity.ID] = entity
 			}
 		}
 		result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, count, truncated, nil))
@@ -419,7 +429,7 @@ func (p *GraphProvider) discoverInto(
 }
 
 func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
-	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*12)
+	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*13)
 	for _, scope := range p.discovery.Scopes {
 		targets = append(targets,
 			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityAsset, "mavlink"),
@@ -434,6 +444,7 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 			newGraphDiscoveryTarget(scope, "sapient", copmodel.EntityTrack, "sapient"),
 			newGraphDiscoveryTarget(scope, "klv", copmodel.EntitySensorFootprint, "klv"),
 			newGraphDiscoveryTarget(scope, "weather", copmodel.EntityWeatherObservation, "weather"),
+			newGraphDiscoveryTarget(scope, "fusion", copmodel.EntityAssociation, "fusion"),
 		)
 	}
 	return targets
@@ -625,6 +636,7 @@ func (p *GraphProvider) snapshotFromGraph(
 	hazardsByID map[string]graph.EntityState,
 	footprintsByID map[string]graph.EntityState,
 	weatherByID map[string]graph.EntityState,
+	associationsByID map[string]graph.EntityState,
 	discoveryDiagnostics []DiscoveryDiagnostic,
 ) Snapshot {
 	now := p.now().UTC()
@@ -691,7 +703,15 @@ func (p *GraphProvider) snapshotFromGraph(
 		}
 	}
 
-	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories, hazards, footprints, weather)
+	associations := make([]Association, 0, len(associationsByID))
+	for _, entity := range sortedEntities(associationsByID) {
+		association, ok := associationFromEntity(entity, now, p.freshness)
+		if ok {
+			associations = append(associations, association)
+		}
+	}
+
+	feeds := firstPhaseFeedHealth(now, p.freshness, tracks, tasks, advisories, hazards, footprints, weather, associations)
 	discoveryDiagnostics = normalizeDiscoveryDiagnostics(discoveryDiagnostics)
 	alerts := diagnosticAlertsFromDiscovery(discoveryDiagnostics, now)
 	return Snapshot{
@@ -703,6 +723,7 @@ func (p *GraphProvider) snapshotFromGraph(
 			ActiveAdvisories:       len(advisories),
 			ActiveSensorFootprints: len(footprints),
 			ActiveWeather:          len(weather),
+			ActiveAssociations:     len(associations),
 			ActiveAlerts:           len(alerts),
 			StaleFeeds:             countFeeds(feeds, "stale"),
 		},
@@ -717,6 +738,7 @@ func (p *GraphProvider) snapshotFromGraph(
 		Hazards:          hazards,
 		SensorFootprints: footprints,
 		Weather:          weather,
+		Associations:     associations,
 		Alerts:           alerts,
 	}
 }
@@ -797,6 +819,8 @@ func sourceLabel(source string) string {
 		return "KLV"
 	case "weather":
 		return "Weather"
+	case "fusion":
+		return "Fusion"
 	default:
 		return source
 	}
@@ -824,6 +848,8 @@ func feedIDForDiscoverySource(source string) string {
 		return "feed.klv"
 	case "weather":
 		return "feed.weather"
+	case "fusion":
+		return "feed.fusion"
 	default:
 		return "feed." + alertIDSegment(source)
 	}
@@ -838,6 +864,7 @@ func firstPhaseFeedHealth(
 	hazards []Hazard,
 	footprints []SensorFootprint,
 	weather []WeatherObservation,
+	associations []Association,
 ) []FeedHealth {
 	mavlink := feedHealthFromObservations(
 		now,
@@ -939,7 +966,21 @@ func firstPhaseFeedHealth(
 		klv.LastEventAt = now.Add(-50 * time.Minute)
 	}
 	weatherFeed := weatherFeedHealth(now, freshness, weather)
-	return []FeedHealth{mavlink, tak, command, cap, adsb, sapient, klv, weatherFeed}
+	fusion := feedHealthFromObservations(
+		now,
+		freshness,
+		"feed.fusion",
+		"Fusion",
+		"inference",
+		"Fusion association graph proof pending",
+		"Graph-backed fusion association evidence",
+		associationObservationTimes(associations),
+	)
+	if len(associations) == 0 {
+		fusion.Status = "planned"
+		fusion.LastEventAt = now.Add(-54 * time.Minute)
+	}
+	return []FeedHealth{mavlink, tak, command, cap, adsb, sapient, klv, weatherFeed, fusion}
 }
 
 func weatherFeedHealth(now time.Time, freshness time.Duration, observations []WeatherObservation) FeedHealth {
@@ -1064,6 +1105,14 @@ func weatherObservationTimes(observations []WeatherObservation) []time.Time {
 	times := make([]time.Time, 0, len(observations))
 	for _, observation := range observations {
 		times = append(times, observation.UpdatedAt)
+	}
+	return times
+}
+
+func associationObservationTimes(associations []Association) []time.Time {
+	times := make([]time.Time, 0, len(associations))
+	for _, association := range associations {
+		times = append(times, association.UpdatedAt)
 	}
 	return times
 }
@@ -1384,6 +1433,47 @@ func weatherObservationStatus(now time.Time, updatedAt time.Time, freshUntil tim
 	return freshnessStatus("fresh", now, updatedAt, freshness)
 }
 
+func associationFromEntity(entity graph.EntityState, now time.Time, freshness time.Duration) (Association, bool) {
+	primaryTrack := latestStringProperty(entity, copmodel.AssociationPrimaryTrack, "")
+	candidateTrack := latestStringProperty(entity, copmodel.AssociationCandidateTrack, "")
+	if primaryTrack == "" || candidateTrack == "" {
+		return Association{}, false
+	}
+	updatedAt := latestObservedAt(entity, copmodel.AssociationObservedAt, copmodel.ProvenanceObservedAt)
+	confidence := confidence(entity)
+	if associationConfidence, ok := latestFloatProperty(entity, copmodel.AssociationConfidence); ok {
+		confidence = associationConfidence
+	}
+	distanceMeters := optionalLatestFloat(entity, copmodel.AssociationDistanceMeters)
+	timeDeltaSeconds := optionalLatestFloat(entity, copmodel.AssociationTimeDeltaSeconds)
+	status := freshnessStatus(latestStringProperty(entity, copmodel.AssociationStatus, "unknown"), now, updatedAt, freshness)
+	return Association{
+		ID:               entity.ID,
+		Label:            associationLabel(primaryTrack, candidateTrack, status),
+		Kind:             latestStringProperty(entity, copmodel.AssociationKind, "track"),
+		Source:           "fusion",
+		Status:           status,
+		PrimaryTrackID:   primaryTrack,
+		CandidateTrackID: candidateTrack,
+		Algorithm:        latestStringProperty(entity, copmodel.AssociationAlgorithm, ""),
+		Reason:           latestStringProperty(entity, copmodel.AssociationReason, ""),
+		DistanceMeters:   distanceMeters,
+		TimeDeltaSeconds: timeDeltaSeconds,
+		ClaimPosture:     "fusion association evidence; no source-track merge; no identity authority",
+		Confidence:       confidence,
+		UpdatedAt:        updatedAt,
+		Provenance: Provenance{
+			Owner:     ownerForSource("fusion"),
+			SourceRef: latestStringProperty(entity, copmodel.ProvenanceSourceRef, ""),
+			Observed:  updatedAt,
+		},
+	}, true
+}
+
+func associationLabel(primaryTrack string, candidateTrack string, status string) string {
+	return "Track association " + instanceLabel(primaryTrack) + " -> " + instanceLabel(candidateTrack) + " " + status
+}
+
 func hazardEvidenceDocument(entity graph.EntityState) (copmodel.HazardEvidenceDocument, bool) {
 	value, ok := latestPropertyValue(entity, copmodel.HazardEvidence)
 	if !ok {
@@ -1578,6 +1668,14 @@ func optionalLatestInt(entity graph.EntityState, predicate string) *int {
 	return &parsed
 }
 
+func optionalLatestFloat(entity graph.EntityState, predicate string) *float64 {
+	parsed, ok := latestFloatProperty(entity, predicate)
+	if !ok {
+		return nil
+	}
+	return &parsed
+}
+
 func optionalLatestTime(entity graph.EntityState, predicate string) *time.Time {
 	parsed, ok := latestTimeProperty(entity, predicate)
 	if !ok {
@@ -1644,6 +1742,9 @@ func sourceFromEntityID(entityID string) string {
 	if strings.Contains(entityID, ".cop.weather.") {
 		return "weather"
 	}
+	if strings.Contains(entityID, ".cop.fusion.") {
+		return "fusion"
+	}
 	return "graph"
 }
 
@@ -1665,6 +1766,8 @@ func ownerForSource(source string) string {
 		return copmodel.OwnerKLV
 	case "weather":
 		return copmodel.OwnerWeather
+	case "fusion":
+		return copmodel.OwnerFusion
 	default:
 		return copmodel.OwnerFusion
 	}

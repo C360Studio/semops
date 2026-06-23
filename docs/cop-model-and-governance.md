@@ -63,7 +63,8 @@ authority, route decisions, task state, or operator advisories.
 
 Track association evidence is fusion-owned. Source feeds continue to own their track current state; the fusion owner
 records strict source-track edges, confidence, algorithm identity, distance/time evidence, and source references
-without merging or mutating the original tracks.
+without merging or mutating the original tracks. COP readback exposes those records as inspectable association
+evidence, not as merged identity state.
 
 SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
 absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are

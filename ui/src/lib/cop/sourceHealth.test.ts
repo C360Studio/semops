@@ -111,6 +111,17 @@ describe('discoveryDiagnosticsForFeed', () => {
             count: 1,
             limit: 500,
             at_limit: false
+          },
+          {
+            org: 'c360',
+            platform: 'edge',
+            source: 'fusion',
+            family: 'fusion',
+            entity_type: 'association',
+            prefix: 'c360.edge.cop.fusion.association',
+            count: 1,
+            limit: 500,
+            at_limit: false
           }
         ]
       }
@@ -119,6 +130,7 @@ describe('discoveryDiagnosticsForFeed', () => {
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.adsb')).toEqual([snapshot.diagnostics!.discovery[0]]);
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.weather')).toEqual([snapshot.diagnostics!.discovery[1]]);
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.command')).toEqual([snapshot.diagnostics!.discovery[3]]);
+    expect(discoveryDiagnosticsForFeed(snapshot, 'feed.fusion')).toEqual([snapshot.diagnostics!.discovery[4]]);
     expect(discoveryDiagnosticsForFeed(snapshot, 'feed.sapient')).toEqual([]);
   });
 

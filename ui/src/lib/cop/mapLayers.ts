@@ -7,7 +7,8 @@ export type TacticalEntityKind =
   | 'advisory'
   | 'hazard'
   | 'sensor-footprint'
-  | 'weather-observation';
+  | 'weather-observation'
+  | 'association';
 
 export type TacticalPoint = {
   id: string;
@@ -317,6 +318,11 @@ export function tacticalSelectionItems(snapshot: Snapshot): TacticalSelectionIte
       id: observation.id,
       kind: 'weather-observation' as const,
       label: observation.label
+    })),
+    ...(snapshot.associations ?? []).map((association) => ({
+      id: association.id,
+      kind: 'association' as const,
+      label: association.label
     }))
   ];
 }

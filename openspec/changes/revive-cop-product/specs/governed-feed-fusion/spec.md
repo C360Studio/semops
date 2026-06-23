@@ -29,6 +29,17 @@ authoritative predicates.
 - **WHEN** deterministic fusion correlates two source facts or raises an alert
 - **THEN** the fusion owner writes derived predicates or evidence without hiding the original source facts
 
+#### Scenario: Fusion association projection preserves source ownership
+
+- **WHEN** statistical track association produces derived evidence for two source-owned tracks
+- **THEN** SemOps births a fusion-owned `association` entity with `control` indexing before later updates
+- **AND** the create plan writes association status, confidence, algorithm identity, distance/time evidence,
+  provenance, and strict primary/candidate track edges through SemStreams mutation request contracts
+- **AND** update plans refresh association evidence without re-declaring strict source-track edges or mutating either
+  source track entity
+- **AND** COP readback discovers association entities by fusion prefix and exposes the evidence separately from track
+  current state
+
 ### Requirement: Graph writes are born-first
 
 SemOps adapters SHALL follow SemStreams ADR-055 and ADR-056. Entity creation must happen through typed graph birth

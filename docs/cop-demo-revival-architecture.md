@@ -528,8 +528,8 @@ profile semantics.
 - Keep SAPIENT product-service hosting and demo compliance language gated until SemOps has a documented harness result
   or an explicit non-compliance demo decision, service-mode review, and command-authority review. The accepted first
   graph slice is absolute-location detection projection/readback/runtime graph only.
-- Add a statistical track association service for ambiguous air tracks.
-- Write association evidence back to the graph; add UI only if it helps operator decisions.
+- Promote statistical track association from pure scorer plus graph/API/UI readback into a hosted SemStreams component
+  flow with runtime telemetry and adversarial review before any identity-fusion control claims.
 
 ### Phase 3: Semantic Translation And Standards Interop
 

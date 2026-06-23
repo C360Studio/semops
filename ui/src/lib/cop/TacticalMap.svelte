@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { ClipboardList, CloudSun, Crosshair, MapPinned, MessageSquareText, ShieldCheck } from '@lucide/svelte';
+  import { ClipboardList, CloudSun, Crosshair, Link2, MapPinned, MessageSquareText, ShieldCheck } from '@lucide/svelte';
   import {
     tacticalLabels,
     tacticalMapView,
@@ -237,6 +237,8 @@
           <MessageSquareText size={16} />
         {:else if item.kind === 'weather-observation'}
           <CloudSun size={16} />
+        {:else if item.kind === 'association'}
+          <Link2 size={16} />
         {:else}
           <MapPinned size={16} />
         {/if}

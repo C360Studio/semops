@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Activity, AlertTriangle, Database, RefreshCcw } from '@lucide/svelte';
+  import { Activity, AlertTriangle, Database, Link2, RefreshCcw } from '@lucide/svelte';
   import { loadRuntime, loadSnapshot, freshnessLabel } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, resolveMapSelection, type SelectableEntity } from '$lib/cop/selection';
   import SourceCard from '$lib/cop/SourceCard.svelte';
@@ -9,6 +9,7 @@
   import type {
     Advisory,
     Alert,
+    Association,
     Asset,
     EntityRef,
     Hazard,
@@ -95,6 +96,10 @@
           <dd>{snapshot.summary.active_weather_observations}</dd>
         </div>
         <div>
+          <dt>Assoc</dt>
+          <dd>{snapshot.summary.active_associations}</dd>
+        </div>
+        <div>
           <dt>Feeds</dt>
           <dd>{feedRows.length}</dd>
         </div>
@@ -162,6 +167,24 @@
           {/each}
         </section>
 
+        <section class="association-strip">
+          <h2>Associations</h2>
+          {#each snapshot.associations as association}
+            <button
+              class:selected={selected.kind === 'association' && selected.id === association.id}
+              class="association-row"
+              type="button"
+              aria-label={`Inspect ${association.label}`}
+              aria-pressed={selected.kind === 'association' && selected.id === association.id}
+              onclick={() => selectEntity('association', association.id)}
+            >
+              <Link2 size={16} />
+              <span>{association.label}</span>
+              <small>{association.status}</small>
+            </button>
+          {/each}
+        </section>
+
         <section class="alert-strip">
           <h2>Alerts</h2>
           {#each snapshot.alerts as alert}
@@ -191,7 +214,7 @@
   {/if}
 </main>
 
-{#snippet entityInspector(entity: Track | Asset | Task | Advisory | Hazard | SensorFootprint | WeatherObservation | Alert)}
+{#snippet entityInspector(entity: Track | Asset | Task | Advisory | Hazard | SensorFootprint | WeatherObservation | Association | Alert)}
   <div class="inspector-grid">
     {#if 'source' in entity}
       <div>
@@ -327,6 +350,40 @@
     </section>
   {/if}
 
+  {#if 'primary_track_id' in entity}
+    <section class="provenance">
+      <h3>Association Evidence</h3>
+      <dl class="detail-list">
+        <div>
+          <dt>Primary track</dt>
+          <dd>{entity.primary_track_id}</dd>
+        </div>
+        <div>
+          <dt>Candidate track</dt>
+          <dd>{entity.candidate_track_id}</dd>
+        </div>
+        <div>
+          <dt>Algorithm</dt>
+          <dd>{entity.algorithm}</dd>
+        </div>
+        {#if entity.distance_meters !== undefined}
+          <div>
+            <dt>Distance</dt>
+            <dd>{entity.distance_meters.toFixed(1).replace(/\.0$/, '')} m</dd>
+          </div>
+        {/if}
+        {#if entity.time_delta_seconds !== undefined}
+          <div>
+            <dt>Time delta</dt>
+            <dd>{entity.time_delta_seconds.toFixed(1).replace(/\.0$/, '')} s</dd>
+          </div>
+        {/if}
+      </dl>
+      <p class="reason">{entity.reason}</p>
+      <p class="reason">{entity.claim_posture}</p>
+    </section>
+  {/if}
+
   {#if 'target_id' in entity && entity.target_id}
     <section class="provenance">
       <h3>Command Intent</h3>
@@ -399,7 +456,7 @@
     <p class="reason">{entity.text}</p>
   {/if}
 
-  {#if 'reason' in entity}
+  {#if 'entity_id' in entity}
     <dl class="detail-list">
       <div>
         <dt>Target</dt>
