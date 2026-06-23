@@ -349,6 +349,7 @@
       writes
 - [x] 8.12 Add deterministic command-intent authority and priority arbitration before CS API ingress or native
       transmit
+- [x] 8.13 Add guarded batch projection for admitted/arbitrated command-intent status before native execution
 
 ## 9. Upstream SemStreams Asks
 

@@ -662,6 +662,9 @@ Indexing profile pressure:
 - The command-intent arbitrator ranks active intents per target by local override, authority rank, priority,
   observation time, and native ID. It returns accepted/superseded/ignored decisions for later graph status updates and
   does not transmit native commands.
+- The guarded batch projection path admits commands, arbitrates admitted active intents, projects accepted and
+  superseded status through the command-intent graph contract, and exposes only accepted intents as native execution
+  candidates.
 
 First acceptance gate:
 

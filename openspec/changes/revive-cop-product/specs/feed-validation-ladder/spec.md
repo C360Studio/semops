@@ -186,6 +186,8 @@ public conformance suite, or documented interoperability test backs the claim.
   by local override, authority rank, priority, observation time, and native ID
 - **AND** command arbitration SHALL surface superseded command intents as status decisions rather than handing losing
   intents to native feed drivers
+- **AND** guarded batch projection SHALL admit commands before arbitration, project accepted and superseded status as
+  command-intent graph state, and expose only accepted decisions as native execution candidates
 - **AND** native feed drivers SHALL publish ACK/status evidence separately rather than owning desired command intent
 - **AND** live command transmission SHALL remain blocked until safety interlocks, local override, stale-command
   rejection, cancellation, supersession, and async status reconciliation are reviewed

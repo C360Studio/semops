@@ -150,8 +150,9 @@ Acceptance:
 - SemOps does not yet expose the canonical graph state needed for meaningful CS API ingress or egress.
 - SemOps now defines a command-intent graph contract plus pure planner/admission/arbitration tests for required
   fields, target resolution, expiry, duplicate idempotency, local override, authority ranking, and per-target priority
-  selection. TTL/deadline semantics beyond expiry, cancellation/supersession graph writes, CS API request handling,
-  and native actuation reconciliation remain open.
+  selection. The guarded batch path projects accepted/superseded command-intent status before exposing accepted native
+  execution candidates. TTL/deadline semantics beyond expiry, cancellation semantics, CS API request handling, and
+  native actuation reconciliation remain open.
 - CS API interop should not block Phase 1 structural COP.
 - Native adapter support can be strong while CS API projection is still incomplete; keep those claims separate.
 - CS API conformance can be green while a native feed remains only fixture/replay-tested; keep those claims separate.

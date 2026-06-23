@@ -24,6 +24,7 @@ type AdmissionConfig struct {
 	Clock            func() time.Time
 	TargetResolver   TargetResolver
 	IdempotencyStore IdempotencyStore
+	Arbitrator       *Arbitrator
 }
 
 type AdmissionResult struct {
@@ -31,6 +32,11 @@ type AdmissionResult struct {
 	RejectedReason   string
 	Duplicate        bool
 	ExistingNativeID string
+}
+
+type BatchProjectionResult struct {
+	Admissions  []AdmissionResult
+	Arbitration ArbitrationResult
 }
 
 type GuardedProjector struct {
@@ -55,40 +61,96 @@ func (g *GuardedProjector) ProjectIntent(ctx context.Context, intent Intent) (Ad
 	if g == nil || g.projector == nil {
 		return AdmissionResult{}, Plan{}, fmt.Errorf("command guarded projector is nil")
 	}
+	result, err := g.admit(ctx, intent)
+	if err != nil {
+		return AdmissionResult{}, Plan{}, err
+	}
+	if !result.Accepted {
+		return result, Plan{}, nil
+	}
+	plan, err := g.projector.ProjectIntent(intent)
+	if err != nil {
+		return AdmissionResult{}, Plan{}, err
+	}
+	return result, plan, nil
+}
+
+func (g *GuardedProjector) ProjectIntents(ctx context.Context, intents []Intent) (BatchProjectionResult, Plan, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if g == nil || g.projector == nil {
+		return BatchProjectionResult{}, Plan{}, fmt.Errorf("command guarded projector is nil")
+	}
+
+	admissions := make([]AdmissionResult, 0, len(intents))
+	admitted := make([]Intent, 0, len(intents))
+	for _, intent := range intents {
+		result, err := g.admit(ctx, intent)
+		if err != nil {
+			return BatchProjectionResult{}, Plan{}, err
+		}
+		admissions = append(admissions, result)
+		if result.Accepted {
+			admitted = append(admitted, intent)
+		}
+	}
+	if len(admitted) == 0 {
+		return BatchProjectionResult{Admissions: admissions}, Plan{}, nil
+	}
+
+	arbitrator := g.cfg.Arbitrator
+	if arbitrator == nil {
+		arbitrator = NewArbitrator(ArbitrationConfig{})
+	}
+	arbitration, err := arbitrator.Arbitrate(admitted)
+	if err != nil {
+		return BatchProjectionResult{}, Plan{}, err
+	}
+	plan, err := g.projector.ProjectIntents(arbitration.StatusUpdates())
+	if err != nil {
+		return BatchProjectionResult{}, Plan{}, err
+	}
+	return BatchProjectionResult{
+		Admissions:  admissions,
+		Arbitration: arbitration,
+	}, plan, nil
+}
+
+func (r BatchProjectionResult) NativeExecutionCandidates() []Intent {
+	return r.Arbitration.NativeExecutionCandidates()
+}
+
+func (g *GuardedProjector) admit(ctx context.Context, intent Intent) (AdmissionResult, error) {
 	if err := intent.validate(); err != nil {
-		return AdmissionResult{RejectedReason: err.Error()}, Plan{}, nil
+		return AdmissionResult{RejectedReason: err.Error()}, nil
 	}
 	if !intent.ExpiresAt.After(g.cfg.Clock().UTC()) {
-		return AdmissionResult{RejectedReason: "command intent is expired"}, Plan{}, nil
+		return AdmissionResult{RejectedReason: "command intent is expired"}, nil
 	}
 	if g.cfg.TargetResolver == nil {
-		return AdmissionResult{}, Plan{}, fmt.Errorf("command admission requires target resolver")
+		return AdmissionResult{}, fmt.Errorf("command admission requires target resolver")
 	}
 	exists, err := g.cfg.TargetResolver.TargetExists(ctx, intent.TargetAssetID)
 	if err != nil {
-		return AdmissionResult{}, Plan{}, fmt.Errorf("resolve command target: %w", err)
+		return AdmissionResult{}, fmt.Errorf("resolve command target: %w", err)
 	}
 	if !exists {
-		return AdmissionResult{RejectedReason: "command target asset is not born"}, Plan{}, nil
+		return AdmissionResult{RejectedReason: "command target asset is not born"}, nil
 	}
 
 	reservation, err := g.cfg.IdempotencyStore.Reserve(ctx, intent.IdempotencyKey, intent.NativeID)
 	if err != nil {
-		return AdmissionResult{}, Plan{}, fmt.Errorf("reserve command idempotency key: %w", err)
+		return AdmissionResult{}, fmt.Errorf("reserve command idempotency key: %w", err)
 	}
 	if reservation.Duplicate {
 		return AdmissionResult{
 			RejectedReason:   "duplicate command idempotency key",
 			Duplicate:        true,
 			ExistingNativeID: reservation.ExistingNativeID,
-		}, Plan{}, nil
+		}, nil
 	}
-
-	plan, err := g.projector.ProjectIntent(intent)
-	if err != nil {
-		return AdmissionResult{}, Plan{}, err
-	}
-	return AdmissionResult{Accepted: true}, plan, nil
+	return AdmissionResult{Accepted: true}, nil
 }
 
 type StaticTargetResolver struct {
