@@ -345,6 +345,8 @@
       command-control writers
 - [x] 8.10 Add pure command-intent projector gate with TTL/authority/idempotency validation and no target-asset birth
       or native transmit
+- [x] 8.11 Add command-intent admission guard for target resolution, expiry, and idempotency collapse before graph
+      writes
 
 ## 9. Upstream SemStreams Asks
 

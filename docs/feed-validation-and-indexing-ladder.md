@@ -657,6 +657,8 @@ Indexing profile pressure:
   transmitter is connected.
 - `internal/projectors/command` is the pure planner gate for desired tasking state. It validates impedance fields,
   writes only command-intent task mutations, and deliberately does not birth target assets or transmit native commands.
+- The guarded command-intent projector adds admission checks before planning: target asset resolution, wall-clock
+  expiry rejection, and duplicate idempotency collapse. It still has no live writer, UI, CS API handler, or transmitter.
 
 First acceptance gate:
 

@@ -73,6 +73,8 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   from MAVLink COMMAND_ACK readback evidence.
 - `internal/projectors/command` validates desired command intent and produces command-intent create/update mutation
   plans without birthing target assets, bypassing born-first target checks, or transmitting native commands.
+- `internal/projectors/command` also includes a guarded admission path that rejects unresolved target assets, rejects
+  expired intents against wall clock, and collapses duplicate idempotency keys before producing mutation plans.
 - `internal/app` and `cmd/semops` connect to SemStreams, register first-phase COP ownership, enroll heartbeat, and
   compose the hosted MAVLink adapter with registry-derived owner tokens.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
@@ -127,6 +129,8 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - 2026-06-23: `go test ./internal/projectors/command` passed for the pure command-intent planner. The gate proves
   valid desired command state writes a control-profiled task with a strict target edge, known intents update without
   repeating that edge, malformed or expired intents fail closed, and the planner does not birth target assets.
+- 2026-06-23: the same command projector package now includes admission tests proving unresolved targets, expired
+  intents, and duplicate idempotency keys return no mutation plan before any writer or native transmitter exists.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 

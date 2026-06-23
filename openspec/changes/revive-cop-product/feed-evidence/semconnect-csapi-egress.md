@@ -77,7 +77,7 @@ Acceptance:
 
 ### Command Impedance Gate
 
-Target command after SemOps has command-intent graph contracts:
+Target command after SemOps promotes command intent beyond the pure planner gate:
 
 ```bash
 go test ./internal/commands ./internal/adapters/csapi -run Command
@@ -89,6 +89,8 @@ Acceptance:
   accepted or rejected response without opening a synchronous native radio/session dependency.
 - Accepted tasking becomes a governed desired-state or command-intent record with source, authority, priority,
   TTL/deadline, target entity, idempotency key, correlation ID, and audit provenance.
+- SemOps command-intent admission rejects unresolved targets, expired intents, and duplicate idempotency keys before
+  the CS API bridge returns a standards-shaped accepted response.
 - Native MAVLink, TAK/CoT, SAPIENT, or future feed-specific drivers reconcile command intent into protocol-specific
   action only after command authority, safety, and local operator override rules pass.
 - Actual state, command acknowledgement, execution progress, timeout, cancellation, rejection, supersession, and
@@ -146,8 +148,10 @@ Acceptance:
 ## Known Gaps
 
 - SemOps does not yet expose the canonical graph state needed for meaningful CS API ingress or egress.
-- SemOps does not yet define command-intent graph contracts, TTL/deadline semantics, priority/authority arbitration,
-  local override policy, cancellation/supersession semantics, or native actuation reconciliation.
+- SemOps now defines a command-intent graph contract plus pure planner/admission tests for required fields, target
+  resolution, expiry, and duplicate idempotency. TTL/deadline semantics beyond expiry, priority/authority arbitration,
+  local override policy, cancellation/supersession semantics, CS API request handling, and native actuation
+  reconciliation remain open.
 - CS API interop should not block Phase 1 structural COP.
 - Native adapter support can be strong while CS API projection is still incomplete; keep those claims separate.
 - CS API conformance can be green while a native feed remains only fixture/replay-tested; keep those claims separate.
