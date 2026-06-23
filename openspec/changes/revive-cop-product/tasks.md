@@ -368,8 +368,10 @@
       scorer is reviewed against scenario data
 - [x] 8.21 Promote fusion track association into a hosted SemStreams component flow with runtime telemetry, bounded
       input subscriptions, born-state reconciliation, and adversarial review before demo identity-fusion claims
-- [ ] 8.22 Add a bounded fusion candidate producer from graph-discovered source tracks before enabling automatic
+- [x] 8.22 Add a bounded fusion candidate producer from graph-discovered source tracks before enabling automatic
       association in the demo stack
+- [ ] 8.23 Add a stack-level fusion e2e smoke that seeds source tracks, runs candidate production plus association
+      projection, and verifies COP association readback before enabling automatic demo association by default
 
 ## 9. Upstream SemStreams Asks
 

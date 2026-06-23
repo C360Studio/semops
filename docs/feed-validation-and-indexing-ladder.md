@@ -794,6 +794,10 @@ First acceptance gate:
 - Given `SEMOPS_FUSION_ENABLED=true`, SemOps hosts a fusion association processor that consumes bounded
   `semops.fusion.track_candidates` batches, scores cross-source tracks, writes fusion-owned graph evidence, reconciles
   existing births, and reports component telemetry without producing candidates or claiming identity resolution.
+- Given `SEMOPS_FUSION_CANDIDATES_ENABLED=true`, SemOps hosts a fusion candidate producer that periodically queries
+  configured source-owned track prefixes (`mavlink`, `tak`, `adsb`, `sapient` by default), caps tracks per source,
+  pair comparisons, and batches per scan, and publishes registered `semops.fusion.track_candidates` payloads without
+  graph writes, source mutation, merge authority, or automatic demo enablement by default.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress

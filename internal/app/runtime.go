@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/c360studio/semops/internal/componentmetrics"
@@ -64,6 +65,7 @@ type App struct {
 	weatherInput     *weathercomponent.FixtureInputComponent
 	weatherDecoder   *weathercomponent.DecoderComponent
 	weatherProjector *weathercomponent.ProjectorComponent
+	fusionCandidates *fusioncomponent.CandidateProducerComponent
 	fusionProjector  *fusioncomponent.ProjectorComponent
 	runtimeCancel    context.CancelFunc
 }
@@ -120,6 +122,7 @@ type dependencies struct {
 	newWeatherInput      func(weathercomponent.FixtureInputConfig) (*weathercomponent.FixtureInputComponent, error)
 	newWeatherDecoder    func(weathercomponent.DecoderConfig, weathercomponent.Bus) (*weathercomponent.DecoderComponent, error)
 	newWeatherProjector  func(weathercomponent.ProjectorConfig, weathercomponent.Bus) (*weathercomponent.ProjectorComponent, error)
+	newFusionCandidates  func(fusioncomponent.CandidateProducerConfig, fusioncomponent.Bus) (*fusioncomponent.CandidateProducerComponent, error)
 	newFusionPlanWriter  func(time.Duration, natsclient.RetryConfig, graphrequest.RetryRequester) (fusioncomponent.PlanWriter, error)
 	newFusionProjector   func(fusioncomponent.ProjectorConfig, fusioncomponent.Bus) (*fusioncomponent.ProjectorComponent, error)
 }
@@ -252,6 +255,11 @@ func (a *App) Close(ctx context.Context) error {
 	if a.weatherProjector != nil {
 		if err := a.weatherProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop weather projector component: %w", err))
+		}
+	}
+	if a.fusionCandidates != nil {
+		if err := a.fusionCandidates.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop fusion candidate producer component: %w", err))
 		}
 	}
 	if a.fusionProjector != nil {
@@ -445,6 +453,13 @@ func (a *App) FusionProjector() *fusioncomponent.ProjectorComponent {
 	return a.fusionProjector
 }
 
+func (a *App) FusionCandidateProducer() *fusioncomponent.CandidateProducerComponent {
+	if a == nil {
+		return nil
+	}
+	return a.fusionCandidates
+}
+
 func (a *App) GraphRequester() GraphRequester {
 	if a == nil {
 		return nil
@@ -525,6 +540,9 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 	}
 	if a.weatherProjector != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "weather", Role: "projector", Component: a.weatherProjector})
+	}
+	if a.fusionCandidates != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "fusion", Role: "candidate-producer", Component: a.fusionCandidates})
 	}
 	if a.fusionProjector != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "fusion", Role: "projector", Component: a.fusionProjector})
@@ -614,6 +632,11 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 			return nil, err
 		}
 	}
+	if cfg.Fusion.CandidateProducerEnabled {
+		if err := app.startFusionCandidateFlow(runtimeCtx, cfg.Fusion, deps); err != nil {
+			return nil, err
+		}
+	}
 
 	cleanup = false
 	return app, nil
@@ -653,6 +676,7 @@ func defaultDependencies() dependencies {
 		newWeatherInput:      weathercomponent.NewFixtureInputComponent,
 		newWeatherDecoder:    weathercomponent.NewDecoderComponent,
 		newWeatherProjector:  weathercomponent.NewProjectorComponent,
+		newFusionCandidates:  fusioncomponent.NewCandidateProducerComponent,
 		newFusionPlanWriter:  newFusionPlanWriter,
 		newFusionProjector:   fusioncomponent.NewProjectorComponent,
 	}
@@ -755,6 +779,9 @@ func fillDependencies(deps dependencies) dependencies {
 	}
 	if deps.newWeatherProjector == nil {
 		deps.newWeatherProjector = defaults.newWeatherProjector
+	}
+	if deps.newFusionCandidates == nil {
+		deps.newFusionCandidates = defaults.newFusionCandidates
 	}
 	if deps.newFusionPlanWriter == nil {
 		deps.newFusionPlanWriter = defaults.newFusionPlanWriter
@@ -1372,6 +1399,35 @@ func (a *App) startFusionFlow(
 	return nil
 }
 
+func (a *App) startFusionCandidateFlow(
+	ctx context.Context,
+	cfg FusionConfig,
+	deps dependencies,
+) error {
+	bus := fusionRuntimeBus{client: a.client}
+	registry := payloadregistry.New()
+	producer, err := deps.newFusionCandidates(fusioncomponent.CandidateProducerConfig{
+		CandidateSubject:   cfg.CandidateSubject,
+		QuerySubject:       fusioncomponent.SubjectGraphQueryPrefix,
+		Registry:           registry,
+		Requester:          a.client,
+		Sources:            fusionCandidateScopes(cfg),
+		PollInterval:       cfg.CandidatePollInterval,
+		QueryTimeout:       cfg.CandidateQueryTimeout,
+		LimitPerSource:     cfg.CandidateLimitPerSource,
+		MaxPairComparisons: cfg.CandidateMaxPairComparisons,
+		MaxBatches:         cfg.CandidateMaxBatches,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose fusion candidate producer component: %w", err)
+	}
+	a.fusionCandidates = producer
+	if err := startLifecycle(ctx, "fusion candidate producer", producer); err != nil {
+		return err
+	}
+	return nil
+}
+
 func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	Initialize() error
 	Start(context.Context) error
@@ -1463,6 +1519,26 @@ func newFusionPlanWriter(
 		requester,
 		fusionprojector.WithWriteTimeout(timeout),
 	), nil
+}
+
+func fusionCandidateScopes(cfg FusionConfig) []fusioncomponent.CandidateSourceScope {
+	sources := cfg.CandidateSources
+	if len(sources) == 0 {
+		sources = []string{"mavlink", "tak", "adsb", "sapient"}
+	}
+	scopes := make([]fusioncomponent.CandidateSourceScope, 0, len(sources))
+	for _, source := range sources {
+		source = strings.ToLower(strings.TrimSpace(source))
+		if source == "" {
+			continue
+		}
+		scopes = append(scopes, fusioncomponent.CandidateSourceScope{
+			Org:      cfg.Org,
+			Platform: cfg.Platform,
+			Source:   source,
+		})
+	}
+	return scopes
 }
 
 func newNATSClient(cfg Config) (semstreamsClient, error) {

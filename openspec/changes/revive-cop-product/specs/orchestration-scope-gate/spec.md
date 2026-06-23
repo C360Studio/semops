@@ -27,8 +27,8 @@ operator-facing orchestration feature.
   without requiring a tier-control panel
 - **AND** association evidence SHALL be owned by the fusion owner, not by the source feed owners
 - **AND** source tracks SHALL remain source-partitioned current state; association does not merge or mutate them
-- **AND** the first implementation MAY be a pure scorer, graph projection plan, hosted processor, and read-only
-  API/UI evidence surface before automatic candidate production exists
+- **AND** the first implementation MAY be a pure scorer, graph projection plan, hosted processor, bounded candidate
+  producer, and read-only API/UI evidence surface before automatic demo association is enabled by default
 - **AND** any later merge, split, or identity-authority workflow requires an adversarial review before it becomes an
   operator control
 

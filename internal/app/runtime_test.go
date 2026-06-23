@@ -40,6 +40,7 @@ import (
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
 	weathercodec "github.com/c360studio/semops/pkg/adapters/weather"
 	"github.com/c360studio/semops/pkg/cop"
+	"github.com/c360studio/semstreams/component"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/pkg/ownership"
@@ -1659,6 +1660,53 @@ func TestStartHostsFusionProjectorWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestStartHostsFusionCandidateProducerWhenEnabled(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.Fusion.CandidateProducerEnabled = true
+	cfg.Fusion.CandidateSubject = "semops.fusion.runtime_candidates"
+	cfg.Fusion.CandidateSources = []string{"mavlink", "adsb"}
+	cfg.Fusion.CandidatePollInterval = time.Hour
+	cfg.Fusion.CandidateQueryTimeout = 711 * time.Millisecond
+	cfg.Fusion.CandidateLimitPerSource = 7
+	cfg.Fusion.CandidateMaxPairComparisons = 11
+	cfg.Fusion.CandidateMaxBatches = 3
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if app.FusionCandidateProducer() == nil {
+		t.Fatal("fusion candidate producer was not composed")
+	}
+	if app.FusionProjector() != nil {
+		t.Fatal("fusion projector should not be composed when only candidate production is enabled")
+	}
+	outputs := app.FusionCandidateProducer().OutputPorts()
+	if got := outputs[1].Config.(component.NATSPort).Subject; got != cfg.Fusion.CandidateSubject {
+		t.Fatalf("candidate output subject = %q, want %q", got, cfg.Fusion.CandidateSubject)
+	}
+	if !hasComponentMetricSource(app.ComponentMetricSources(), "semops-processor-fusion-candidates", "fusion", "candidate-producer") {
+		t.Fatalf("missing fusion candidate metric source: %+v", componentMetricSourceNames(app.ComponentMetricSources()))
+	}
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatalf("close app: %v", err)
+	}
+}
+
 func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1955,93 +2003,100 @@ func TestComponentMetricSourcesExposeHostedFusionProjector(t *testing.T) {
 
 func TestConfigFromEnv(t *testing.T) {
 	env := map[string]string{
-		EnvNATSURL:                      "nats://semstreams:4222",
-		EnvNATSName:                     "semops-test",
-		EnvNATSConnectTimeout:           "3s",
-		EnvAPIAddr:                      ":18088",
-		EnvOwnershipHeartbeatInterval:   "4s",
-		EnvCOPGraphQueryTimeout:         "1500ms",
-		EnvCOPGraphDiscoveryEnabled:     "false",
-		EnvCOPGraphDiscoveryLimit:       "75",
-		EnvCOPMAVLinkSystemIDs:          "42, 43",
-		EnvCOPCoTUIDs:                   "ANDROID-ALPHA, MARKER-NORTH-GATE",
-		EnvCOPCAPAlertIDs:               "nws-demo-flood-warning, nws-demo-flood-update",
-		EnvMAVLinkEnabled:               "false",
-		EnvMAVLinkSource:                "udp:14550",
-		EnvOrg:                          "lab",
-		EnvPlatform:                     "edge-7",
-		EnvTraceID:                      "trace-7",
-		EnvMAVLinkWriteTimeout:          "900ms",
-		EnvMAVLinkUDPListenAddr:         "127.0.0.1:14550",
-		EnvMAVLinkUDPMaxDatagramBytes:   "2048",
-		EnvCoTEnabled:                   "true",
-		EnvCoTSource:                    "udp:cot",
-		EnvCoTWriteTimeout:              "950ms",
-		EnvCoTUDPListenAddr:             "127.0.0.1:18080",
-		EnvCoTUDPMaxDatagramBytes:       "4096",
-		EnvCoTTCPListenAddr:             "127.0.0.1:18081",
-		EnvCoTTCPMaxEventBytes:          "8192",
-		EnvCAPEnabled:                   "true",
-		EnvCAPSource:                    "cap:http",
-		EnvCAPReplayPath:                "/tmp/semops-cap.jsonl",
-		EnvCAPWriteTimeout:              "975ms",
-		EnvCAPHTTPURL:                   "https://example.test/cap",
-		EnvCAPHTTPMethod:                "POST",
-		EnvCAPHTTPPollInterval:          "45s",
-		EnvCAPHTTPStaleAfter:            "2m",
-		EnvCAPHTTPContactPolicy:         "semops-test@example.invalid",
-		EnvCAPHTTPAuthRef:               "cap-secret",
-		EnvCAPHTTPMaxResponseBytes:      "123456",
-		EnvADSBEnabled:                  "true",
-		EnvADSBSource:                   "adsb:opensky",
-		EnvADSBReplayPath:               "/tmp/semops-adsb.jsonl",
-		EnvADSBRawMaxRecords:            "32",
-		EnvADSBRawMaxBytes:              "65536",
-		EnvADSBWriteTimeout:             "980ms",
-		EnvADSBHTTPURL:                  "https://example.test/opensky",
-		EnvADSBHTTPMethod:               "POST",
-		EnvADSBHTTPPollInterval:         "40s",
-		EnvADSBHTTPStaleAfter:           "3m",
-		EnvADSBHTTPContactPolicy:        "semops-adsb-test@example.invalid",
-		EnvADSBHTTPAuthRef:              "adsb-secret",
-		EnvADSBHTTPMaxResponseBytes:     "234567",
-		EnvSAPIENTEnabled:               "true",
-		EnvSAPIENTGraphEnabled:          "true",
-		EnvSAPIENTSource:                "sapient:http",
-		EnvSAPIENTReplayPath:            "/tmp/semops-sapient.jsonl",
-		EnvSAPIENTRawMaxRecords:         "33",
-		EnvSAPIENTRawMaxBytes:           "75536",
-		EnvSAPIENTWriteTimeout:          "985ms",
-		EnvSAPIENTHTTPURL:               "https://example.test/sapient",
-		EnvSAPIENTHTTPMethod:            "POST",
-		EnvSAPIENTHTTPPollInterval:      "50s",
-		EnvSAPIENTHTTPStaleAfter:        "4m",
-		EnvSAPIENTHTTPContactPolicy:     "semops-sapient-test@example.invalid",
-		EnvSAPIENTHTTPAuthRef:           "sapient-secret",
-		EnvSAPIENTHTTPMaxResponseBytes:  "345678",
-		EnvSAPIENTHTTPEncoding:          "json",
-		EnvKLVEnabled:                   "true",
-		EnvKLVSource:                    "klv:fixture",
-		EnvKLVMediaPath:                 "/tmp/semops-klv",
-		EnvKLVMediaPattern:              "*.mpg",
-		EnvKLVWriteTimeout:              "990ms",
-		EnvKLVDemuxMaxPacketBytes:       "65536",
-		EnvKLVDemuxMaxExtractBytes:      "262144",
-		EnvKLVDemuxMaxPackets:           "17",
-		EnvKLVDemuxMaxMaterializedBytes: "1048576",
-		EnvKLVDemuxProbeOutputMaxBytes:  "32768",
-		EnvKLVDecodeMaxPacketBytes:      "65536",
-		EnvWeatherEnabled:               "true",
-		EnvWeatherSource:                "weather:fixture",
-		EnvWeatherProvider:              weathercodec.ProviderOpenMeteo,
-		EnvWeatherQueryShape:            weathercodec.QueryShapePosition,
-		EnvWeatherFixturePath:           "/tmp/weather/open-meteo-point.json",
-		EnvWeatherWriteTimeout:          "995ms",
-		EnvWeatherFreshness:             "45m",
-		EnvWeatherMaxObservations:       "48",
-		EnvFusionEnabled:                "true",
-		EnvFusionCandidateSubject:       "semops.fusion.env_candidates",
-		EnvFusionWriteTimeout:           "996ms",
+		EnvNATSURL:                       "nats://semstreams:4222",
+		EnvNATSName:                      "semops-test",
+		EnvNATSConnectTimeout:            "3s",
+		EnvAPIAddr:                       ":18088",
+		EnvOwnershipHeartbeatInterval:    "4s",
+		EnvCOPGraphQueryTimeout:          "1500ms",
+		EnvCOPGraphDiscoveryEnabled:      "false",
+		EnvCOPGraphDiscoveryLimit:        "75",
+		EnvCOPMAVLinkSystemIDs:           "42, 43",
+		EnvCOPCoTUIDs:                    "ANDROID-ALPHA, MARKER-NORTH-GATE",
+		EnvCOPCAPAlertIDs:                "nws-demo-flood-warning, nws-demo-flood-update",
+		EnvMAVLinkEnabled:                "false",
+		EnvMAVLinkSource:                 "udp:14550",
+		EnvOrg:                           "lab",
+		EnvPlatform:                      "edge-7",
+		EnvTraceID:                       "trace-7",
+		EnvMAVLinkWriteTimeout:           "900ms",
+		EnvMAVLinkUDPListenAddr:          "127.0.0.1:14550",
+		EnvMAVLinkUDPMaxDatagramBytes:    "2048",
+		EnvCoTEnabled:                    "true",
+		EnvCoTSource:                     "udp:cot",
+		EnvCoTWriteTimeout:               "950ms",
+		EnvCoTUDPListenAddr:              "127.0.0.1:18080",
+		EnvCoTUDPMaxDatagramBytes:        "4096",
+		EnvCoTTCPListenAddr:              "127.0.0.1:18081",
+		EnvCoTTCPMaxEventBytes:           "8192",
+		EnvCAPEnabled:                    "true",
+		EnvCAPSource:                     "cap:http",
+		EnvCAPReplayPath:                 "/tmp/semops-cap.jsonl",
+		EnvCAPWriteTimeout:               "975ms",
+		EnvCAPHTTPURL:                    "https://example.test/cap",
+		EnvCAPHTTPMethod:                 "POST",
+		EnvCAPHTTPPollInterval:           "45s",
+		EnvCAPHTTPStaleAfter:             "2m",
+		EnvCAPHTTPContactPolicy:          "semops-test@example.invalid",
+		EnvCAPHTTPAuthRef:                "cap-secret",
+		EnvCAPHTTPMaxResponseBytes:       "123456",
+		EnvADSBEnabled:                   "true",
+		EnvADSBSource:                    "adsb:opensky",
+		EnvADSBReplayPath:                "/tmp/semops-adsb.jsonl",
+		EnvADSBRawMaxRecords:             "32",
+		EnvADSBRawMaxBytes:               "65536",
+		EnvADSBWriteTimeout:              "980ms",
+		EnvADSBHTTPURL:                   "https://example.test/opensky",
+		EnvADSBHTTPMethod:                "POST",
+		EnvADSBHTTPPollInterval:          "40s",
+		EnvADSBHTTPStaleAfter:            "3m",
+		EnvADSBHTTPContactPolicy:         "semops-adsb-test@example.invalid",
+		EnvADSBHTTPAuthRef:               "adsb-secret",
+		EnvADSBHTTPMaxResponseBytes:      "234567",
+		EnvSAPIENTEnabled:                "true",
+		EnvSAPIENTGraphEnabled:           "true",
+		EnvSAPIENTSource:                 "sapient:http",
+		EnvSAPIENTReplayPath:             "/tmp/semops-sapient.jsonl",
+		EnvSAPIENTRawMaxRecords:          "33",
+		EnvSAPIENTRawMaxBytes:            "75536",
+		EnvSAPIENTWriteTimeout:           "985ms",
+		EnvSAPIENTHTTPURL:                "https://example.test/sapient",
+		EnvSAPIENTHTTPMethod:             "POST",
+		EnvSAPIENTHTTPPollInterval:       "50s",
+		EnvSAPIENTHTTPStaleAfter:         "4m",
+		EnvSAPIENTHTTPContactPolicy:      "semops-sapient-test@example.invalid",
+		EnvSAPIENTHTTPAuthRef:            "sapient-secret",
+		EnvSAPIENTHTTPMaxResponseBytes:   "345678",
+		EnvSAPIENTHTTPEncoding:           "json",
+		EnvKLVEnabled:                    "true",
+		EnvKLVSource:                     "klv:fixture",
+		EnvKLVMediaPath:                  "/tmp/semops-klv",
+		EnvKLVMediaPattern:               "*.mpg",
+		EnvKLVWriteTimeout:               "990ms",
+		EnvKLVDemuxMaxPacketBytes:        "65536",
+		EnvKLVDemuxMaxExtractBytes:       "262144",
+		EnvKLVDemuxMaxPackets:            "17",
+		EnvKLVDemuxMaxMaterializedBytes:  "1048576",
+		EnvKLVDemuxProbeOutputMaxBytes:   "32768",
+		EnvKLVDecodeMaxPacketBytes:       "65536",
+		EnvWeatherEnabled:                "true",
+		EnvWeatherSource:                 "weather:fixture",
+		EnvWeatherProvider:               weathercodec.ProviderOpenMeteo,
+		EnvWeatherQueryShape:             weathercodec.QueryShapePosition,
+		EnvWeatherFixturePath:            "/tmp/weather/open-meteo-point.json",
+		EnvWeatherWriteTimeout:           "995ms",
+		EnvWeatherFreshness:              "45m",
+		EnvWeatherMaxObservations:        "48",
+		EnvFusionEnabled:                 "true",
+		EnvFusionCandidateSubject:        "semops.fusion.env_candidates",
+		EnvFusionWriteTimeout:            "996ms",
+		EnvFusionCandidatesEnabled:       "true",
+		EnvFusionCandidateSources:        "mavlink, adsb",
+		EnvFusionCandidatePollInterval:   "12s",
+		EnvFusionCandidateQueryTimeout:   "997ms",
+		EnvFusionCandidateLimitPerSource: "9",
+		EnvFusionCandidateMaxComparisons: "19",
+		EnvFusionCandidateMaxBatches:     "4",
 	}
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
@@ -2240,11 +2295,26 @@ func TestConfigFromEnv(t *testing.T) {
 	if !cfg.Fusion.Enabled {
 		t.Fatal("fusion enabled = false, want true")
 	}
+	if !cfg.Fusion.CandidateProducerEnabled {
+		t.Fatal("fusion candidate producer enabled = false, want true")
+	}
 	if cfg.Fusion.Org != "lab" ||
 		cfg.Fusion.Platform != "edge-7" ||
 		cfg.Fusion.TraceID != "trace-7" ||
 		cfg.Fusion.CandidateSubject != "semops.fusion.env_candidates" {
 		t.Fatalf("fusion config = %+v", cfg.Fusion)
+	}
+	if len(cfg.Fusion.CandidateSources) != 2 ||
+		cfg.Fusion.CandidateSources[0] != "mavlink" ||
+		cfg.Fusion.CandidateSources[1] != "adsb" {
+		t.Fatalf("fusion candidate sources = %+v", cfg.Fusion.CandidateSources)
+	}
+	if cfg.Fusion.CandidatePollInterval != 12*time.Second ||
+		cfg.Fusion.CandidateQueryTimeout != 997*time.Millisecond ||
+		cfg.Fusion.CandidateLimitPerSource != 9 ||
+		cfg.Fusion.CandidateMaxPairComparisons != 19 ||
+		cfg.Fusion.CandidateMaxBatches != 4 {
+		t.Fatalf("fusion candidate config = %+v", cfg.Fusion)
 	}
 	if cfg.Fusion.WriteTimeout != 996*time.Millisecond {
 		t.Fatalf("fusion write timeout = %s", cfg.Fusion.WriteTimeout)
@@ -2728,6 +2798,84 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvFusionWriteTimeout: "0s",
 			},
 			want: EnvFusionWriteTimeout,
+		},
+		{
+			name: "bad fusion candidates enabled",
+			env:  map[string]string{EnvFusionCandidatesEnabled: "sometimes"},
+			want: EnvFusionCandidatesEnabled,
+		},
+		{
+			name: "bad fusion candidate poll interval",
+			env:  map[string]string{EnvFusionCandidatePollInterval: "soon"},
+			want: EnvFusionCandidatePollInterval,
+		},
+		{
+			name: "bad fusion candidate query timeout",
+			env:  map[string]string{EnvFusionCandidateQueryTimeout: "eventually"},
+			want: EnvFusionCandidateQueryTimeout,
+		},
+		{
+			name: "bad fusion candidate limit per source",
+			env:  map[string]string{EnvFusionCandidateLimitPerSource: "many"},
+			want: EnvFusionCandidateLimitPerSource,
+		},
+		{
+			name: "bad fusion candidate max comparisons",
+			env:  map[string]string{EnvFusionCandidateMaxComparisons: "many"},
+			want: EnvFusionCandidateMaxComparisons,
+		},
+		{
+			name: "bad fusion candidate max batches",
+			env:  map[string]string{EnvFusionCandidateMaxBatches: "many"},
+			want: EnvFusionCandidateMaxBatches,
+		},
+		{
+			name: "empty fusion candidate sources",
+			env: map[string]string{
+				EnvFusionCandidatesEnabled: "true",
+				EnvFusionCandidateSources:  ",",
+			},
+			want: EnvFusionCandidateSources,
+		},
+		{
+			name: "zero fusion candidate poll interval",
+			env: map[string]string{
+				EnvFusionCandidatesEnabled:     "true",
+				EnvFusionCandidatePollInterval: "0s",
+			},
+			want: EnvFusionCandidatePollInterval,
+		},
+		{
+			name: "zero fusion candidate query timeout",
+			env: map[string]string{
+				EnvFusionCandidatesEnabled:     "true",
+				EnvFusionCandidateQueryTimeout: "0s",
+			},
+			want: EnvFusionCandidateQueryTimeout,
+		},
+		{
+			name: "zero fusion candidate limit per source",
+			env: map[string]string{
+				EnvFusionCandidatesEnabled:       "true",
+				EnvFusionCandidateLimitPerSource: "0",
+			},
+			want: EnvFusionCandidateLimitPerSource,
+		},
+		{
+			name: "zero fusion candidate max comparisons",
+			env: map[string]string{
+				EnvFusionCandidatesEnabled:       "true",
+				EnvFusionCandidateMaxComparisons: "0",
+			},
+			want: EnvFusionCandidateMaxComparisons,
+		},
+		{
+			name: "zero fusion candidate max batches",
+			env: map[string]string{
+				EnvFusionCandidatesEnabled:   "true",
+				EnvFusionCandidateMaxBatches: "0",
+			},
+			want: EnvFusionCandidateMaxBatches,
 		},
 	}
 

@@ -21,93 +21,100 @@ import (
 )
 
 const (
-	EnvNATSURL                      = "SEMOPS_NATS_URL"
-	EnvNATSName                     = "SEMOPS_NATS_NAME"
-	EnvNATSConnectTimeout           = "SEMOPS_NATS_CONNECT_TIMEOUT"
-	EnvAPIAddr                      = "SEMOPS_API_ADDR"
-	EnvOwnershipHeartbeatInterval   = "SEMOPS_OWNERSHIP_HEARTBEAT_INTERVAL"
-	EnvMAVLinkEnabled               = "SEMOPS_MAVLINK_ENABLED"
-	EnvMAVLinkSource                = "SEMOPS_MAVLINK_SOURCE"
-	EnvOrg                          = "SEMOPS_ORG"
-	EnvPlatform                     = "SEMOPS_PLATFORM"
-	EnvTraceID                      = "SEMOPS_TRACE_ID"
-	EnvMAVLinkWriteTimeout          = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
-	EnvMAVLinkUDPListenAddr         = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
-	EnvMAVLinkUDPMaxDatagramBytes   = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
-	EnvCoTEnabled                   = "SEMOPS_COT_ENABLED"
-	EnvCoTSource                    = "SEMOPS_COT_SOURCE"
-	EnvCoTWriteTimeout              = "SEMOPS_COT_WRITE_TIMEOUT"
-	EnvCoTUDPListenAddr             = "SEMOPS_COT_UDP_LISTEN_ADDR"
-	EnvCoTUDPMaxDatagramBytes       = "SEMOPS_COT_UDP_MAX_DATAGRAM_BYTES"
-	EnvCoTTCPListenAddr             = "SEMOPS_COT_TCP_LISTEN_ADDR"
-	EnvCoTTCPMaxEventBytes          = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
-	EnvCAPEnabled                   = "SEMOPS_CAP_ENABLED"
-	EnvCAPSource                    = "SEMOPS_CAP_SOURCE"
-	EnvCAPReplayPath                = "SEMOPS_CAP_REPLAY_PATH"
-	EnvCAPWriteTimeout              = "SEMOPS_CAP_WRITE_TIMEOUT"
-	EnvCAPHTTPURL                   = "SEMOPS_CAP_HTTP_URL"
-	EnvCAPHTTPMethod                = "SEMOPS_CAP_HTTP_METHOD"
-	EnvCAPHTTPPollInterval          = "SEMOPS_CAP_HTTP_POLL_INTERVAL"
-	EnvCAPHTTPStaleAfter            = "SEMOPS_CAP_HTTP_STALE_AFTER"
-	EnvCAPHTTPContactPolicy         = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
-	EnvCAPHTTPAuthRef               = "SEMOPS_CAP_HTTP_AUTH_REF"
-	EnvCAPHTTPMaxResponseBytes      = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
-	EnvADSBEnabled                  = "SEMOPS_ADSB_ENABLED"
-	EnvADSBSource                   = "SEMOPS_ADSB_SOURCE"
-	EnvADSBReplayPath               = "SEMOPS_ADSB_REPLAY_PATH"
-	EnvADSBRawMaxRecords            = "SEMOPS_ADSB_RAW_MAX_RECORDS"
-	EnvADSBRawMaxBytes              = "SEMOPS_ADSB_RAW_MAX_BYTES"
-	EnvADSBWriteTimeout             = "SEMOPS_ADSB_WRITE_TIMEOUT"
-	EnvADSBHTTPURL                  = "SEMOPS_ADSB_HTTP_URL"
-	EnvADSBHTTPMethod               = "SEMOPS_ADSB_HTTP_METHOD"
-	EnvADSBHTTPPollInterval         = "SEMOPS_ADSB_HTTP_POLL_INTERVAL"
-	EnvADSBHTTPStaleAfter           = "SEMOPS_ADSB_HTTP_STALE_AFTER"
-	EnvADSBHTTPContactPolicy        = "SEMOPS_ADSB_HTTP_CONTACT_POLICY"
-	EnvADSBHTTPAuthRef              = "SEMOPS_ADSB_HTTP_AUTH_REF"
-	EnvADSBHTTPMaxResponseBytes     = "SEMOPS_ADSB_HTTP_MAX_RESPONSE_BYTES"
-	EnvSAPIENTEnabled               = "SEMOPS_SAPIENT_ENABLED"
-	EnvSAPIENTGraphEnabled          = "SEMOPS_SAPIENT_GRAPH_ENABLED"
-	EnvSAPIENTSource                = "SEMOPS_SAPIENT_SOURCE"
-	EnvSAPIENTReplayPath            = "SEMOPS_SAPIENT_REPLAY_PATH"
-	EnvSAPIENTRawMaxRecords         = "SEMOPS_SAPIENT_RAW_MAX_RECORDS"
-	EnvSAPIENTRawMaxBytes           = "SEMOPS_SAPIENT_RAW_MAX_BYTES"
-	EnvSAPIENTWriteTimeout          = "SEMOPS_SAPIENT_WRITE_TIMEOUT"
-	EnvSAPIENTHTTPURL               = "SEMOPS_SAPIENT_HTTP_URL"
-	EnvSAPIENTHTTPMethod            = "SEMOPS_SAPIENT_HTTP_METHOD"
-	EnvSAPIENTHTTPPollInterval      = "SEMOPS_SAPIENT_HTTP_POLL_INTERVAL"
-	EnvSAPIENTHTTPStaleAfter        = "SEMOPS_SAPIENT_HTTP_STALE_AFTER"
-	EnvSAPIENTHTTPContactPolicy     = "SEMOPS_SAPIENT_HTTP_CONTACT_POLICY"
-	EnvSAPIENTHTTPAuthRef           = "SEMOPS_SAPIENT_HTTP_AUTH_REF"
-	EnvSAPIENTHTTPMaxResponseBytes  = "SEMOPS_SAPIENT_HTTP_MAX_RESPONSE_BYTES"
-	EnvSAPIENTHTTPEncoding          = "SEMOPS_SAPIENT_HTTP_ENCODING"
-	EnvKLVEnabled                   = "SEMOPS_KLV_ENABLED"
-	EnvKLVSource                    = "SEMOPS_KLV_SOURCE"
-	EnvKLVMediaPath                 = "SEMOPS_KLV_MEDIA_PATH"
-	EnvKLVMediaPattern              = "SEMOPS_KLV_MEDIA_PATTERN"
-	EnvKLVWriteTimeout              = "SEMOPS_KLV_WRITE_TIMEOUT"
-	EnvKLVDemuxMaxPacketBytes       = "SEMOPS_KLV_DEMUX_MAX_PACKET_BYTES"
-	EnvKLVDemuxMaxExtractBytes      = "SEMOPS_KLV_DEMUX_MAX_EXTRACT_BYTES"
-	EnvKLVDemuxMaxPackets           = "SEMOPS_KLV_DEMUX_MAX_PACKETS"
-	EnvKLVDemuxMaxMaterializedBytes = "SEMOPS_KLV_DEMUX_MAX_MATERIALIZED_BYTES"
-	EnvKLVDemuxProbeOutputMaxBytes  = "SEMOPS_KLV_DEMUX_PROBE_OUTPUT_MAX_BYTES"
-	EnvKLVDecodeMaxPacketBytes      = "SEMOPS_KLV_DECODE_MAX_PACKET_BYTES"
-	EnvWeatherEnabled               = "SEMOPS_WEATHER_ENABLED"
-	EnvWeatherSource                = "SEMOPS_WEATHER_SOURCE"
-	EnvWeatherProvider              = "SEMOPS_WEATHER_PROVIDER"
-	EnvWeatherQueryShape            = "SEMOPS_WEATHER_QUERY_SHAPE"
-	EnvWeatherFixturePath           = "SEMOPS_WEATHER_FIXTURE_PATH"
-	EnvWeatherWriteTimeout          = "SEMOPS_WEATHER_WRITE_TIMEOUT"
-	EnvWeatherFreshness             = "SEMOPS_WEATHER_FRESHNESS"
-	EnvWeatherMaxObservations       = "SEMOPS_WEATHER_MAX_OBSERVATIONS"
-	EnvFusionEnabled                = "SEMOPS_FUSION_ENABLED"
-	EnvFusionCandidateSubject       = "SEMOPS_FUSION_CANDIDATE_SUBJECT"
-	EnvFusionWriteTimeout           = "SEMOPS_FUSION_WRITE_TIMEOUT"
-	EnvCOPGraphQueryTimeout         = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
-	EnvCOPGraphDiscoveryEnabled     = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
-	EnvCOPGraphDiscoveryLimit       = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
-	EnvCOPMAVLinkSystemIDs          = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
-	EnvCOPCoTUIDs                   = "SEMOPS_COP_COT_UIDS"
-	EnvCOPCAPAlertIDs               = "SEMOPS_COP_CAP_ALERT_IDS"
+	EnvNATSURL                       = "SEMOPS_NATS_URL"
+	EnvNATSName                      = "SEMOPS_NATS_NAME"
+	EnvNATSConnectTimeout            = "SEMOPS_NATS_CONNECT_TIMEOUT"
+	EnvAPIAddr                       = "SEMOPS_API_ADDR"
+	EnvOwnershipHeartbeatInterval    = "SEMOPS_OWNERSHIP_HEARTBEAT_INTERVAL"
+	EnvMAVLinkEnabled                = "SEMOPS_MAVLINK_ENABLED"
+	EnvMAVLinkSource                 = "SEMOPS_MAVLINK_SOURCE"
+	EnvOrg                           = "SEMOPS_ORG"
+	EnvPlatform                      = "SEMOPS_PLATFORM"
+	EnvTraceID                       = "SEMOPS_TRACE_ID"
+	EnvMAVLinkWriteTimeout           = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
+	EnvMAVLinkUDPListenAddr          = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
+	EnvMAVLinkUDPMaxDatagramBytes    = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
+	EnvCoTEnabled                    = "SEMOPS_COT_ENABLED"
+	EnvCoTSource                     = "SEMOPS_COT_SOURCE"
+	EnvCoTWriteTimeout               = "SEMOPS_COT_WRITE_TIMEOUT"
+	EnvCoTUDPListenAddr              = "SEMOPS_COT_UDP_LISTEN_ADDR"
+	EnvCoTUDPMaxDatagramBytes        = "SEMOPS_COT_UDP_MAX_DATAGRAM_BYTES"
+	EnvCoTTCPListenAddr              = "SEMOPS_COT_TCP_LISTEN_ADDR"
+	EnvCoTTCPMaxEventBytes           = "SEMOPS_COT_TCP_MAX_EVENT_BYTES"
+	EnvCAPEnabled                    = "SEMOPS_CAP_ENABLED"
+	EnvCAPSource                     = "SEMOPS_CAP_SOURCE"
+	EnvCAPReplayPath                 = "SEMOPS_CAP_REPLAY_PATH"
+	EnvCAPWriteTimeout               = "SEMOPS_CAP_WRITE_TIMEOUT"
+	EnvCAPHTTPURL                    = "SEMOPS_CAP_HTTP_URL"
+	EnvCAPHTTPMethod                 = "SEMOPS_CAP_HTTP_METHOD"
+	EnvCAPHTTPPollInterval           = "SEMOPS_CAP_HTTP_POLL_INTERVAL"
+	EnvCAPHTTPStaleAfter             = "SEMOPS_CAP_HTTP_STALE_AFTER"
+	EnvCAPHTTPContactPolicy          = "SEMOPS_CAP_HTTP_CONTACT_POLICY"
+	EnvCAPHTTPAuthRef                = "SEMOPS_CAP_HTTP_AUTH_REF"
+	EnvCAPHTTPMaxResponseBytes       = "SEMOPS_CAP_HTTP_MAX_RESPONSE_BYTES"
+	EnvADSBEnabled                   = "SEMOPS_ADSB_ENABLED"
+	EnvADSBSource                    = "SEMOPS_ADSB_SOURCE"
+	EnvADSBReplayPath                = "SEMOPS_ADSB_REPLAY_PATH"
+	EnvADSBRawMaxRecords             = "SEMOPS_ADSB_RAW_MAX_RECORDS"
+	EnvADSBRawMaxBytes               = "SEMOPS_ADSB_RAW_MAX_BYTES"
+	EnvADSBWriteTimeout              = "SEMOPS_ADSB_WRITE_TIMEOUT"
+	EnvADSBHTTPURL                   = "SEMOPS_ADSB_HTTP_URL"
+	EnvADSBHTTPMethod                = "SEMOPS_ADSB_HTTP_METHOD"
+	EnvADSBHTTPPollInterval          = "SEMOPS_ADSB_HTTP_POLL_INTERVAL"
+	EnvADSBHTTPStaleAfter            = "SEMOPS_ADSB_HTTP_STALE_AFTER"
+	EnvADSBHTTPContactPolicy         = "SEMOPS_ADSB_HTTP_CONTACT_POLICY"
+	EnvADSBHTTPAuthRef               = "SEMOPS_ADSB_HTTP_AUTH_REF"
+	EnvADSBHTTPMaxResponseBytes      = "SEMOPS_ADSB_HTTP_MAX_RESPONSE_BYTES"
+	EnvSAPIENTEnabled                = "SEMOPS_SAPIENT_ENABLED"
+	EnvSAPIENTGraphEnabled           = "SEMOPS_SAPIENT_GRAPH_ENABLED"
+	EnvSAPIENTSource                 = "SEMOPS_SAPIENT_SOURCE"
+	EnvSAPIENTReplayPath             = "SEMOPS_SAPIENT_REPLAY_PATH"
+	EnvSAPIENTRawMaxRecords          = "SEMOPS_SAPIENT_RAW_MAX_RECORDS"
+	EnvSAPIENTRawMaxBytes            = "SEMOPS_SAPIENT_RAW_MAX_BYTES"
+	EnvSAPIENTWriteTimeout           = "SEMOPS_SAPIENT_WRITE_TIMEOUT"
+	EnvSAPIENTHTTPURL                = "SEMOPS_SAPIENT_HTTP_URL"
+	EnvSAPIENTHTTPMethod             = "SEMOPS_SAPIENT_HTTP_METHOD"
+	EnvSAPIENTHTTPPollInterval       = "SEMOPS_SAPIENT_HTTP_POLL_INTERVAL"
+	EnvSAPIENTHTTPStaleAfter         = "SEMOPS_SAPIENT_HTTP_STALE_AFTER"
+	EnvSAPIENTHTTPContactPolicy      = "SEMOPS_SAPIENT_HTTP_CONTACT_POLICY"
+	EnvSAPIENTHTTPAuthRef            = "SEMOPS_SAPIENT_HTTP_AUTH_REF"
+	EnvSAPIENTHTTPMaxResponseBytes   = "SEMOPS_SAPIENT_HTTP_MAX_RESPONSE_BYTES"
+	EnvSAPIENTHTTPEncoding           = "SEMOPS_SAPIENT_HTTP_ENCODING"
+	EnvKLVEnabled                    = "SEMOPS_KLV_ENABLED"
+	EnvKLVSource                     = "SEMOPS_KLV_SOURCE"
+	EnvKLVMediaPath                  = "SEMOPS_KLV_MEDIA_PATH"
+	EnvKLVMediaPattern               = "SEMOPS_KLV_MEDIA_PATTERN"
+	EnvKLVWriteTimeout               = "SEMOPS_KLV_WRITE_TIMEOUT"
+	EnvKLVDemuxMaxPacketBytes        = "SEMOPS_KLV_DEMUX_MAX_PACKET_BYTES"
+	EnvKLVDemuxMaxExtractBytes       = "SEMOPS_KLV_DEMUX_MAX_EXTRACT_BYTES"
+	EnvKLVDemuxMaxPackets            = "SEMOPS_KLV_DEMUX_MAX_PACKETS"
+	EnvKLVDemuxMaxMaterializedBytes  = "SEMOPS_KLV_DEMUX_MAX_MATERIALIZED_BYTES"
+	EnvKLVDemuxProbeOutputMaxBytes   = "SEMOPS_KLV_DEMUX_PROBE_OUTPUT_MAX_BYTES"
+	EnvKLVDecodeMaxPacketBytes       = "SEMOPS_KLV_DECODE_MAX_PACKET_BYTES"
+	EnvWeatherEnabled                = "SEMOPS_WEATHER_ENABLED"
+	EnvWeatherSource                 = "SEMOPS_WEATHER_SOURCE"
+	EnvWeatherProvider               = "SEMOPS_WEATHER_PROVIDER"
+	EnvWeatherQueryShape             = "SEMOPS_WEATHER_QUERY_SHAPE"
+	EnvWeatherFixturePath            = "SEMOPS_WEATHER_FIXTURE_PATH"
+	EnvWeatherWriteTimeout           = "SEMOPS_WEATHER_WRITE_TIMEOUT"
+	EnvWeatherFreshness              = "SEMOPS_WEATHER_FRESHNESS"
+	EnvWeatherMaxObservations        = "SEMOPS_WEATHER_MAX_OBSERVATIONS"
+	EnvFusionEnabled                 = "SEMOPS_FUSION_ENABLED"
+	EnvFusionCandidateSubject        = "SEMOPS_FUSION_CANDIDATE_SUBJECT"
+	EnvFusionWriteTimeout            = "SEMOPS_FUSION_WRITE_TIMEOUT"
+	EnvFusionCandidatesEnabled       = "SEMOPS_FUSION_CANDIDATES_ENABLED"
+	EnvFusionCandidateSources        = "SEMOPS_FUSION_CANDIDATE_SOURCES"
+	EnvFusionCandidatePollInterval   = "SEMOPS_FUSION_CANDIDATE_POLL_INTERVAL"
+	EnvFusionCandidateQueryTimeout   = "SEMOPS_FUSION_CANDIDATE_QUERY_TIMEOUT"
+	EnvFusionCandidateLimitPerSource = "SEMOPS_FUSION_CANDIDATE_LIMIT_PER_SOURCE"
+	EnvFusionCandidateMaxComparisons = "SEMOPS_FUSION_CANDIDATE_MAX_COMPARISONS"
+	EnvFusionCandidateMaxBatches     = "SEMOPS_FUSION_CANDIDATE_MAX_BATCHES"
+	EnvCOPGraphQueryTimeout          = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
+	EnvCOPGraphDiscoveryEnabled      = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
+	EnvCOPGraphDiscoveryLimit        = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
+	EnvCOPMAVLinkSystemIDs           = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
+	EnvCOPCoTUIDs                    = "SEMOPS_COP_COT_UIDS"
+	EnvCOPCAPAlertIDs                = "SEMOPS_COP_CAP_ALERT_IDS"
 )
 
 type Config struct {
@@ -284,13 +291,20 @@ type WeatherConfig struct {
 }
 
 type FusionConfig struct {
-	Enabled          bool
-	Org              string
-	Platform         string
-	TraceID          string
-	CandidateSubject string
-	WriteTimeout     time.Duration
-	Retry            natsclient.RetryConfig
+	Enabled                     bool
+	CandidateProducerEnabled    bool
+	Org                         string
+	Platform                    string
+	TraceID                     string
+	CandidateSubject            string
+	CandidateSources            []string
+	CandidatePollInterval       time.Duration
+	CandidateQueryTimeout       time.Duration
+	CandidateLimitPerSource     int
+	CandidateMaxPairComparisons int
+	CandidateMaxBatches         int
+	WriteTimeout                time.Duration
+	Retry                       natsclient.RetryConfig
 }
 
 type COPConfig struct {
@@ -460,12 +474,19 @@ func DefaultConfig() Config {
 			},
 		},
 		Fusion: FusionConfig{
-			Enabled:          false,
-			Org:              "c360",
-			Platform:         "edge",
-			TraceID:          "semops-fusion-hosted",
-			CandidateSubject: fusioncomponent.DefaultCandidateSubject,
-			WriteTimeout:     2 * time.Second,
+			Enabled:                     false,
+			CandidateProducerEnabled:    false,
+			Org:                         "c360",
+			Platform:                    "edge",
+			TraceID:                     "semops-fusion-hosted",
+			CandidateSubject:            fusioncomponent.DefaultCandidateSubject,
+			CandidateSources:            []string{"mavlink", "tak", "adsb", "sapient"},
+			CandidatePollInterval:       fusioncomponent.DefaultCandidateProducerInterval,
+			CandidateQueryTimeout:       fusioncomponent.DefaultCandidateProducerQueryTimeout,
+			CandidateLimitPerSource:     fusioncomponent.DefaultCandidateProducerLimitPerSource,
+			CandidateMaxPairComparisons: fusioncomponent.DefaultCandidateProducerMaxPairComparisons,
+			CandidateMaxBatches:         fusioncomponent.DefaultCandidateProducerMaxBatches,
+			WriteTimeout:                2 * time.Second,
 			Retry: natsclient.RetryConfig{
 				MaxRetries:        5,
 				InitialBackoff:    50 * time.Millisecond,
@@ -617,6 +638,20 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.Fusion.CandidatePollInterval, err = durationFromEnv(
+		getenv,
+		EnvFusionCandidatePollInterval,
+		cfg.Fusion.CandidatePollInterval,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.CandidateQueryTimeout, err = durationFromEnv(
+		getenv,
+		EnvFusionCandidateQueryTimeout,
+		cfg.Fusion.CandidateQueryTimeout,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.Weather.Freshness, err = durationFromEnv(
 		getenv,
 		EnvWeatherFreshness,
@@ -709,6 +744,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.Fusion.Enabled, err = boolFromEnv(getenv, EnvFusionEnabled, cfg.Fusion.Enabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.CandidateProducerEnabled, err = boolFromEnv(
+		getenv,
+		EnvFusionCandidatesEnabled,
+		cfg.Fusion.CandidateProducerEnabled,
+	); err != nil {
 		return Config{}, err
 	}
 	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
@@ -830,6 +872,27 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.Fusion.CandidateLimitPerSource, err = intFromEnv(
+		getenv,
+		EnvFusionCandidateLimitPerSource,
+		cfg.Fusion.CandidateLimitPerSource,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.CandidateMaxPairComparisons, err = intFromEnv(
+		getenv,
+		EnvFusionCandidateMaxComparisons,
+		cfg.Fusion.CandidateMaxPairComparisons,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.CandidateMaxBatches, err = intFromEnv(
+		getenv,
+		EnvFusionCandidateMaxBatches,
+		cfg.Fusion.CandidateMaxBatches,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.COP.GraphDiscoveryLimit, err = intFromEnv(
 		getenv,
 		EnvCOPGraphDiscoveryLimit,
@@ -851,6 +914,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvCOPCAPAlertIDs,
 		cfg.COP.CAPAlertIDs,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.CandidateSources, err = stringListFromEnv(
+		getenv,
+		EnvFusionCandidateSources,
+		cfg.Fusion.CandidateSources,
 	); err != nil {
 		return Config{}, err
 	}
@@ -1123,23 +1193,50 @@ func (c WeatherConfig) Validate() error {
 }
 
 func (c FusionConfig) Validate() error {
-	if !c.Enabled {
+	if !c.Enabled && !c.CandidateProducerEnabled {
 		return nil
 	}
 	if strings.TrimSpace(c.Org) == "" {
-		return fmt.Errorf("%s is required when fusion is enabled", EnvOrg)
+		return fmt.Errorf("%s is required when fusion or fusion candidates are enabled", EnvOrg)
 	}
 	if strings.TrimSpace(c.Platform) == "" {
-		return fmt.Errorf("%s is required when fusion is enabled", EnvPlatform)
-	}
-	if strings.TrimSpace(c.TraceID) == "" {
-		return fmt.Errorf("%s is required when fusion is enabled", EnvTraceID)
+		return fmt.Errorf("%s is required when fusion or fusion candidates are enabled", EnvPlatform)
 	}
 	if strings.TrimSpace(c.CandidateSubject) == "" {
-		return fmt.Errorf("%s is required when fusion is enabled", EnvFusionCandidateSubject)
+		return fmt.Errorf("%s is required when fusion or fusion candidates are enabled", EnvFusionCandidateSubject)
 	}
-	if c.WriteTimeout <= 0 {
-		return fmt.Errorf("%s must be greater than zero when fusion is enabled", EnvFusionWriteTimeout)
+	if c.Enabled {
+		if strings.TrimSpace(c.TraceID) == "" {
+			return fmt.Errorf("%s is required when fusion is enabled", EnvTraceID)
+		}
+		if c.WriteTimeout <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion is enabled", EnvFusionWriteTimeout)
+		}
+	}
+	if c.CandidateProducerEnabled {
+		if len(c.CandidateSources) == 0 {
+			return fmt.Errorf("%s must include at least one source when fusion candidates are enabled", EnvFusionCandidateSources)
+		}
+		for _, source := range c.CandidateSources {
+			if strings.TrimSpace(source) == "" {
+				return fmt.Errorf("%s contains an empty source when fusion candidates are enabled", EnvFusionCandidateSources)
+			}
+		}
+		if c.CandidatePollInterval <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion candidates are enabled", EnvFusionCandidatePollInterval)
+		}
+		if c.CandidateQueryTimeout <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion candidates are enabled", EnvFusionCandidateQueryTimeout)
+		}
+		if c.CandidateLimitPerSource <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion candidates are enabled", EnvFusionCandidateLimitPerSource)
+		}
+		if c.CandidateMaxPairComparisons <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion candidates are enabled", EnvFusionCandidateMaxComparisons)
+		}
+		if c.CandidateMaxBatches <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion candidates are enabled", EnvFusionCandidateMaxBatches)
+		}
 	}
 	return nil
 }

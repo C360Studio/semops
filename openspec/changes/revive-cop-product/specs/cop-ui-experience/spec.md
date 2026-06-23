@@ -142,7 +142,7 @@ Phase 1.
 - **AND** the selected-entity inspector shows primary track, candidate track, algorithm, metrics, reason, provenance,
   and the explicit no-merge/no-identity-authority posture
 - **AND** the UI does not expose merge, split, override, source-track mutation, or identity-authority controls until a
-  bounded candidate producer, identity policy, and adversarial operator review prove those workflows are safe
+  stack-level e2e smoke, identity policy, and adversarial operator review prove those workflows are safe
 
 ### Requirement: Ontology hydrates inspectors, not the whole UI
 

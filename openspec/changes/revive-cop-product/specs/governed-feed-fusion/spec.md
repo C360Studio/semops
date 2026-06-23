@@ -54,6 +54,22 @@ authoritative predicates.
 - **AND** this hosted processor does not itself discover candidate tracks, merge identities, mutate source tracks, or
   expose operator merge controls until separate gates approve those workflows
 
+#### Scenario: Fusion candidate producer uses bounded graph discovery
+
+- **WHEN** SemOps produces statistical track-association candidates from governed graph state
+- **THEN** it runs as an opt-in SemStreams processor component with a declared timer input port, graph prefix query
+  request output port, and `semops.fusion.track_candidates` output stream port
+- **AND** the producer queries only configured source-owned track prefixes and caps tracks per source, comparisons per
+  batch, and batches per scan before publishing candidate payloads
+- **AND** candidate batches use the SemStreams payload registry and preserve source track IDs, native IDs, positions,
+  observed times, confidence, and source references for the downstream association processor
+- **AND** source pairs are generated in a deterministic one-way order so the same association is not published with
+  primary and candidate roles reversed during the same scan
+- **AND** the producer exposes `Health()` and `DataFlow()` so runtime telemetry can report throughput, errors, and
+  last activity
+- **AND** the producer does not write graph state, mutate source tracks, merge identities, or enable automatic demo
+  association by default until a stack-level e2e smoke and adversarial operator review approve that posture
+
 ### Requirement: Graph writes are born-first
 
 SemOps adapters SHALL follow SemStreams ADR-055 and ADR-056. Entity creation must happen through typed graph birth
