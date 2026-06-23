@@ -337,7 +337,8 @@
 ## 8. Tier Escalation And Egress
 
 - [x] 8.1 Add ADS-B and SAPIENT feed boundaries
-- [ ] 8.2 Add statistical track association for ambiguous air tracks
+- [x] 8.2 Add statistical track association core and fusion-owned association contract for ambiguous air tracks while
+      deferring hosted projector and UI readback
 - [ ] 8.3 Add KLV footprint polygon extraction beyond current sensor/frame-center projection
 - [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge after the command-impedance gate is
       reviewed
@@ -363,6 +364,8 @@
 - [x] 8.17 Add deadline reconciliation for expired and timed-out command intent before hosted scheduler work
 - [x] 8.18 Add manifest-backed synthetic command lifecycle replay fixture before CS API/UI/native command handlers
 - [x] 8.19 Add command-intent prefix discovery and read-only lifecycle UI before CS API/UI/native command controls
+- [ ] 8.20 Wire fusion track-association evidence through graph projection and COP API/UI readback after the pure
+      scorer is reviewed against scenario data
 
 ## 9. Upstream SemStreams Asks
 

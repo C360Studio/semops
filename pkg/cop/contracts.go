@@ -16,6 +16,7 @@ const (
 	EntityTask               = "task"
 	EntityAdvisory           = "advisory"
 	EntityWeatherObservation = "weather_observation"
+	EntityAssociation        = "association"
 )
 
 const (
@@ -42,6 +43,17 @@ const (
 	TrackPitch      = "cop.track.pitch"
 	TrackYaw        = "cop.track.yaw"
 	TrackBattery    = "cop.track.battery_remaining"
+
+	AssociationKind             = "cop.association.kind"
+	AssociationStatus           = "cop.association.status"
+	AssociationPrimaryTrack     = "cop.association.primary_track"
+	AssociationCandidateTrack   = "cop.association.candidate_track"
+	AssociationConfidence       = "cop.association.confidence"
+	AssociationAlgorithm        = "cop.association.algorithm"
+	AssociationReason           = "cop.association.reason"
+	AssociationDistanceMeters   = "cop.association.distance_meters"
+	AssociationTimeDeltaSeconds = "cop.association.time_delta_seconds"
+	AssociationObservedAt       = "cop.association.observed_at"
 
 	AssetName     = "cop.asset.name"
 	AssetKind     = "cop.asset.kind"
@@ -122,6 +134,7 @@ var FirstCanonicalEntitySet = []string{
 	EntityTask,
 	EntityAdvisory,
 	EntityWeatherObservation,
+	EntityAssociation,
 }
 
 // OwnedContract binds a product projection contract to the SemOps owner that
@@ -513,6 +526,47 @@ func FusionAlertContract() projection.Contract {
 	}
 }
 
+// FusionTrackAssociationContract owns derived association evidence between
+// source-owned tracks. Feed owners do not write these edges; the fusion owner
+// records confidence and provenance without mutating source current state.
+func FusionTrackAssociationContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.association.track-fusion-current-state",
+		MessageType:     "semops.fusion.track_association.v1",
+		EntityPattern:   SourceEntityPattern("fusion", EntityAssociation),
+		IndexingProfile: "control",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				AssociationKind,
+				AssociationStatus,
+				AssociationConfidence,
+				AssociationAlgorithm,
+				AssociationReason,
+				AssociationDistanceMeters,
+				AssociationTimeDeltaSeconds,
+				AssociationObservedAt,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+		ForeignEdges: []projection.ForeignEdge{
+			{
+				Predicate:     AssociationPrimaryTrack,
+				Mode:          ownership.EdgeStrict,
+				TargetPattern: EntityPattern(EntityTrack),
+			},
+			{
+				Predicate:     AssociationCandidateTrack,
+				Mode:          ownership.EdgeStrict,
+				TargetPattern: EntityPattern(EntityTrack),
+			},
+		},
+	}
+}
+
 // FirstPhaseOwnedContracts returns the initial strict, tolerant, and derived
 // contract set used to gate first-phase feed implementation.
 func FirstPhaseOwnedContracts() []OwnedContract {
@@ -526,5 +580,6 @@ func FirstPhaseOwnedContracts() []OwnedContract {
 		{Owner: OwnerTAK, Contract: TAKAdvisoryContract()},
 		{Owner: OwnerCAP, Contract: CAPHazardEvidenceContract()},
 		{Owner: OwnerFusion, Contract: FusionAlertContract()},
+		{Owner: OwnerFusion, Contract: FusionTrackAssociationContract()},
 	}
 }

@@ -19,6 +19,7 @@ func TestFirstCanonicalEntitySet(t *testing.T) {
 		"task",
 		"advisory",
 		"weather_observation",
+		"association",
 	}
 	if len(FirstCanonicalEntitySet) != len(want) {
 		t.Fatalf("entity count = %d, want %d", len(FirstCanonicalEntitySet), len(want))
@@ -250,6 +251,57 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 	if fusion.IndexingProfile != "control" {
 		t.Fatalf("fusion indexing profile = %q, want control", fusion.IndexingProfile)
 	}
+
+	association := FusionTrackAssociationContract()
+	if err := association.Validate(); err != nil {
+		t.Fatalf("fusion track association contract should validate: %v", err)
+	}
+	if got := association.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("association mode = %q, want replace-owned", got)
+	}
+	if association.IndexingProfile != "control" {
+		t.Fatalf("association indexing profile = %q, want control", association.IndexingProfile)
+	}
+	if association.EntityPattern == mavlink.EntityPattern || association.EntityPattern == adsb.EntityPattern {
+		t.Fatalf("fusion association contract must be source-partitioned away from feed tracks")
+	}
+}
+
+func TestFusionOwnerBindsAlertAndTrackAssociationContracts(t *testing.T) {
+	owners := make([]string, 0)
+	for _, owned := range FirstPhaseOwnedContracts() {
+		if owned.Owner == OwnerFusion {
+			owners = append(owners, owned.Contract.MessageType)
+		}
+	}
+
+	want := []string{
+		FusionAlertContract().MessageType,
+		FusionTrackAssociationContract().MessageType,
+	}
+	if !reflect.DeepEqual(owners, want) {
+		t.Fatalf("fusion contracts = %#v, want %#v", owners, want)
+	}
+
+	registration, err := projection.Derive(
+		OwnerFusion,
+		FusionAlertContract(),
+		FusionTrackAssociationContract(),
+	)
+	if err != nil {
+		t.Fatalf("derive fusion grouped contracts: %v", err)
+	}
+	if len(registration.ForeignEdges) != 2 {
+		t.Fatalf("fusion foreign edges = %d, want primary + candidate track", len(registration.ForeignEdges))
+	}
+	for _, edge := range registration.ForeignEdges {
+		if edge.Mode != ownership.EdgeStrict {
+			t.Fatalf("fusion edge mode = %q, want strict", edge.Mode)
+		}
+		if edge.TargetPattern != EntityPattern(EntityTrack) {
+			t.Fatalf("fusion target pattern = %q, want %q", edge.TargetPattern, EntityPattern(EntityTrack))
+		}
+	}
 }
 
 func TestTAKOwnerBindsTrackControlAndContentContracts(t *testing.T) {
@@ -314,6 +366,42 @@ func TestForeignEdgesDeclareADR056BornFirstShape(t *testing.T) {
 		}
 		if edge.Mode != ownership.EdgeStrict {
 			t.Fatalf("%s edge mode = %q, want strict born-first edge", contract.Name, edge.Mode)
+		}
+	}
+}
+
+func TestFusionAssociationForeignEdgesDeclareTrackTargets(t *testing.T) {
+	contract := FusionTrackAssociationContract()
+	registration, err := projection.Derive(OwnerFusion, contract)
+	if err != nil {
+		t.Fatalf("%s should derive: %v", contract.Name, err)
+	}
+	if len(registration.ForeignEdges) != 2 {
+		t.Fatalf("fusion association foreign edges = %d, want 2", len(registration.ForeignEdges))
+	}
+
+	wantPredicates := map[string]bool{
+		AssociationPrimaryTrack:   false,
+		AssociationCandidateTrack: false,
+	}
+	for _, edge := range registration.ForeignEdges {
+		if _, ok := wantPredicates[edge.Predicate]; !ok {
+			t.Fatalf("unexpected fusion association edge predicate %q", edge.Predicate)
+		}
+		wantPredicates[edge.Predicate] = true
+		if edge.Producer != contract.MessageType {
+			t.Fatalf("producer = %q, want %q", edge.Producer, contract.MessageType)
+		}
+		if edge.TargetPattern != EntityPattern(EntityTrack) {
+			t.Fatalf("target pattern = %q, want %q", edge.TargetPattern, EntityPattern(EntityTrack))
+		}
+		if edge.Mode != ownership.EdgeStrict {
+			t.Fatalf("edge mode = %q, want strict born-first edge", edge.Mode)
+		}
+	}
+	for predicate, seen := range wantPredicates {
+		if !seen {
+			t.Fatalf("missing fusion association edge predicate %q", predicate)
 		}
 	}
 }

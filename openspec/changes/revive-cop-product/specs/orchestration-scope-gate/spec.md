@@ -25,6 +25,10 @@ operator-facing orchestration feature.
 - **WHEN** a statistical association service correlates ambiguous tracks
 - **THEN** SemOps records source facts, association confidence, model or algorithm identity, and resulting evidence
   without requiring a tier-control panel
+- **AND** association evidence SHALL be owned by the fusion owner, not by the source feed owners
+- **AND** source tracks SHALL remain source-partitioned current state; association does not merge or mutate them
+- **AND** the first implementation MAY be a pure scorer and graph contract before a hosted projector or UI readback
+  exists
 
 #### Scenario: Semantic translation records trajectory
 

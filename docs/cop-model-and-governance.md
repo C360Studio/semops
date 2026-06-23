@@ -16,6 +16,7 @@ Code source: `pkg/cop/contracts.go`
 | `task` | Operator intent, requested action, or assignment | `control` |
 | `advisory` | Human-readable or semantic-tier advisory text | `content` |
 | `weather_observation` | Localized tactical weather variable sample | `signal` |
+| `association` | Derived evidence that two source-owned tracks may represent the same object | `control` |
 
 ## First Ownership Matrix
 
@@ -34,6 +35,7 @@ Code source: `pkg/cop/contracts.go`
 | `semops.feed.weather` | Tactical weather samples | `c360.*.cop.weather.weather_observation.*` | `replace-owned` | `signal` |
 | `semops.command.intent` | Command intent | `c360.*.cop.command.task.*` | `replace-owned` | `control` |
 | `semops.fusion.structural` | Fusion alert state | `c360.*.cop.fusion.alert.*` | `replace-owned` | `control` |
+| `semops.fusion.structural` | Cross-source track association evidence | `c360.*.cop.fusion.association.*` | `replace-owned` | `control` |
 
 Strict feed owners are source-partitioned by the SemStreams entity `system` segment. This prevents MAVLink and TAK from
 claiming the same `cop.track.position` cell over a wildcard `track` pattern.
@@ -58,6 +60,10 @@ references, evidence, observed time, and confidence until a deterministic hazard
 Weather observation evidence is source-partitioned and signal-profiled. It owns localized variable samples with query
 shape, geometry, valid time, model time, freshness, unit, provenance, and confidence. It does not own CAP-style hazard
 authority, route decisions, task state, or operator advisories.
+
+Track association evidence is fusion-owned. Source feeds continue to own their track current state; the fusion owner
+records strict source-track edges, confidence, algorithm identity, distance/time evidence, and source references
+without merging or mutating the original tracks.
 
 SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
 absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are
@@ -140,6 +146,8 @@ failing SemOps tests or awkward duplicated code:
   replace-owned predicates.
 - ADS-B and SAPIENT track contracts are source-partitioned, signal-profiled, and do not claim association foreign
   edges.
+- Fusion track association evidence is control-profiled, source-partitioned under `fusion`, and uses strict track
+  edges back to already-born source tracks.
 - Track, command-intent, and MAVLink command-task foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with
   producer and target pattern.
 - Overlapping `replace-owned` predicates are rejected.
