@@ -80,6 +80,11 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   editing the Compose file.
 - See `openspec/changes/revive-cop-product/reviews/2026-06-23-mavlink-external-sitl-smoke-review.md` for the
   simulator-fidelity harness review.
+- 2026-06-23 local readiness preflight found no `px4`, `mavsdk_server`, or `sim_vehicle.py` on PATH and no local
+  PX4/MAVSDK/ArduPilot simulator Docker image. `go test ./internal/smoke/mavlink -run
+  TestExternalSITLTelemetryCOPSnapshot -count=1 -v` skipped as designed without a snapshot URL, and focused MAVLink
+  parser/projector/component tests passed. This is readiness-gap evidence only; it does not close the simulator
+  fidelity gate.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -205,6 +210,8 @@ Acceptance:
   velocity evidence, and appears while `feed.mavlink` is live. [done in harness; not yet run against PX4/MAVSDK]
 - The smoke observes repeated simulator updates and can require actual position motion with
   `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true`. [done in harness; not yet run against PX4/MAVSDK]
+- Local readiness preflight records whether PX4, MAVSDK, ArduPilot, or equivalent simulator tooling is actually
+  available before attempting the stack gate. [done: 2026-06-23 no simulator runtime found]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs safe command smoke tests.
   [open]
 - PX4 SITL or MAVSDK smoke evidence is recorded before calling MAVLink Phase 1 complete. [open]
@@ -240,7 +247,8 @@ Acceptance:
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before
   command/control demo claims.
 - The external SITL telemetry smoke harness exists, but no local PX4, MAVSDK, or ArduPilot simulator run has been
-  recorded yet.
+  recorded yet. The 2026-06-23 laptop preflight found no local simulator runtime or image, so tasks `4.7` and `5.4`
+  remain open.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
 - Command codec coverage is active for COMMAND_LONG and COMMAND_ACK, but live command/control is not.

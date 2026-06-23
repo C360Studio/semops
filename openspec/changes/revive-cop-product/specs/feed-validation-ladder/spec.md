@@ -163,6 +163,16 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** command/control, mission state, safe command ACKs, serial/TCP transports, signed links, and hardware behavior
   remain separate gates until reviewed
 
+#### Scenario: MAVLink simulator readiness is not simulator evidence
+
+- **WHEN** the external SITL smoke skips because no COP snapshot URL is configured or local PX4/MAVSDK/ArduPilot
+  tooling is unavailable
+- **THEN** SemOps records that as readiness-gap evidence only
+- **AND** SemOps SHALL NOT close PX4/MAVSDK/SITL evidence gates or claim simulator fidelity until the observer-only
+  smoke passes against an explicit simulator source feeding the hosted UDP component path
+- **AND** the future pass records simulator name, version, launch command, system ID, UDP route, SemOps commit,
+  pass/fail result, and any motion requirement
+
 #### Scenario: SAPIENT parser preflight is not conformance
 
 - **WHEN** SemOps parses BSI Flex 335 v2 JSON fixtures derived from official SAPIENT sample shapes

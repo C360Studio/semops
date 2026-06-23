@@ -46,6 +46,24 @@ source.
   `SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true`.
 - `compose.cop.yml` passes `SEMOPS_COP_MAVLINK_SYSTEM_IDS` through to the app runtime.
 
+## 2026-06-23 Local Readiness Update
+
+This laptop is not ready to run the simulator-fidelity gate yet.
+
+Checked:
+
+- `px4` not found on PATH.
+- `mavsdk_server` not found on PATH.
+- `sim_vehicle.py` not found on PATH.
+- Docker is available, but local images do not include PX4, MAVSDK, ArduPilot, or ArduCopter simulator images.
+- `go test ./internal/smoke/mavlink -run TestExternalSITLTelemetryCOPSnapshot -count=1 -v` skips as designed when
+  `SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL` is not set.
+- `go test ./pkg/adapters/mavlink ./internal/projectors/mavlink ./internal/adapters/mavlink ./internal/components/mavlink ./internal/stack`
+  passes.
+
+Decision: keep the PX4/MAVSDK/SITL evidence gates open. This update proves the harness guard and current MAVLink
+developer evidence, not simulator fidelity.
+
 ## Follow-Ups
 
 - Run the opt-in smoke against PX4 SITL or MAVSDK and record simulator version, command, system ID, and pass/fail

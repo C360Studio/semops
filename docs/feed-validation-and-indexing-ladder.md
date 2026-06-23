@@ -198,6 +198,9 @@ Mock or harness:
   `SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true`; in that mode `compose.cop.yml` honors
   `SEMOPS_COP_MAVLINK_SYSTEM_IDS`, defaulting to systems `1,42` for PX4-style system ID 1 plus the deterministic
   generated-frame system 42.
+- 2026-06-23 local readiness preflight found no `px4`, `mavsdk_server`, or `sim_vehicle.py` on PATH and no local
+  PX4/MAVSDK/ArduPilot simulator Docker image. The external SITL smoke skip behavior passed, and focused
+  parser/projector/component tests passed, but this is readiness-gap evidence only.
 - Add an ArduPilot SITL, PX4 SITL, or MAVSDK smoke harness before claiming live command/control.
 
 Indexing profile pressure:
@@ -231,6 +234,8 @@ Current codec gate:
 - `go test ./internal/adapters/mavlink` proves parse, raw capture, projection, graph-plan write, and health ordering.
 - `go test ./internal/smoke/mavlink` proves the external SITL smoke skips unless an explicit COP snapshot URL is set.
   A real PX4/MAVSDK run is still required before MAVLink simulator-fidelity claims.
+- Host/tooling absence must not be upgraded into a simulator qualification. The feed-ladder tasks for PX4/MAVSDK/SITL
+  evidence remain open until the observer-only smoke passes against an explicit simulator source.
 
 ### TAK/CoT
 

@@ -14,6 +14,23 @@ conformance.
   should be set to the expected graph track ID.
 - Docker resources sufficient to run the COP stack.
 
+## Local Readiness Preflight
+
+Before treating a laptop as ready for this gate, check for a real simulator path rather than relying on the SemOps
+generated-frame smoke:
+
+```bash
+command -v px4
+command -v mavsdk_server
+command -v sim_vehicle.py
+docker image ls
+go test ./internal/smoke/mavlink -run TestExternalSITLTelemetryCOPSnapshot -count=1 -v
+```
+
+The smoke should skip when `SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL` is unset. That skip proves the test is guarded; it
+does not prove simulator fidelity. If no PX4, MAVSDK, ArduPilot, or equivalent simulator runtime is available on the
+host or in local Docker images, do not run the stack gate and do not close the PX4/MAVSDK evidence task.
+
 ## One-Command Stack Gate
 
 Start the simulator first, or keep it ready to emit telemetry while the stack starts. Then run:
@@ -69,3 +86,6 @@ The smoke requires:
 
 Passing this smoke is simulator telemetry evidence only. Command authority and mission semantics need a separate
 reviewed gate with safe commands, ACK handling, post-command state polling, and simulator-specific readiness checks.
+
+For a future pass, record the simulator name and version, launch command, system ID, UDP route, SemOps commit,
+stack-smoke command, pass/fail result, whether motion was required, and any unresolved simulator limitations.
