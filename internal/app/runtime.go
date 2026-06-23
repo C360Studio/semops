@@ -13,6 +13,7 @@ import (
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
+	weathercomponent "github.com/c360studio/semops/internal/components/weather"
 	"github.com/c360studio/semops/internal/copownership"
 	"github.com/c360studio/semops/internal/graphrequest"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
@@ -20,6 +21,7 @@ import (
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
+	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
 	"github.com/c360studio/semops/internal/stack"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
@@ -54,6 +56,9 @@ type App struct {
 	klvDemux         *klvcomponent.DemuxComponent
 	klvDecoder       *klvcomponent.DecoderComponent
 	klvProjector     *klvcomponent.ProjectorComponent
+	weatherInput     *weathercomponent.FixtureInputComponent
+	weatherDecoder   *weathercomponent.DecoderComponent
+	weatherProjector *weathercomponent.ProjectorComponent
 	runtimeCancel    context.CancelFunc
 }
 
@@ -103,6 +108,10 @@ type dependencies struct {
 	newKLVDemux          func(klvcomponent.DemuxConfig) (*klvcomponent.DemuxComponent, error)
 	newKLVDecoder        func(klvcomponent.DecoderConfig) (*klvcomponent.DecoderComponent, error)
 	newKLVProjector      func(klvcomponent.ProjectorConfig) (*klvcomponent.ProjectorComponent, error)
+	newWeatherPlanWriter func(stack.WeatherAdapterConfig, stack.WeatherAdapterDeps) (weathercomponent.PlanWriter, error)
+	newWeatherInput      func(weathercomponent.FixtureInputConfig) (*weathercomponent.FixtureInputComponent, error)
+	newWeatherDecoder    func(weathercomponent.DecoderConfig, weathercomponent.Bus) (*weathercomponent.DecoderComponent, error)
+	newWeatherProjector  func(weathercomponent.ProjectorConfig, weathercomponent.Bus) (*weathercomponent.ProjectorComponent, error)
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -155,6 +164,11 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop KLV media-ref input component: %w", err))
 		}
 	}
+	if a.weatherInput != nil {
+		if err := a.weatherInput.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop weather fixture input component: %w", err))
+		}
+	}
 	if a.mavlinkDecoder != nil {
 		if err := a.mavlinkDecoder.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink decoder component: %w", err))
@@ -190,6 +204,11 @@ func (a *App) Close(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop KLV decoder component: %w", err))
 		}
 	}
+	if a.weatherDecoder != nil {
+		if err := a.weatherDecoder.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop weather decoder component: %w", err))
+		}
+	}
 	if a.mavlinkProjector != nil {
 		if err := a.mavlinkProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink projector component: %w", err))
@@ -213,6 +232,11 @@ func (a *App) Close(ctx context.Context) error {
 	if a.klvProjector != nil {
 		if err := a.klvProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop KLV projector component: %w", err))
+		}
+	}
+	if a.weatherProjector != nil {
+		if err := a.weatherProjector.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop weather projector component: %w", err))
 		}
 	}
 	if a.ownershipStop != nil {
@@ -366,6 +390,27 @@ func (a *App) KLVProjector() *klvcomponent.ProjectorComponent {
 	return a.klvProjector
 }
 
+func (a *App) WeatherInput() *weathercomponent.FixtureInputComponent {
+	if a == nil {
+		return nil
+	}
+	return a.weatherInput
+}
+
+func (a *App) WeatherDecoder() *weathercomponent.DecoderComponent {
+	if a == nil {
+		return nil
+	}
+	return a.weatherDecoder
+}
+
+func (a *App) WeatherProjector() *weathercomponent.ProjectorComponent {
+	if a == nil {
+		return nil
+	}
+	return a.weatherProjector
+}
+
 func (a *App) GraphRequester() GraphRequester {
 	if a == nil {
 		return nil
@@ -377,7 +422,7 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 	if a == nil {
 		return nil
 	}
-	sources := make([]componentmetrics.Source, 0, 19)
+	sources := make([]componentmetrics.Source, 0, 22)
 	if a.mavlinkInput != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "input", Component: a.mavlinkInput})
 	}
@@ -434,6 +479,15 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 	}
 	if a.klvProjector != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "klv", Role: "projector", Component: a.klvProjector})
+	}
+	if a.weatherInput != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "weather", Role: "fixture-input", Component: a.weatherInput})
+	}
+	if a.weatherDecoder != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "weather", Role: "decoder", Component: a.weatherDecoder})
+	}
+	if a.weatherProjector != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "weather", Role: "projector", Component: a.weatherProjector})
 	}
 	return sources
 }
@@ -509,6 +563,12 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 		}
 	}
 
+	if cfg.Weather.Enabled {
+		if err := app.startWeatherFlow(runtimeCtx, cfg.Weather, bindings, deps); err != nil {
+			return nil, err
+		}
+	}
+
 	cleanup = false
 	return app, nil
 }
@@ -541,6 +601,10 @@ func defaultDependencies() dependencies {
 		newKLVDemux:          klvcomponent.NewDemuxComponent,
 		newKLVDecoder:        klvcomponent.NewDecoderComponent,
 		newKLVProjector:      klvcomponent.NewProjectorComponent,
+		newWeatherPlanWriter: newWeatherPlanWriter,
+		newWeatherInput:      weathercomponent.NewFixtureInputComponent,
+		newWeatherDecoder:    weathercomponent.NewDecoderComponent,
+		newWeatherProjector:  weathercomponent.NewProjectorComponent,
 	}
 }
 
@@ -623,6 +687,18 @@ func fillDependencies(deps dependencies) dependencies {
 	}
 	if deps.newKLVProjector == nil {
 		deps.newKLVProjector = defaults.newKLVProjector
+	}
+	if deps.newWeatherPlanWriter == nil {
+		deps.newWeatherPlanWriter = defaults.newWeatherPlanWriter
+	}
+	if deps.newWeatherInput == nil {
+		deps.newWeatherInput = defaults.newWeatherInput
+	}
+	if deps.newWeatherDecoder == nil {
+		deps.newWeatherDecoder = defaults.newWeatherDecoder
+	}
+	if deps.newWeatherProjector == nil {
+		deps.newWeatherProjector = defaults.newWeatherProjector
 	}
 	return deps
 }
@@ -1093,6 +1169,79 @@ func (a *App) startKLVFlow(
 	return nil
 }
 
+func (a *App) startWeatherFlow(
+	ctx context.Context,
+	cfg WeatherConfig,
+	bindings copownership.BindingResult,
+	deps dependencies,
+) error {
+	bus := weatherRuntimeBus{client: a.client}
+	registry := payloadregistry.New()
+	writer, err := deps.newWeatherPlanWriter(stack.WeatherAdapterConfig{
+		Source:       cfg.Source,
+		Org:          cfg.Org,
+		Platform:     cfg.Platform,
+		OwnerTokens:  bindings.OwnerTokenMap(),
+		TraceID:      cfg.TraceID,
+		WriteTimeout: cfg.WriteTimeout,
+		Retry:        cfg.Retry,
+	}, stack.WeatherAdapterDeps{NATS: a.client})
+	if err != nil {
+		return fmt.Errorf("compose weather graph writer: %w", err)
+	}
+
+	projector, err := deps.newWeatherProjector(weathercomponent.ProjectorConfig{
+		Registry: registry,
+		Projector: weatherprojector.NewProjector(weatherprojector.Config{
+			Org:         cfg.Org,
+			Platform:    cfg.Platform,
+			OwnerTokens: bindings.OwnerTokenMap(),
+			TraceID:     cfg.TraceID,
+		}),
+		Writer:          writer,
+		WriteTimeout:    cfg.WriteTimeout,
+		Freshness:       cfg.Freshness,
+		MaxObservations: cfg.MaxObservations,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose weather projector component: %w", err)
+	}
+	decoder, err := deps.newWeatherDecoder(weathercomponent.DecoderConfig{
+		RawSubject:     weathercomponent.DefaultRawSubject,
+		DecodedSubject: weathercomponent.DefaultDecodedSubject,
+		Registry:       registry,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose weather decoder component: %w", err)
+	}
+	input, err := deps.newWeatherInput(weathercomponent.FixtureInputConfig{
+		Source:      cfg.Source,
+		Provider:    cfg.Provider,
+		QueryShape:  cfg.QueryShape,
+		FixturePath: cfg.FixturePath,
+		RawSubject:  weathercomponent.DefaultRawSubject,
+		Registry:    registry,
+		Bus:         bus,
+	})
+	if err != nil {
+		return fmt.Errorf("compose weather fixture input component: %w", err)
+	}
+	a.weatherProjector = projector
+	a.weatherDecoder = decoder
+	a.weatherInput = input
+
+	if err := startLifecycle(ctx, "weather projector", projector); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "weather decoder", decoder); err != nil {
+		return err
+	}
+	if err := startLifecycle(ctx, "weather fixture input", input); err != nil {
+		return err
+	}
+	return nil
+}
+
 func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	Initialize() error
 	Start(context.Context) error
@@ -1141,6 +1290,13 @@ func newKLVPlanWriter(
 	return stack.NewKLVPlanWriter(cfg, deps)
 }
 
+func newWeatherPlanWriter(
+	cfg stack.WeatherAdapterConfig,
+	deps stack.WeatherAdapterDeps,
+) (weathercomponent.PlanWriter, error) {
+	return stack.NewWeatherPlanWriter(cfg, deps)
+}
+
 func newNATSClient(cfg Config) (semstreamsClient, error) {
 	return natsclient.NewClient(
 		cfg.NATSURL,
@@ -1187,6 +1343,12 @@ func runtimeOwnedContracts(cfg Config) []cop.OwnedContract {
 		owned = append(owned, cop.OwnedContract{
 			Owner:    cop.OwnerKLV,
 			Contract: cop.KLVSensorFootprintContract(),
+		})
+	}
+	if cfg.Weather.Enabled {
+		owned = append(owned, cop.OwnedContract{
+			Owner:    cop.OwnerWeather,
+			Contract: cop.WeatherObservationContract(),
 		})
 	}
 	return owned
@@ -1257,6 +1419,29 @@ func (b capRuntimeBus) Subscribe(
 	subject string,
 	handler func(context.Context, *nats.Msg),
 ) (capcomponent.Subscription, error) {
+	subscription, err := b.client.Subscribe(ctx, subject, handler)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return noopSubscription{}, nil
+	}
+	return subscription, nil
+}
+
+type weatherRuntimeBus struct {
+	client semstreamsClient
+}
+
+func (b weatherRuntimeBus) Publish(ctx context.Context, subject string, data []byte) error {
+	return b.client.Publish(ctx, subject, data)
+}
+
+func (b weatherRuntimeBus) Subscribe(
+	ctx context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (weathercomponent.Subscription, error) {
 	subscription, err := b.client.Subscribe(ctx, subject, handler)
 	if err != nil {
 		return nil, err

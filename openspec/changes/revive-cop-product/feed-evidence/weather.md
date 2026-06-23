@@ -1,9 +1,10 @@
 # Weather Feed Evidence
 
 Status: critical COP layer with first Open-Meteo-shaped point, OGC EDR-shaped point, OGC EDR-shaped spatial parser
-fixtures, SemStreams component-flow evidence for point payloads, and a governed tactical-weather graph writer and
-projector component gate. It is not yet implemented as a live weather provider, hosted runtime feed, conformance
-target, UI layer, cache/stale policy, spatial runtime payload, or routing/safety authority.
+fixtures, SemStreams component-flow evidence for point payloads, a governed tactical-weather graph writer and
+projector component gate, and opt-in hosted runtime composition for the local point-forecast fixture. It is not yet
+implemented as a live weather provider, conformance target, UI layer, cache/stale policy, spatial runtime payload, or
+routing/safety authority.
 
 ## Decision
 
@@ -48,6 +49,9 @@ affects assets, operators, hazards, or routes.
 - `internal/components/weather` wraps provider-shaped weather fixtures as SemStreams file input components, decoder
   processors, and point-forecast graph projector processors with registered payloads, file/NATS/NATS-request ports,
   config schema, health, flow metrics, per-payload observation caps, freshness windows, and born-first reconciliation.
+- The hosted app can opt into the local point-forecast fixture flow with `SEMOPS_WEATHER_ENABLED=true`. That runtime
+  registers the `semops.feed.weather` owner before composing file input -> decoder -> projector components and keeps
+  weather disabled by default in Compose.
 - NWS API remains valuable for alerts, forecasts, and observations. Its alert endpoints fit the current CAP lane, and
   CAP can be requested through content negotiation.
 - Radar and raster display data should not be assumed to come from `api.weather.gov`; visual products need their own
@@ -74,8 +78,8 @@ affects assets, operators, hazards, or routes.
   ports before tactical graph projection. [done for Open-Meteo-shaped and OGC EDR-shaped point fixtures]
 - Project localized tactical weather variable samples as `signal`, route/weather decision state as `control`, advisory
   text as `content`, and provider/replay diagnostics as `trace`. [partial: graph contract, graph writer, and
-  point-payload projector component done; spatial runtime payloads, hosted runtime wiring, UI, and route-safety rules
-  still open]
+  point-payload projector component plus opt-in hosted point-fixture runtime done; spatial runtime payloads, live HTTP
+  polling, cache/stale policy, UI, and route-safety rules still open]
 - Keep browser-only visual layers out of graph state unless an operator workflow turns them into evidence.
 
 ## Known Gaps
@@ -84,7 +88,8 @@ affects assets, operators, hazards, or routes.
 - No OGC EDR spatial runtime component payload, route-weather model, or UI tactical-weather layer exists yet.
 - No OGC EDR conformance/ETS run, live EDR server capture, or standards-facing bridge test exists yet.
 - No live Open-Meteo, NWS forecast/observation, MSC GeoMet, or radar/tile provider integration exists yet.
-- No weather hosted runtime wiring, live HTTP poller, cache/stale policy, or UI tactical layer exists yet.
+- No live weather HTTP poller, default-stack weather hosting, cache/stale policy, or UI tactical layer exists yet.
+- The hosted weather runtime path is local point-forecast fixture evidence only.
 - No weather routing/safety rule is accepted yet.
 - No tile/radar source has passed license, cache, or reliability review.
 

@@ -217,6 +217,9 @@ binary-by-reference storage, and memory-bounded handling.
 - **AND** weather graph-projector promotion uses decoded forecast stream ports, declared SemStreams graph request
   ports, bounded observation caps, freshness configuration, and born-first reconciliation before hosted runtime
   enablement or live-provider claims
+- **AND** hosted weather runtime enablement starts as explicit, default-off, fixture-backed point-forecast composition
+  before live HTTP polling, cache/stale policy, spatial runtime payloads, tactical UI semantics, or route-safety rules
+  are accepted
 - **AND** tactical weather supports the relevant point, area, and route/trajectory query shapes before it influences
   routing or safety logic
 

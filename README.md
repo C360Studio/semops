@@ -44,8 +44,8 @@ input order for both feeds so UDP/TCP listeners no longer bypass SemStreams comp
 
 Weather currently follows the same component discipline for fixture-backed point forecasts: file input -> decoder ->
 graph projector, with registered payloads, declared stream/request ports, flow metrics, observation caps, and
-born-first graph reconciliation. It is not yet a hosted live weather provider, cache/stale policy, tactical UI layer,
-or route-safety authority.
+born-first graph reconciliation. The hosted app can opt into that fixture-backed flow, but this is still not a live
+weather provider, cache/stale policy, tactical UI layer, or route-safety authority.
 
 ## First Product Model
 
@@ -58,6 +58,7 @@ The first canonical entity set is:
 - `alert`
 - `task`
 - `advisory`
+- `weather_observation`
 
 The initial ownership-contract matrix lives in `pkg/cop` and covers:
 
@@ -66,6 +67,7 @@ The initial ownership-contract matrix lives in `pkg/cop` and covers:
 - TAK/CoT marker/task control state as strict `control`
 - TAK/CoT GeoChat/advisory text as strict `content`
 - CAP hazard/advisory evidence as append-only `content`
+- Weather point-forecast observations as strict `signal`
 - deterministic fusion alerts as derived `control`
 
 ## MAVLink Salvage
@@ -113,6 +115,17 @@ state through the CoT UDP/TCP input -> decoder processor -> projector processor 
 SEMOPS_NATS_URL=nats://127.0.0.1:4222 \
 SEMOPS_COT_ENABLED=true \
 SEMOPS_COT_UDP_LISTEN_ADDR=:8087 \
+go run ./cmd/semops
+```
+
+Enable the current weather fixture flow explicitly when you want the hosted runtime to publish the committed
+Open-Meteo-shaped point forecast through file input -> decoder -> projector components:
+
+```bash
+SEMOPS_NATS_URL=nats://127.0.0.1:4222 \
+SEMOPS_MAVLINK_ENABLED=false \
+SEMOPS_WEATHER_ENABLED=true \
+SEMOPS_WEATHER_FIXTURE_PATH=fixtures/weather/open-meteo-point.json \
 go run ./cmd/semops
 ```
 

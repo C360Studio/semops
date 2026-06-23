@@ -20,18 +20,21 @@ import (
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
+	weathercomponent "github.com/c360studio/semops/internal/components/weather"
 	"github.com/c360studio/semops/internal/copownership"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
+	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
 	"github.com/c360studio/semops/internal/stack"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
+	weathercodec "github.com/c360studio/semops/pkg/adapters/weather"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/natsclient"
@@ -807,6 +810,116 @@ func TestStartRegistersOwnershipBeforeComposingKLVFlow(t *testing.T) {
 	}
 }
 
+func TestStartRegistersOwnershipBeforeComposingWeatherFixtureFlow(t *testing.T) {
+	ctx := context.Background()
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.Weather.Enabled = true
+	cfg.Weather.Platform = "edge-alpha"
+	cfg.Weather.Source = "weather:fixture:test"
+	cfg.Weather.WriteTimeout = 750 * time.Millisecond
+	cfg.Weather.Freshness = 45 * time.Minute
+	cfg.Weather.MaxObservations = 32
+	cfg.Weather.FixturePath = filepath.Join("..", "..", "fixtures", "weather", "open-meteo-point.json")
+
+	var stoppedOwners bool
+	var gotWriterCfg stack.WeatherAdapterConfig
+	var gotWriterDeps stack.WeatherAdapterDeps
+	writer := &recordingWeatherAppPlanWriter{}
+
+	app, err := start(ctx, cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			_ context.Context,
+			gotClient semstreamsClient,
+			heartbeat time.Duration,
+			owned []cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			if gotClient != client {
+				t.Fatal("ownership registration got unexpected client")
+			}
+			if !client.connected {
+				t.Fatal("ownership registration must run after NATS connect")
+			}
+			if heartbeat != cfg.OwnershipHeartbeatInterval {
+				t.Fatalf("heartbeat interval = %s, want %s", heartbeat, cfg.OwnershipHeartbeatInterval)
+			}
+			if !hasOwnedContract(owned, cop.OwnerWeather, cop.WeatherObservationContract().Name) {
+				t.Fatalf("runtime owned contracts did not include weather when enabled: %+v", owned)
+			}
+			return copownership.BindingResult{
+					Incarnation: "lease-123",
+					Owners:      []string{cop.OwnerWeather},
+					Tokens: map[string]ownership.OwnerToken{
+						cop.OwnerWeather: ownership.ExpectedOwnerToken(cop.OwnerWeather, "lease-123"),
+					},
+				}, func() {
+					stoppedOwners = true
+				}, nil
+		},
+		newWeatherPlanWriter: func(
+			writerCfg stack.WeatherAdapterConfig,
+			writerDeps stack.WeatherAdapterDeps,
+		) (weathercomponent.PlanWriter, error) {
+			gotWriterCfg = writerCfg
+			gotWriterDeps = writerDeps
+			return writer, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if app.WeatherInput() == nil || app.WeatherDecoder() == nil || app.WeatherProjector() == nil {
+		t.Fatal("expected hosted weather fixture input, decoder, and projector components")
+	}
+	if got, want := gotWriterCfg.OwnerTokens[cop.OwnerWeather].Wire(), "semops.feed.weather#lease-123"; got != want {
+		t.Fatalf("writer weather owner token = %q, want %q", got, want)
+	}
+	if gotWriterCfg.Platform != "edge-alpha" || gotWriterCfg.Source != "weather:fixture:test" {
+		t.Fatalf("writer config = %+v", gotWriterCfg)
+	}
+	if gotWriterCfg.WriteTimeout != 750*time.Millisecond {
+		t.Fatalf("writer timeout = %s", gotWriterCfg.WriteTimeout)
+	}
+	if gotWriterDeps.NATS != client {
+		t.Fatal("weather writer must reuse the connected SemStreams client")
+	}
+	if !client.hasSubscription(weathercomponent.DefaultRawSubject) ||
+		!client.hasSubscription(weathercomponent.DefaultDecodedSubject) {
+		t.Fatalf("weather flow subscriptions = %+v", client.subscriptionSubjects())
+	}
+	if got := client.publishedCount(weathercomponent.DefaultRawSubject); got != 1 {
+		t.Fatalf("raw weather messages = %d, want fixture input publish", got)
+	}
+	if got := client.publishedCount(weathercomponent.DefaultDecodedSubject); got != 1 {
+		t.Fatalf("decoded weather messages = %d, want decoder publish", got)
+	}
+	if len(writer.plans) != 1 {
+		t.Fatalf("weather graph plans = %d, want one point forecast plan", len(writer.plans))
+	}
+	if len(writer.plans[0].Mutations) != 16 {
+		t.Fatalf("weather graph mutations = %d, want 16 observations", len(writer.plans[0].Mutations))
+	}
+	if !hasComponentMetricSource(app.ComponentMetricSources(), "semops-input-weather-fixture", "weather", "fixture-input") ||
+		!hasComponentMetricSource(app.ComponentMetricSources(), "semops-processor-weather-decode", "weather", "decoder") ||
+		!hasComponentMetricSource(app.ComponentMetricSources(), "semops-processor-weather-project", "weather", "projector") {
+		t.Fatalf("missing weather metric source: %+v", componentMetricSourceNames(app.ComponentMetricSources()))
+	}
+
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatalf("close app: %v", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("close must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("close must close SemStreams client")
+	}
+}
+
 func TestStartSAPIENTPreflightCapturesProviderReplayWhenConfigured(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1078,6 +1191,47 @@ func TestStartCleansUpWhenKLVCompositionFails(t *testing.T) {
 	}
 }
 
+func TestStartCleansUpWhenWeatherCompositionFails(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.Weather.Enabled = true
+	cfg.Weather.FixturePath = filepath.Join("..", "..", "fixtures", "weather", "open-meteo-point.json")
+	writerErr := errors.New("bad weather writer")
+	var stoppedOwners bool
+
+	_, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {
+				stoppedOwners = true
+			}, nil
+		},
+		newWeatherPlanWriter: func(
+			stack.WeatherAdapterConfig,
+			stack.WeatherAdapterDeps,
+		) (weathercomponent.PlanWriter, error) {
+			return nil, writerErr
+		},
+	})
+	if !errors.Is(err, writerErr) {
+		t.Fatalf("error = %v, want weather writer error", err)
+	}
+	if !stoppedOwners {
+		t.Fatal("failed startup must stop ownership heartbeat")
+	}
+	if !client.closed {
+		t.Fatal("failed startup must close SemStreams client")
+	}
+}
+
 func TestStartCanDisableHostedMAVLinkFlow(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1267,6 +1421,44 @@ func TestStartCanDisableHostedSAPIENTPreflightFlow(t *testing.T) {
 	}
 }
 
+func TestStartCanDisableHostedWeatherFixtureFlow(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.Weather.Enabled = false
+	var composed bool
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+		newWeatherPlanWriter: func(
+			stack.WeatherAdapterConfig,
+			stack.WeatherAdapterDeps,
+		) (weathercomponent.PlanWriter, error) {
+			composed = true
+			return &recordingWeatherAppPlanWriter{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if composed {
+		t.Fatal("weather flow should not be composed when disabled")
+	}
+	if app.WeatherInput() != nil || app.WeatherDecoder() != nil || app.WeatherProjector() != nil {
+		t.Fatal("weather components should be nil when disabled")
+	}
+}
+
 func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1399,6 +1591,19 @@ func TestRuntimeOwnedContractsIncludeKLVOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestRuntimeOwnedContractsIncludeWeatherOnlyWhenEnabled(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Weather.Enabled = false
+	if hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerWeather, cop.WeatherObservationContract().Name) {
+		t.Fatal("runtime ownership should not include weather when the hosted weather flow is disabled")
+	}
+
+	cfg.Weather.Enabled = true
+	if !hasOwnedContract(runtimeOwnedContracts(cfg), cop.OwnerWeather, cop.WeatherObservationContract().Name) {
+		t.Fatal("runtime ownership should include weather when the hosted weather flow is enabled")
+	}
+}
+
 func TestComponentMetricSourcesExposeStartedRuntimeComponents(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1508,6 +1713,14 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvKLVDemuxMaxMaterializedBytes: "1048576",
 		EnvKLVDemuxProbeOutputMaxBytes:  "32768",
 		EnvKLVDecodeMaxPacketBytes:      "65536",
+		EnvWeatherEnabled:               "true",
+		EnvWeatherSource:                "weather:fixture",
+		EnvWeatherProvider:              weathercodec.ProviderOpenMeteo,
+		EnvWeatherQueryShape:            weathercodec.QueryShapePosition,
+		EnvWeatherFixturePath:           "/tmp/weather/open-meteo-point.json",
+		EnvWeatherWriteTimeout:          "995ms",
+		EnvWeatherFreshness:             "45m",
+		EnvWeatherMaxObservations:       "48",
 	}
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
@@ -1672,6 +1885,27 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if cfg.KLV.Decode.MaxPacketBytes != 65536 {
 		t.Fatalf("KLV decode config = %+v", cfg.KLV.Decode)
+	}
+	if !cfg.Weather.Enabled {
+		t.Fatal("weather enabled = false, want true")
+	}
+	if cfg.Weather.Source != "weather:fixture" ||
+		cfg.Weather.Org != "lab" ||
+		cfg.Weather.Platform != "edge-7" ||
+		cfg.Weather.TraceID != "trace-7" ||
+		cfg.Weather.Provider != weathercodec.ProviderOpenMeteo ||
+		cfg.Weather.QueryShape != weathercodec.QueryShapePosition ||
+		cfg.Weather.FixturePath != "/tmp/weather/open-meteo-point.json" {
+		t.Fatalf("weather config = %+v", cfg.Weather)
+	}
+	if cfg.Weather.WriteTimeout != 995*time.Millisecond {
+		t.Fatalf("weather write timeout = %s", cfg.Weather.WriteTimeout)
+	}
+	if cfg.Weather.Freshness != 45*time.Minute {
+		t.Fatalf("weather freshness = %s", cfg.Weather.Freshness)
+	}
+	if cfg.Weather.MaxObservations != 48 {
+		t.Fatalf("weather max observations = %d", cfg.Weather.MaxObservations)
 	}
 }
 
@@ -2072,6 +2306,42 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			},
 			want: EnvKLVDecodeMaxPacketBytes,
 		},
+		{
+			name: "bad weather enabled",
+			env:  map[string]string{EnvWeatherEnabled: "sometimes"},
+			want: EnvWeatherEnabled,
+		},
+		{
+			name: "bad weather write timeout",
+			env:  map[string]string{EnvWeatherWriteTimeout: "forever"},
+			want: EnvWeatherWriteTimeout,
+		},
+		{
+			name: "bad weather freshness",
+			env:  map[string]string{EnvWeatherFreshness: "forever"},
+			want: EnvWeatherFreshness,
+		},
+		{
+			name: "bad weather max observations",
+			env:  map[string]string{EnvWeatherMaxObservations: "many"},
+			want: EnvWeatherMaxObservations,
+		},
+		{
+			name: "zero weather freshness",
+			env: map[string]string{
+				EnvWeatherEnabled:   "true",
+				EnvWeatherFreshness: "0s",
+			},
+			want: EnvWeatherFreshness,
+		},
+		{
+			name: "zero weather max observations",
+			env: map[string]string{
+				EnvWeatherEnabled:         "true",
+				EnvWeatherMaxObservations: "0",
+			},
+			want: EnvWeatherMaxObservations,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2283,6 +2553,15 @@ type recordingKLVAppPlanWriter struct {
 }
 
 func (w *recordingKLVAppPlanWriter) Apply(_ context.Context, plan klvprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	return nil
+}
+
+type recordingWeatherAppPlanWriter struct {
+	plans []weatherprojector.Plan
+}
+
+func (w *recordingWeatherAppPlanWriter) Apply(_ context.Context, plan weatherprojector.Plan) error {
 	w.plans = append(w.plans, plan)
 	return nil
 }

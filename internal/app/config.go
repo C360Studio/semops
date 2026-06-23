@@ -11,8 +11,10 @@ import (
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
+	weathercomponent "github.com/c360studio/semops/internal/components/weather"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
+	weathercodec "github.com/c360studio/semops/pkg/adapters/weather"
 	"github.com/c360studio/semstreams/natsclient"
 	"github.com/c360studio/semstreams/pkg/ownership"
 )
@@ -86,6 +88,14 @@ const (
 	EnvKLVDemuxMaxMaterializedBytes = "SEMOPS_KLV_DEMUX_MAX_MATERIALIZED_BYTES"
 	EnvKLVDemuxProbeOutputMaxBytes  = "SEMOPS_KLV_DEMUX_PROBE_OUTPUT_MAX_BYTES"
 	EnvKLVDecodeMaxPacketBytes      = "SEMOPS_KLV_DECODE_MAX_PACKET_BYTES"
+	EnvWeatherEnabled               = "SEMOPS_WEATHER_ENABLED"
+	EnvWeatherSource                = "SEMOPS_WEATHER_SOURCE"
+	EnvWeatherProvider              = "SEMOPS_WEATHER_PROVIDER"
+	EnvWeatherQueryShape            = "SEMOPS_WEATHER_QUERY_SHAPE"
+	EnvWeatherFixturePath           = "SEMOPS_WEATHER_FIXTURE_PATH"
+	EnvWeatherWriteTimeout          = "SEMOPS_WEATHER_WRITE_TIMEOUT"
+	EnvWeatherFreshness             = "SEMOPS_WEATHER_FRESHNESS"
+	EnvWeatherMaxObservations       = "SEMOPS_WEATHER_MAX_OBSERVATIONS"
 	EnvCOPGraphQueryTimeout         = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
 	EnvCOPGraphDiscoveryEnabled     = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
 	EnvCOPGraphDiscoveryLimit       = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
@@ -107,6 +117,7 @@ type Config struct {
 	ADSB                       ADSBConfig
 	SAPIENT                    SAPIENTConfig
 	KLV                        KLVConfig
+	Weather                    WeatherConfig
 	COP                        COPConfig
 }
 
@@ -242,6 +253,21 @@ type KLVDemuxConfig struct {
 
 type KLVDecodeConfig struct {
 	MaxPacketBytes int
+}
+
+type WeatherConfig struct {
+	Enabled         bool
+	Source          string
+	Org             string
+	Platform        string
+	TraceID         string
+	Provider        string
+	QueryShape      string
+	FixturePath     string
+	WriteTimeout    time.Duration
+	Freshness       time.Duration
+	MaxObservations int
+	Retry           natsclient.RetryConfig
 }
 
 type COPConfig struct {
@@ -380,6 +406,25 @@ func DefaultConfig() Config {
 				BackoffMultiplier: 2,
 			},
 		},
+		Weather: WeatherConfig{
+			Enabled:         false,
+			Source:          "weather:fixture:inprocess",
+			Org:             "c360",
+			Platform:        "edge",
+			TraceID:         "semops-weather-hosted",
+			Provider:        weathercodec.ProviderOpenMeteo,
+			QueryShape:      weathercodec.QueryShapePosition,
+			FixturePath:     weathercomponent.DefaultFixturePath,
+			WriteTimeout:    2 * time.Second,
+			Freshness:       weathercomponent.DefaultFreshness,
+			MaxObservations: weathercomponent.DefaultMaxObservations,
+			Retry: natsclient.RetryConfig{
+				MaxRetries:        5,
+				InitialBackoff:    50 * time.Millisecond,
+				MaxBackoff:        500 * time.Millisecond,
+				BackoffMultiplier: 2,
+			},
+		},
 		COP: COPConfig{
 			GraphQueryTimeout:     2 * time.Second,
 			GraphDiscoveryEnabled: true,
@@ -409,21 +454,28 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvKLVSource, &cfg.KLV.Source)
 	setString(getenv, EnvKLVMediaPath, &cfg.KLV.MediaPath)
 	setString(getenv, EnvKLVMediaPattern, &cfg.KLV.MediaPattern)
+	setString(getenv, EnvWeatherSource, &cfg.Weather.Source)
+	setString(getenv, EnvWeatherProvider, &cfg.Weather.Provider)
+	setString(getenv, EnvWeatherQueryShape, &cfg.Weather.QueryShape)
+	setString(getenv, EnvWeatherFixturePath, &cfg.Weather.FixturePath)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)
 	setString(getenv, EnvOrg, &cfg.ADSB.Org)
 	setString(getenv, EnvOrg, &cfg.KLV.Org)
+	setString(getenv, EnvOrg, &cfg.Weather.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
 	setString(getenv, EnvPlatform, &cfg.CoT.Platform)
 	setString(getenv, EnvPlatform, &cfg.CAP.Platform)
 	setString(getenv, EnvPlatform, &cfg.ADSB.Platform)
 	setString(getenv, EnvPlatform, &cfg.KLV.Platform)
+	setString(getenv, EnvPlatform, &cfg.Weather.Platform)
 	setString(getenv, EnvTraceID, &cfg.MAVLink.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CoT.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CAP.TraceID)
 	setString(getenv, EnvTraceID, &cfg.ADSB.TraceID)
 	setString(getenv, EnvTraceID, &cfg.KLV.TraceID)
+	setString(getenv, EnvTraceID, &cfg.Weather.TraceID)
 	setString(getenv, EnvMAVLinkUDPListenAddr, &cfg.MAVLink.UDP.ListenAddr)
 	setString(getenv, EnvCoTUDPListenAddr, &cfg.CoT.UDP.ListenAddr)
 	setString(getenv, EnvCoTTCPListenAddr, &cfg.CoT.TCP.ListenAddr)
@@ -486,6 +538,20 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvKLVWriteTimeout,
 		cfg.KLV.WriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Weather.WriteTimeout, err = durationFromEnv(
+		getenv,
+		EnvWeatherWriteTimeout,
+		cfg.Weather.WriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Weather.Freshness, err = durationFromEnv(
+		getenv,
+		EnvWeatherFreshness,
+		cfg.Weather.Freshness,
 	); err != nil {
 		return Config{}, err
 	}
@@ -561,6 +627,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.KLV.Enabled, err = boolFromEnv(getenv, EnvKLVEnabled, cfg.KLV.Enabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.Weather.Enabled, err = boolFromEnv(getenv, EnvWeatherEnabled, cfg.Weather.Enabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
@@ -675,6 +744,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.Weather.MaxObservations, err = intFromEnv(
+		getenv,
+		EnvWeatherMaxObservations,
+		cfg.Weather.MaxObservations,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.COP.GraphDiscoveryLimit, err = intFromEnv(
 		getenv,
 		EnvCOPGraphDiscoveryLimit,
@@ -763,6 +839,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.KLV.Validate(); err != nil {
+		return err
+	}
+	if err := c.Weather.Validate(); err != nil {
 		return err
 	}
 	if !c.MAVLink.Enabled {
@@ -906,6 +985,40 @@ func (c KLVConfig) Validate() error {
 	}
 	if c.Decode.MaxPacketBytes <= 0 {
 		return fmt.Errorf("%s must be greater than zero when KLV is enabled", EnvKLVDecodeMaxPacketBytes)
+	}
+	return nil
+}
+
+func (c WeatherConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(c.Source) == "" {
+		return fmt.Errorf("%s is required when weather is enabled", EnvWeatherSource)
+	}
+	if strings.TrimSpace(c.Org) == "" {
+		return fmt.Errorf("%s is required when weather is enabled", EnvOrg)
+	}
+	if strings.TrimSpace(c.Platform) == "" {
+		return fmt.Errorf("%s is required when weather is enabled", EnvPlatform)
+	}
+	if strings.TrimSpace(c.Provider) == "" {
+		return fmt.Errorf("%s is required when weather is enabled", EnvWeatherProvider)
+	}
+	if strings.TrimSpace(c.QueryShape) == "" {
+		return fmt.Errorf("%s is required when weather is enabled", EnvWeatherQueryShape)
+	}
+	if strings.TrimSpace(c.FixturePath) == "" {
+		return fmt.Errorf("%s is required when weather is enabled", EnvWeatherFixturePath)
+	}
+	if c.WriteTimeout <= 0 {
+		return fmt.Errorf("%s must be greater than zero when weather is enabled", EnvWeatherWriteTimeout)
+	}
+	if c.Freshness <= 0 {
+		return fmt.Errorf("%s must be greater than zero when weather is enabled", EnvWeatherFreshness)
+	}
+	if c.MaxObservations <= 0 {
+		return fmt.Errorf("%s must be greater than zero when weather is enabled", EnvWeatherMaxObservations)
 	}
 	return nil
 }

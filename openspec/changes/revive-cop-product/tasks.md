@@ -43,6 +43,8 @@
 - [x] 2.21 Add local HTTP fixture-provider service evidence for ADS-B and SAPIENT component-flow smoke tests
 - [x] 2.22 Add the first concrete weather graph projector processor component using SemStreams request ports,
       payload registry, health, flow metrics, and born-first reconciliation for point forecasts
+- [x] 2.23 Wire the opt-in hosted weather fixture input -> decoder -> projector flow through SemStreams component
+      lifecycle, ports, payload registry, owner tokens, and component metrics
 
 ## 3. COP Model And Governance
 
@@ -147,6 +149,8 @@
 - [x] 5.71 Add tactical-weather graph contract and pure projector-plan gate before UI or route-safety claims
 - [x] 5.72 Add tactical-weather graph writer and projector component gate for point forecasts without claiming live
       provider support, spatial runtime payloads, UI semantics, or route-safety authority
+- [x] 5.73 Add opt-in hosted tactical-weather point-fixture runtime evidence without claiming live provider support,
+      cache/stale policy, spatial runtime payloads, UI semantics, or route-safety authority
 
 ## 6. Structural COP Stack
 
@@ -231,6 +235,8 @@
 - [x] 6.63 Add a one-command opt-in KLV stack smoke after fixture provenance and runtime-resource posture are clean
 - [x] 6.64 Add initial weather point-forecast graph projector component while keeping hosted runtime, live provider,
       cache/stale policy, and route-weather behavior gated
+- [x] 6.65 Wire opt-in weather point-fixture input -> decoder -> projector hosted runtime with ownership and component
+      metrics while keeping weather disabled by default
 
 ## 7. COP UI
 
