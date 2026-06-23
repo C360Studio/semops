@@ -271,6 +271,33 @@ Acceptance:
 - Non-detection messages such as task acknowledgements remain decoded-stream evidence and do not produce graph
   mutations. [done]
 
+### Opt-In Stack Graph Smoke Gate
+
+Target command:
+
+```bash
+SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED=true bash scripts/cop-stack-smoke.sh
+```
+
+Acceptance:
+
+- The stack smoke keeps default SAPIENT behavior as decoded-stream preflight against `/sapient/messages`. [done]
+- Graph smoke explicitly enables `SEMOPS_SAPIENT_GRAPH_ENABLED=true` and points SAPIENT at `/sapient/detections`.
+  [done in harness wiring]
+- The Caddy-routed COP snapshot contains a SAPIENT track with `semops.feed.sapient` provenance. [done in smoke
+  assertion]
+- The Caddy-routed SAPIENT graph smoke accepts stale feed health for deterministic old-source fixtures while still
+  requiring SAPIENT source, non-zero position, `semops.feed.sapient` provenance, and non-empty source reference.
+  [done]
+- Prometheus component metrics and `GET /api/cop/runtime` expect the SAPIENT projector only when graph smoke is
+  enabled. [done in smoke assertion]
+- The direct SAPIENT decoded-stream smoke validates `detectionReport` in graph mode and `taskAck` in default
+  preflight mode. [done]
+- `SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED=true bash scripts/cop-stack-smoke.sh` passed on 2026-06-23 with KLV and
+  weather still skipped unless their stack flags are enabled. [done]
+- This smoke remains fixture-backed engineering evidence and does not claim SAPIENT product service support,
+  compliance, tasking, association, UTM conversion, range/bearing conversion, or Apex middleware behavior. [done]
+
 ## Known Gaps
 
 - The official test harness has not been run by SemOps.

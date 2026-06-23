@@ -19,28 +19,29 @@ import (
 )
 
 const (
-	liveSnapshotURLEnv      = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
-	liveRuntimeURLEnv       = "SEMOPS_COP_SMOKE_RUNTIME_URL"
-	liveScenarioStatusEnv   = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
-	liveComponentMetricsEnv = "SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL"
-	liveSnapshotUDPAddrEnv  = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
-	liveSnapshotCoTAddrEnv  = "SEMOPS_COP_SMOKE_COT_UDP_ADDR"
-	liveSnapshotTrackIDEnv  = "SEMOPS_COP_SMOKE_EXPECTED_TRACK_ID"
-	liveSnapshotCoTTrackEnv = "SEMOPS_COP_SMOKE_EXPECTED_COT_TRACK_ID"
-	liveSnapshotCoTTaskEnv  = "SEMOPS_COP_SMOKE_EXPECTED_COT_TASK_ID"
-	liveSnapshotCoTChatEnv  = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
-	liveSnapshotHazardEnv   = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
-	liveScenarioADSBEnv     = "SEMOPS_SCENARIO_ADSB_FIXTURE"
-	liveSnapshotADSBHTTPEnv = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
-	liveSnapshotSAPIENTEnv  = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
-	liveSnapshotKLVEnv      = "SEMOPS_COP_SMOKE_KLV_ENABLED"
-	liveSnapshotWeatherEnv  = "SEMOPS_COP_SMOKE_WEATHER_ENABLED"
-	defaultExpectedTrackID  = "c360.edge-compose.cop.mavlink.track.system-42"
-	defaultExpectedCoTTrack = "c360.edge-compose.cop.tak.track.android-alpha"
-	defaultExpectedCoTTask  = "c360.edge-compose.cop.tak.task.marker-north-gate"
-	defaultExpectedCoTChat  = "c360.edge-compose.cop.tak.advisory.chat-alpha-1"
-	defaultExpectedHazard   = "c360.edge-compose.cop.cap.hazard_area.nws-demo-flood-warning"
-	liveSnapshotPollTimeout = 30 * time.Second
+	liveSnapshotURLEnv          = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
+	liveRuntimeURLEnv           = "SEMOPS_COP_SMOKE_RUNTIME_URL"
+	liveScenarioStatusEnv       = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
+	liveComponentMetricsEnv     = "SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL"
+	liveSnapshotUDPAddrEnv      = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
+	liveSnapshotCoTAddrEnv      = "SEMOPS_COP_SMOKE_COT_UDP_ADDR"
+	liveSnapshotTrackIDEnv      = "SEMOPS_COP_SMOKE_EXPECTED_TRACK_ID"
+	liveSnapshotCoTTrackEnv     = "SEMOPS_COP_SMOKE_EXPECTED_COT_TRACK_ID"
+	liveSnapshotCoTTaskEnv      = "SEMOPS_COP_SMOKE_EXPECTED_COT_TASK_ID"
+	liveSnapshotCoTChatEnv      = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
+	liveSnapshotHazardEnv       = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
+	liveScenarioADSBEnv         = "SEMOPS_SCENARIO_ADSB_FIXTURE"
+	liveSnapshotADSBHTTPEnv     = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
+	liveSnapshotSAPIENTEnv      = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
+	liveSnapshotSAPIENTGraphEnv = "SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED"
+	liveSnapshotKLVEnv          = "SEMOPS_COP_SMOKE_KLV_ENABLED"
+	liveSnapshotWeatherEnv      = "SEMOPS_COP_SMOKE_WEATHER_ENABLED"
+	defaultExpectedTrackID      = "c360.edge-compose.cop.mavlink.track.system-42"
+	defaultExpectedCoTTrack     = "c360.edge-compose.cop.tak.track.android-alpha"
+	defaultExpectedCoTTask      = "c360.edge-compose.cop.tak.task.marker-north-gate"
+	defaultExpectedCoTChat      = "c360.edge-compose.cop.tak.advisory.chat-alpha-1"
+	defaultExpectedHazard       = "c360.edge-compose.cop.cap.hazard_area.nws-demo-flood-warning"
+	liveSnapshotPollTimeout     = 30 * time.Second
 )
 
 func TestHostedCOPSnapshotReflectsMAVLinkUDP(t *testing.T) {
@@ -234,6 +235,47 @@ func TestHostedCOPSnapshotReflectsADSBHTTPProvider(t *testing.T) {
 	}
 }
 
+func TestHostedCOPSnapshotReflectsSAPIENTGraphProvider(t *testing.T) {
+	snapshotURL := os.Getenv(liveSnapshotURLEnv)
+	if snapshotURL == "" {
+		t.Skipf("set %s to run the hosted COP SAPIENT graph snapshot smoke", liveSnapshotURLEnv)
+	}
+	expectSAPIENTGraph, err := boolFromEnv(liveSnapshotSAPIENTGraphEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !expectSAPIENTGraph {
+		t.Skipf("set %s=true to run the hosted COP SAPIENT graph snapshot smoke", liveSnapshotSAPIENTGraphEnv)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
+		if err != nil {
+			lastErr = err
+		} else if snapshotHasSAPIENTTrack(snapshot) {
+			return
+		} else {
+			lastErr = fmt.Errorf("snapshot missing SAPIENT graph track: scenario=%s tracks=%d",
+				snapshot.Scenario, len(snapshot.Tracks))
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted COP snapshot did not reflect SAPIENT graph provider before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
 func TestHostedCOPSnapshotReflectsHADRSharedAirspace(t *testing.T) {
 	snapshotURL := os.Getenv(liveSnapshotURLEnv)
 	statusURL := os.Getenv(liveScenarioStatusEnv)
@@ -394,6 +436,10 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	expectSAPIENTGraph, err := boolFromEnv(liveSnapshotSAPIENTGraphEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
 	expectKLV, err := boolFromEnv(liveSnapshotKLVEnv)
 	if err != nil {
 		t.Fatal(err)
@@ -431,6 +477,11 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 			componentMetricExpectation{Name: "semops-input-sapient-http", Feed: "sapient", Role: "http-input"},
 			componentMetricExpectation{Name: "semops-processor-sapient-decode", Feed: "sapient", Role: "decoder"},
 		)
+		if expectSAPIENTGraph {
+			expected = append(expected,
+				componentMetricExpectation{Name: "semops-processor-sapient-project", Feed: "sapient", Role: "projector"},
+			)
+		}
 	}
 	if expectKLV {
 		expected = append(expected,
@@ -495,6 +546,10 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	expectSAPIENTGraph, err := boolFromEnv(liveSnapshotSAPIENTGraphEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
 	expectKLV, err := boolFromEnv(liveSnapshotKLVEnv)
 	if err != nil {
 		t.Fatal(err)
@@ -520,7 +575,16 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 		expected = append(expected, runtimeFeedExpectation{ID: "feed.adsb", Healthy: 3, Total: 3, RequireFlow: true})
 	}
 	if expectSAPIENT {
-		expected = append(expected, runtimeFeedExpectation{ID: "feed.sapient", Healthy: 2, Total: 2, RequireFlow: true})
+		components := 2
+		if expectSAPIENTGraph {
+			components = 3
+		}
+		expected = append(expected, runtimeFeedExpectation{
+			ID:          "feed.sapient",
+			Healthy:     components,
+			Total:       components,
+			RequireFlow: true,
+		})
 	}
 	if expectKLV {
 		expected = append(expected, runtimeFeedExpectation{ID: "feed.klv", Healthy: 4, Total: 4, RequireFlow: true})
@@ -794,6 +858,42 @@ func snapshotHasADSBTrack(snapshot copapi.Snapshot) bool {
 			return false
 		}
 		return true
+	}
+	return false
+}
+
+func snapshotHasSAPIENTTrack(snapshot copapi.Snapshot) bool {
+	if snapshot.Scenario != "phase-1-live-graph" {
+		return false
+	}
+	if !snapshotHasFeedStatus(snapshot, "feed.sapient", "live", "stale") {
+		return false
+	}
+	for _, track := range snapshot.Tracks {
+		if track.Source != "sapient" {
+			continue
+		}
+		if track.Position.Lat == 0 || track.Position.Lon == 0 {
+			return false
+		}
+		if track.Provenance.Owner != "semops.feed.sapient" || track.Provenance.SourceRef == "" {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func snapshotHasFeedStatus(snapshot copapi.Snapshot, feedID string, statuses ...string) bool {
+	for _, feed := range snapshot.Feeds {
+		if feed.ID != feedID {
+			continue
+		}
+		for _, status := range statuses {
+			if feed.Status == status {
+				return true
+			}
+		}
 	}
 	return false
 }

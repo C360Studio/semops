@@ -1,9 +1,9 @@
 // Package sapient implements the first SAPIENT feed boundary for SemOps.
 //
-// The current boundary is a parser-only preflight for BSI Flex 335 v2 JSON
-// message fixtures shaped by the official Dstl test harness. It does not claim
-// binary protobuf coverage, harness compliance, graph projection, or product
-// SAPIENT support.
+// The current boundary provides JSON and descriptor-based protobuf preflight
+// for representative BSI Flex 335 v2 message shapes, plus raw replay fixtures
+// for repeatable component tests. It does not claim Dstl harness compliance,
+// product SAPIENT support, tasking authority, or full-message coverage.
 package sapient
 
 import (

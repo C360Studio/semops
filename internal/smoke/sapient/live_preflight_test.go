@@ -15,12 +15,19 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-const livePreflightNATSEnv = "SEMOPS_SAPIENT_LIVE_PREFLIGHT_NATS_URL"
+const (
+	livePreflightNATSEnv            = "SEMOPS_SAPIENT_LIVE_PREFLIGHT_NATS_URL"
+	livePreflightExpectedContentEnv = "SEMOPS_SAPIENT_LIVE_PREFLIGHT_EXPECTED_CONTENT"
+)
 
 func TestLiveSAPIENTPreflightDecodedSmoke(t *testing.T) {
 	natsURL := os.Getenv(livePreflightNATSEnv)
 	if natsURL == "" {
 		t.Skipf("set %s to run the live SAPIENT preflight smoke", livePreflightNATSEnv)
+	}
+	expectedContent, err := expectedContentFromEnv()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -64,7 +71,7 @@ func TestLiveSAPIENTPreflightDecodedSmoke(t *testing.T) {
 			trySendErr(decodeErr, fmt.Errorf("decoded payload = %T, want *sapient.DecodedMessagePayload", envelope.Payload()))
 			return
 		}
-		if payload.Content != sapientcodec.ContentTaskAck ||
+		if payload.Content != expectedContent ||
 			payload.NodeID != "a8654cdf-4328-47de-81fa-c495589e30c8" ||
 			payload.RawRef == "" {
 			trySendErr(decodeErr, fmt.Errorf("unexpected SAPIENT decoded payload: %+v", payload))
@@ -90,6 +97,25 @@ func TestLiveSAPIENTPreflightDecodedSmoke(t *testing.T) {
 		t.Fatal(err)
 	case <-ctx.Done():
 		t.Fatalf("SAPIENT preflight decoded payload not observed before timeout: %v", ctx.Err())
+	}
+}
+
+func expectedContentFromEnv() (sapientcodec.ContentKind, error) {
+	value := sapientcodec.ContentKind(os.Getenv(livePreflightExpectedContentEnv))
+	if value == "" {
+		return sapientcodec.ContentTaskAck, nil
+	}
+	switch value {
+	case sapientcodec.ContentTaskAck, sapientcodec.ContentDetectionReport:
+		return value, nil
+	default:
+		return "", fmt.Errorf(
+			"%s=%q is unsupported; expected %q or %q",
+			livePreflightExpectedContentEnv,
+			value,
+			sapientcodec.ContentTaskAck,
+			sapientcodec.ContentDetectionReport,
+		)
 	}
 }
 

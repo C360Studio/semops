@@ -160,6 +160,8 @@
       conformance, hosted graph production, tasking, association, UTM conversion, or range/bearing support
 - [x] 5.76 Add opt-in SAPIENT absolute-location runtime graph component evidence without claiming conformance,
       product service support, tasking, association, UTM conversion, or range/bearing support
+- [x] 5.77 Add opt-in SAPIENT absolute-location stack-smoke assertions without claiming conformance, product service
+      support, tasking, association, UTM conversion, or range/bearing support
 
 ## 6. Structural COP Stack
 
@@ -251,6 +253,8 @@
 - [x] 6.67 Wire SAPIENT decoded-message graph projection through hosted runtime behind
       `SEMOPS_SAPIENT_GRAPH_ENABLED=false` by default, with SAPIENT ownership registered only when graph mode is
       enabled
+- [x] 6.68 Add opt-in one-command SAPIENT graph smoke for fixture-backed detection projection, COP snapshot readback,
+      component metrics, and runtime flow evidence
 
 ## 7. COP UI
 

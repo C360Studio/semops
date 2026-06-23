@@ -85,9 +85,11 @@ SAPIENT now has HTTP input, decoder, and graph-projector component boundaries fo
 streams. The hosted app can run the preflight chain behind `SEMOPS_SAPIENT_ENABLED=true` with an explicit URL,
 encoding, and replay settings. It composes the graph projector and registers `OwnerSAPIENT` only when
 `SEMOPS_SAPIENT_GRAPH_ENABLED=true`, and that path is limited to the reviewed absolute-location detection contract.
-The stack smoke enables SAPIENT against the local fixture provider and verifies the declared decoded output stream; it
-does not claim SAPIENT conformance, tasking, range/bearing, UTM, association, Apex middleware behavior, or a
-SemOps-hosted SAPIENT service.
+The stack smoke enables SAPIENT against the local fixture provider and verifies the declared decoded output stream.
+When `SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED=true`, the same smoke switches to the deterministic detection fixture,
+enables the graph projector, and verifies Caddy-routed SAPIENT track readback plus projector runtime metrics. It does
+not claim SAPIENT conformance, tasking, range/bearing, UTM, association, Apex middleware behavior, or a SemOps-hosted
+SAPIENT service.
 The first SAPIENT smoke exposed a hosted lifecycle bug: components were inheriting the startup/connect timeout
 context and stopping after startup. Runtime components are now owned by `App.Close`, so connection deadlines no longer
 silently cancel long-running input and processor components.
@@ -287,7 +289,7 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
   MAVLink live graph smoke before tearing the stack down.
 - SemOps now exposes product-runtime component health and flow metrics at `/metrics` via Caddy. The one-command smoke
   asserts `semops_component_*` Prometheus samples for the hosted MAVLink, TAK/CoT, ADS-B, and SAPIENT component flow
-  when those feeds are enabled.
+  when those feeds are enabled, and includes the SAPIENT projector only when graph smoke is explicitly enabled.
 - SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.114`, retaining
   the beta.113 prefix-discovery contract and adding the beta.114 `HTTPClientPort` component boundary.
 - The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,

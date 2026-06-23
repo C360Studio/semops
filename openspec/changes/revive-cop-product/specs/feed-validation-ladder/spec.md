@@ -99,6 +99,8 @@ public conformance suite, or documented interoperability test backs the claim.
   semantics until those policies are reviewed
 - **AND** SemOps may add a SAPIENT graph-producing processor component and graph writer only behind
   `SEMOPS_SAPIENT_GRAPH_ENABLED=true`, with `OwnerSAPIENT` registered only for that graph-enabled runtime path
+- **AND** stack smoke coverage for SAPIENT graph projection remains opt-in, fixture-backed, and detection-source
+  explicit so the default task-ack preflight smoke is not mistaken for graph or tasking support
 - **AND** SemOps does not claim compliance until scoped Dstl harness evidence exists
 - **AND** SemOps does not claim product service support, tasking, association, UTM conversion, range/bearing
   conversion, or Apex middleware behavior until service mode, backpressure, command authority, and harness scope have

@@ -731,6 +731,10 @@ First acceptance gate:
   task-ack payload on `semops.feed.sapient.decoded` without adding SAPIENT graph ownership or projector subscriptions.
 - The same smoke asserts Prometheus component health and flow samples for the SAPIENT HTTP input and decoder through
   SemOps `/metrics`; this remains preflight telemetry, not product support or conformance evidence.
+- Given `SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED=true`, the one-command stack smoke points SAPIENT at
+  `/sapient/detections`, enables the graph projector, asserts Caddy-routed SAPIENT track readback through
+  `GET /api/cop/snapshot`, and expects SAPIENT HTTP input, decoder, and projector component flow in Prometheus and
+  `GET /api/cop/runtime`. This is fixture-backed absolute-location projection evidence only.
 - Given an absolute-location SAPIENT detection report using `LOCATION_COORDINATE_SYSTEM_LAT_LNG_DEG_M` and WGS84
   datum, SemOps can plan signal-profiled source-owned track mutations and read equivalent graph state through
   `GET /api/cop/snapshot` prefix discovery. [done for projector/API tests only]

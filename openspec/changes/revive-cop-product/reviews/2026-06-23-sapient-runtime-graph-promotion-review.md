@@ -59,5 +59,5 @@ full-message coverage.
 - Run or qualify the Dstl BSI Flex 335 v2 Test Harness before any SAPIENT compliance language.
 - Keep range/bearing, UTM, tasking, alert acknowledgements, detection lifecycle, association, and Apex middleware
   behavior as separate reviewed contracts.
-- Add a full-stack SAPIENT detection graph smoke only when the MVP needs product-visible SAPIENT track evidence, and
-  keep that smoke explicitly opt-in.
+- Keep full-stack SAPIENT detection graph smoke explicitly opt-in; the accepted smoke gate is recorded in
+  `2026-06-23-sapient-graph-stack-smoke-review.md`.
