@@ -791,6 +791,9 @@ First acceptance gate:
   cross-source association edges and reads it back through prefix discovery.
 - Given fusion-owned association evidence between ADS-B and another source track, SemOps projects and reads back the
   association as separate `control` evidence without merging or mutating either source track.
+- Given `SEMOPS_FUSION_ENABLED=true`, SemOps hosts a fusion association processor that consumes bounded
+  `semops.fusion.track_candidates` batches, scores cross-source tracks, writes fusion-owned graph evidence, reconciles
+  existing births, and reports component telemetry without producing candidates or claiming identity resolution.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress

@@ -40,6 +40,20 @@ authoritative predicates.
 - **AND** COP readback discovers association entities by fusion prefix and exposes the evidence separately from track
   current state
 
+#### Scenario: Fusion association processor uses SemStreams lifecycle
+
+- **WHEN** SemOps hosts statistical track association
+- **THEN** it runs as an opt-in SemStreams processor component with a declared NATS input port for bounded
+  track-candidate batches and declared graph mutation request output ports
+- **AND** the processor uses the payload registry to decode candidate batches before scoring or graph projection
+- **AND** graph writes use the fusion owner token already minted by the COP ownership registration path
+- **AND** entity-exists responses reconcile born state and reproject updates instead of falling back to auto-vivify or
+  raw `triple.add` writes
+- **AND** the component exposes `Health()` and `DataFlow()` so runtime telemetry can report throughput, errors, and
+  last activity
+- **AND** this hosted processor does not itself discover candidate tracks, merge identities, mutate source tracks, or
+  expose operator merge controls until separate gates approve those workflows
+
 ### Requirement: Graph writes are born-first
 
 SemOps adapters SHALL follow SemStreams ADR-055 and ADR-056. Entity creation must happen through typed graph birth

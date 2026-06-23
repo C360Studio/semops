@@ -17,6 +17,7 @@ import (
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
+	fusioncomponent "github.com/c360studio/semops/internal/components/fusion"
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
@@ -26,6 +27,7 @@ import (
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
+	fusionprojector "github.com/c360studio/semops/internal/projectors/fusion"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
@@ -1553,6 +1555,110 @@ func TestStartCanDisableHostedWeatherFixtureFlow(t *testing.T) {
 	}
 }
 
+func TestStartCanDisableHostedFusionFlow(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.Fusion.Enabled = false
+	var composed bool
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{Incarnation: "lease-123"}, func() {}, nil
+		},
+		newFusionPlanWriter: func(
+			time.Duration,
+			natsclient.RetryConfig,
+			graphrequest.RetryRequester,
+		) (fusioncomponent.PlanWriter, error) {
+			composed = true
+			return &recordingFusionAppPlanWriter{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if composed {
+		t.Fatal("fusion flow should not be composed when disabled")
+	}
+	if app.FusionProjector() != nil {
+		t.Fatal("fusion component should be nil when disabled")
+	}
+}
+
+func TestStartHostsFusionProjectorWhenEnabled(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.Fusion.Enabled = true
+	cfg.Fusion.CandidateSubject = "semops.fusion.test_candidates"
+	cfg.Fusion.WriteTimeout = 812 * time.Millisecond
+	cfg.Fusion.Retry = natsclient.RetryConfig{
+		MaxRetries:        3,
+		InitialBackoff:    2 * time.Millisecond,
+		MaxBackoff:        20 * time.Millisecond,
+		BackoffMultiplier: 2,
+	}
+
+	var gotTimeout time.Duration
+	var gotRetry natsclient.RetryConfig
+	writer := &recordingFusionAppPlanWriter{}
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{
+				Incarnation: "lease-123",
+				Tokens: map[string]ownership.OwnerToken{
+					cop.OwnerFusion: ownership.ExpectedOwnerToken(cop.OwnerFusion, "lease-123"),
+				},
+			}, func() {}, nil
+		},
+		newFusionPlanWriter: func(
+			timeout time.Duration,
+			retry natsclient.RetryConfig,
+			requester graphrequest.RetryRequester,
+		) (fusioncomponent.PlanWriter, error) {
+			if requester != client {
+				t.Fatal("fusion writer received unexpected requester")
+			}
+			gotTimeout = timeout
+			gotRetry = retry
+			return writer, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	if app.FusionProjector() == nil {
+		t.Fatal("fusion projector was not composed")
+	}
+	if !client.hasSubscription(cfg.Fusion.CandidateSubject) {
+		t.Fatalf("fusion candidate subscriptions = %+v", client.subscriptionSubjects())
+	}
+	if gotTimeout != cfg.Fusion.WriteTimeout {
+		t.Fatalf("fusion write timeout = %s, want %s", gotTimeout, cfg.Fusion.WriteTimeout)
+	}
+	if gotRetry != cfg.Fusion.Retry {
+		t.Fatalf("fusion retry = %+v, want %+v", gotRetry, cfg.Fusion.Retry)
+	}
+}
+
 func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1749,6 +1855,38 @@ func TestNewSAPIENTPlanWriterUsesConfiguredRetry(t *testing.T) {
 	}
 }
 
+func TestNewFusionPlanWriterUsesConfiguredRetry(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	retry := natsclient.RetryConfig{
+		MaxRetries:        6,
+		InitialBackoff:    4 * time.Millisecond,
+		MaxBackoff:        40 * time.Millisecond,
+		BackoffMultiplier: 2,
+	}
+	writer, err := newFusionPlanWriter(46*time.Millisecond, retry, client)
+	if err != nil {
+		t.Fatalf("new fusion plan writer: %v", err)
+	}
+	err = writer.Apply(context.Background(), fusionprojector.Plan{Mutations: []fusionprojector.Mutation{{
+		Kind: fusionprojector.MutationCreate,
+		Create: graph.CreateEntityWithTriplesRequest{
+			Entity: &graph.EntityState{ID: "fusion-association-1"},
+		},
+	}}})
+	if err != nil {
+		t.Fatalf("apply fusion plan: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want 1", len(client.requests))
+	}
+	if client.requests[0].timeout != 46*time.Millisecond {
+		t.Fatalf("timeout = %s, want 46ms", client.requests[0].timeout)
+	}
+	if client.requests[0].retry != retry {
+		t.Fatalf("retry = %+v, want %+v", client.requests[0].retry, retry)
+	}
+}
+
 func TestComponentMetricSourcesExposeStartedRuntimeComponents(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
@@ -1779,6 +1917,39 @@ func TestComponentMetricSourcesExposeStartedRuntimeComponents(t *testing.T) {
 	}
 	if hasComponentMetricSource(sources, "semops-input-mavlink-udp", "mavlink", "input") {
 		t.Fatalf("unexpected MAVLink UDP source without listen addr: %+v", componentMetricSourceNames(sources))
+	}
+}
+
+func TestComponentMetricSourcesExposeHostedFusionProjector(t *testing.T) {
+	client := &fakeSemStreamsClient{}
+	cfg := DefaultConfig()
+	cfg.MAVLink.Enabled = false
+	cfg.Fusion.Enabled = true
+
+	app, err := start(context.Background(), cfg, dependencies{
+		newNATSClient: func(Config) (semstreamsClient, error) {
+			return client, nil
+		},
+		registerOwners: func(
+			context.Context,
+			semstreamsClient,
+			time.Duration,
+			[]cop.OwnedContract,
+		) (copownership.BindingResult, func(), error) {
+			return copownership.BindingResult{
+				Incarnation: "lease-123",
+				Tokens: map[string]ownership.OwnerToken{
+					cop.OwnerFusion: ownership.ExpectedOwnerToken(cop.OwnerFusion, "lease-123"),
+				},
+			}, func() {}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("start app: %v", err)
+	}
+	sources := app.ComponentMetricSources()
+	if !hasComponentMetricSource(sources, "semops-processor-fusion-associate", "fusion", "projector") {
+		t.Fatalf("missing fusion metric source: %+v", componentMetricSourceNames(sources))
 	}
 }
 
@@ -1868,6 +2039,9 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvWeatherWriteTimeout:          "995ms",
 		EnvWeatherFreshness:             "45m",
 		EnvWeatherMaxObservations:       "48",
+		EnvFusionEnabled:                "true",
+		EnvFusionCandidateSubject:       "semops.fusion.env_candidates",
+		EnvFusionWriteTimeout:           "996ms",
 	}
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
@@ -2062,6 +2236,18 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if cfg.Weather.MaxObservations != 48 {
 		t.Fatalf("weather max observations = %d", cfg.Weather.MaxObservations)
+	}
+	if !cfg.Fusion.Enabled {
+		t.Fatal("fusion enabled = false, want true")
+	}
+	if cfg.Fusion.Org != "lab" ||
+		cfg.Fusion.Platform != "edge-7" ||
+		cfg.Fusion.TraceID != "trace-7" ||
+		cfg.Fusion.CandidateSubject != "semops.fusion.env_candidates" {
+		t.Fatalf("fusion config = %+v", cfg.Fusion)
+	}
+	if cfg.Fusion.WriteTimeout != 996*time.Millisecond {
+		t.Fatalf("fusion write timeout = %s", cfg.Fusion.WriteTimeout)
 	}
 }
 
@@ -2525,6 +2711,24 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			},
 			want: EnvWeatherMaxObservations,
 		},
+		{
+			name: "bad fusion enabled",
+			env:  map[string]string{EnvFusionEnabled: "sometimes"},
+			want: EnvFusionEnabled,
+		},
+		{
+			name: "bad fusion write timeout",
+			env:  map[string]string{EnvFusionWriteTimeout: "eventually"},
+			want: EnvFusionWriteTimeout,
+		},
+		{
+			name: "zero fusion write timeout",
+			env: map[string]string{
+				EnvFusionEnabled:      "true",
+				EnvFusionWriteTimeout: "0s",
+			},
+			want: EnvFusionWriteTimeout,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2754,6 +2958,15 @@ type recordingWeatherAppPlanWriter struct {
 }
 
 func (w *recordingWeatherAppPlanWriter) Apply(_ context.Context, plan weatherprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	return nil
+}
+
+type recordingFusionAppPlanWriter struct {
+	plans []fusionprojector.Plan
+}
+
+func (w *recordingFusionAppPlanWriter) Apply(_ context.Context, plan fusionprojector.Plan) error {
 	w.plans = append(w.plans, plan)
 	return nil
 }

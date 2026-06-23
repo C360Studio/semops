@@ -10,15 +10,18 @@ import (
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
 	cotcomponent "github.com/c360studio/semops/internal/components/cot"
+	fusioncomponent "github.com/c360studio/semops/internal/components/fusion"
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	weathercomponent "github.com/c360studio/semops/internal/components/weather"
 	"github.com/c360studio/semops/internal/copownership"
+	fusionassociation "github.com/c360studio/semops/internal/fusion/association"
 	"github.com/c360studio/semops/internal/graphrequest"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
+	fusionprojector "github.com/c360studio/semops/internal/projectors/fusion"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	mavprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
@@ -61,6 +64,7 @@ type App struct {
 	weatherInput     *weathercomponent.FixtureInputComponent
 	weatherDecoder   *weathercomponent.DecoderComponent
 	weatherProjector *weathercomponent.ProjectorComponent
+	fusionProjector  *fusioncomponent.ProjectorComponent
 	runtimeCancel    context.CancelFunc
 }
 
@@ -116,6 +120,8 @@ type dependencies struct {
 	newWeatherInput      func(weathercomponent.FixtureInputConfig) (*weathercomponent.FixtureInputComponent, error)
 	newWeatherDecoder    func(weathercomponent.DecoderConfig, weathercomponent.Bus) (*weathercomponent.DecoderComponent, error)
 	newWeatherProjector  func(weathercomponent.ProjectorConfig, weathercomponent.Bus) (*weathercomponent.ProjectorComponent, error)
+	newFusionPlanWriter  func(time.Duration, natsclient.RetryConfig, graphrequest.RetryRequester) (fusioncomponent.PlanWriter, error)
+	newFusionProjector   func(fusioncomponent.ProjectorConfig, fusioncomponent.Bus) (*fusioncomponent.ProjectorComponent, error)
 }
 
 func Start(ctx context.Context, cfg Config) (*App, error) {
@@ -246,6 +252,11 @@ func (a *App) Close(ctx context.Context) error {
 	if a.weatherProjector != nil {
 		if err := a.weatherProjector.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop weather projector component: %w", err))
+		}
+	}
+	if a.fusionProjector != nil {
+		if err := a.fusionProjector.Stop(remainingTimeout(ctx)); err != nil {
+			errs = append(errs, fmt.Errorf("stop fusion projector component: %w", err))
 		}
 	}
 	if a.ownershipStop != nil {
@@ -427,6 +438,13 @@ func (a *App) WeatherProjector() *weathercomponent.ProjectorComponent {
 	return a.weatherProjector
 }
 
+func (a *App) FusionProjector() *fusioncomponent.ProjectorComponent {
+	if a == nil {
+		return nil
+	}
+	return a.fusionProjector
+}
+
 func (a *App) GraphRequester() GraphRequester {
 	if a == nil {
 		return nil
@@ -438,7 +456,7 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 	if a == nil {
 		return nil
 	}
-	sources := make([]componentmetrics.Source, 0, 22)
+	sources := make([]componentmetrics.Source, 0, 24)
 	if a.mavlinkInput != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "input", Component: a.mavlinkInput})
 	}
@@ -507,6 +525,9 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 	}
 	if a.weatherProjector != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "weather", Role: "projector", Component: a.weatherProjector})
+	}
+	if a.fusionProjector != nil {
+		sources = append(sources, componentmetrics.Source{Feed: "fusion", Role: "projector", Component: a.fusionProjector})
 	}
 	return sources
 }
@@ -588,6 +609,12 @@ func start(ctx context.Context, cfg Config, deps dependencies) (*App, error) {
 		}
 	}
 
+	if cfg.Fusion.Enabled {
+		if err := app.startFusionFlow(runtimeCtx, cfg.Fusion, bindings, deps); err != nil {
+			return nil, err
+		}
+	}
+
 	cleanup = false
 	return app, nil
 }
@@ -626,6 +653,8 @@ func defaultDependencies() dependencies {
 		newWeatherInput:      weathercomponent.NewFixtureInputComponent,
 		newWeatherDecoder:    weathercomponent.NewDecoderComponent,
 		newWeatherProjector:  weathercomponent.NewProjectorComponent,
+		newFusionPlanWriter:  newFusionPlanWriter,
+		newFusionProjector:   fusioncomponent.NewProjectorComponent,
 	}
 }
 
@@ -726,6 +755,12 @@ func fillDependencies(deps dependencies) dependencies {
 	}
 	if deps.newWeatherProjector == nil {
 		deps.newWeatherProjector = defaults.newWeatherProjector
+	}
+	if deps.newFusionPlanWriter == nil {
+		deps.newFusionPlanWriter = defaults.newFusionPlanWriter
+	}
+	if deps.newFusionProjector == nil {
+		deps.newFusionProjector = defaults.newFusionProjector
 	}
 	return deps
 }
@@ -1301,6 +1336,42 @@ func (a *App) startWeatherFlow(
 	return nil
 }
 
+func (a *App) startFusionFlow(
+	ctx context.Context,
+	cfg FusionConfig,
+	bindings copownership.BindingResult,
+	deps dependencies,
+) error {
+	bus := fusionRuntimeBus{client: a.client}
+	registry := payloadregistry.New()
+	writer, err := deps.newFusionPlanWriter(cfg.WriteTimeout, cfg.Retry, a.client)
+	if err != nil {
+		return fmt.Errorf("compose fusion graph writer: %w", err)
+	}
+	projector, err := deps.newFusionProjector(fusioncomponent.ProjectorConfig{
+		CandidateSubject: cfg.CandidateSubject,
+		Registry:         registry,
+		Association: fusionassociation.Config{
+			Org:      cfg.Org,
+			Platform: cfg.Platform,
+		},
+		Projector: fusionprojector.NewProjector(fusionprojector.Config{
+			OwnerTokens: bindings.OwnerTokenMap(),
+			TraceID:     cfg.TraceID,
+		}),
+		Writer:       writer,
+		WriteTimeout: cfg.WriteTimeout,
+	}, bus)
+	if err != nil {
+		return fmt.Errorf("compose fusion projector component: %w", err)
+	}
+	a.fusionProjector = projector
+	if err := startLifecycle(ctx, "fusion projector", projector); err != nil {
+		return err
+	}
+	return nil
+}
+
 func startLifecycle(ctx context.Context, name string, lifecycle interface {
 	Initialize() error
 	Start(context.Context) error
@@ -1373,6 +1444,25 @@ func newWeatherPlanWriter(
 	deps stack.WeatherAdapterDeps,
 ) (weathercomponent.PlanWriter, error) {
 	return stack.NewWeatherPlanWriter(cfg, deps)
+}
+
+func newFusionPlanWriter(
+	timeout time.Duration,
+	retry natsclient.RetryConfig,
+	client graphrequest.RetryRequester,
+) (fusioncomponent.PlanWriter, error) {
+	if client == nil {
+		return nil, fmt.Errorf("fusion stack requires a NATS requester")
+	}
+	opts := []graphrequest.NATSRequesterOption{}
+	if retry != (natsclient.RetryConfig{}) {
+		opts = append(opts, graphrequest.WithRetryConfig(retry))
+	}
+	requester := graphrequest.NewNATSRequester(client, opts...)
+	return fusionprojector.NewGraphWriter(
+		requester,
+		fusionprojector.WithWriteTimeout(timeout),
+	), nil
 }
 
 func newNATSClient(cfg Config) (semstreamsClient, error) {
@@ -1572,6 +1662,29 @@ func (b sapientRuntimeBus) Subscribe(
 	subject string,
 	handler func(context.Context, *nats.Msg),
 ) (sapientcomponent.Subscription, error) {
+	subscription, err := b.client.Subscribe(ctx, subject, handler)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return noopSubscription{}, nil
+	}
+	return subscription, nil
+}
+
+type fusionRuntimeBus struct {
+	client semstreamsClient
+}
+
+func (b fusionRuntimeBus) Publish(ctx context.Context, subject string, data []byte) error {
+	return b.client.Publish(ctx, subject, data)
+}
+
+func (b fusionRuntimeBus) Subscribe(
+	ctx context.Context,
+	subject string,
+	handler func(context.Context, *nats.Msg),
+) (fusioncomponent.Subscription, error) {
 	subscription, err := b.client.Subscribe(ctx, subject, handler)
 	if err != nil {
 		return nil, err

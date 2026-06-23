@@ -9,6 +9,7 @@ import (
 
 	adsbcomponent "github.com/c360studio/semops/internal/components/adsb"
 	capcomponent "github.com/c360studio/semops/internal/components/cap"
+	fusioncomponent "github.com/c360studio/semops/internal/components/fusion"
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	weathercomponent "github.com/c360studio/semops/internal/components/weather"
@@ -98,6 +99,9 @@ const (
 	EnvWeatherWriteTimeout          = "SEMOPS_WEATHER_WRITE_TIMEOUT"
 	EnvWeatherFreshness             = "SEMOPS_WEATHER_FRESHNESS"
 	EnvWeatherMaxObservations       = "SEMOPS_WEATHER_MAX_OBSERVATIONS"
+	EnvFusionEnabled                = "SEMOPS_FUSION_ENABLED"
+	EnvFusionCandidateSubject       = "SEMOPS_FUSION_CANDIDATE_SUBJECT"
+	EnvFusionWriteTimeout           = "SEMOPS_FUSION_WRITE_TIMEOUT"
 	EnvCOPGraphQueryTimeout         = "SEMOPS_COP_GRAPH_QUERY_TIMEOUT"
 	EnvCOPGraphDiscoveryEnabled     = "SEMOPS_COP_GRAPH_DISCOVERY_ENABLED"
 	EnvCOPGraphDiscoveryLimit       = "SEMOPS_COP_GRAPH_DISCOVERY_LIMIT"
@@ -120,6 +124,7 @@ type Config struct {
 	SAPIENT                    SAPIENTConfig
 	KLV                        KLVConfig
 	Weather                    WeatherConfig
+	Fusion                     FusionConfig
 	COP                        COPConfig
 }
 
@@ -276,6 +281,16 @@ type WeatherConfig struct {
 	Freshness       time.Duration
 	MaxObservations int
 	Retry           natsclient.RetryConfig
+}
+
+type FusionConfig struct {
+	Enabled          bool
+	Org              string
+	Platform         string
+	TraceID          string
+	CandidateSubject string
+	WriteTimeout     time.Duration
+	Retry            natsclient.RetryConfig
 }
 
 type COPConfig struct {
@@ -444,6 +459,20 @@ func DefaultConfig() Config {
 				BackoffMultiplier: 2,
 			},
 		},
+		Fusion: FusionConfig{
+			Enabled:          false,
+			Org:              "c360",
+			Platform:         "edge",
+			TraceID:          "semops-fusion-hosted",
+			CandidateSubject: fusioncomponent.DefaultCandidateSubject,
+			WriteTimeout:     2 * time.Second,
+			Retry: natsclient.RetryConfig{
+				MaxRetries:        5,
+				InitialBackoff:    50 * time.Millisecond,
+				MaxBackoff:        500 * time.Millisecond,
+				BackoffMultiplier: 2,
+			},
+		},
 		COP: COPConfig{
 			GraphQueryTimeout:     2 * time.Second,
 			GraphDiscoveryEnabled: true,
@@ -477,6 +506,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvWeatherProvider, &cfg.Weather.Provider)
 	setString(getenv, EnvWeatherQueryShape, &cfg.Weather.QueryShape)
 	setString(getenv, EnvWeatherFixturePath, &cfg.Weather.FixturePath)
+	setString(getenv, EnvFusionCandidateSubject, &cfg.Fusion.CandidateSubject)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)
@@ -484,6 +514,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvOrg, &cfg.SAPIENT.Org)
 	setString(getenv, EnvOrg, &cfg.KLV.Org)
 	setString(getenv, EnvOrg, &cfg.Weather.Org)
+	setString(getenv, EnvOrg, &cfg.Fusion.Org)
 	setString(getenv, EnvPlatform, &cfg.MAVLink.Platform)
 	setString(getenv, EnvPlatform, &cfg.CoT.Platform)
 	setString(getenv, EnvPlatform, &cfg.CAP.Platform)
@@ -491,6 +522,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvPlatform, &cfg.SAPIENT.Platform)
 	setString(getenv, EnvPlatform, &cfg.KLV.Platform)
 	setString(getenv, EnvPlatform, &cfg.Weather.Platform)
+	setString(getenv, EnvPlatform, &cfg.Fusion.Platform)
 	setString(getenv, EnvTraceID, &cfg.MAVLink.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CoT.TraceID)
 	setString(getenv, EnvTraceID, &cfg.CAP.TraceID)
@@ -498,6 +530,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvTraceID, &cfg.SAPIENT.TraceID)
 	setString(getenv, EnvTraceID, &cfg.KLV.TraceID)
 	setString(getenv, EnvTraceID, &cfg.Weather.TraceID)
+	setString(getenv, EnvTraceID, &cfg.Fusion.TraceID)
 	setString(getenv, EnvMAVLinkUDPListenAddr, &cfg.MAVLink.UDP.ListenAddr)
 	setString(getenv, EnvCoTUDPListenAddr, &cfg.CoT.UDP.ListenAddr)
 	setString(getenv, EnvCoTTCPListenAddr, &cfg.CoT.TCP.ListenAddr)
@@ -574,6 +607,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvWeatherWriteTimeout,
 		cfg.Weather.WriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.WriteTimeout, err = durationFromEnv(
+		getenv,
+		EnvFusionWriteTimeout,
+		cfg.Fusion.WriteTimeout,
 	); err != nil {
 		return Config{}, err
 	}
@@ -666,6 +706,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.Weather.Enabled, err = boolFromEnv(getenv, EnvWeatherEnabled, cfg.Weather.Enabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.Enabled, err = boolFromEnv(getenv, EnvFusionEnabled, cfg.Fusion.Enabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.MAVLink.UDP.MaxDatagramBytes, err = intFromEnv(
@@ -880,6 +923,9 @@ func (c Config) Validate() error {
 	if err := c.Weather.Validate(); err != nil {
 		return err
 	}
+	if err := c.Fusion.Validate(); err != nil {
+		return err
+	}
 	if !c.MAVLink.Enabled {
 		return nil
 	}
@@ -1072,6 +1118,28 @@ func (c WeatherConfig) Validate() error {
 	}
 	if c.MaxObservations <= 0 {
 		return fmt.Errorf("%s must be greater than zero when weather is enabled", EnvWeatherMaxObservations)
+	}
+	return nil
+}
+
+func (c FusionConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(c.Org) == "" {
+		return fmt.Errorf("%s is required when fusion is enabled", EnvOrg)
+	}
+	if strings.TrimSpace(c.Platform) == "" {
+		return fmt.Errorf("%s is required when fusion is enabled", EnvPlatform)
+	}
+	if strings.TrimSpace(c.TraceID) == "" {
+		return fmt.Errorf("%s is required when fusion is enabled", EnvTraceID)
+	}
+	if strings.TrimSpace(c.CandidateSubject) == "" {
+		return fmt.Errorf("%s is required when fusion is enabled", EnvFusionCandidateSubject)
+	}
+	if c.WriteTimeout <= 0 {
+		return fmt.Errorf("%s must be greater than zero when fusion is enabled", EnvFusionWriteTimeout)
 	}
 	return nil
 }

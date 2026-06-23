@@ -366,8 +366,10 @@
 - [x] 8.19 Add command-intent prefix discovery and read-only lifecycle UI before CS API/UI/native command controls
 - [x] 8.20 Wire fusion track-association evidence through graph projection and COP API/UI readback after the pure
       scorer is reviewed against scenario data
-- [ ] 8.21 Promote fusion track association into a hosted SemStreams component flow with runtime telemetry, bounded
+- [x] 8.21 Promote fusion track association into a hosted SemStreams component flow with runtime telemetry, bounded
       input subscriptions, born-state reconciliation, and adversarial review before demo identity-fusion claims
+- [ ] 8.22 Add a bounded fusion candidate producer from graph-discovered source tracks before enabling automatic
+      association in the demo stack
 
 ## 9. Upstream SemStreams Asks
 

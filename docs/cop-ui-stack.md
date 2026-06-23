@@ -98,9 +98,9 @@ product gates.
 
 `GET /api/cop/runtime` rolls up SemStreams component `Health()` and `DataFlow()` into feed-level status,
 throughput, healthy component counts, and last activity. The source cards merge this runtime evidence with snapshot
-feed state, so the UI can show whether a hosted MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, or KLV component flow is
-active, idle, stale, or degraded. Prometheus remains the operational metrics standard; the browser runtime endpoint is
-a curated product view and should not grow into a topology editor or orchestration shell.
+feed state, so the UI can show whether a hosted MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, KLV, weather, or fusion
+component flow is active, idle, stale, or degraded. Prometheus remains the operational metrics standard; the browser
+runtime endpoint is a curated product view and should not grow into a topology editor or orchestration shell.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
 `/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
