@@ -75,6 +75,9 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   plans without birthing target assets, bypassing born-first target checks, or transmitting native commands.
 - `internal/projectors/command` also includes a guarded admission path that rejects unresolved target assets, rejects
   expired intents against wall clock, and collapses duplicate idempotency keys before producing mutation plans.
+- `internal/projectors/command` includes deterministic command-intent arbitration that selects at most one active
+  command per target by local override, authority rank, priority, observation time, and native ID before any native
+  execution candidate is exposed.
 - `internal/app` and `cmd/semops` connect to SemStreams, register first-phase COP ownership, enroll heartbeat, and
   compose the hosted MAVLink adapter with registry-derived owner tokens.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured

@@ -347,6 +347,8 @@
       or native transmit
 - [x] 8.11 Add command-intent admission guard for target resolution, expiry, and idempotency collapse before graph
       writes
+- [x] 8.12 Add deterministic command-intent authority and priority arbitration before CS API ingress or native
+      transmit
 
 ## 9. Upstream SemStreams Asks
 

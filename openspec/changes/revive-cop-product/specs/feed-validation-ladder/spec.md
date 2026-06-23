@@ -182,6 +182,10 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the command-intent planner SHALL NOT birth target assets or transmit native feed commands
 - **AND** admission SHALL reject unresolved target assets before producing graph mutations
 - **AND** admission SHALL collapse duplicate idempotency keys before producing graph mutations
+- **AND** command arbitration SHALL deterministically select at most one active command per target for native execution
+  by local override, authority rank, priority, observation time, and native ID
+- **AND** command arbitration SHALL surface superseded command intents as status decisions rather than handing losing
+  intents to native feed drivers
 - **AND** native feed drivers SHALL publish ACK/status evidence separately rather than owning desired command intent
 - **AND** live command transmission SHALL remain blocked until safety interlocks, local override, stale-command
   rejection, cancellation, supersession, and async status reconciliation are reviewed

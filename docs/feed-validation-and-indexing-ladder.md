@@ -659,6 +659,9 @@ Indexing profile pressure:
   writes only command-intent task mutations, and deliberately does not birth target assets or transmit native commands.
 - The guarded command-intent projector adds admission checks before planning: target asset resolution, wall-clock
   expiry rejection, and duplicate idempotency collapse. It still has no live writer, UI, CS API handler, or transmitter.
+- The command-intent arbitrator ranks active intents per target by local override, authority rank, priority,
+  observation time, and native ID. It returns accepted/superseded/ignored decisions for later graph status updates and
+  does not transmit native commands.
 
 First acceptance gate:
 
