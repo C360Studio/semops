@@ -180,6 +180,7 @@
 - [x] 5.88 Add committed ADS-B OpenSky-shaped replay fixture to the manifest without live OpenSky claims
 - [x] 5.89 Add committed SAPIENT preflight and absolute-detection fixtures to the manifest without compliance claims
 - [x] 5.90 Run adversarial review on ADS-B and SAPIENT portable fixture claim boundaries
+- [x] 5.91 Record synthetic MPEG-TS generation lineage for KLV fixtures and guard it with a generator test
 
 ## 6. Structural COP Stack
 

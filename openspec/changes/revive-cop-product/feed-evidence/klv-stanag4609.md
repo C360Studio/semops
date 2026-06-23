@@ -37,7 +37,8 @@ binary-by-reference storage, and memory-bounded handling.
   product-visible sensor/frame-center readback, not footprint polygon extraction, video service support, streaming
   binary support, or STANAG 4609 conformance.
 - `cmd/semops-klv-fixture` can generate a tiny deterministic MPEG-TS fixture from the committed MISB ST 0601 truth
-  JSON using local FFmpeg tooling. The generated media lives under ignored fixture output paths and is not vendored.
+  JSON using local FFmpeg tooling and the synthetic `lavfi` `testsrc` video source. The generated media lives under
+  ignored fixture output paths and is not vendored.
 - `scripts/cop-stack-smoke.sh` now supports `SEMOPS_COP_SMOKE_KLV_ENABLED=true`, which generates the deterministic
   MPEG-TS fixture, builds the opt-in `media-tools` container target with FFmpeg, enables the local-media KLV
   component flow, and asserts COP snapshot readback plus shared Prometheus/runtime flow evidence through Caddy. The
@@ -322,6 +323,8 @@ Acceptance:
   truth JSON and decodes through the SemOps KLV component path. [done]
 - Deterministic MPEG-TS wrapping proves generated KLV packet bytes survive a local media-container mux/demux cycle
   without network downloads when FFmpeg tooling is available. [done]
+- `cmd/semops-klv-fixture/main_test.go` asserts the generator uses FFmpeg `lavfi` `testsrc` rather than an external
+  video file, preserving clean fixture lineage. [done]
 - The deterministic fixture contains enough ST 0601 metadata to extract sensor position and frame-center evidence;
   full footprint polygon extraction remains a projector/parser extension. [partial]
 - The fixture is small enough for local tests. [done]
@@ -433,6 +436,8 @@ Acceptance:
   review for vendoring and CI because no explicit media license grant was identified.
 - No committed MPEG-TS binary is vendored; deterministic MPEG-TS wrapping is generated in local tests from the truth
   fixture when FFmpeg tooling is present.
+- The deterministic MPEG-TS fixture uses synthetic FFmpeg video, not CC BY/open-movie media or downloaded third-party
+  samples. More realistic generated videos remain a later media-production task.
 - A committed hex-encoded synthetic packet fixture exists for portable binary storage/governance proof work, but it is
   not public-sample, MPEG-TS, or conformance evidence.
 - Media-reference input now publishes configured local file references in the opt-in hosted runtime, but it is not a

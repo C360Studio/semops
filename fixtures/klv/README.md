@@ -10,5 +10,9 @@ truth within MISB integer quantization tolerances.
 compare it with the generated packet, and decode it through the same component path. It gives SemSource and SemOps a
 portable synthetic binary artifact for storage/governance proof work without committing MPEG-TS media.
 
+`cmd/semops-klv-fixture` can generate `fixtures/klv/generated/deterministic.ts` from the truth JSON and FFmpeg's
+synthetic `lavfi` `testsrc` video source. Generated MPEG-TS files remain ignored local artifacts; do not commit them
+or replace this path with third-party video samples without a fixture review.
+
 This fixture is storage, governance, and parser engineering evidence. It is not a public-sample smoke test, live media
 test, STANAG 4609 conformance result, or official certification artifact.
