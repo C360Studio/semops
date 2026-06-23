@@ -27,6 +27,7 @@ const (
 	OwnerCAP     = "semops.feed.cap"
 	OwnerKLV     = "semops.feed.klv"
 	OwnerWeather = "semops.feed.weather"
+	OwnerCommand = "semops.command.intent"
 	OwnerFusion  = "semops.fusion.structural"
 )
 
@@ -67,6 +68,13 @@ const (
 	TaskDescription = "cop.task.description"
 	TaskNativeID    = "cop.task.native_id"
 	TaskTarget      = "cop.task.target"
+	TaskAuthority   = "cop.task.authority"
+	TaskPriority    = "cop.task.priority"
+	TaskExpiresAt   = "cop.task.expires_at"
+	TaskCorrelation = "cop.task.correlation_id"
+	TaskIdempotency = "cop.task.idempotency_key"
+	TaskDesired     = "cop.task.desired_state"
+	TaskRequestedBy = "cop.task.requested_by"
 
 	AdvisoryText     = "cop.advisory.text"
 	AdvisoryKind     = "cop.advisory.kind"
@@ -211,6 +219,45 @@ func MAVLinkCommandTaskContract() projection.Contract {
 				TaskStatus,
 				TaskDescription,
 				TaskNativeID,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+		ForeignEdges: []projection.ForeignEdge{{
+			Predicate:     TaskTarget,
+			Mode:          ownership.EdgeStrict,
+			TargetPattern: EntityPattern(EntityAsset),
+		}},
+	}
+}
+
+// CommandIntentContract owns governed command intent before any native feed
+// driver attempts tactical execution. CS API bridges, local operators, or
+// future automation can write desired command state through this control-plane
+// contract; native feed owners publish ACK/status evidence separately.
+func CommandIntentContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.task.command-intent-current-state",
+		MessageType:     "semops.command.intent.v1",
+		EntityPattern:   SourceEntityPattern("command", EntityTask),
+		IndexingProfile: "control",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				TaskName,
+				TaskKind,
+				TaskStatus,
+				TaskDescription,
+				TaskNativeID,
+				TaskDesired,
+				TaskAuthority,
+				TaskPriority,
+				TaskExpiresAt,
+				TaskCorrelation,
+				TaskIdempotency,
+				TaskRequestedBy,
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,
@@ -471,6 +518,7 @@ func FusionAlertContract() projection.Contract {
 func FirstPhaseOwnedContracts() []OwnedContract {
 	return []OwnedContract{
 		{Owner: OwnerAsset, Contract: SourceAssetContract()},
+		{Owner: OwnerCommand, Contract: CommandIntentContract()},
 		{Owner: OwnerMAVLink, Contract: MAVLinkTrackContract()},
 		{Owner: OwnerMAVLink, Contract: MAVLinkCommandTaskContract()},
 		{Owner: OwnerTAK, Contract: TAKTrackContract()},

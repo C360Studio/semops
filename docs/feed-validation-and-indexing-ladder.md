@@ -652,6 +652,9 @@ Indexing profile pressure:
   birth; the bridge is an interface.
 - CS API tasking is an impedance-mismatch boundary. The bridge should accept or reject quickly, persist governed
   command intent or desired state, and let native drivers reconcile tactical execution asynchronously.
+- SemOps now has a `semops.command.intent` control-profile contract for desired tasking state. It carries source
+  authority, priority, expiry, idempotency, correlation, requested-by, and desired-state fields before any live native
+  transmitter is connected.
 
 First acceptance gate:
 

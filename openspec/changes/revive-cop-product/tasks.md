@@ -341,6 +341,8 @@
       cases before command/control implementation
 - [x] 8.8 Run SAPIENT projection ownership/indexing review for absolute-location detections while keeping hosted
       service, tasking, association, UTM, and range/bearing gates closed
+- [x] 8.9 Add product-owned command-intent graph contract for desired tasking state before CS API or native
+      command-control writers
 
 ## 9. Upstream SemStreams Asks
 

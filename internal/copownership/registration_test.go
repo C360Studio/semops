@@ -61,6 +61,7 @@ func TestRegisterFirstPhaseBindsAndEnrollsOwners(t *testing.T) {
 
 	wantOwners := []string{
 		cop.OwnerAsset,
+		cop.OwnerCommand,
 		cop.OwnerMAVLink,
 		cop.OwnerTAK,
 		cop.OwnerCAP,

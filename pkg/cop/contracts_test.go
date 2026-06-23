@@ -91,6 +91,27 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 		t.Fatalf("MAVLink foreign edges = %d, want track source + task target", len(mavlinkRegistration.ForeignEdges))
 	}
 
+	commandIntent := CommandIntentContract()
+	if err := commandIntent.Validate(); err != nil {
+		t.Fatalf("command intent contract should validate: %v", err)
+	}
+	if got := commandIntent.Groups[0].Mode; got != ownership.ModeReplaceOwned {
+		t.Fatalf("command intent mode = %q, want replace-owned", got)
+	}
+	if commandIntent.IndexingProfile != "control" {
+		t.Fatalf("command intent indexing profile = %q, want control", commandIntent.IndexingProfile)
+	}
+	if commandIntent.EntityPattern == mavlinkCommandTask.EntityPattern {
+		t.Fatalf("command intent must be source-partitioned away from MAVLink ACK readback tasks")
+	}
+	commandRegistration, err := projection.Derive(OwnerCommand, commandIntent)
+	if err != nil {
+		t.Fatalf("derive command intent ownership: %v", err)
+	}
+	if len(commandRegistration.ForeignEdges) != 1 {
+		t.Fatalf("command intent foreign edges = %d, want task target", len(commandRegistration.ForeignEdges))
+	}
+
 	tak := TAKTrackContract()
 	if got := tak.Groups[0].Mode; got != ownership.ModeReplaceOwned {
 		t.Fatalf("TAK mode = %q, want replace-owned", got)
@@ -267,6 +288,7 @@ func TestForeignEdgesDeclareADR056BornFirstShape(t *testing.T) {
 		owned         OwnedContract
 		wantPredicate string
 	}{
+		{owned: OwnedContract{Owner: OwnerCommand, Contract: CommandIntentContract()}, wantPredicate: TaskTarget},
 		{owned: OwnedContract{Owner: OwnerMAVLink, Contract: MAVLinkTrackContract()}, wantPredicate: TrackSource},
 		{owned: OwnedContract{Owner: OwnerMAVLink, Contract: MAVLinkCommandTaskContract()}, wantPredicate: TaskTarget},
 		{owned: OwnedContract{Owner: OwnerTAK, Contract: TAKTrackContract()}, wantPredicate: TrackSource},
@@ -293,6 +315,46 @@ func TestForeignEdgesDeclareADR056BornFirstShape(t *testing.T) {
 		if edge.Mode != ownership.EdgeStrict {
 			t.Fatalf("%s edge mode = %q, want strict born-first edge", contract.Name, edge.Mode)
 		}
+	}
+}
+
+func TestCommandIntentContractCarriesImpedanceFieldsWithoutNativeStatusAuthority(t *testing.T) {
+	contract := CommandIntentContract()
+	seen := make(map[string]bool)
+	for _, group := range contract.Groups {
+		if group.Mode != ownership.ModeReplaceOwned {
+			t.Fatalf("command intent group mode = %q, want replace-owned", group.Mode)
+		}
+		for _, predicate := range group.Predicates {
+			seen[predicate] = true
+			switch predicate {
+			case TrackPosition,
+				TrackVelocity,
+				TrackStatus,
+				TrackObservedAt,
+				TrackNativeID,
+				TrackSource:
+				t.Fatalf("command intent contract must not own native track predicate %q", predicate)
+			}
+		}
+	}
+
+	for _, predicate := range []string{
+		TaskDesired,
+		TaskAuthority,
+		TaskPriority,
+		TaskExpiresAt,
+		TaskCorrelation,
+		TaskIdempotency,
+		TaskRequestedBy,
+		TaskStatus,
+	} {
+		if !seen[predicate] {
+			t.Fatalf("command intent contract missing impedance predicate %q", predicate)
+		}
+	}
+	if len(contract.ForeignEdges) != 1 || contract.ForeignEdges[0].Predicate != TaskTarget {
+		t.Fatalf("command intent foreign edges = %+v, want strict task target", contract.ForeignEdges)
 	}
 }
 

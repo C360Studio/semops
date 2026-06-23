@@ -172,6 +172,16 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** SemOps SHALL NOT treat ACK readback projection as evidence of live command transmission, mission execution,
   command priority arbitration, TTL-window policy, CS API tasking reconciliation, or native safety interlocks
 
+#### Scenario: Command intent is governed before native execution
+
+- **WHEN** SemOps accepts desired tasking state from a future local operator, CS API bridge, automation, or replay
+- **THEN** the desired command SHALL be written through a product-owned `control`-profiled command-intent contract
+- **AND** the command intent SHALL include authority, priority, expiry or TTL-derived deadline, correlation ID,
+  idempotency key, requested-by, desired-state, status, provenance, and a strict born-first target asset edge
+- **AND** native feed drivers SHALL publish ACK/status evidence separately rather than owning desired command intent
+- **AND** live command transmission SHALL remain blocked until safety interlocks, local override, stale-command
+  rejection, cancellation, supersession, and async status reconciliation are reviewed
+
 #### Scenario: MAVLink simulator readiness is not simulator evidence
 
 - **WHEN** the external SITL smoke skips because no COP snapshot URL is configured or local PX4/MAVSDK/ArduPilot

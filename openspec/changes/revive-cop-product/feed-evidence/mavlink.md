@@ -4,7 +4,8 @@ Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner,
 structural wiring, typed owner-token wiring, restart create-conflict reconciliation, opt-in UDP transport hosting, COP
 owner-registration smoke evidence, generated-frame live graph smoke evidence, a skipped-by-default external
 PX4/MAVSDK/SITL telemetry smoke harness, one passed PX4/Gazebo headless Docker telemetry smoke, and COMMAND_ACK
-control-task readback projection. Live feed integration remains blocked by durable replay playback, TCP/serial
+control-task readback projection. SemOps also has a product-owned command-intent graph contract for future desired
+tasking state before native execution. Live feed integration remains blocked by durable replay playback, TCP/serial
 transport work, ArduPilot parity, and outbound command/control fidelity work in `COP-004`.
 
 ## Decision
@@ -12,9 +13,10 @@ transport work, ArduPilot parity, and outbound command/control fidelity work in 
 MAVLink should be the first feed because SemOps already contained parser, generator, payload, rule, and SITL material.
 The active path now has a modern parser/generator package, bounded in-memory raw lane, COMMAND_LONG/COMMAND_ACK
 coverage, current-state projection planner, COMMAND_ACK control-task readback projection, tested graph request/reply
-writer boundary, retry-aware SemStreams NATS requester boundary, in-process adapter harness, hosted runtime wiring,
-opt-in UDP datagram ingestion, and a one-command graph scaffold. Live feed work still needs scenario-runner replay
-wiring, TCP/serial transport, ArduPilot evidence, safe outbound command/control, and full product-stack expansion.
+writer boundary, retry-aware SemStreams NATS requester boundary, a product-owned command-intent graph contract,
+in-process adapter harness, hosted runtime wiring, opt-in UDP datagram ingestion, and a one-command graph scaffold.
+Live feed work still needs scenario-runner replay wiring, TCP/serial transport, ArduPilot evidence, safe outbound
+command/control, and full product-stack expansion.
 
 SemOps GitHub issue #1 added a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
 graph path against live SemStreams before PX4/SITL becomes the blocking milestone. The generated-frame smoke passed
@@ -67,6 +69,8 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   create/update graph subjects, born-first source edge behavior, raw-lane capture, and writer injection for tests.
 - `internal/copownership` registers first-phase SemOps COP contracts through SemStreams `projection.BindAndHeartbeat`
   and returns typed `ownership.OwnerToken` values minted by the registry/bind path.
+- `pkg/cop` defines `semops.command.intent.v1` as the product-owned desired command/tasking state contract, separate
+  from MAVLink COMMAND_ACK readback evidence.
 - `internal/app` and `cmd/semops` connect to SemStreams, register first-phase COP ownership, enroll heartbeat, and
   compose the hosted MAVLink adapter with registry-derived owner tokens.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
@@ -115,6 +119,9 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   ./internal/components/mavlink ./internal/copownership` passed after adding the MAVLink command-task ownership
   contract and COMMAND_ACK readback projection. This is evidence of governed command lifecycle readback only; live
   command transmit, safety interlocks, priority, TTL, and CS API command reconciliation remain open.
+- 2026-06-23: `pkg/cop` gained the `semops.command.intent.v1` command-intent contract with authority, priority,
+  expiry, correlation, idempotency, requested-by, desired-state, status, provenance, and strict target edge fields.
+  This is a graph governance contract only; no CS API ingress, local operator UI, or native transmitter writes it yet.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -170,6 +177,8 @@ Acceptance:
 - Commands, mission state, and battery alerts use `indexing_profile=control`.
 - COMMAND_ACK packets project to `indexing_profile=control` command-task readback state with a strict
   `cop.task.target` edge to the born MAVLink source asset.
+- Desired command intent uses `indexing_profile=control` under `semops.command.intent`; native feed ACK/status
+  evidence remains separate.
 - Replay/decode records use `indexing_profile=trace`.
 - No graph entity is created per raw packet.
 

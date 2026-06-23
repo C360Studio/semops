@@ -32,6 +32,7 @@ Code source: `pkg/cop/contracts.go`
 | `semops.feed.cap` | CAP hazard/advisory evidence | `c360.*.cop.cap.hazard_area.*` | `append-evidence` | `content` |
 | `semops.feed.klv` | KLV-derived sensor/frame-center state | `c360.*.cop.klv.sensor_footprint.*` | `replace-owned` | `signal` |
 | `semops.feed.weather` | Tactical weather samples | `c360.*.cop.weather.weather_observation.*` | `replace-owned` | `signal` |
+| `semops.command.intent` | Command intent | `c360.*.cop.command.task.*` | `replace-owned` | `control` |
 | `semops.fusion.structural` | Fusion alert state | `c360.*.cop.fusion.alert.*` | `replace-owned` | `control` |
 
 Strict feed owners are source-partitioned by the SemStreams entity `system` segment. This prevents MAVLink and TAK from
@@ -41,6 +42,11 @@ MAVLink is intentionally split between `signal` track state and `control` comman
 projection is evidence that a native command lifecycle event was observed, not proof that SemOps has outbound command
 authority. MAVLink track state declares the strict `cop.track.source` edge to a born source asset; MAVLink command
 tasks declare the strict `cop.task.target` edge to the same born source asset.
+
+Command intent is owned by the SemOps control plane rather than any native feed. It records desired state, authority,
+priority, expiry, correlation, idempotency, requested-by, and status fields for later CS API/local-operator ingress.
+Native feed drivers reconcile those desired tasks asynchronously and publish ACK/status evidence under their own
+contracts.
 
 TAK/CoT is intentionally one feed owner with multiple contracts. Operator and air-track positions stay in `signal`;
 durable markers and task-like map control state stay in `control`; GeoChat text becomes `content`. Only TAK track
@@ -66,8 +72,8 @@ SemOps adapters must follow SemStreams ADR-055 and ADR-056 directly:
 - No SemOps adapter may rely on `triple.add` or `triple.add_batch` auto-vivify to create missing entities.
 - Every relationship written onto a different entity must be declared by a projection contract `ForeignEdge`, which
   derives a SemStreams `ownership.ForeignEdgeClaim`.
-- The first MAVLink and TAK `cop.track.source` edges and MAVLink `cop.task.target` edges are `EdgeStrict` born-first
-  edges. The target source asset must be born before the track or task edge is written.
+- The first MAVLink and TAK `cop.track.source` edges plus command-intent and MAVLink `cop.task.target` edges are
+  `EdgeStrict` born-first edges. The target source asset must be born before the track or task edge is written.
 - `EdgeNoBirthStub` is allowed only after an adversarial review proves the target has no independent producer and the
   contract names the producer message type plus target pattern.
 - SemOps issue #1 tracks the live SemStreams breaking-tag proof for this policy; the first generated-frame MAVLink
@@ -91,10 +97,14 @@ token path for MAVLink writes and TAK/CoT projection-plan tests.
 
 Predicate names are product-local until a reusable SemStreams need is proven.
 
+Command intent also carries priority, correlation ID, idempotency key, requested-by, status, provenance, and strict
+target-edge fields. Native feed ACK/readback evidence stays under feed-owned contracts.
+
 | Family | Examples | Notes |
 | --- | --- | --- |
 | Track current state | `cop.track.position`, `cop.track.velocity`, `cop.track.status` | Strict source-owned state |
 | Task/control state | `cop.task.name`, `cop.task.position`, `cop.task.status` | TAK markers and later assignments |
+| Command intent | `cop.task.desired_state`, `cop.task.authority`, `cop.task.expires_at` | Desired tasking state |
 | Advisory content | `cop.advisory.text`, `cop.advisory.sender` | GeoChat, notes, and advisory text |
 | Hazard evidence | `cop.hazard.advisory_text`, `cop.hazard.evidence`, `cop.hazard.source` | CAP/weather alerts start append-only |
 | Weather evidence | `cop.weather.value`, `cop.weather.variable`, `cop.weather.query_shape`, `cop.weather.query_geometry` | Tactical weather signal |
@@ -122,14 +132,16 @@ failing SemOps tests or awkward duplicated code:
 - First-phase contracts validate and derive SemStreams ownership claims.
 - Strict, tolerant, and fusion owners use the expected write modes and indexing profiles.
 - MAVLink and TAK strict track contracts are source-partitioned.
+- Command intent carries authority, priority, expiry, correlation, idempotency, requested-by, and desired-state fields
+  without claiming native feed telemetry or ACK authority.
 - MAVLink binds signal track and control command-task contracts under the same feed owner without overlapping
   `replace-owned` predicates.
 - TAK binds track, task/control, and advisory/content contracts under the same feed owner without overlapping
   replace-owned predicates.
 - ADS-B and SAPIENT track contracts are source-partitioned, signal-profiled, and do not claim association foreign
   edges.
-- Track and MAVLink command-task foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with producer and
-  target pattern.
+- Track, command-intent, and MAVLink command-task foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with
+  producer and target pattern.
 - Overlapping `replace-owned` predicates are rejected.
 - CAP evidence does not claim authoritative hazard state.
 - KLV sensor-footprint evidence owns sensor/frame-center state without claiming footprint polygons.
