@@ -1,6 +1,7 @@
 # Weather Feed Evidence
 
-Status: critical COP layer with first parser fixture evidence; not yet implemented as a SemOps backend component.
+Status: critical COP layer with first parser fixture and SemStreams component-flow evidence; not yet implemented as a
+live weather provider, graph-writing feed, or routing/safety authority.
 
 ## Decision
 
@@ -25,6 +26,8 @@ affects assets, operators, hazards, or routes.
 - `pkg/adapters/weather` now parses Open-Meteo-shaped point forecasts and preserves provider, query shape, position,
   elevation, units, sample time, temperature, precipitation, visibility, surface pressure, wind speed, gusts, wind
   direction, and weather code without graph writes.
+- `internal/components/weather` wraps the provider-shaped Open-Meteo fixture as a SemStreams file input component and
+  decoder processor with registered payloads, file/NATS ports, config schema, health, and flow metrics.
 - NWS API remains valuable for alerts, forecasts, and observations. Its alert endpoints fit the current CAP lane, and
   CAP can be requested through content negotiation.
 - Radar and raster display data should not be assumed to come from `api.weather.gov`; visual products need their own
@@ -45,21 +48,25 @@ affects assets, operators, hazards, or routes.
 - Preserve wind, gusts, visibility, pressure, precipitation, temperature, weather code, source time, provider, query
   geometry, and freshness. [partial: Open-Meteo point forecast variables, provider, point geometry, units, and sample
   time done; stale/freshness policy remains a component/projection gate]
+- Publish raw and decoded provider-shaped weather forecasts through SemStreams registered payloads and NATS stream
+  ports without graph writes. [done for Open-Meteo-shaped point fixture]
 - Project localized tactical weather as `signal`, route/weather decision state as `control`, advisory text as
   `content`, and provider/replay diagnostics as `trace`.
 - Keep browser-only visual layers out of graph state unless an operator workflow turns them into evidence.
 
 ## Known Gaps
 
-- No SemStreams component package exists for weather.
 - No OGC EDR-shaped fixture or standards-facing bridge test exists yet.
 - No live Open-Meteo, NWS forecast/observation, MSC GeoMet, or radar/tile provider integration exists yet.
+- No weather graph projector, ownership claim, runtime wiring, cache/stale policy, or UI tactical layer exists yet.
 - No weather routing/safety rule is accepted yet.
 - No tile/radar source has passed license, cache, or reliability review.
 
 ## Verification
 
 - `go test ./pkg/adapters/weather`
+- `go test ./internal/components/weather`
+- `go test ./internal/contracts`
 - `go test ./...`
 
 ## Source Links

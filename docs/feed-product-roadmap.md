@@ -102,7 +102,8 @@ CAP/EDXL:
 Weather:
 
 - Demo/MVP boundary: keep CAP/public weather alerts on the existing CAP lane, use browser-side weather tiles for
-  visual context when needed, and add a small tactical weather query fixture before weather influences routing.
+  visual context when needed, and use a provider-shaped tactical weather fixture plus component flow before weather
+  influences routing.
 - Full product path: weather gateway with OGC API EDR, Open-Meteo or provider-specific polling, visual tile
   configuration, route/trajectory weather sampling, stale-data policy, cache, and source confidence.
 - Promotion trigger: drone safety/routing logic, route planning, incident-area weather overlays, or multiple weather
@@ -245,7 +246,8 @@ Demo/MVP lane:
 Three separate layers: visual weather context in the browser, public alerts through the CAP lane, and localized
 tactical weather telemetry for points, incident areas, or routes. The first backend slice should use deterministic
 fixtures or a provider-shaped HTTP response before live provider claims. SemOps now has the first Open-Meteo-shaped
-point forecast parser fixture for tactical weather variables, without graph writes or live provider support.
+point forecast parser fixture for tactical weather variables and a SemStreams fixture input -> decoder component flow
+that publishes raw and decoded BaseMessages, without graph writes or live provider support.
 
 Full product lane:
 OGC API EDR and provider-specific weather gateway with point, area, trajectory, and corridor query support; cache and
@@ -257,10 +259,12 @@ Visual raster or tile layers can stay browser-only unless they produce operator 
 weather that affects routing, safety, alerts, or fusion must become governed graph evidence with freshness and
 provenance. CAP-style alerts remain append-evidence and must not overwrite stricter hazard truth. The current
 Open-Meteo-shaped parser fixture is provider-shaped tactical telemetry evidence only; it is not a weather gateway,
-OGC EDR conformance claim, or route-safety rule.
+OGC EDR conformance claim, or route-safety rule. The current components are preflight file/decoder components, not
+an HTTP poller, cache/stale policy, graph projector, tactical-weather UI layer, or provider reliability claim.
 
 Not claimed yet:
-Default live weather service reliability, weather-routing authority, provider conformance, or radar product hosting.
+Default live weather service reliability, weather-routing authority, provider conformance, cache/stale policy, tactical
+weather graph projection, or radar product hosting.
 
 ### CS API Bidirectional Interop
 

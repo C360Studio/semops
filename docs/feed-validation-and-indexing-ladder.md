@@ -336,7 +336,8 @@ Remaining gates:
 
 ### Weather
 
-Status: critical COP layer, split into visual context, alert evidence, and tactical telemetry.
+Status: critical COP layer with first provider-shaped parser and SemStreams component-flow evidence, split into visual
+context, alert evidence, and tactical telemetry.
 
 Compliance and source evidence:
 
@@ -351,6 +352,8 @@ Compliance and source evidence:
 - `pkg/adapters/weather` parses Open-Meteo-shaped point forecasts and preserves provider, query shape, position,
   elevation, units, sample time, temperature, precipitation, visibility, surface pressure, wind speed, gusts, wind
   direction, and weather code without graph writes.
+- `internal/components/weather` wraps the Open-Meteo-shaped fixture as a SemStreams file input component and decoder
+  processor with registered payloads, file/NATS ports, config schema, health, and flow metrics.
 - NWS API already fits the CAP lane for alerts and can return CAP content via content negotiation. NWS API explicitly
   points radar display users to separate radar/OGC services rather than treating `/api.weather.gov` as a radar tile
   source.
@@ -362,6 +365,8 @@ Mock or harness:
 - Alert layer: continue using CAP-style append-evidence for public alerts and warnings.
 - Tactical layer: backend component queries point, area, trajectory, or corridor weather near active assets,
   incident zones, or planned routes and publishes bounded forecast/observation payloads.
+- The current backend component gate is fixture-backed preflight evidence only; live Open-Meteo, OGC EDR, MSC GeoMet,
+  NWS forecast/observation, cache/stale behavior, and provider reliability remain separate gates.
 
 Indexing profile pressure:
 
@@ -375,6 +380,9 @@ First acceptance gate:
 - Given the deterministic Open-Meteo-shaped point fixture, SemOps parses wind, gusts, precipitation, visibility,
   pressure, temperature, weather code, timestamp, point location, provider, query shape, and units without graph
   writes.
+- Given weather component promotion, SemOps publishes raw and decoded provider-shaped weather forecasts through
+  SemStreams registered BaseMessage payloads and NATS stream ports without graph writes, owner claims, runtime
+  live-provider claims, or route-safety decisions. [done for Open-Meteo-shaped point fixture]
 - Given a future OGC EDR-shaped fixture, SemOps should parse the equivalent tactical weather variables for position,
   area, trajectory, or corridor query shapes before claiming standards-facing tactical weather interop.
 - Given projection, localized tactical weather writes source-partitioned governed evidence and does not overwrite CAP
@@ -386,9 +394,9 @@ First acceptance gate:
 
 Known gaps:
 
-- No weather component package exists yet.
 - No OGC EDR-shaped fixture exists yet.
 - No live weather provider integration exists yet.
+- No weather graph projector, runtime wiring, ownership claim, cache/stale policy, or UI tactical layer exists yet.
 - No weather routing/safety rule is accepted yet.
 - No visual tile source has passed license/cache/reliability review.
 

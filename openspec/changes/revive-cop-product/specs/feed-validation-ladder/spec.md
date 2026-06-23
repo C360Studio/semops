@@ -205,6 +205,9 @@ binary-by-reference storage, and memory-bounded handling.
 - **WHEN** SemOps adds weather to the COP
 - **THEN** visual weather tiles, CAP/public alerts, and tactical weather telemetry have separate evidence gates
 - **AND** deterministic provider-shaped parser fixtures precede live weather-provider claims
+- **AND** provider-shaped weather fixture promotion uses SemStreams input and processor components with registered
+  payloads, declared ports, config schema, health, and flow metrics before any graph projector, HTTP poller, cache
+  policy, or route-safety rule is added
 - **AND** tactical weather supports point, area, and route/trajectory query shapes before it influences routing or
   safety logic
 

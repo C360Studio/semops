@@ -138,6 +138,8 @@
 - [x] 5.66 Add opt-in public KLV sample smoke gate without vendoring media
 - [x] 5.67 Add DJI fixture input and decoder components using SemStreams payload registry and ports without graph
       writes or live bridge claims
+- [x] 5.68 Add weather fixture input and decoder components using SemStreams payload registry and ports without graph
+      writes or live provider claims
 
 ## 6. Structural COP Stack
 

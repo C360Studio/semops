@@ -14,6 +14,7 @@ import (
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
+	weathercomponent "github.com/c360studio/semops/internal/components/weather"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
@@ -785,6 +786,87 @@ func TestDJIPreflightBoundaryUsesSemStreamsComponentShapeWithoutGraphWrites(t *t
 	})
 }
 
+func TestWeatherPreflightBoundaryUsesSemStreamsComponentShapeWithoutGraphWrites(t *testing.T) {
+	var _ component.LifecycleComponent = (*weathercomponent.FixtureInputComponent)(nil)
+	var _ component.LifecycleComponent = (*weathercomponent.DecoderComponent)(nil)
+
+	bus := weatherContractBus{}
+	input, err := weathercomponent.NewFixtureInputComponent(weathercomponent.FixtureInputConfig{
+		FixturePath: filepath.Join("..", "..", "fixtures", "weather", "open-meteo-point.json"),
+		Bus:         bus,
+	})
+	if err != nil {
+		t.Fatalf("new weather fixture input: %v", err)
+	}
+	decoder, err := weathercomponent.NewDecoderComponent(weathercomponent.DecoderConfig{}, bus)
+	if err != nil {
+		t.Fatalf("new weather decoder: %v", err)
+	}
+	for name, lifecycle := range map[string]component.LifecycleComponent{
+		"input":   input,
+		"decoder": decoder,
+	} {
+		if err := lifecycle.Initialize(); err != nil {
+			t.Fatalf("initialize %s: %v", name, err)
+		}
+		if err := lifecycle.Start(context.Background()); err != nil {
+			t.Fatalf("start %s: %v", name, err)
+		}
+		if err := lifecycle.Stop(time.Second); err != nil {
+			t.Fatalf("stop %s: %v", name, err)
+		}
+	}
+
+	if input.Meta().Type != "input" {
+		t.Fatalf("weather input component type = %q, want input", input.Meta().Type)
+	}
+	if decoder.Meta().Type != "processor" {
+		t.Fatalf("weather decoder component type = %q, want processor", decoder.Meta().Type)
+	}
+	filePort, ok := input.InputPorts()[0].Config.(component.FilePort)
+	if !ok {
+		t.Fatalf("weather input forecast_fixture config = %T, want FilePort", input.InputPorts()[0].Config)
+	}
+	if got, want := filePort.Type(), "file"; got != want {
+		t.Fatalf("file port type = %q, want %q", got, want)
+	}
+	if got, want := input.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		weathercomponent.DefaultRawSubject; got != want {
+		t.Fatalf("weather input raw subject = %q, want %q", got, want)
+	}
+	if got, want := decoder.OutputPorts()[0].Config.(component.NATSPort).Subject,
+		weathercomponent.DefaultDecodedSubject; got != want {
+		t.Fatalf("weather decoder decoded subject = %q, want %q", got, want)
+	}
+	for _, port := range decoder.OutputPorts() {
+		if got, want := port.Config.Type(), "nats"; got != want {
+			t.Fatalf("weather decoder output port %q type = %q, want %q", port.Name, got, want)
+		}
+	}
+
+	requireProperty(t, input.ConfigSchema(), "fixture_path")
+	requireProperty(t, input.ConfigSchema(), "provider")
+	requireProperty(t, input.ConfigSchema(), "query_shape")
+	requireProperty(t, decoder.ConfigSchema(), "decoded_subject")
+
+	fg := flowgraph.NewFlowGraph()
+	if err := fg.AddComponentNode(input.Meta().Name, input); err != nil {
+		t.Fatalf("add weather fixture input to flow graph: %v", err)
+	}
+	if err := fg.AddComponentNode(decoder.Meta().Name, decoder); err != nil {
+		t.Fatalf("add weather decoder to flow graph: %v", err)
+	}
+	if err := fg.ConnectComponentsByPatterns(); err != nil {
+		t.Fatalf("connect weather fixture flow graph: %v", err)
+	}
+	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
+		From:         flowgraph.ComponentPortRef{ComponentName: input.Meta().Name, PortName: "raw_forecasts"},
+		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_forecasts"},
+		Pattern:      flowgraph.PatternStream,
+		ConnectionID: weathercomponent.DefaultRawSubject,
+	})
+}
+
 func TestKLVWorkerBoundaryUsesMediaRefDemuxDecodeAndProjectorComponents(t *testing.T) {
 	var _ component.LifecycleComponent = (*klvcomponent.MediaRefInputComponent)(nil)
 	var _ component.LifecycleComponent = (*klvcomponent.DemuxComponent)(nil)
@@ -1073,6 +1155,20 @@ func (djiContractBus) Subscribe(
 	string,
 	func(context.Context, *nats.Msg),
 ) (djicomponent.Subscription, error) {
+	return contractSubscription{}, nil
+}
+
+type weatherContractBus struct{}
+
+func (weatherContractBus) Publish(context.Context, string, []byte) error {
+	return nil
+}
+
+func (weatherContractBus) Subscribe(
+	context.Context,
+	string,
+	func(context.Context, *nats.Msg),
+) (weathercomponent.Subscription, error) {
 	return contractSubscription{}, nil
 }
 
