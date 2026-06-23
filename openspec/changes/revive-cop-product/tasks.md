@@ -83,7 +83,9 @@
 - [x] 5.3 Define expected `indexing_profile` and cardinality risk for each projected entity type
 - [ ] 5.4 Prove MAVLink parser, generator, ArduPilot SITL, and PX4 SITL evidence gates
 - [x] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
-- [ ] 5.6 Prove CAP XML schema, NWS sample, and lifecycle gates before CAP conformance or service claims
+- [x] 5.6 Prove CAP XML schema, NWS sample, and lifecycle gates before CAP conformance or service claims; bounded MVP
+      gate is closed, but CAP conformance, NWS/IPAWS integration, default service support, and captured lifecycle
+      corpus claims remain closed
 - [x] 5.7 Verify or reject public SAPIENT compliance/fixture availability before phase commitment
 - [ ] 5.8 Run a KLV/SemSource binary proof spike before claiming streaming-binary support
 - [ ] 5.9 Run adversarial review for each feed before it enters the structural stack

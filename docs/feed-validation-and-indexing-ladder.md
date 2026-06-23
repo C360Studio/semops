@@ -389,6 +389,13 @@ Recorded local CAP schema/sample run:
 - Sample SHA-256: `c91278df362ac125b08c0152d7fbea1eade60ea84e6dbd21c941185882cd0a97`.
 - This is one active-alert sample, not NWS update/cancel/expired lifecycle coverage or CAP conformance.
 
+Top-level CAP gate posture:
+
+- The MVP evidence gate is closed for parser, consumer-rule, opt-in schema/sample, local NWS active-alert, portable
+  derived lifecycle replay, graph projection, and COP readback evidence.
+- The gate remains closed for CAP consumer conformance, default live NWS/IPAWS service support, captured provider
+  lifecycle corpus, webhook/service operations, and authoritative hazard lifecycle ownership.
+
 Current component gate:
 
 ```bash
@@ -416,8 +423,8 @@ authoritative hazard geometry, severity, or status predicates.
 
 Remaining gates:
 
-- NWS samples captured as deterministic fixtures.
-- Recorded formal XML schema validation and captured NWS sample replay.
+- Captured NWS update/cancel/expire samples promoted through fixture review.
+- Recorded formal XML schema validation against a captured NWS lifecycle corpus.
 - NWS-backed update/cancel/expire fixture replay and stale-data behavior beyond the local derived lifecycle fixture.
 - Real NWS/IPAWS/vendor sample capture for the opt-in `SEMOPS_CAP_ENABLED=true` runtime chain.
 - Default live-provider enablement; Compose exposes CAP knobs but keeps hosted public-alert polling disabled by default.
