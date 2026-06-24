@@ -83,8 +83,8 @@ authoritative predicates.
   and exposes runtime and Prometheus flow telemetry
 - **AND** the COP snapshot readback exposes a fusion association between the two source tracks without mutating either
   source-owned track
-- **AND** the default stack keeps automatic demo association disabled until identity policy and operator-facing review
-  close as a separate gate
+- **AND** the default stack keeps automatic demo association disabled until row-level UI language, mission thresholds,
+  ambiguity policy, and operator acknowledge/challenge affordances are default-safe
 
 ### Requirement: Graph writes are born-first
 

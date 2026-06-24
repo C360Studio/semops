@@ -141,8 +141,10 @@ Phase 1.
   drawing new merged-track geometry
 - **AND** the selected-entity inspector shows primary track, candidate track, algorithm, metrics, reason, provenance,
   and the explicit no-merge/no-identity-authority posture
-- **AND** the UI does not expose merge, split, override, source-track mutation, or identity-authority controls until a
-  stack-level e2e smoke, identity policy, and adversarial operator review prove those workflows are safe
+- **AND** row-level copy and badges use candidate/possible association language when the evidence has not been
+  operator-reviewed or promoted by an explicit identity policy
+- **AND** the UI does not expose merge, split, override, source-track mutation, or identity-authority controls until
+  identity policy, mission thresholds, ambiguity policy, and adversarial operator review prove those workflows are safe
 
 ### Requirement: Ontology hydrates inspectors, not the whole UI
 

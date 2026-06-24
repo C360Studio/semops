@@ -802,8 +802,9 @@ First acceptance gate:
   association projection, seeds close-but-separate MAVLink and TAK/CoT tracks through their transport components,
   verifies fusion-owned association readback through the Caddy-routed COP snapshot, and checks fusion component
   Prometheus/runtime flow without directly publishing candidate subjects.
-- Next fusion gate: run adversarial operator review on identity policy, automatic-association posture, and UI
-  affordances before turning fusion association on in the default demo stack.
+- Adversarial operator review accepted the opt-in flow but held default automatic association: row-level UI language,
+  mission thresholds, ambiguity policy, and operator acknowledge/challenge affordances must become default-safe before
+  turning fusion association on in the default demo stack.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress

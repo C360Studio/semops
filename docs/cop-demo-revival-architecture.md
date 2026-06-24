@@ -531,7 +531,8 @@ profile semantics.
 - Use the hosted fusion candidate producer and association processor for bounded graph-discovered source-track
   candidates and graph projection; the opt-in stack smoke now proves transport-seeded MAVLink/TAK association
   readback, but automatic demo association, identity policy, and identity-fusion controls remain gated behind
-  adversarial operator review.
+  default-safe row-level language, mission thresholds, ambiguity policy, and operator acknowledge/challenge
+  affordances.
 
 ### Phase 3: Semantic Translation And Standards Interop
 

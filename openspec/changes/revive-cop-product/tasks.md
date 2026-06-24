@@ -372,8 +372,10 @@
       association in the demo stack
 - [x] 8.23 Add a stack-level fusion e2e smoke that seeds source tracks, runs candidate production plus association
       projection, and verifies COP association readback before enabling automatic demo association by default
-- [ ] 8.24 Run adversarial operator review on automatic demo association posture, identity policy, and UI affordances
+- [x] 8.24 Run adversarial operator review on automatic demo association posture, identity policy, and UI affordances
       before turning fusion association on in the default stack
+- [ ] 8.25 Make association evidence row-level language, mission thresholds, ambiguity policy, and operator
+      acknowledge/challenge affordances default-safe before enabling automatic association by default
 
 ## 9. Upstream SemStreams Asks
 
