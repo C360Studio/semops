@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { fixtureSnapshot } from '../src/lib/cop/fixture';
-import type { RuntimeSnapshot, Snapshot } from '../src/lib/cop/types';
+import type { AssociationReview, RuntimeSnapshot, Snapshot } from '../src/lib/cop/types';
 
 const adsbTrack = {
   id: 'c360.edge-compose.cop.adsb.track.a1b2c3',
@@ -183,12 +183,38 @@ const runtimeSnapshot: RuntimeSnapshot = {
 
 async function routeCOPState(page: Page) {
   let snapshotRequests = 0;
+  let associationReview: AssociationReview | undefined;
   await page.route('/api/cop/snapshot', async (route) => {
     snapshotRequests += 1;
+    const snapshot = associationReview
+      ? {
+          ...snapshotWithADSB,
+          associations: snapshotWithADSB.associations.map((association) =>
+            association.id === associationReview?.association_id
+              ? { ...association, operator_review: associationReview }
+              : association
+          )
+        }
+      : snapshotWithADSB;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(snapshotWithADSB)
+      body: JSON.stringify(snapshot)
+    });
+  });
+  await page.route(/\/api\/cop\/associations\/.+\/review$/, async (route) => {
+    const body = (await route.request().postDataJSON()) as { decision: AssociationReview['decision']; reviewed_by?: string };
+    const associationID = decodeURIComponent(route.request().url().split('/api/cop/associations/')[1].replace('/review', ''));
+    associationReview = {
+      association_id: associationID,
+      decision: body.decision,
+      reviewed_by: body.reviewed_by ?? 'operator.local',
+      reviewed_at: '2026-06-21T16:21:10Z'
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(associationReview)
     });
   });
   await page.route('/api/cop/runtime', async (route) => {
@@ -280,9 +306,16 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByText('semops.association.geotemporal.v1')).toBeVisible();
   await expect(page.getByText(/no source-track merge/)).toBeVisible();
   await expect(page.getByText('semops.fusion.structural')).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('unreviewed');
+  await page.getByRole('button', { name: 'Acknowledge association evidence' }).click();
+  await expect(page.getByLabel('Entity inspector')).toContainText('acknowledged');
+  await expect(page.getByText('operator.local')).toBeVisible();
+  await page.getByRole('button', { name: 'Challenge association evidence' }).click();
+  await expect(page.getByLabel('Entity inspector')).toContainText('challenged');
 
   await page.getByRole('button', { name: 'Refresh COP snapshot' }).click();
   await expect.poll(routes.snapshotRequests).toBeGreaterThanOrEqual(2);
+  await expect(page.getByLabel('Entity inspector')).toContainText('challenged');
 });
 
 test('keeps core operator loop accessible in a narrow viewport', async ({ page }) => {

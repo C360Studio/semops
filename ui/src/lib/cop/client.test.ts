@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadRuntime, loadSnapshot, freshnessLabel, formatRate } from './client';
+import { loadRuntime, loadSnapshot, freshnessLabel, formatRate, reviewAssociation } from './client';
 import { fixtureSnapshot } from './fixture';
 
 describe('loadSnapshot', () => {
@@ -57,6 +57,37 @@ describe('loadRuntime', () => {
 
     expect(result.runtime).toBeNull();
     expect(result.error).toContain('offline');
+  });
+});
+
+describe('reviewAssociation', () => {
+  it('posts an operator association review', async () => {
+    let requestedURL = '';
+    let requestedBody = '';
+    const result = await reviewAssociation(
+      'c360.edge.cop.fusion.association.mavlink-to-tak',
+      { decision: 'acknowledged', reviewed_by: 'operator.local' },
+      async (url, init) => {
+        requestedURL = url.toString();
+        requestedBody = init?.body?.toString() ?? '';
+        return new Response(
+          JSON.stringify({
+            association_id: 'c360.edge.cop.fusion.association.mavlink-to-tak',
+            decision: 'acknowledged',
+            reviewed_by: 'operator.local',
+            reviewed_at: '2026-06-24T01:20:00Z'
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' }
+          }
+        );
+      }
+    );
+
+    expect(requestedURL).toContain('/api/cop/associations/c360.edge.cop.fusion.association.mavlink-to-tak/review');
+    expect(JSON.parse(requestedBody)).toEqual({ decision: 'acknowledged', reviewed_by: 'operator.local' });
+    expect(result.decision).toBe('acknowledged');
   });
 });
 

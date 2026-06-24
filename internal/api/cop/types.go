@@ -172,21 +172,22 @@ type WeatherObservation struct {
 }
 
 type Association struct {
-	ID               string     `json:"id"`
-	Label            string     `json:"label"`
-	Kind             string     `json:"kind"`
-	Source           string     `json:"source"`
-	Status           string     `json:"status"`
-	PrimaryTrackID   string     `json:"primary_track_id"`
-	CandidateTrackID string     `json:"candidate_track_id"`
-	Algorithm        string     `json:"algorithm"`
-	Reason           string     `json:"reason"`
-	DistanceMeters   *float64   `json:"distance_meters,omitempty"`
-	TimeDeltaSeconds *float64   `json:"time_delta_seconds,omitempty"`
-	ClaimPosture     string     `json:"claim_posture"`
-	Confidence       float64    `json:"confidence"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	Provenance       Provenance `json:"provenance"`
+	ID               string             `json:"id"`
+	Label            string             `json:"label"`
+	Kind             string             `json:"kind"`
+	Source           string             `json:"source"`
+	Status           string             `json:"status"`
+	PrimaryTrackID   string             `json:"primary_track_id"`
+	CandidateTrackID string             `json:"candidate_track_id"`
+	Algorithm        string             `json:"algorithm"`
+	Reason           string             `json:"reason"`
+	DistanceMeters   *float64           `json:"distance_meters,omitempty"`
+	TimeDeltaSeconds *float64           `json:"time_delta_seconds,omitempty"`
+	ClaimPosture     string             `json:"claim_posture"`
+	Confidence       float64            `json:"confidence"`
+	UpdatedAt        time.Time          `json:"updated_at"`
+	Provenance       Provenance         `json:"provenance"`
+	OperatorReview   *AssociationReview `json:"operator_review,omitempty"`
 }
 
 type Alert struct {

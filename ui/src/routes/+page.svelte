@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Activity, AlertTriangle, Database, Link2, RefreshCcw } from '@lucide/svelte';
-  import { loadRuntime, loadSnapshot, freshnessLabel } from '$lib/cop/client';
+  import { Activity, AlertTriangle, CheckCircle2, CircleAlert, Database, Link2, RefreshCcw } from '@lucide/svelte';
+  import { loadRuntime, loadSnapshot, freshnessLabel, reviewAssociation } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, resolveMapSelection, type SelectableEntity } from '$lib/cop/selection';
   import SourceCard from '$lib/cop/SourceCard.svelte';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
@@ -10,6 +10,8 @@
     Advisory,
     Alert,
     Association,
+    AssociationReview,
+    AssociationReviewDecision,
     Asset,
     EntityRef,
     Hazard,
@@ -27,6 +29,7 @@
   let error = $state<string | undefined>();
   let selected = $state<EntityRef>({ kind: 'track', id: 'c360.edge.cop.mavlink.track.system-42' });
   let loading = $state(true);
+  let associationReviews = $state<Record<string, AssociationReview>>({});
 
   const selectedEntity = $derived(resolveEntity(snapshot, selected));
   const mapSelected = $derived(resolveMapSelection(snapshot, selected) ?? selected);
@@ -76,6 +79,41 @@
         return 'stale evidence';
       default:
         return status || 'evidence';
+    }
+  }
+
+  function associationReviewFor(association: Association) {
+    return associationReviews[association.id] ?? association.operator_review;
+  }
+
+  function associationReviewLabel(review: AssociationReview | undefined) {
+    switch (review?.decision) {
+      case 'acknowledged':
+        return 'acknowledged';
+      case 'challenged':
+        return 'challenged';
+      default:
+        return 'unreviewed';
+    }
+  }
+
+  async function submitAssociationReview(association: Association, decision: AssociationReviewDecision) {
+    const optimisticReview: AssociationReview = {
+      association_id: association.id,
+      decision,
+      reviewed_by: 'operator.local',
+      reviewed_at: new Date().toISOString()
+    };
+    associationReviews = { ...associationReviews, [association.id]: optimisticReview };
+    try {
+      const review = await reviewAssociation(association.id, {
+        decision,
+        reviewed_by: optimisticReview.reviewed_by
+      });
+      associationReviews = { ...associationReviews, [association.id]: review };
+      error = undefined;
+    } catch (reviewError) {
+      error = reviewError instanceof Error ? reviewError.message : 'association review unavailable';
     }
   }
 </script>
@@ -364,6 +402,7 @@
   {/if}
 
   {#if 'primary_track_id' in entity}
+    {@const review = associationReviewFor(entity)}
     <section class="provenance">
       <h3>Association Evidence</h3>
       <dl class="detail-list">
@@ -391,7 +430,43 @@
             <dd>{entity.time_delta_seconds.toFixed(1).replace(/\.0$/, '')} s</dd>
           </div>
         {/if}
+        <div>
+          <dt>Operator review</dt>
+          <dd>{associationReviewLabel(review)}</dd>
+        </div>
+        {#if review}
+          <div>
+            <dt>Reviewed by</dt>
+            <dd>{review.reviewed_by}</dd>
+          </div>
+          <div>
+            <dt>Reviewed</dt>
+            <dd>{formatInstant(review.reviewed_at)}</dd>
+          </div>
+        {/if}
       </dl>
+      <div class="association-actions" aria-label="Association operator review">
+        <button
+          class:active={review?.decision === 'acknowledged'}
+          type="button"
+          aria-label="Acknowledge association evidence"
+          aria-pressed={review?.decision === 'acknowledged'}
+          onclick={() => submitAssociationReview(entity, 'acknowledged')}
+        >
+          <CheckCircle2 size={16} />
+          <span>Acknowledge</span>
+        </button>
+        <button
+          class:active={review?.decision === 'challenged'}
+          type="button"
+          aria-label="Challenge association evidence"
+          aria-pressed={review?.decision === 'challenged'}
+          onclick={() => submitAssociationReview(entity, 'challenged')}
+        >
+          <CircleAlert size={16} />
+          <span>Challenge</span>
+        </button>
+      </div>
       <p class="reason">{entity.reason}</p>
       <p class="reason">{entity.claim_posture}</p>
     </section>

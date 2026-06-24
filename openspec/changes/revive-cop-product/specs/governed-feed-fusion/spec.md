@@ -97,7 +97,20 @@ authoritative predicates.
 - **AND** source priority is a deterministic tie-breaker for equal-score candidates rather than a replacement for
   geotemporal confidence
 - **AND** stale-window filtering uses the hosted component's clock as the reference time
-- **AND** operator acknowledge/challenge policy remains required before default automatic association can be enabled
+- **AND** operator review remains separate from scoring so acknowledge/challenge decisions do not change source-track
+  state or association confidence
+
+#### Scenario: Operator reviews association evidence without identity authority
+
+- **WHEN** the COP snapshot contains fusion association evidence
+- **THEN** the SemOps API accepts operator review decisions for `acknowledged` and `challenged`
+- **AND** the API rejects unknown association IDs and unsupported review decisions
+- **AND** the COP snapshot overlays the current operator review beside the association evidence
+- **AND** the COP UI exposes acknowledge/challenge controls from the association inspector
+- **AND** operator review state does not mutate source-owned tracks, merge identities, change the association status, or
+  give feed adapters association authority
+- **AND** the initial review store is demo-local; durable graph-backed audit remains a later product hardening step
+  before review decisions can become command, identity, or compliance authority
 
 ### Requirement: Graph writes are born-first
 

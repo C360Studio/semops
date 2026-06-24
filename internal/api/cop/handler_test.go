@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -90,6 +91,109 @@ func TestHandlerServesRuntimeSnapshot(t *testing.T) {
 	}
 }
 
+func TestHandlerReviewsAssociationAndOverlaysSnapshot(t *testing.T) {
+	now := time.Date(2026, 6, 24, 1, 10, 0, 0, time.UTC)
+	provider := associationReviewSnapshotProvider{snapshot: Snapshot{
+		GeneratedAt: now.Add(-1 * time.Minute),
+		Associations: []Association{{
+			ID:               "c360.edge.cop.fusion.association.mavlink-to-tak",
+			Label:            "Candidate association UAS 42 -> ANDROID-ALPHA",
+			Kind:             "track",
+			Source:           "fusion",
+			Status:           "associated",
+			PrimaryTrackID:   "c360.edge.cop.mavlink.track.system-42",
+			CandidateTrackID: "c360.edge.cop.tak.track.android-alpha",
+			Confidence:       0.91,
+			UpdatedAt:        now.Add(-2 * time.Minute),
+		}},
+	}}
+	handler, err := NewHandler(provider, WithClock(func() time.Time { return now }))
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/associations/c360.edge.cop.fusion.association.mavlink-to-tak/review",
+		strings.NewReader(`{"decision":"challenged","reviewed_by":"operator:lead","comment":"TAK point is stale"}`),
+	)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var review AssociationReview
+	if err := json.Unmarshal(rec.Body.Bytes(), &review); err != nil {
+		t.Fatalf("decode review: %v", err)
+	}
+	if review.Decision != AssociationReviewChallenged ||
+		review.ReviewedBy != "operator:lead" ||
+		review.ReviewedAt != now ||
+		review.Comment != "TAK point is stale" {
+		t.Fatalf("review = %+v", review)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/cop/snapshot", nil)
+	rec = httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("snapshot status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var snapshot Snapshot
+	if err := json.Unmarshal(rec.Body.Bytes(), &snapshot); err != nil {
+		t.Fatalf("decode snapshot: %v", err)
+	}
+	if len(snapshot.Associations) != 1 || snapshot.Associations[0].OperatorReview == nil {
+		t.Fatalf("snapshot association review missing: %+v", snapshot.Associations)
+	}
+	if snapshot.Associations[0].OperatorReview.Decision != AssociationReviewChallenged {
+		t.Fatalf("snapshot review = %+v", snapshot.Associations[0].OperatorReview)
+	}
+}
+
+func TestHandlerRejectsInvalidAssociationReviewDecision(t *testing.T) {
+	handler, err := NewHandler(associationReviewSnapshotProvider{snapshot: Snapshot{
+		Associations: []Association{{ID: "association-1"}},
+	}})
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/associations/association-1/review",
+		strings.NewReader(`{"decision":"merged"}`),
+	)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerRejectsReviewForUnknownAssociation(t *testing.T) {
+	handler, err := NewHandler(associationReviewSnapshotProvider{snapshot: Snapshot{
+		Associations: []Association{{ID: "association-1"}},
+	}})
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/associations/association-2/review",
+		strings.NewReader(`{"decision":"acknowledged"}`),
+	)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerHealthz(t *testing.T) {
 	handler, err := NewHandler(NewFixtureProvider(nil))
 	if err != nil {
@@ -109,4 +213,12 @@ type failingProvider struct{}
 
 func (failingProvider) Snapshot(context.Context) (Snapshot, error) {
 	return Snapshot{}, errors.New("snapshot unavailable")
+}
+
+type associationReviewSnapshotProvider struct {
+	snapshot Snapshot
+}
+
+func (p associationReviewSnapshotProvider) Snapshot(context.Context) (Snapshot, error) {
+	return p.snapshot, nil
 }

@@ -217,6 +217,17 @@ export type Association = {
   confidence: number;
   updated_at: string;
   provenance: Provenance;
+  operator_review?: AssociationReview;
+};
+
+export type AssociationReviewDecision = 'acknowledged' | 'challenged';
+
+export type AssociationReview = {
+  association_id: string;
+  decision: AssociationReviewDecision;
+  reviewed_by: string;
+  reviewed_at: string;
+  comment?: string;
 };
 
 export type Alert = {

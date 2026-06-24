@@ -1,5 +1,5 @@
 import { fixtureSnapshot } from './fixture';
-import type { RuntimeSnapshot, Snapshot } from './types';
+import type { AssociationReview, AssociationReviewDecision, RuntimeSnapshot, Snapshot } from './types';
 
 export type SnapshotLoadResult = {
   snapshot: Snapshot;
@@ -10,6 +10,12 @@ export type SnapshotLoadResult = {
 export type RuntimeLoadResult = {
   runtime: RuntimeSnapshot | null;
   error?: string;
+};
+
+export type AssociationReviewRequest = {
+  decision: AssociationReviewDecision;
+  reviewed_by?: string;
+  comment?: string;
 };
 
 export async function loadSnapshot(fetcher: typeof fetch = fetch): Promise<SnapshotLoadResult> {
@@ -47,6 +53,25 @@ export async function loadRuntime(fetcher: typeof fetch = fetch): Promise<Runtim
       error: error instanceof Error ? error.message : 'runtime unavailable'
     };
   }
+}
+
+export async function reviewAssociation(
+  associationID: string,
+  request: AssociationReviewRequest,
+  fetcher: typeof fetch = fetch
+): Promise<AssociationReview> {
+  const response = await fetcher(`/api/cop/associations/${encodeURIComponent(associationID)}/review`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(`association review request failed: ${response.status}`);
+  }
+  return (await response.json()) as AssociationReview;
 }
 
 export function freshnessLabel(isoTime: string, now = new Date()): string {

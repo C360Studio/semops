@@ -378,7 +378,9 @@
       evidence instead of resolved identity
 - [x] 8.26 Add mission scoring config for fusion association distance, time-window, confidence, and ambiguity margin
 - [x] 8.27 Add source-priority tie-breaker and stale-window config for fusion association scoring
-- [ ] 8.28 Add operator acknowledge/challenge affordances before enabling automatic association by default
+- [x] 8.28 Add operator acknowledge/challenge affordances before enabling automatic association by default
+- [ ] 8.29 Add durable graph-backed operator-review audit before review decisions become command, identity, or
+      compliance authority
 
 ## 9. Upstream SemStreams Asks
 

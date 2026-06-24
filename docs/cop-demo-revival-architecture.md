@@ -531,8 +531,9 @@ profile semantics.
 - Use the hosted fusion candidate producer and association processor for bounded graph-discovered source-track
   candidates and graph projection; the opt-in stack smoke now proves transport-seeded MAVLink/TAK association
   readback, and association scoring is mission-configured for distance, time-window, observation age, source priority,
-  confidence, and ambiguity margin; automatic demo association, identity policy, and identity-fusion controls remain
-  gated behind operator acknowledge/challenge affordances.
+  confidence, and ambiguity margin. The COP API/UI now has demo-local operator acknowledge/challenge review
+  affordances for association evidence, but automatic demo association, identity policy, durable review audit, and
+  identity-fusion controls remain gated before any authority claim.
 
 ### Phase 3: Semantic Translation And Standards Interop
 

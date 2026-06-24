@@ -133,7 +133,8 @@ h3 {
 .icon-button:hover,
 .task-row:hover,
 .association-row:hover,
-.alert-row:hover {
+.alert-row:hover,
+.association-actions button:hover {
   border-color: #5d8f7d;
   background: #f4fbf8;
 }
@@ -142,7 +143,8 @@ h3 {
 .map-selector-button:focus-visible,
 .task-row:focus-visible,
 .association-row:focus-visible,
-.alert-row:focus-visible {
+.alert-row:focus-visible,
+.association-actions button:focus-visible {
   outline: 3px solid rgba(29, 120, 150, 0.38);
   outline-offset: 2px;
 }
@@ -387,6 +389,35 @@ h3 {
   color: #334137;
   font-size: 0.9rem;
   line-height: 1.4;
+}
+
+.association-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.association-actions button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #c7d4ce;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #27433e;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.association-actions button.active {
+  border-color: #3e8170;
+  background: #e7f5ef;
+  color: #1f5d4f;
 }
 
 .lower-grid {
