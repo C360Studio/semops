@@ -70,7 +70,7 @@ describe('tactical map layer helpers', () => {
       'weather-observation',
       'association'
     ]);
-    expect(items.map((item) => item.label)).toContain('Track association UAS 42 -> N42CX ambiguous');
+    expect(items.map((item) => item.label)).toContain('Ambiguous association UAS 42 -> N42CX');
     expect(items.map((item) => item.label)).toContain('Route MAVLink system 42 to North Gate');
     expect(labels.map((label) => [label.kind, label.anchor, label.offset])).toEqual([
       ['asset', 'end', [-14, 18]],

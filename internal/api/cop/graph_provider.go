@@ -1471,7 +1471,16 @@ func associationFromEntity(entity graph.EntityState, now time.Time, freshness ti
 }
 
 func associationLabel(primaryTrack string, candidateTrack string, status string) string {
-	return "Track association " + instanceLabel(primaryTrack) + " -> " + instanceLabel(candidateTrack) + " " + status
+	prefix := "Candidate association"
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "ambiguous":
+		prefix = "Ambiguous association"
+	case "stale":
+		prefix = "Stale association evidence"
+	case "unknown", "":
+		prefix = "Association evidence"
+	}
+	return prefix + " " + instanceLabel(primaryTrack) + " -> " + instanceLabel(candidateTrack)
 }
 
 func hazardEvidenceDocument(entity graph.EntityState) (copmodel.HazardEvidenceDocument, bool) {

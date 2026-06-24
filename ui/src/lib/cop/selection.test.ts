@@ -22,7 +22,7 @@ describe('COP selection helpers', () => {
         ?.label
     ).toBe('29.4 degC temperature_2m');
     expect(resolveEntity(fixtureSnapshot, { kind: 'association', id: fixtureSnapshot.associations[0].id })?.label).toBe(
-      'Track association UAS 42 -> N42CX ambiguous'
+      'Ambiguous association UAS 42 -> N42CX'
     );
     expect(resolveEntity(fixtureSnapshot, { kind: 'alert', id: fixtureSnapshot.alerts[0].id })?.label).toBe(
       'Track freshness nominal'

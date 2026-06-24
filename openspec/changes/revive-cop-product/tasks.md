@@ -374,8 +374,10 @@
       projection, and verifies COP association readback before enabling automatic demo association by default
 - [x] 8.24 Run adversarial operator review on automatic demo association posture, identity policy, and UI affordances
       before turning fusion association on in the default stack
-- [ ] 8.25 Make association evidence row-level language, mission thresholds, ambiguity policy, and operator
-      acknowledge/challenge affordances default-safe before enabling automatic association by default
+- [x] 8.25 Normalize association evidence row-level language so unreviewed fusion output reads as candidate/ambiguous
+      evidence instead of resolved identity
+- [ ] 8.26 Add mission thresholds, ambiguity policy, source-priority/stale-window config, and operator
+      acknowledge/challenge affordances before enabling automatic association by default
 
 ## 9. Upstream SemStreams Asks
 

@@ -241,8 +241,9 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('Fusion source state')).toBeVisible();
   await expect(page.getByLabel('Fusion discovery counts')).toContainText('association 1');
   await expect(page.getByLabel('Fusion runtime flow')).toContainText('0.5 msg/s');
-  const associationRow = page.getByRole('button', { name: 'Inspect Track association UAS 42 -> N42CX ambiguous' });
+  const associationRow = page.getByRole('button', { name: 'Inspect Ambiguous association UAS 42 -> N42CX' });
   await expect(associationRow).toBeVisible();
+  await expect(associationRow).toContainText('ambiguous evidence');
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT runtime flow')).toContainText('2/2 healthy');
   await expect(page.getByRole('button', { name: 'Select N123AB' })).toBeVisible();
@@ -271,8 +272,9 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByText(/no live provider/)).toBeVisible();
 
   await associationRow.click();
-  await expect(page.getByRole('heading', { name: 'Track association UAS 42 -> N42CX ambiguous' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ambiguous association UAS 42 -> N42CX' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Association Evidence' })).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('ambiguous evidence');
   await expect(page.getByText('c360.edge.cop.mavlink.track.system-42')).toBeVisible();
   await expect(page.getByText('c360.edge.cop.adsb.track.a1b2c3')).toBeVisible();
   await expect(page.getByText('semops.association.geotemporal.v1')).toBeVisible();
@@ -321,12 +323,12 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await expect(page.getByLabel('Entity inspector')).toContainText('no live provider');
 
   const associationButton = page.getByRole('button', {
-    name: 'Inspect Track association UAS 42 -> N42CX ambiguous'
+    name: 'Inspect Ambiguous association UAS 42 -> N42CX'
   });
   await associationButton.focus();
   await expect(associationButton).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Track association UAS 42 -> N42CX ambiguous' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ambiguous association UAS 42 -> N42CX' })).toBeVisible();
   await expect(page.getByLabel('Entity inspector')).toContainText('no source-track merge');
 
   const alertButton = page.getByRole('button', { name: /Track freshness nominal/ });

@@ -309,7 +309,7 @@ export const fixtureSnapshot: Snapshot = {
   associations: [
     {
       id: 'c360.edge.cop.fusion.association.mavlink-to-adsb',
-      label: 'Track association UAS 42 -> N42CX ambiguous',
+      label: 'Ambiguous association UAS 42 -> N42CX',
       kind: 'track',
       source: 'fusion',
       status: 'ambiguous',

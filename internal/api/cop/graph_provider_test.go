@@ -676,6 +676,7 @@ func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
 	}
 	association := snapshot.Associations[0]
 	if association.ID != associationID ||
+		association.Label != "Ambiguous association system-42 -> a1b2c3" ||
 		association.Source != "fusion" ||
 		association.Status != "ambiguous" ||
 		association.PrimaryTrackID != mavlinkTrackID ||
@@ -703,6 +704,26 @@ func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
 	}
 	if diagnostic.Family != "fusion" || diagnostic.Count != 1 || diagnostic.AtLimit {
 		t.Fatalf("fusion diagnostic = %+v", diagnostic)
+	}
+}
+
+func TestAssociationLabelUsesEvidenceLanguage(t *testing.T) {
+	primary := "c360.edge-fusion.cop.mavlink.track.system-42"
+	candidate := "c360.edge-fusion.cop.tak.track.android-alpha"
+
+	cases := []struct {
+		status string
+		want   string
+	}{
+		{status: "associated", want: "Candidate association system-42 -> android-alpha"},
+		{status: "ambiguous", want: "Ambiguous association system-42 -> android-alpha"},
+		{status: "stale", want: "Stale association evidence system-42 -> android-alpha"},
+	}
+
+	for _, tc := range cases {
+		if got := associationLabel(primary, candidate, tc.status); got != tc.want {
+			t.Fatalf("associationLabel(%q) = %q, want %q", tc.status, got, tc.want)
+		}
 	}
 }
 

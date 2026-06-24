@@ -65,6 +65,19 @@
     if (!isoTime) return 'unknown';
     return isoTime.replace('T', ' ').replace('Z', 'Z');
   }
+
+  function associationStatusLabel(status: string | undefined) {
+    switch ((status ?? '').toLowerCase()) {
+      case 'ambiguous':
+        return 'ambiguous evidence';
+      case 'associated':
+        return 'candidate evidence';
+      case 'stale':
+        return 'stale evidence';
+      default:
+        return status || 'evidence';
+    }
+  }
 </script>
 
 <svelte:head>
@@ -180,7 +193,7 @@
             >
               <Link2 size={16} />
               <span>{association.label}</span>
-              <small>{association.status}</small>
+              <small>{associationStatusLabel(association.status)}</small>
             </button>
           {/each}
         </section>
@@ -225,7 +238,7 @@
     {#if 'status' in entity}
       <div>
         <span>Status</span>
-        <strong>{entity.status}</strong>
+        <strong>{'primary_track_id' in entity ? associationStatusLabel(entity.status) : entity.status}</strong>
       </div>
     {/if}
     {#if 'confidence' in entity}
