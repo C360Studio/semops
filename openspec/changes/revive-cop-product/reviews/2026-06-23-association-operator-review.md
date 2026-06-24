@@ -15,8 +15,10 @@ human-in-the-loop review without letting association scoring imply track merge, 
    review in the COP snapshot. That is enough for operator affordance evidence.
 
 2. The review path is not product-grade arbitration yet.
-   Hosted mode now has durable graph audit, but the review still lacks authenticated operator identity, role authority,
-   conflict semantics, upstream status semantics, and compliance policy. Fixture-only API mode may still use a local
+   Hosted mode now has durable graph audit and fixed non-authoritative semantics:
+   `reviewer_role=operator.unverified`, `authority_scope=local.display_only`, and
+   `conflict_policy=latest_review_wins_display_only`. It still lacks authenticated operator identity, multi-authority
+   conflict arbitration, upstream status semantics, and compliance policy. Fixture-only API mode may still use a local
    memory overlay.
 
 3. Source-owned state remains protected.
@@ -28,12 +30,12 @@ human-in-the-loop review without letting association scoring imply track merge, 
 - This is not identity fusion.
 - This is not a source-track merge.
 - This is not authenticated operator authority.
-- This is not local/upstream conflict resolution.
+- This is not local/upstream conflict resolution beyond latest local display readback.
 - This is not command authority, tasking, or upstream CS API status.
 - This is not default enablement of automatic association in the demo stack.
 
 ## Follow-Ups
 
-- Revisit conflict semantics when local and upstream operators challenge or acknowledge the same association.
-- Add role/authority metadata when SemOps gets authentication and operator identity.
+- Revisit conflict arbitration when local and upstream operators challenge or acknowledge the same association.
+- Add authenticated role/authority metadata when SemOps gets operator identity.
 - Define command, identity, upstream CS API status, and compliance semantics before review decisions become authority.

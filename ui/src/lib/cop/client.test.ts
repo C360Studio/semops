@@ -75,7 +75,10 @@ describe('reviewAssociation', () => {
             association_id: 'c360.edge.cop.fusion.association.mavlink-to-tak',
             decision: 'acknowledged',
             reviewed_by: 'operator.local',
-            reviewed_at: '2026-06-24T01:20:00Z'
+            reviewed_at: '2026-06-24T01:20:00Z',
+            reviewer_role: 'operator.unverified',
+            authority_scope: 'local.display_only',
+            conflict_policy: 'latest_review_wins_display_only'
           }),
           {
             status: 200,
@@ -88,6 +91,7 @@ describe('reviewAssociation', () => {
     expect(requestedURL).toContain('/api/cop/associations/c360.edge.cop.fusion.association.mavlink-to-tak/review');
     expect(JSON.parse(requestedBody)).toEqual({ decision: 'acknowledged', reviewed_by: 'operator.local' });
     expect(result.decision).toBe('acknowledged');
+    expect(result.authority_scope).toBe('local.display_only');
   });
 });
 

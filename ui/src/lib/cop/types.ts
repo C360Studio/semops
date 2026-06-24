@@ -227,6 +227,9 @@ export type AssociationReview = {
   decision: AssociationReviewDecision;
   reviewed_by: string;
   reviewed_at: string;
+  reviewer_role: string;
+  authority_scope: string;
+  conflict_policy: string;
   comment?: string;
 };
 

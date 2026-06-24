@@ -456,6 +456,29 @@ func TestFusionAssociationReviewForeignEdgeDeclaresAssociationTarget(t *testing.
 	}
 }
 
+func TestFusionAssociationReviewContractOwnsNonAuthoritativeReviewSemantics(t *testing.T) {
+	contract := FusionAssociationReviewContract()
+	seen := make(map[string]bool)
+	for _, group := range contract.Groups {
+		if group.Mode != ownership.ModeReplaceOwned {
+			t.Fatalf("association review group mode = %q, want replace-owned", group.Mode)
+		}
+		for _, predicate := range group.Predicates {
+			seen[predicate] = true
+		}
+	}
+
+	for _, predicate := range []string{
+		AssociationReviewReviewerRole,
+		AssociationReviewAuthorityScope,
+		AssociationReviewConflictPolicy,
+	} {
+		if !seen[predicate] {
+			t.Fatalf("association review contract missing semantic predicate %q", predicate)
+		}
+	}
+}
+
 func TestCommandIntentContractCarriesImpedanceFieldsWithoutNativeStatusAuthority(t *testing.T) {
 	contract := CommandIntentContract()
 	seen := make(map[string]bool)

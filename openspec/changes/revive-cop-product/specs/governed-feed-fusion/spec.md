@@ -107,14 +107,18 @@ authoritative predicates.
 - **AND** the API rejects unknown association IDs and unsupported review decisions
 - **AND** the COP snapshot overlays the current operator review beside the association evidence
 - **AND** the COP UI exposes acknowledge/challenge controls from the association inspector
+- **AND** operator review records expose `reviewer_role = operator.unverified`,
+  `authority_scope = local.display_only`, and `conflict_policy = latest_review_wins_display_only`
 - **AND** hosted SemOps writes operator review as a fusion-owned `association_review` graph audit entity with a strict
   edge to the reviewed association evidence
+- **AND** the graph audit entity owns the review decision, reviewer, reviewed time, reviewer role, authority scope,
+  conflict policy, comment, and provenance predicates under the fusion owner
 - **AND** the graph-backed COP snapshot discovers association-review audit state and overlays it on association
   evidence readback
 - **AND** operator review state does not mutate source-owned tracks, merge identities, change the association status, or
   give feed adapters association authority
 - **AND** fixture-only API mode may use a local memory overlay, but hosted review state must use the graph-backed audit
-  path before review decisions can become command, identity, or compliance authority
+  path before review decisions can become command, identity, upstream CS API status, or compliance authority
 
 ### Requirement: Graph writes are born-first
 

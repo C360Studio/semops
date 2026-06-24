@@ -7,21 +7,29 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	copmodel "github.com/c360studio/semops/pkg/cop"
 )
 
 const (
-	AssociationReviewAcknowledged  = "acknowledged"
-	AssociationReviewChallenged    = "challenged"
-	DefaultAssociationReviewer     = "operator.local"
-	MaxAssociationReviewCommentLen = 512
+	AssociationReviewAcknowledged          = "acknowledged"
+	AssociationReviewChallenged            = "challenged"
+	DefaultAssociationReviewer             = "operator.local"
+	DefaultAssociationReviewerRole         = copmodel.AssociationReviewerRoleUnverified
+	DefaultAssociationReviewAuthorityScope = copmodel.AssociationReviewScopeDisplayOnly
+	DefaultAssociationReviewConflictPolicy = copmodel.AssociationReviewConflictLatestDisplayOnly
+	MaxAssociationReviewCommentLen         = 512
 )
 
 type AssociationReview struct {
-	AssociationID string    `json:"association_id"`
-	Decision      string    `json:"decision"`
-	ReviewedBy    string    `json:"reviewed_by"`
-	ReviewedAt    time.Time `json:"reviewed_at"`
-	Comment       string    `json:"comment,omitempty"`
+	AssociationID  string    `json:"association_id"`
+	Decision       string    `json:"decision"`
+	ReviewedBy     string    `json:"reviewed_by"`
+	ReviewedAt     time.Time `json:"reviewed_at"`
+	ReviewerRole   string    `json:"reviewer_role"`
+	AuthorityScope string    `json:"authority_scope"`
+	ConflictPolicy string    `json:"conflict_policy"`
+	Comment        string    `json:"comment,omitempty"`
 }
 
 type AssociationReviewStore interface {
@@ -47,6 +55,7 @@ func (s *MemoryAssociationReviewStore) PutAssociationReview(
 	if s == nil {
 		return AssociationReview{}, fmt.Errorf("association review store is nil")
 	}
+	review = normalizeAssociationReview(review)
 	if err := validateAssociationReview(review); err != nil {
 		return AssociationReview{}, err
 	}
@@ -87,10 +96,42 @@ func validateAssociationReview(review AssociationReview) error {
 	if review.ReviewedAt.IsZero() {
 		return fmt.Errorf("association review reviewed_at is required")
 	}
+	if review.ReviewerRole != DefaultAssociationReviewerRole {
+		return fmt.Errorf("association review reviewer_role must be %q", DefaultAssociationReviewerRole)
+	}
+	if review.AuthorityScope != DefaultAssociationReviewAuthorityScope {
+		return fmt.Errorf("association review authority_scope must be %q", DefaultAssociationReviewAuthorityScope)
+	}
+	if review.ConflictPolicy != DefaultAssociationReviewConflictPolicy {
+		return fmt.Errorf("association review conflict_policy must be %q", DefaultAssociationReviewConflictPolicy)
+	}
 	if len(review.Comment) > MaxAssociationReviewCommentLen {
 		return fmt.Errorf("association review comment exceeds %d characters", MaxAssociationReviewCommentLen)
 	}
 	return nil
+}
+
+func normalizeAssociationReview(review AssociationReview) AssociationReview {
+	review.AssociationID = strings.TrimSpace(review.AssociationID)
+	review.Decision = normalizeAssociationReviewDecision(review.Decision)
+	review.ReviewedBy = strings.TrimSpace(review.ReviewedBy)
+	if review.ReviewedBy == "" {
+		review.ReviewedBy = DefaultAssociationReviewer
+	}
+	review.ReviewerRole = strings.TrimSpace(review.ReviewerRole)
+	if review.ReviewerRole == "" {
+		review.ReviewerRole = DefaultAssociationReviewerRole
+	}
+	review.AuthorityScope = strings.TrimSpace(review.AuthorityScope)
+	if review.AuthorityScope == "" {
+		review.AuthorityScope = DefaultAssociationReviewAuthorityScope
+	}
+	review.ConflictPolicy = strings.TrimSpace(review.ConflictPolicy)
+	if review.ConflictPolicy == "" {
+		review.ConflictPolicy = DefaultAssociationReviewConflictPolicy
+	}
+	review.Comment = strings.TrimSpace(review.Comment)
+	return review
 }
 
 func normalizeAssociationReviewDecision(decision string) string {

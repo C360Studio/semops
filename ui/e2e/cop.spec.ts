@@ -209,7 +209,10 @@ async function routeCOPState(page: Page) {
       association_id: associationID,
       decision: body.decision,
       reviewed_by: body.reviewed_by ?? 'operator.local',
-      reviewed_at: '2026-06-21T16:21:10Z'
+      reviewed_at: '2026-06-21T16:21:10Z',
+      reviewer_role: 'operator.unverified',
+      authority_scope: 'local.display_only',
+      conflict_policy: 'latest_review_wins_display_only'
     };
     await route.fulfill({
       status: 200,
@@ -310,8 +313,11 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await page.getByRole('button', { name: 'Acknowledge association evidence' }).click();
   await expect(page.getByLabel('Entity inspector')).toContainText('acknowledged');
   await expect(page.getByText('operator.local')).toBeVisible();
+  await expect(page.getByText('operator.unverified')).toBeVisible();
+  await expect(page.getByText('local.display_only')).toBeVisible();
   await page.getByRole('button', { name: 'Challenge association evidence' }).click();
   await expect(page.getByLabel('Entity inspector')).toContainText('challenged');
+  await expect(page.getByText('latest_review_wins_display_only')).toBeVisible();
 
   await page.getByRole('button', { name: 'Refresh COP snapshot' }).click();
   await expect.poll(routes.snapshotRequests).toBeGreaterThanOrEqual(2);

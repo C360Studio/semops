@@ -56,17 +56,21 @@ func (s *GraphAssociationReviewStore) PutAssociationReview(
 	if s == nil {
 		return AssociationReview{}, fmt.Errorf("association review graph store is nil")
 	}
+	review = normalizeAssociationReview(review)
 	if err := validateAssociationReview(review); err != nil {
 		return AssociationReview{}, err
 	}
 	evidence := fusionprojector.AssociationReviewEvidence{
-		Org:           s.cfg.Org,
-		Platform:      s.cfg.Platform,
-		AssociationID: review.AssociationID,
-		Decision:      review.Decision,
-		ReviewedBy:    review.ReviewedBy,
-		ReviewedAt:    review.ReviewedAt,
-		Comment:       review.Comment,
+		Org:            s.cfg.Org,
+		Platform:       s.cfg.Platform,
+		AssociationID:  review.AssociationID,
+		Decision:       review.Decision,
+		ReviewedBy:     review.ReviewedBy,
+		ReviewedAt:     review.ReviewedAt,
+		ReviewerRole:   review.ReviewerRole,
+		AuthorityScope: review.AuthorityScope,
+		ConflictPolicy: review.ConflictPolicy,
+		Comment:        review.Comment,
 	}
 	if err := s.writeReview(ctx, evidence); err != nil {
 		return AssociationReview{}, err

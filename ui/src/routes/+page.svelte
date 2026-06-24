@@ -102,7 +102,10 @@
       association_id: association.id,
       decision,
       reviewed_by: 'operator.local',
-      reviewed_at: new Date().toISOString()
+      reviewed_at: new Date().toISOString(),
+      reviewer_role: 'operator.unverified',
+      authority_scope: 'local.display_only',
+      conflict_policy: 'latest_review_wins_display_only'
     };
     associationReviews = { ...associationReviews, [association.id]: optimisticReview };
     try {
@@ -442,6 +445,18 @@
           <div>
             <dt>Reviewed</dt>
             <dd>{formatInstant(review.reviewed_at)}</dd>
+          </div>
+          <div>
+            <dt>Role</dt>
+            <dd>{review.reviewer_role}</dd>
+          </div>
+          <div>
+            <dt>Authority</dt>
+            <dd>{review.authority_scope}</dd>
+          </div>
+          <div>
+            <dt>Conflict</dt>
+            <dd>{review.conflict_policy}</dd>
           </div>
         {/if}
       </dl>

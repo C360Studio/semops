@@ -381,8 +381,10 @@
 - [x] 8.28 Add operator acknowledge/challenge affordances before enabling automatic association by default
 - [x] 8.29 Add durable graph-backed operator-review audit before review decisions become command, identity, or
       compliance authority
-- [ ] 8.30 Define operator identity, role, and conflict semantics before review decisions become command, identity, or
+- [x] 8.30 Define operator identity, role, and conflict semantics before review decisions become command, identity, or
       upstream CS API status authority
+- [ ] 8.31 Add authenticated operator identity and multi-authority conflict arbitration before review decisions can
+      drive command execution, identity fusion, upstream CS API status, or compliance workflows
 
 ## 9. Upstream SemStreams Asks
 

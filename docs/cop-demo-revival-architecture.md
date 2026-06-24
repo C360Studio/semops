@@ -532,8 +532,10 @@ profile semantics.
   candidates and graph projection; the opt-in stack smoke now proves transport-seeded MAVLink/TAK association
   readback, and association scoring is mission-configured for distance, time-window, observation age, source priority,
   confidence, and ambiguity margin. The COP API/UI now has operator acknowledge/challenge review affordances and a
-  hosted graph-backed `association_review` audit path for association evidence, while automatic demo association,
-  identity policy, role/conflict semantics, and identity-fusion controls remain gated before any authority claim.
+  hosted graph-backed `association_review` audit path for association evidence. Current review semantics are fixed as
+  unverified local display/audit only with latest-review-wins display conflict policy, while automatic demo
+  association, authenticated identity policy, upstream conflict arbitration, and identity-fusion controls remain gated
+  before any authority claim.
 
 ### Phase 3: Semantic Translation And Standards Interop
 

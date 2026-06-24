@@ -472,7 +472,8 @@ func TestHostedCOPSnapshotReflectsFusionAssociation(t *testing.T) {
 		} else if association, ok := fusionAssociation(snapshot, expectedMAVLinkTrackID, expectedCoTTrackID); ok {
 			if association.OperatorReview != nil &&
 				association.OperatorReview.Decision == copapi.AssociationReviewChallenged &&
-				association.OperatorReview.ReviewedBy == "smoke.operator" {
+				association.OperatorReview.ReviewedBy == "smoke.operator" &&
+				association.OperatorReview.AuthorityScope == copapi.DefaultAssociationReviewAuthorityScope {
 				return
 			}
 			if !reviewPosted {

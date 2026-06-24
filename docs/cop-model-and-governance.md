@@ -36,6 +36,7 @@ Code source: `pkg/cop/contracts.go`
 | `semops.command.intent` | Command intent | `c360.*.cop.command.task.*` | `replace-owned` | `control` |
 | `semops.fusion.structural` | Fusion alert state | `c360.*.cop.fusion.alert.*` | `replace-owned` | `control` |
 | `semops.fusion.structural` | Cross-source track association evidence | `c360.*.cop.fusion.association.*` | `replace-owned` | `control` |
+| `semops.fusion.structural` | Operator review audit for association evidence | `c360.*.cop.fusion.association_review.*` | `replace-owned` | `control` |
 
 Strict feed owners are source-partitioned by the SemStreams entity `system` segment. This prevents MAVLink and TAK from
 claiming the same `cop.track.position` cell over a wildcard `track` pattern.
@@ -65,6 +66,11 @@ Track association evidence is fusion-owned. Source feeds continue to own their t
 records strict source-track edges, confidence, algorithm identity, distance/time evidence, and source references
 without merging or mutating the original tracks. COP readback exposes those records as inspectable association
 evidence, not as merged identity state.
+
+Association review is also fusion-owned, but it is deliberately non-authoritative. The review audit records
+acknowledge/challenge decisions with `reviewer_role=operator.unverified`, `authority_scope=local.display_only`, and
+`conflict_policy=latest_review_wins_display_only`. That lets the COP show local human-in-the-loop review without
+changing association scores, merging identities, driving command execution, or publishing upstream CS API status.
 
 SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
 absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are
@@ -117,6 +123,7 @@ target-edge fields. Native feed ACK/readback evidence stays under feed-owned con
 | Weather evidence | `cop.weather.value`, `cop.weather.variable`, `cop.weather.query_shape`, `cop.weather.query_geometry` | Tactical weather signal |
 | Media evidence | `cop.media.ref`, `cop.media.kind`, `cop.media.hash`, `cop.media.time_range` | Candidate only until DJI/KLV media fixtures prove shared vocabulary |
 | Alert derived state | `cop.alert.severity`, `cop.alert.status`, `cop.alert.reason` | Fusion-owned derived facts |
+| Association review audit | `cop.association_review.reviewer_role`, `cop.association_review.authority_scope`, `cop.association_review.conflict_policy` | Display/audit-only local review semantics |
 | Provenance | source, confidence, observed-at, source-ref predicates | Candidate upstream convention |
 
 ## Upstream Candidates
@@ -149,6 +156,8 @@ failing SemOps tests or awkward duplicated code:
   edges.
 - Fusion track association evidence is control-profiled, source-partitioned under `fusion`, and uses strict track
   edges back to already-born source tracks.
+- Fusion association-review evidence is control-profiled, source-partitioned under `fusion`, and carries
+  non-authoritative local review role, scope, and conflict policy.
 - Track, command-intent, and MAVLink command-task foreign edges derive explicit ADR-056 `ForeignEdgeClaim` values with
   producer and target pattern.
 - Overlapping `replace-owned` predicates are rejected.

@@ -1504,11 +1504,14 @@ func associationReviewFromEntity(entity graph.EntityState) (AssociationReview, b
 		return AssociationReview{}, false
 	}
 	return AssociationReview{
-		AssociationID: associationID,
-		Decision:      normalizeAssociationReviewDecision(decision),
-		ReviewedBy:    reviewedBy,
-		ReviewedAt:    reviewedAt,
-		Comment:       latestStringProperty(entity, copmodel.AssociationReviewComment, ""),
+		AssociationID:  associationID,
+		Decision:       normalizeAssociationReviewDecision(decision),
+		ReviewedBy:     reviewedBy,
+		ReviewedAt:     reviewedAt,
+		ReviewerRole:   latestStringProperty(entity, copmodel.AssociationReviewReviewerRole, DefaultAssociationReviewerRole),
+		AuthorityScope: latestStringProperty(entity, copmodel.AssociationReviewAuthorityScope, DefaultAssociationReviewAuthorityScope),
+		ConflictPolicy: latestStringProperty(entity, copmodel.AssociationReviewConflictPolicy, DefaultAssociationReviewConflictPolicy),
+		Comment:        latestStringProperty(entity, copmodel.AssociationReviewComment, ""),
 	}, true
 }
 

@@ -56,11 +56,14 @@ const (
 	AssociationTimeDeltaSeconds = "cop.association.time_delta_seconds"
 	AssociationObservedAt       = "cop.association.observed_at"
 
-	AssociationReviewAssociation = "cop.association_review.association"
-	AssociationReviewDecision    = "cop.association_review.decision"
-	AssociationReviewReviewedBy  = "cop.association_review.reviewed_by"
-	AssociationReviewReviewedAt  = "cop.association_review.reviewed_at"
-	AssociationReviewComment     = "cop.association_review.comment"
+	AssociationReviewAssociation    = "cop.association_review.association"
+	AssociationReviewDecision       = "cop.association_review.decision"
+	AssociationReviewReviewedBy     = "cop.association_review.reviewed_by"
+	AssociationReviewReviewedAt     = "cop.association_review.reviewed_at"
+	AssociationReviewReviewerRole   = "cop.association_review.reviewer_role"
+	AssociationReviewAuthorityScope = "cop.association_review.authority_scope"
+	AssociationReviewConflictPolicy = "cop.association_review.conflict_policy"
+	AssociationReviewComment        = "cop.association_review.comment"
 
 	AssetName     = "cop.asset.name"
 	AssetKind     = "cop.asset.kind"
@@ -130,6 +133,12 @@ const (
 	ProvenanceConfidence = "cop.provenance.confidence"
 	ProvenanceObservedAt = "cop.provenance.observed_at"
 	ProvenanceSourceRef  = "cop.provenance.source_ref"
+)
+
+const (
+	AssociationReviewerRoleUnverified          = "operator.unverified"
+	AssociationReviewScopeDisplayOnly          = "local.display_only"
+	AssociationReviewConflictLatestDisplayOnly = "latest_review_wins_display_only"
 )
 
 var FirstCanonicalEntitySet = []string{
@@ -590,6 +599,9 @@ func FusionAssociationReviewContract() projection.Contract {
 				AssociationReviewDecision,
 				AssociationReviewReviewedBy,
 				AssociationReviewReviewedAt,
+				AssociationReviewReviewerRole,
+				AssociationReviewAuthorityScope,
+				AssociationReviewConflictPolicy,
 				AssociationReviewComment,
 				ProvenanceSource,
 				ProvenanceConfidence,

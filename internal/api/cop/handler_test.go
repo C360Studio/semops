@@ -130,6 +130,9 @@ func TestHandlerReviewsAssociationAndOverlaysSnapshot(t *testing.T) {
 	if review.Decision != AssociationReviewChallenged ||
 		review.ReviewedBy != "operator:lead" ||
 		review.ReviewedAt != now ||
+		review.ReviewerRole != DefaultAssociationReviewerRole ||
+		review.AuthorityScope != DefaultAssociationReviewAuthorityScope ||
+		review.ConflictPolicy != DefaultAssociationReviewConflictPolicy ||
 		review.Comment != "TAK point is stale" {
 		t.Fatalf("review = %+v", review)
 	}
@@ -147,7 +150,8 @@ func TestHandlerReviewsAssociationAndOverlaysSnapshot(t *testing.T) {
 	if len(snapshot.Associations) != 1 || snapshot.Associations[0].OperatorReview == nil {
 		t.Fatalf("snapshot association review missing: %+v", snapshot.Associations)
 	}
-	if snapshot.Associations[0].OperatorReview.Decision != AssociationReviewChallenged {
+	if snapshot.Associations[0].OperatorReview.Decision != AssociationReviewChallenged ||
+		snapshot.Associations[0].OperatorReview.AuthorityScope != DefaultAssociationReviewAuthorityScope {
 		t.Fatalf("snapshot review = %+v", snapshot.Associations[0].OperatorReview)
 	}
 }

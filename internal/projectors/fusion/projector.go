@@ -54,13 +54,16 @@ func NewProjector(cfg Config) *Projector {
 }
 
 type AssociationReviewEvidence struct {
-	Org           string
-	Platform      string
-	AssociationID string
-	Decision      string
-	ReviewedBy    string
-	ReviewedAt    time.Time
-	Comment       string
+	Org            string
+	Platform       string
+	AssociationID  string
+	Decision       string
+	ReviewedBy     string
+	ReviewedAt     time.Time
+	ReviewerRole   string
+	AuthorityScope string
+	ConflictPolicy string
+	Comment        string
 }
 
 func (p *Projector) ProjectAssociation(evidence fusionassociation.Evidence) (Plan, error) {
@@ -245,6 +248,9 @@ func (p *Projector) associationReviewTriples(
 		p.reviewTriple(entityID, cop.AssociationReviewDecision, strings.ToLower(strings.TrimSpace(evidence.Decision)), evidence, when),
 		p.reviewTriple(entityID, cop.AssociationReviewReviewedBy, evidence.ReviewedBy, evidence, when),
 		p.reviewTriple(entityID, cop.AssociationReviewReviewedAt, when, evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewReviewerRole, evidence.ReviewerRole, evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewAuthorityScope, evidence.AuthorityScope, evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewConflictPolicy, evidence.ConflictPolicy, evidence, when),
 		p.reviewTriple(entityID, cop.AssociationReviewComment, evidence.Comment, evidence, when),
 		p.reviewTriple(entityID, cop.ProvenanceSource, "operator.association_review", evidence, when),
 		p.reviewTriple(entityID, cop.ProvenanceConfidence, 1.0, evidence, when),
@@ -330,6 +336,12 @@ func validateAssociationReview(evidence AssociationReviewEvidence) error {
 		return fmt.Errorf("fusion association review reviewer is required")
 	case evidence.ReviewedAt.IsZero():
 		return fmt.Errorf("fusion association review reviewed_at is required")
+	case evidence.ReviewerRole != cop.AssociationReviewerRoleUnverified:
+		return fmt.Errorf("fusion association review reviewer role must be %q", cop.AssociationReviewerRoleUnverified)
+	case evidence.AuthorityScope != cop.AssociationReviewScopeDisplayOnly:
+		return fmt.Errorf("fusion association review authority scope must be %q", cop.AssociationReviewScopeDisplayOnly)
+	case evidence.ConflictPolicy != cop.AssociationReviewConflictLatestDisplayOnly:
+		return fmt.Errorf("fusion association review conflict policy must be %q", cop.AssociationReviewConflictLatestDisplayOnly)
 	default:
 		return nil
 	}

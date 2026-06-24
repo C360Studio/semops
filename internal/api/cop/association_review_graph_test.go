@@ -28,7 +28,8 @@ func TestGraphAssociationReviewStoreWritesAuditBeforeLocalOverlay(t *testing.T) 
 	if err != nil {
 		t.Fatalf("put association review: %v", err)
 	}
-	if got.Decision != AssociationReviewAcknowledged {
+	if got.Decision != AssociationReviewAcknowledged ||
+		got.AuthorityScope != DefaultAssociationReviewAuthorityScope {
 		t.Fatalf("review = %+v", got)
 	}
 	if len(writer.plans) != 1 || len(writer.plans[0].Mutations) != 1 {
@@ -124,10 +125,13 @@ func (w *recordingAssociationReviewWriter) Apply(_ context.Context, plan fusionp
 
 func sampleAssociationReview(reviewedAt time.Time) AssociationReview {
 	return AssociationReview{
-		AssociationID: "c360.edge.cop.fusion.association.mavlink-to-tak",
-		Decision:      AssociationReviewAcknowledged,
-		ReviewedBy:    "operator:lead",
-		ReviewedAt:    reviewedAt,
-		Comment:       "reviewed in COP",
+		AssociationID:  "c360.edge.cop.fusion.association.mavlink-to-tak",
+		Decision:       AssociationReviewAcknowledged,
+		ReviewedBy:     "operator:lead",
+		ReviewedAt:     reviewedAt,
+		ReviewerRole:   DefaultAssociationReviewerRole,
+		AuthorityScope: DefaultAssociationReviewAuthorityScope,
+		ConflictPolicy: DefaultAssociationReviewConflictPolicy,
+		Comment:        "reviewed in COP",
 	}
 }
