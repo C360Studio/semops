@@ -8,6 +8,7 @@ EVIDENCE_STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 EVIDENCE_FILE="${SEMOPS_MAVLINK_SITL_EVIDENCE_FILE:-$EVIDENCE_DIR/${EVIDENCE_STAMP}-${MODE}.env}"
 
 SIMULATOR_NAME="${SEMOPS_MAVLINK_SITL_SIMULATOR_NAME:-}"
+SIMULATOR_FAMILY="${SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY:-}"
 SIMULATOR_VERSION="${SEMOPS_MAVLINK_SITL_SIMULATOR_VERSION:-}"
 SIMULATOR_COMMAND="${SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND:-}"
 SIMULATOR_ROUTE="${SEMOPS_MAVLINK_SITL_SIMULATOR_UDP_ROUTE:-127.0.0.1:${SEMOPS_MAVLINK_UDP_HOST_PORT:-14550}}"
@@ -51,16 +52,41 @@ have_px4_headless_image() {
   have_command docker && docker image inspect "$PX4_HEADLESS_IMAGE" >/dev/null 2>&1
 }
 
+docker_image_matches() {
+  local pattern="$1"
+  have_command docker && docker image ls --format '{{.Repository}}:{{.Tag}}' 2>/dev/null |
+    grep -Eiq "$pattern"
+}
+
 have_simulator_image() {
   if ! have_command docker; then
     return 1
   fi
-  have_px4_headless_image || docker image ls --format '{{.Repository}}:{{.Tag}}' 2>/dev/null |
-    grep -Eiq 'px4|mavsdk|ardupilot|arducopter'
+  have_px4_headless_image || docker_image_matches 'px4|mavsdk|ardupilot|arducopter'
 }
 
 have_local_simulator_tooling() {
   have_command px4 || have_command mavsdk_server || have_command sim_vehicle.py || have_simulator_image
+}
+
+have_family_simulator_tooling() {
+  case "$SIMULATOR_FAMILY" in
+    px4)
+      have_command px4 || have_px4_headless_image || docker_image_matches 'px4'
+      ;;
+    ardupilot)
+      have_command sim_vehicle.py || docker_image_matches 'ardupilot|arducopter'
+      ;;
+    mavsdk)
+      have_command mavsdk_server || docker_image_matches 'mavsdk'
+      ;;
+    hardware|other)
+      have_local_simulator_tooling
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 write_evidence() {
@@ -75,6 +101,7 @@ write_evidence() {
     echo "exit_status=$status"
     echo "semops_commit=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || true)"
     echo "simulator_name=$SIMULATOR_NAME"
+    echo "simulator_family=$SIMULATOR_FAMILY"
     echo "simulator_version=$SIMULATOR_VERSION"
     echo "simulator_command=$SIMULATOR_COMMAND"
     echo "simulator_udp_route=$SIMULATOR_ROUTE"
@@ -105,6 +132,7 @@ print_preflight() {
   echo "MAVLink SITL gate mode: $MODE"
   echo "Expected simulator UDP route: $SIMULATOR_ROUTE"
   echo "Expected COP track: $EXPECTED_TRACK_ID"
+  echo "Simulator family: ${SIMULATOR_FAMILY:-missing}"
   echo
   echo "Local simulator commands:"
   echo "  px4: $(command -v px4 2>/dev/null || echo missing)"
@@ -123,6 +151,38 @@ print_preflight() {
     docker image ls --format '  {{.Repository}}:{{.Tag}}' 2>/dev/null |
       grep -Ei 'px4|mavsdk|ardupilot|arducopter' || echo "  none"
   fi
+}
+
+require_simulator_family() {
+  case "$SIMULATOR_FAMILY" in
+    px4|ardupilot|mavsdk|hardware|other)
+      ;;
+    "")
+      cat >&2 <<'EOF'
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY is required for focused or stack mode.
+
+Use one of:
+  px4
+  ardupilot
+  mavsdk
+  hardware
+  other
+
+This guard prevents one simulator-family pass from being reused as ArduPilot, MAVSDK/offboard, or hardware parity.
+EOF
+      write_evidence "blocked_missing_simulator_family" 2
+      exit 2
+      ;;
+    *)
+      cat >&2 <<EOF
+Unsupported SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=$SIMULATOR_FAMILY
+
+Expected px4, ardupilot, mavsdk, hardware, or other.
+EOF
+      write_evidence "blocked_bad_simulator_family" 2
+      exit 2
+      ;;
+  esac
 }
 
 px4_headless_args() {
@@ -238,10 +298,11 @@ EOF
     write_evidence "blocked_missing_simulator_name" 2
     exit 2
   fi
+  require_simulator_family
 
-  if ! have_local_simulator_tooling && ! bool_is_true "$ALLOW_REMOTE_SOURCE"; then
-    cat >&2 <<'EOF'
-No local PX4, MAVSDK, ArduPilot command, or local simulator Docker image was found.
+  if ! have_family_simulator_tooling && ! bool_is_true "$ALLOW_REMOTE_SOURCE"; then
+    cat >&2 <<EOF
+No local simulator command or Docker image was found for family: $SIMULATOR_FAMILY
 
 If the simulator is running remotely or on hardware-adjacent infrastructure and is already sending MAVLink to the
 SemOps UDP route, set:
@@ -287,6 +348,14 @@ run_stack_smoke() {
 }
 
 run_px4_headless_stack_smoke() {
+  if [[ -n "$SIMULATOR_FAMILY" && "$SIMULATOR_FAMILY" != "px4" ]]; then
+    cat >&2 <<EOF
+px4-headless-stack mode requires SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=px4, got $SIMULATOR_FAMILY
+EOF
+    write_evidence "blocked_bad_px4_headless_family" 2
+    exit 2
+  fi
+  SIMULATOR_FAMILY="px4"
   if [[ -z "$SIMULATOR_NAME" ]]; then
     SIMULATOR_NAME="PX4 Gazebo headless Docker"
   fi
@@ -307,6 +376,10 @@ run_px4_headless_stack_smoke() {
     exit "$status"
   fi
 }
+
+if [[ "$MODE" == "px4-headless-stack" && -z "$SIMULATOR_FAMILY" ]]; then
+  SIMULATOR_FAMILY="px4"
+fi
 
 print_preflight
 

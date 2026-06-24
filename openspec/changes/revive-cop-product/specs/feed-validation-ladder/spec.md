@@ -160,6 +160,8 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the smoke must assert live MAVLink feed health, source-owned provenance, non-empty source reference, position,
   velocity or equivalent state evidence, and repeated simulator updates before it is cited as simulator-fidelity
   evidence
+- **AND** focused or stack evidence must record an explicit simulator family (`px4`, `ardupilot`, `mavsdk`,
+  `hardware`, or `other`) before it is cited as parity evidence
 - **AND** passing telemetry evidence for one simulator family SHALL NOT imply ArduPilot parity, MAVSDK/offboard parity,
   live command transmit, or broader command/control authority
 - **AND** live command transmit, mission state, command ACK reconciliation, serial/TCP transports, signed links, and
@@ -222,7 +224,9 @@ public conformance suite, or documented interoperability test backs the claim.
 - **WHEN** SemOps provides a helper for the external SITL gate
 - **THEN** preflight mode MAY run local readiness checks and the guarded skip test without simulator attestation
 - **AND** focused or stack mode SHALL require a named simulator source before running the evidence gate
-- **AND** focused or stack mode SHALL require local simulator tooling or an explicit remote-source override
+- **AND** focused or stack mode SHALL require a simulator family before running the evidence gate
+- **AND** focused or stack mode SHALL require local simulator tooling for the declared simulator family or an explicit
+  remote-source override
 - **AND** helper evidence SHALL be written to ignored local paths rather than committed as portable demo evidence
 
 #### Scenario: SAPIENT parser preflight is not conformance

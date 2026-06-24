@@ -58,6 +58,9 @@ Useful optional knobs:
 This is the fastest path to simulator-fidelity telemetry evidence. It is not official PX4 conformance and should not
 be used for command authority claims without a separate reviewed command/ACK/state gate.
 
+The PX4 helper stamps evidence with `simulator_family=px4`. That PX4 evidence must not be used to close ArduPilot,
+MAVSDK/offboard, hardware, or command-control parity gates.
+
 The official PX4 Docker docs remain useful as the upstream build/reference path. As of the 2026-06-23 check, PX4
 documents `px4io/px4-dev:<version>` as the recommended build container and says a dedicated `px4-sim` image is planned.
 Older `px4io/px4-dev-simulation-*` images still exist but are no longer the recommended path.
@@ -89,6 +92,10 @@ host or in local Docker images, do not run the stack gate and do not close the P
 
 The helper writes a local ignored evidence file under `tmp/mavlink-sitl-evidence/`.
 
+Focused and stack modes also require `SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY`. Use one of `px4`, `ardupilot`,
+`mavsdk`, `hardware`, or `other`. The family is written to the evidence file so one simulator-family pass cannot be
+reused as another family or as command-control authority.
+
 ## One-Command Stack Gate
 
 Start the simulator first, or keep it ready to emit telemetry while the stack starts. Then run:
@@ -96,6 +103,7 @@ Start the simulator first, or keep it ready to emit telemetry while the stack st
 ```bash
 SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
 SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL <version>" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=px4 \
 SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="<simulator launch command>" \
 bash scripts/mavlink-sitl-gate.sh
 ```
@@ -108,8 +116,30 @@ For stricter motion evidence:
 ```bash
 SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
 SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL <version>" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=px4 \
 SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="<simulator launch command>" \
 SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+ArduPilot telemetry parity uses the same hosted SemOps path, but must declare its own family and launch evidence:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="ArduPilot SITL <vehicle/version>" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=ardupilot \
+SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="sim_vehicle.py <args that route MAVLink to 127.0.0.1:14550>" \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+MAVSDK/offboard parity is also separate from raw PX4 telemetry. If a MAVSDK route is the evidence source, stamp it as
+`mavsdk` and keep command/offboard authority closed until a command-control gate exists:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="MAVSDK route <version>" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=mavsdk \
+SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="<MAVSDK/PX4 offboard launch command>" \
 bash scripts/mavlink-sitl-gate.sh
 ```
 
@@ -120,6 +150,7 @@ If the COP stack is already running and a simulator is emitting telemetry:
 ```bash
 SEMOPS_MAVLINK_SITL_GATE_MODE=focused \
 SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL <version>" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=px4 \
 SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL=http://127.0.0.1:8080/api/cop/snapshot \
 SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID=c360.edge-compose.cop.mavlink.track.system-1 \
 bash scripts/mavlink-sitl-gate.sh
@@ -154,4 +185,5 @@ Passing this smoke is simulator telemetry evidence only. Command authority and m
 reviewed gate with safe commands, ACK handling, post-command state polling, and simulator-specific readiness checks.
 
 For a future pass, record the simulator name and version, launch command, system ID, UDP route, SemOps commit,
-stack-smoke command, pass/fail result, whether motion was required, and any unresolved simulator limitations.
+simulator family, stack-smoke command, pass/fail result, whether motion was required, and any unresolved simulator
+limitations.

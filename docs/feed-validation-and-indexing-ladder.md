@@ -204,8 +204,10 @@ Mock or harness:
   PX4/MAVSDK/ArduPilot simulator Docker image. The external SITL smoke skip behavior passed, and focused
   parser/projector/component tests passed, but this is readiness-gap evidence only.
 - `scripts/mavlink-sitl-gate.sh` now provides guarded `preflight`, `focused`, and `stack` modes. Focused and stack
-  modes require `SEMOPS_MAVLINK_SITL_SIMULATOR_NAME`, and require local simulator tooling or an explicit
-  `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true` override before running the evidence gate.
+  modes require `SEMOPS_MAVLINK_SITL_SIMULATOR_NAME` and
+  `SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY` (`px4`, `ardupilot`, `mavsdk`, `hardware`, or `other`), and require local
+  simulator tooling for that family or an explicit `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true` override before
+  running the evidence gate.
 - PX4/Gazebo headless telemetry smoke now has local pass evidence with and without motion required. Treat that as
   PX4 telemetry evidence only; ArduPilot parity, MAVSDK/offboard parity, and live command/control remain separate
   open gates.

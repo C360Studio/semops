@@ -202,6 +202,8 @@
 - [ ] 5.96 Add MAVSDK/PX4 offboard parity evidence before claiming MAVSDK command/control or offboard interoperability
 - [ ] 5.97 Add a safe live MAVLink command/control simulator gate with ACK and post-command state polling before native
       command authority claims
+- [x] 5.98 Add simulator-family evidence stamping so PX4 telemetry passes cannot satisfy ArduPilot, MAVSDK/offboard,
+      hardware, or command-control parity gates
 
 ## 6. Structural COP Stack
 

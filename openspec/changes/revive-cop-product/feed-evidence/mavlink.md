@@ -298,6 +298,10 @@ Acceptance:
 - Local readiness preflight records whether PX4, MAVSDK, ArduPilot, or equivalent simulator tooling is actually
   available before attempting the stack gate. [done: 2026-06-23 no simulator runtime found]
 - Focused and stack helpers require a named simulator source before running the evidence gate. [done]
+- Focused and stack helpers require an explicit simulator family before running the evidence gate, and helper evidence
+  records `simulator_family` so PX4, ArduPilot, MAVSDK, hardware, and other MAVLink evidence cannot be collapsed into
+  one generic pass. The helper also requires local tooling for the declared family, or an explicit remote-source
+  override, before running the gate. [done]
 - Preferred PX4/Gazebo headless Docker helper is wired, fail-closed on missing local image unless pull is explicitly
   enabled, and records simulator image/vehicle/world evidence. [done and passed against pulled image on 2026-06-23]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs telemetry parity checks before
@@ -339,6 +343,8 @@ Acceptance:
 - The external SITL telemetry smoke harness has passed against PX4/Gazebo headless Docker with and without
   motion-required assertions. The old bundled `5.4` gate is closed only for parser/generator and PX4 telemetry
   evidence; ArduPilot parity, MAVSDK/offboard parity, and live command/control remain separate open gates.
+- The helper now fail-closes focused/stack evidence unless the run declares `SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY`.
+  PX4 headless mode stamps `px4` automatically and refuses contradictory family values.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
 - Command codec coverage and COMMAND_ACK readback projection are active, but live command transmit, command
@@ -352,4 +358,5 @@ Acceptance:
 - Is there exactly one current vehicle graph entity per vehicle, not one entity per packet?
 - Does low-battery alert state belong to the feed owner or a derived rule owner?
 - Does raw/replay detail stay out of semantic indexing?
-- Does the demo claim all-family MAVLink simulator coverage from one PX4/Gazebo telemetry gate?
+- Does the demo claim all-family MAVLink simulator coverage from one PX4/Gazebo telemetry gate, or does the evidence
+  name the simulator family that actually passed?

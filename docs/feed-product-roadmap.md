@@ -176,7 +176,9 @@ and staleness behavior.
 
 Boundary to preserve now:
 Keep codec, raw lane, transport listener, projector, and command authority separate so simulator and hardware support
-can grow without changing graph ownership.
+can grow without changing graph ownership. Simulator evidence must also name its family (`px4`, `ardupilot`,
+`mavsdk`, `hardware`, or `other`) so one telemetry pass cannot be reused as another simulator or command-control
+claim.
 
 Not claimed yet:
 Full GCS/autopilot management, hardware certification, or complete mission-command product.
