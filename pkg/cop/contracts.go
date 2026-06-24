@@ -17,6 +17,7 @@ const (
 	EntityAdvisory           = "advisory"
 	EntityWeatherObservation = "weather_observation"
 	EntityAssociation        = "association"
+	EntityAssociationReview  = "association_review"
 )
 
 const (
@@ -54,6 +55,12 @@ const (
 	AssociationDistanceMeters   = "cop.association.distance_meters"
 	AssociationTimeDeltaSeconds = "cop.association.time_delta_seconds"
 	AssociationObservedAt       = "cop.association.observed_at"
+
+	AssociationReviewAssociation = "cop.association_review.association"
+	AssociationReviewDecision    = "cop.association_review.decision"
+	AssociationReviewReviewedBy  = "cop.association_review.reviewed_by"
+	AssociationReviewReviewedAt  = "cop.association_review.reviewed_at"
+	AssociationReviewComment     = "cop.association_review.comment"
 
 	AssetName     = "cop.asset.name"
 	AssetKind     = "cop.asset.kind"
@@ -135,6 +142,7 @@ var FirstCanonicalEntitySet = []string{
 	EntityAdvisory,
 	EntityWeatherObservation,
 	EntityAssociation,
+	EntityAssociationReview,
 }
 
 // OwnedContract binds a product projection contract to the SemOps owner that
@@ -567,6 +575,36 @@ func FusionTrackAssociationContract() projection.Contract {
 	}
 }
 
+// FusionAssociationReviewContract owns operator review/audit state for derived
+// fusion association evidence. It records the operator decision without
+// mutating the association score, source tracks, or feed-owned state.
+func FusionAssociationReviewContract() projection.Contract {
+	return projection.Contract{
+		Name:            "semops.cop.association-review.operator-current-state",
+		MessageType:     "semops.fusion.association_review.v1",
+		EntityPattern:   SourceEntityPattern("fusion", EntityAssociationReview),
+		IndexingProfile: "control",
+		Groups: []projection.PredicateGroup{{
+			Mode: ownership.ModeReplaceOwned,
+			Predicates: []string{
+				AssociationReviewDecision,
+				AssociationReviewReviewedBy,
+				AssociationReviewReviewedAt,
+				AssociationReviewComment,
+				ProvenanceSource,
+				ProvenanceConfidence,
+				ProvenanceObservedAt,
+				ProvenanceSourceRef,
+			},
+		}},
+		ForeignEdges: []projection.ForeignEdge{{
+			Predicate:     AssociationReviewAssociation,
+			Mode:          ownership.EdgeStrict,
+			TargetPattern: SourceEntityPattern("fusion", EntityAssociation),
+		}},
+	}
+}
+
 // FirstPhaseOwnedContracts returns the initial strict, tolerant, and derived
 // contract set used to gate first-phase feed implementation.
 func FirstPhaseOwnedContracts() []OwnedContract {
@@ -581,5 +619,6 @@ func FirstPhaseOwnedContracts() []OwnedContract {
 		{Owner: OwnerCAP, Contract: CAPHazardEvidenceContract()},
 		{Owner: OwnerFusion, Contract: FusionAlertContract()},
 		{Owner: OwnerFusion, Contract: FusionTrackAssociationContract()},
+		{Owner: OwnerFusion, Contract: FusionAssociationReviewContract()},
 	}
 }

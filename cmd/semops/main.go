@@ -15,6 +15,7 @@ import (
 	copapi "github.com/c360studio/semops/internal/api/cop"
 	semopsapp "github.com/c360studio/semops/internal/app"
 	"github.com/c360studio/semops/internal/componentmetrics"
+	fusionprojector "github.com/c360studio/semops/internal/projectors/fusion"
 	"github.com/c360studio/semstreams/metric"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -85,6 +86,7 @@ func main() {
 
 func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server, error) {
 	provider := copapi.SnapshotProvider(copapi.NewFixtureProvider(nil))
+	reviewStore := copapi.AssociationReviewStore(copapi.NewMemoryAssociationReviewStore())
 	if runtime != nil {
 		if requester := runtime.GraphRequester(); requester != nil {
 			graphProvider, err := copapi.NewGraphProvider(
@@ -105,9 +107,25 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 				return nil, err
 			}
 			provider = graphProvider
+			graphReviewStore, err := copapi.NewGraphAssociationReviewStore(
+				reviewStore,
+				copapi.AssociationReviewGraphStoreConfig{
+					Org:      cfg.Fusion.Org,
+					Platform: cfg.Fusion.Platform,
+					Projector: fusionprojector.NewProjector(fusionprojector.Config{
+						OwnerTokens: runtime.OwnershipBinding().OwnerTokenMap(),
+						TraceID:     cfg.Fusion.TraceID,
+					}),
+					Writer: copapi.NewAssociationReviewGraphWriter(requester, cfg.Fusion.WriteTimeout),
+				},
+			)
+			if err != nil {
+				return nil, err
+			}
+			reviewStore = graphReviewStore
 		}
 	}
-	handlerOptions := []copapi.Option{}
+	handlerOptions := []copapi.Option{copapi.WithAssociationReviewStore(reviewStore)}
 	if runtime != nil {
 		handlerOptions = append(handlerOptions, copapi.WithRuntimeProvider(runtime))
 	}

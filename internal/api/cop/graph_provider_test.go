@@ -12,6 +12,7 @@ import (
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
 	commandprojector "github.com/c360studio/semops/internal/projectors/command"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
+	fusionprojector "github.com/c360studio/semops/internal/projectors/fusion"
 	klvprojector "github.com/c360studio/semops/internal/projectors/klv"
 	sapientprojector "github.com/c360studio/semops/internal/projectors/sapient"
 	weatherprojector "github.com/c360studio/semops/internal/projectors/weather"
@@ -631,6 +632,7 @@ func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
 	observed := now.Add(-12 * time.Second)
 	platform := "edge-fusion"
 	associationID := "c360.edge-fusion.cop.fusion.association.mavlink-to-adsb"
+	reviewID := fusionprojector.AssociationReviewEntityID("c360", platform, associationID)
 	mavlinkTrackID := "c360.edge-fusion.cop.mavlink.track.system-42"
 	adsbTrackID := "c360.edge-fusion.cop.adsb.track.a1b2c3"
 	requester := &fakeGraphSnapshotRequester{
@@ -653,6 +655,19 @@ func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
 					testTriple(associationID, copmodel.ProvenanceConfidence, 0.875, observed),
 					testTriple(associationID, copmodel.ProvenanceObservedAt, observed, observed),
 					testTriple(associationID, copmodel.ProvenanceSourceRef, "primary=mavlink://raw/udp/0001 candidate=adsb://opensky/state/0001", observed),
+				},
+			}},
+			graphEntityPrefix("c360", platform, "fusion", copmodel.EntityAssociationReview): {{
+				ID:        reviewID,
+				UpdatedAt: observed.Add(2 * time.Second),
+				Triples: []message.Triple{
+					testTriple(reviewID, copmodel.AssociationReviewAssociation, associationID, observed),
+					testTriple(reviewID, copmodel.AssociationReviewDecision, "challenged", observed),
+					testTriple(reviewID, copmodel.AssociationReviewReviewedBy, "operator:lead", observed),
+					testTriple(reviewID, copmodel.AssociationReviewReviewedAt, observed.Add(2*time.Second), observed.Add(2*time.Second)),
+					testTriple(reviewID, copmodel.AssociationReviewComment, "ADS-B altitude mismatch", observed.Add(2*time.Second)),
+					testTriple(reviewID, copmodel.ProvenanceSource, "operator.association_review", observed.Add(2*time.Second)),
+					testTriple(reviewID, copmodel.ProvenanceObservedAt, observed.Add(2*time.Second), observed.Add(2*time.Second)),
 				},
 			}},
 		},
@@ -694,6 +709,12 @@ func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
 		!strings.Contains(association.ClaimPosture, "no source-track merge") {
 		t.Fatalf("association reason/posture = %q / %q", association.Reason, association.ClaimPosture)
 	}
+	if association.OperatorReview == nil ||
+		association.OperatorReview.Decision != AssociationReviewChallenged ||
+		association.OperatorReview.ReviewedBy != "operator:lead" ||
+		association.OperatorReview.Comment != "ADS-B altitude mismatch" {
+		t.Fatalf("association review = %+v", association.OperatorReview)
+	}
 	fusionFeed := findFeed(snapshot.Feeds, "feed.fusion")
 	if fusionFeed.Status != "live" || fusionFeed.Message != "Graph-backed fusion association evidence" {
 		t.Fatalf("fusion feed = %+v", fusionFeed)
@@ -704,6 +725,13 @@ func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
 	}
 	if diagnostic.Family != "fusion" || diagnostic.Count != 1 || diagnostic.AtLimit {
 		t.Fatalf("fusion diagnostic = %+v", diagnostic)
+	}
+	reviewDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "fusion", copmodel.EntityAssociationReview)
+	if !ok {
+		t.Fatalf("missing fusion association review diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if reviewDiagnostic.Family != "fusion" || reviewDiagnostic.Count != 1 || reviewDiagnostic.AtLimit {
+		t.Fatalf("fusion review diagnostic = %+v", reviewDiagnostic)
 	}
 }
 
@@ -1019,7 +1047,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if snapshot.Hazards[0].ID != hazardID || snapshot.Hazards[0].Source != "cap" {
 		t.Fatalf("hazard = %+v", snapshot.Hazards[0])
 	}
-	if len(requester.prefixRequests) != 13 {
+	if len(requester.prefixRequests) != 14 {
 		t.Fatalf("prefix requests = %+v", requester.prefixRequests)
 	}
 	for _, subject := range requester.subjects {
@@ -1030,7 +1058,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
-	if len(snapshot.Diagnostics.Discovery) != 13 {
+	if len(snapshot.Diagnostics.Discovery) != 14 {
 		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
 	}
 	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)

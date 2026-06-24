@@ -7,6 +7,7 @@ import (
 
 	fusionassociation "github.com/c360studio/semops/internal/fusion/association"
 	"github.com/c360studio/semops/pkg/cop"
+	"github.com/c360studio/semstreams/graph"
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/pkg/ownership"
 )
@@ -96,6 +97,80 @@ func TestProjectAssociationRejectsMalformedEvidence(t *testing.T) {
 	}
 }
 
+func TestProjectAssociationReviewCreatesBornFirstAudit(t *testing.T) {
+	review := sampleReview(time.Date(2026, 6, 24, 1, 35, 0, 0, time.UTC))
+	projector := NewProjector(Config{
+		OwnerTokens: map[string]ownership.OwnerToken{
+			cop.OwnerFusion: ownership.ExpectedOwnerToken(cop.OwnerFusion, "lease-123"),
+		},
+		TraceID: "trace-review",
+	})
+
+	plan, err := projector.ProjectAssociationReview(review)
+	if err != nil {
+		t.Fatalf("project association review: %v", err)
+	}
+	if len(plan.Mutations) != 1 {
+		t.Fatalf("mutations = %d, want review birth", len(plan.Mutations))
+	}
+	create := requireCreate(t, plan.Mutations[0])
+	wantID := AssociationReviewEntityID(review.Org, review.Platform, review.AssociationID)
+	if create.Entity.ID != wantID {
+		t.Fatalf("review entity id = %q, want %q", create.Entity.ID, wantID)
+	}
+	if create.Entity.MessageType.String() != cop.FusionAssociationReviewContract().MessageType {
+		t.Fatalf("message type = %s, want %s", create.Entity.MessageType.String(), cop.FusionAssociationReviewContract().MessageType)
+	}
+	if create.OwnerToken != "semops.fusion.structural#lease-123" {
+		t.Fatalf("owner token = %q", create.OwnerToken)
+	}
+	requireTriple(t, create.Triples, cop.AssociationReviewAssociation, review.AssociationID)
+	requireTriple(t, create.Triples, cop.AssociationReviewDecision, "challenged")
+	requireTriple(t, create.Triples, cop.AssociationReviewReviewedBy, "operator:lead")
+	requireTriple(t, create.Triples, cop.AssociationReviewReviewedAt, review.ReviewedAt)
+	requireTriple(t, create.Triples, cop.AssociationReviewComment, "TAK point stale")
+	requireTriple(t, create.Triples, cop.ProvenanceSource, "operator.association_review")
+}
+
+func TestProjectAssociationReviewUpdatesWithoutRepeatingStrictAssociationEdge(t *testing.T) {
+	review := sampleReview(time.Date(2026, 6, 24, 1, 40, 0, 0, time.UTC))
+	projector := NewProjector(Config{})
+	createPlan, err := projector.ProjectAssociationReview(review)
+	if err != nil {
+		t.Fatalf("create association review: %v", err)
+	}
+	create := requireCreate(t, createPlan.Mutations[0])
+	projector.MarkBornForAssociationReview(review, create.Entity.ID)
+
+	review.Decision = "acknowledged"
+	review.Comment = ""
+	updatePlan, err := projector.ProjectAssociationReview(review)
+	if err != nil {
+		t.Fatalf("update association review: %v", err)
+	}
+	if len(updatePlan.Mutations) != 1 {
+		t.Fatalf("mutations = %d, want review update", len(updatePlan.Mutations))
+	}
+	update := requireUpdate(t, updatePlan.Mutations[0])
+	requireTriple(t, update.AddTriples, cop.AssociationReviewDecision, "acknowledged")
+	requireTriple(t, update.AddTriples, cop.AssociationReviewComment, "")
+	for _, triple := range update.AddTriples {
+		if triple.Predicate == cop.AssociationReviewAssociation {
+			t.Fatalf("update repeated strict association edge: %+v", triple)
+		}
+	}
+}
+
+func TestProjectAssociationReviewRejectsMalformedEvidence(t *testing.T) {
+	projector := NewProjector(Config{})
+	review := sampleReview(time.Date(2026, 6, 24, 1, 45, 0, 0, time.UTC))
+	review.AssociationID = ""
+
+	if _, err := projector.ProjectAssociationReview(review); err == nil || !strings.Contains(err.Error(), "association id") {
+		t.Fatalf("error = %v, want association id validation", err)
+	}
+}
+
 func sampleEvidence(observed time.Time) fusionassociation.Evidence {
 	return fusionassociation.Evidence{
 		EntityID:           "c360.edge.cop.fusion.association.mavlink-to-adsb",
@@ -111,6 +186,34 @@ func sampleEvidence(observed time.Time) fusionassociation.Evidence {
 		PrimarySourceRef:   "mavlink://raw/udp/0001",
 		CandidateSourceRef: "adsb://opensky/state/0001",
 	}
+}
+
+func sampleReview(reviewedAt time.Time) AssociationReviewEvidence {
+	return AssociationReviewEvidence{
+		Org:           "c360",
+		Platform:      "edge",
+		AssociationID: "c360.edge.cop.fusion.association.mavlink-to-tak",
+		Decision:      "challenged",
+		ReviewedBy:    "operator:lead",
+		ReviewedAt:    reviewedAt,
+		Comment:       "TAK point stale",
+	}
+}
+
+func requireCreate(t *testing.T, mutation Mutation) graph.CreateEntityWithTriplesRequest {
+	t.Helper()
+	if mutation.Kind != MutationCreate {
+		t.Fatalf("mutation kind = %q, want create", mutation.Kind)
+	}
+	return mutation.Create
+}
+
+func requireUpdate(t *testing.T, mutation Mutation) graph.UpdateEntityWithTriplesRequest {
+	t.Helper()
+	if mutation.Kind != MutationUpdate {
+		t.Fatalf("mutation kind = %q, want update", mutation.Kind)
+	}
+	return mutation.Update
 }
 
 func requireTriple(t *testing.T, triples []message.Triple, predicate string, want any) {

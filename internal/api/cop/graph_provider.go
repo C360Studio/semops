@@ -238,6 +238,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 	footprintsByID := make(map[string]graph.EntityState)
 	weatherByID := make(map[string]graph.EntityState)
 	associationsByID := make(map[string]graph.EntityState)
+	associationReviewsByID := make(map[string]graph.EntityState)
 	var firstErr error
 
 	var discovered graphDiscoveryResult
@@ -252,6 +253,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 			footprintsByID,
 			weatherByID,
 			associationsByID,
+			associationReviewsByID,
 		); err != nil {
 			firstErr = errors.Join(firstErr, err)
 			discovered = result
@@ -317,7 +319,8 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		len(hazardsByID) == 0 &&
 		len(footprintsByID) == 0 &&
 		len(weatherByID) == 0 &&
-		len(associationsByID) == 0 {
+		len(associationsByID) == 0 &&
+		len(associationReviewsByID) == 0 {
 		if p.fallback != nil {
 			return p.fallback.Snapshot(ctx)
 		}
@@ -335,6 +338,7 @@ func (p *GraphProvider) Snapshot(ctx context.Context) (Snapshot, error) {
 		footprintsByID,
 		weatherByID,
 		associationsByID,
+		associationReviewsByID,
 		discovered.diagnostics,
 	), nil
 }
@@ -370,6 +374,7 @@ func (p *GraphProvider) discoverInto(
 	footprintsByID map[string]graph.EntityState,
 	weatherByID map[string]graph.EntityState,
 	associationsByID map[string]graph.EntityState,
+	associationReviewsByID map[string]graph.EntityState,
 ) (graphDiscoveryResult, error) {
 	var result graphDiscoveryResult
 	var firstErr error
@@ -421,6 +426,8 @@ func (p *GraphProvider) discoverInto(
 				weatherByID[entity.ID] = entity
 			case copmodel.EntityAssociation:
 				associationsByID[entity.ID] = entity
+			case copmodel.EntityAssociationReview:
+				associationReviewsByID[entity.ID] = entity
 			}
 		}
 		result.diagnostics = append(result.diagnostics, target.diagnostic(p.discovery.Limit, count, truncated, nil))
@@ -429,7 +436,7 @@ func (p *GraphProvider) discoverInto(
 }
 
 func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
-	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*13)
+	targets := make([]graphDiscoveryTarget, 0, len(p.discovery.Scopes)*14)
 	for _, scope := range p.discovery.Scopes {
 		targets = append(targets,
 			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityAsset, "mavlink"),
@@ -445,6 +452,7 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 			newGraphDiscoveryTarget(scope, "klv", copmodel.EntitySensorFootprint, "klv"),
 			newGraphDiscoveryTarget(scope, "weather", copmodel.EntityWeatherObservation, "weather"),
 			newGraphDiscoveryTarget(scope, "fusion", copmodel.EntityAssociation, "fusion"),
+			newGraphDiscoveryTarget(scope, "fusion", copmodel.EntityAssociationReview, "fusion"),
 		)
 	}
 	return targets
@@ -637,6 +645,7 @@ func (p *GraphProvider) snapshotFromGraph(
 	footprintsByID map[string]graph.EntityState,
 	weatherByID map[string]graph.EntityState,
 	associationsByID map[string]graph.EntityState,
+	associationReviewsByID map[string]graph.EntityState,
 	discoveryDiagnostics []DiscoveryDiagnostic,
 ) Snapshot {
 	now := p.now().UTC()
@@ -704,9 +713,13 @@ func (p *GraphProvider) snapshotFromGraph(
 	}
 
 	associations := make([]Association, 0, len(associationsByID))
+	associationReviews := associationReviewsByAssociationID(associationReviewsByID)
 	for _, entity := range sortedEntities(associationsByID) {
 		association, ok := associationFromEntity(entity, now, p.freshness)
 		if ok {
+			if review, reviewed := associationReviews[association.ID]; reviewed {
+				association.OperatorReview = &review
+			}
 			associations = append(associations, association)
 		}
 	}
@@ -1467,6 +1480,35 @@ func associationFromEntity(entity graph.EntityState, now time.Time, freshness ti
 			SourceRef: latestStringProperty(entity, copmodel.ProvenanceSourceRef, ""),
 			Observed:  updatedAt,
 		},
+	}, true
+}
+
+func associationReviewsByAssociationID(reviewEntities map[string]graph.EntityState) map[string]AssociationReview {
+	reviews := make(map[string]AssociationReview, len(reviewEntities))
+	for _, entity := range sortedEntities(reviewEntities) {
+		review, ok := associationReviewFromEntity(entity)
+		if !ok {
+			continue
+		}
+		reviews[review.AssociationID] = review
+	}
+	return reviews
+}
+
+func associationReviewFromEntity(entity graph.EntityState) (AssociationReview, bool) {
+	associationID := latestStringProperty(entity, copmodel.AssociationReviewAssociation, "")
+	decision := latestStringProperty(entity, copmodel.AssociationReviewDecision, "")
+	reviewedBy := latestStringProperty(entity, copmodel.AssociationReviewReviewedBy, "")
+	reviewedAt := latestObservedAt(entity, copmodel.AssociationReviewReviewedAt, copmodel.ProvenanceObservedAt)
+	if associationID == "" || decision == "" || reviewedBy == "" || reviewedAt.IsZero() {
+		return AssociationReview{}, false
+	}
+	return AssociationReview{
+		AssociationID: associationID,
+		Decision:      normalizeAssociationReviewDecision(decision),
+		ReviewedBy:    reviewedBy,
+		ReviewedAt:    reviewedAt,
+		Comment:       latestStringProperty(entity, copmodel.AssociationReviewComment, ""),
 	}, true
 }
 

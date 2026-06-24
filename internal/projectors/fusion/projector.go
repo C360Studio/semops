@@ -29,8 +29,9 @@ type Config struct {
 }
 
 type Projector struct {
-	cfg              Config
-	bornAssociations map[string]struct{}
+	cfg                    Config
+	bornAssociations       map[string]struct{}
+	bornAssociationReviews map[string]struct{}
 }
 
 type Plan struct {
@@ -46,9 +47,20 @@ type Mutation struct {
 func NewProjector(cfg Config) *Projector {
 	cfg.OwnerTokens = cloneOwnerTokens(cfg.OwnerTokens)
 	return &Projector{
-		cfg:              cfg,
-		bornAssociations: make(map[string]struct{}),
+		cfg:                    cfg,
+		bornAssociations:       make(map[string]struct{}),
+		bornAssociationReviews: make(map[string]struct{}),
 	}
+}
+
+type AssociationReviewEvidence struct {
+	Org           string
+	Platform      string
+	AssociationID string
+	Decision      string
+	ReviewedBy    string
+	ReviewedAt    time.Time
+	Comment       string
 }
 
 func (p *Projector) ProjectAssociation(evidence fusionassociation.Evidence) (Plan, error) {
@@ -66,6 +78,10 @@ func (p *Projector) ProjectAssociations(evidence []fusionassociation.Evidence) (
 		plan.Mutations = append(plan.Mutations, next.Mutations...)
 	}
 	return plan, nil
+}
+
+func (p *Projector) ProjectAssociationReview(evidence AssociationReviewEvidence) (Plan, error) {
+	return p.projectAssociationReview(evidence, cloneStringSet(p.bornAssociationReviews))
 }
 
 func (p *Projector) projectAssociation(
@@ -114,6 +130,52 @@ func (p *Projector) projectAssociation(
 	}}}, nil
 }
 
+func (p *Projector) projectAssociationReview(
+	evidence AssociationReviewEvidence,
+	born map[string]struct{},
+) (Plan, error) {
+	if p == nil {
+		return Plan{}, fmt.Errorf("fusion projector is nil")
+	}
+	if err := validateAssociationReview(evidence); err != nil {
+		return Plan{}, err
+	}
+	entityID := AssociationReviewEntityID(evidence.Org, evidence.Platform, evidence.AssociationID)
+	createTriples := p.associationReviewTriples(entityID, evidence, true)
+	if _, ok := born[entityID]; !ok {
+		born[entityID] = struct{}{}
+		return Plan{Mutations: []Mutation{{
+			Kind: MutationCreate,
+			Create: graph.CreateEntityWithTriplesRequest{
+				Entity: &graph.EntityState{
+					ID:          entityID,
+					MessageType: messageType(cop.FusionAssociationReviewContract().MessageType),
+					UpdatedAt:   evidence.ReviewedAt.UTC(),
+				},
+				Triples:         createTriples,
+				IndexingProfile: cop.FusionAssociationReviewContract().IndexingProfile,
+				OwnerToken:      p.ownerToken(cop.OwnerFusion),
+				TraceID:         p.cfg.TraceID,
+				RequestID:       requestID("create-association-review", entityID),
+			},
+		}}}, nil
+	}
+
+	return Plan{Mutations: []Mutation{{
+		Kind: MutationUpdate,
+		Update: graph.UpdateEntityWithTriplesRequest{
+			Entity: &graph.EntityState{
+				ID: entityID,
+			},
+			AddTriples:      p.associationReviewTriples(entityID, evidence, false),
+			IndexingProfile: cop.FusionAssociationReviewContract().IndexingProfile,
+			OwnerToken:      p.ownerToken(cop.OwnerFusion),
+			TraceID:         p.cfg.TraceID,
+			RequestID:       requestID("update-association-review", entityID),
+		},
+	}}}, nil
+}
+
 func (p *Projector) MarkBornForPlan(plan Plan) int {
 	if p == nil {
 		return 0
@@ -137,6 +199,14 @@ func (p *Projector) MarkBornForAssociation(evidence fusionassociation.Evidence, 
 		return false
 	}
 	p.bornAssociations[entityID] = struct{}{}
+	return true
+}
+
+func (p *Projector) MarkBornForAssociationReview(evidence AssociationReviewEvidence, entityID string) bool {
+	if p == nil || entityID == "" || entityID != AssociationReviewEntityID(evidence.Org, evidence.Platform, evidence.AssociationID) {
+		return false
+	}
+	p.bornAssociationReviews[entityID] = struct{}{}
 	return true
 }
 
@@ -165,6 +235,28 @@ func (p *Projector) associationTriples(evidence fusionassociation.Evidence, incl
 	return triples
 }
 
+func (p *Projector) associationReviewTriples(
+	entityID string,
+	evidence AssociationReviewEvidence,
+	includeEdges bool,
+) []message.Triple {
+	when := evidence.ReviewedAt.UTC()
+	triples := []message.Triple{
+		p.reviewTriple(entityID, cop.AssociationReviewDecision, strings.ToLower(strings.TrimSpace(evidence.Decision)), evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewReviewedBy, evidence.ReviewedBy, evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewReviewedAt, when, evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewComment, evidence.Comment, evidence, when),
+		p.reviewTriple(entityID, cop.ProvenanceSource, "operator.association_review", evidence, when),
+		p.reviewTriple(entityID, cop.ProvenanceConfidence, 1.0, evidence, when),
+		p.reviewTriple(entityID, cop.ProvenanceObservedAt, when, evidence, when),
+		p.reviewTriple(entityID, cop.ProvenanceSourceRef, associationReviewSourceRef(evidence), evidence, when),
+	}
+	if includeEdges {
+		triples = append(triples, p.reviewTriple(entityID, cop.AssociationReviewAssociation, evidence.AssociationID, evidence, when))
+	}
+	return triples
+}
+
 func (p *Projector) triple(
 	subject string,
 	predicate string,
@@ -179,6 +271,23 @@ func (p *Projector) triple(
 		Source:     "fusion.track_association",
 		Timestamp:  when.UTC(),
 		Confidence: evidence.Confidence,
+	}
+}
+
+func (p *Projector) reviewTriple(
+	subject string,
+	predicate string,
+	object any,
+	evidence AssociationReviewEvidence,
+	when time.Time,
+) message.Triple {
+	return message.Triple{
+		Subject:    subject,
+		Predicate:  predicate,
+		Object:     object,
+		Source:     "operator.association_review",
+		Timestamp:  when.UTC(),
+		Confidence: 1,
 	}
 }
 
@@ -207,6 +316,25 @@ func validateAssociation(evidence fusionassociation.Evidence) error {
 	}
 }
 
+func validateAssociationReview(evidence AssociationReviewEvidence) error {
+	switch {
+	case strings.TrimSpace(evidence.Org) == "":
+		return fmt.Errorf("fusion association review org is required")
+	case strings.TrimSpace(evidence.Platform) == "":
+		return fmt.Errorf("fusion association review platform is required")
+	case strings.TrimSpace(evidence.AssociationID) == "":
+		return fmt.Errorf("fusion association review association id is required")
+	case strings.TrimSpace(evidence.Decision) == "":
+		return fmt.Errorf("fusion association review decision is required")
+	case strings.TrimSpace(evidence.ReviewedBy) == "":
+		return fmt.Errorf("fusion association review reviewer is required")
+	case evidence.ReviewedAt.IsZero():
+		return fmt.Errorf("fusion association review reviewed_at is required")
+	default:
+		return nil
+	}
+}
+
 func (p *Projector) ownerToken(owner string) string {
 	if p == nil || p.cfg.OwnerTokens == nil {
 		return ""
@@ -223,6 +351,48 @@ func associationSourceRef(evidence fusionassociation.Evidence) string {
 		parts = append(parts, "candidate="+evidence.CandidateSourceRef)
 	}
 	return strings.Join(parts, " ")
+}
+
+func associationReviewSourceRef(evidence AssociationReviewEvidence) string {
+	parts := []string{"association=" + evidence.AssociationID}
+	if evidence.ReviewedBy != "" {
+		parts = append(parts, "reviewer="+evidence.ReviewedBy)
+	}
+	return strings.Join(parts, " ")
+}
+
+func AssociationReviewEntityID(org, platform, associationID string) string {
+	return strings.Join([]string{
+		strings.TrimSpace(org),
+		strings.TrimSpace(platform),
+		"cop",
+		"fusion",
+		cop.EntityAssociationReview,
+		associationReviewToken(associationID),
+	}, ".")
+}
+
+func associationReviewToken(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range value {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			builder.WriteRune(r)
+			lastDash = false
+		default:
+			if builder.Len() > 0 && !lastDash {
+				builder.WriteRune('-')
+				lastDash = true
+			}
+		}
+	}
+	token := strings.Trim(builder.String(), "-")
+	if token == "" {
+		return strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return token
 }
 
 func requestID(prefix, entityID string) string {

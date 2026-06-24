@@ -811,9 +811,11 @@ First acceptance gate:
   knobs through env/runtime config and SemStreams component config schema.
 - Fusion association scoring also exposes source-priority tie-breaker and maximum observation-age stale-window config;
   hosted scoring uses the component clock as the stale-window reference time.
-- The COP API/UI now exposes demo-local operator acknowledge/challenge review for association evidence. Review does
-  not mutate source tracks, merge identities, change association status, or grant feed adapters association authority.
-- Remaining fusion authority gate: durable graph-backed operator-review audit and explicit identity/command semantics.
+- The COP API/UI now exposes operator acknowledge/challenge review for association evidence and writes hosted review
+  state through a fusion-owned graph-backed `association_review` audit entity. Review does not mutate source tracks,
+  merge identities, change association status, or grant feed adapters association authority.
+- Remaining fusion authority gate: explicit operator identity, role, conflict, upstream status, and identity/command
+  semantics.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress

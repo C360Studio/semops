@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -450,6 +451,7 @@ func TestHostedCOPSnapshotReflectsFusionAssociation(t *testing.T) {
 	defer ticker.Stop()
 
 	var lastErr error
+	var reviewPosted bool
 	for {
 		if err := sendMAVLinkFrames(ctx, mavlinkAddr, mavlinkFrames); err != nil {
 			lastErr = err
@@ -467,8 +469,22 @@ func TestHostedCOPSnapshotReflectsFusionAssociation(t *testing.T) {
 		} else if !snapshotHasTrack(snapshot, expectedCoTTrackID) {
 			lastErr = fmt.Errorf("snapshot missing close CoT track %s before fusion association: tracks=%d associations=%d",
 				expectedCoTTrackID, len(snapshot.Tracks), len(snapshot.Associations))
-		} else if snapshotHasFusionAssociation(snapshot, expectedMAVLinkTrackID, expectedCoTTrackID) {
-			return
+		} else if association, ok := fusionAssociation(snapshot, expectedMAVLinkTrackID, expectedCoTTrackID); ok {
+			if association.OperatorReview != nil &&
+				association.OperatorReview.Decision == copapi.AssociationReviewChallenged &&
+				association.OperatorReview.ReviewedBy == "smoke.operator" {
+				return
+			}
+			if !reviewPosted {
+				if err := postAssociationReview(ctx, client, snapshotURL, association.ID); err != nil {
+					lastErr = err
+				} else {
+					reviewPosted = true
+					lastErr = fmt.Errorf("fusion association review posted; waiting for graph-backed readback")
+				}
+			} else {
+				lastErr = fmt.Errorf("fusion association has no challenged operator review yet: association=%s", association.ID)
+			}
 		} else {
 			lastErr = fmt.Errorf("snapshot missing fusion association between %s and %s: associations=%d",
 				expectedMAVLinkTrackID, expectedCoTTrackID, len(snapshot.Associations))
@@ -835,6 +851,32 @@ func fetchSnapshot(ctx context.Context, client *http.Client, snapshotURL string)
 	return snapshot, nil
 }
 
+func postAssociationReview(ctx context.Context, client *http.Client, snapshotURL string, associationID string) error {
+	reviewURL := strings.TrimSuffix(snapshotURL, "/snapshot") +
+		"/associations/" + url.PathEscape(associationID) + "/review"
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		reviewURL,
+		strings.NewReader(`{"decision":"challenged","reviewed_by":"smoke.operator","comment":"smoke review"}`),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("association review status = %d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
 func fetchScenarioStatus(ctx context.Context, client *http.Client, statusURL string) (scenarioStatus, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
 	if err != nil {
@@ -1076,8 +1118,13 @@ func snapshotHasWeatherObservation(snapshot copapi.Snapshot) bool {
 }
 
 func snapshotHasFusionAssociation(snapshot copapi.Snapshot, leftTrackID, rightTrackID string) bool {
+	_, ok := fusionAssociation(snapshot, leftTrackID, rightTrackID)
+	return ok
+}
+
+func fusionAssociation(snapshot copapi.Snapshot, leftTrackID, rightTrackID string) (copapi.Association, bool) {
 	if snapshot.Scenario != "phase-1-live-graph" {
-		return false
+		return copapi.Association{}, false
 	}
 	for _, association := range snapshot.Associations {
 		if association.Source != "fusion" {
@@ -1090,20 +1137,23 @@ func snapshotHasFusionAssociation(snapshot copapi.Snapshot, leftTrackID, rightTr
 			continue
 		}
 		if association.Algorithm == "" || association.Confidence <= 0 {
-			return false
+			return copapi.Association{}, false
 		}
 		if association.DistanceMeters == nil || *association.DistanceMeters > 250 {
-			return false
+			return copapi.Association{}, false
 		}
 		if association.TimeDeltaSeconds == nil || *association.TimeDeltaSeconds > 10 {
-			return false
+			return copapi.Association{}, false
 		}
 		if !strings.Contains(association.ClaimPosture, "no source-track merge") {
-			return false
+			return copapi.Association{}, false
 		}
-		return association.Status == "associated" || association.Status == "ambiguous"
+		if association.Status == "associated" || association.Status == "ambiguous" {
+			return association, true
+		}
+		return copapi.Association{}, false
 	}
-	return false
+	return copapi.Association{}, false
 }
 
 func tracksMatchAssociation(association copapi.Association, leftTrackID, rightTrackID string) bool {
