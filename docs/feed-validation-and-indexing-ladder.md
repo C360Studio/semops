@@ -807,8 +807,9 @@ First acceptance gate:
   turning fusion association on in the default demo stack.
 - Row-level/API labels now render unreviewed association output as candidate or ambiguous evidence while preserving
   raw graph status for machine consumers.
-- Remaining fusion default gate: mission thresholds, ambiguity policy, source-priority/stale-window config, and
-  operator acknowledge/challenge affordances.
+- Fusion association scoring now exposes mission-configured distance, time-window, confidence, and ambiguity-margin
+  knobs through env/runtime config and SemStreams component config schema.
+- Remaining fusion default gate: source-priority/stale-window config and operator acknowledge/challenge affordances.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress

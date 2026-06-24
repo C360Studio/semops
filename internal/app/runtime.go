@@ -1379,8 +1379,12 @@ func (a *App) startFusionFlow(
 		CandidateSubject: cfg.CandidateSubject,
 		Registry:         registry,
 		Association: fusionassociation.Config{
-			Org:      cfg.Org,
-			Platform: cfg.Platform,
+			Org:               cfg.Org,
+			Platform:          cfg.Platform,
+			MaxDistanceMeters: cfg.AssociationMaxDistanceMeters,
+			MaxTimeDelta:      cfg.AssociationMaxTimeDelta,
+			MinConfidence:     cfg.AssociationMinConfidence,
+			AmbiguityMargin:   cfg.AssociationAmbiguityMargin,
 		},
 		Projector: fusionprojector.NewProjector(fusionprojector.Config{
 			OwnerTokens: bindings.OwnerTokenMap(),

@@ -530,9 +530,9 @@ profile semantics.
   graph slice is absolute-location detection projection/readback/runtime graph only.
 - Use the hosted fusion candidate producer and association processor for bounded graph-discovered source-track
   candidates and graph projection; the opt-in stack smoke now proves transport-seeded MAVLink/TAK association
-  readback, but automatic demo association, identity policy, and identity-fusion controls remain gated behind
-  default-safe row-level language, mission thresholds, ambiguity policy, and operator acknowledge/challenge
-  affordances.
+  readback, and association scoring is mission-configured for distance, time-window, confidence, and ambiguity margin;
+  automatic demo association, identity policy, and identity-fusion controls remain gated behind source-priority,
+  stale-window, and operator acknowledge/challenge affordances.
 
 ### Phase 3: Semantic Translation And Standards Interop
 

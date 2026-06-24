@@ -86,6 +86,16 @@ authoritative predicates.
 - **AND** the default stack keeps automatic demo association disabled until row-level UI language, mission thresholds,
   ambiguity policy, and operator acknowledge/challenge affordances are default-safe
 
+#### Scenario: Hosted association scoring uses mission-profile config
+
+- **WHEN** hosted fusion association is enabled
+- **THEN** SemOps can configure maximum source-track distance, maximum source-track observation time delta, minimum
+  confidence, and ambiguity margin without changing code
+- **AND** invalid or unsafe scoring values fail startup before the fusion projector subscribes
+- **AND** the fusion projector component exposes those scoring settings through its SemStreams config schema
+- **AND** source-priority, stale-window, and operator acknowledge/challenge policy remain required before default
+  automatic association can be enabled
+
 ### Requirement: Graph writes are born-first
 
 SemOps adapters SHALL follow SemStreams ADR-055 and ADR-056. Entity creation must happen through typed graph birth

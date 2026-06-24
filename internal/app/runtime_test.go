@@ -23,6 +23,7 @@ import (
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	weathercomponent "github.com/c360studio/semops/internal/components/weather"
 	"github.com/c360studio/semops/internal/copownership"
+	fusionassociation "github.com/c360studio/semops/internal/fusion/association"
 	"github.com/c360studio/semops/internal/graphrequest"
 	adsbprojector "github.com/c360studio/semops/internal/projectors/adsb"
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
@@ -1602,6 +1603,10 @@ func TestStartHostsFusionProjectorWhenEnabled(t *testing.T) {
 	cfg.Fusion.Enabled = true
 	cfg.Fusion.CandidateSubject = "semops.fusion.test_candidates"
 	cfg.Fusion.WriteTimeout = 812 * time.Millisecond
+	cfg.Fusion.AssociationMaxDistanceMeters = 140
+	cfg.Fusion.AssociationMaxTimeDelta = 6 * time.Second
+	cfg.Fusion.AssociationMinConfidence = 0.7
+	cfg.Fusion.AssociationAmbiguityMargin = 0.08
 	cfg.Fusion.Retry = natsclient.RetryConfig{
 		MaxRetries:        3,
 		InitialBackoff:    2 * time.Millisecond,
@@ -1611,6 +1616,7 @@ func TestStartHostsFusionProjectorWhenEnabled(t *testing.T) {
 
 	var gotTimeout time.Duration
 	var gotRetry natsclient.RetryConfig
+	var gotAssociation fusionassociation.Config
 	writer := &recordingFusionAppPlanWriter{}
 
 	app, err := start(context.Background(), cfg, dependencies{
@@ -1642,6 +1648,13 @@ func TestStartHostsFusionProjectorWhenEnabled(t *testing.T) {
 			gotRetry = retry
 			return writer, nil
 		},
+		newFusionProjector: func(
+			projectorCfg fusioncomponent.ProjectorConfig,
+			bus fusioncomponent.Bus,
+		) (*fusioncomponent.ProjectorComponent, error) {
+			gotAssociation = projectorCfg.Association
+			return fusioncomponent.NewProjectorComponent(projectorCfg, bus)
+		},
 	})
 	if err != nil {
 		t.Fatalf("start app: %v", err)
@@ -1657,6 +1670,12 @@ func TestStartHostsFusionProjectorWhenEnabled(t *testing.T) {
 	}
 	if gotRetry != cfg.Fusion.Retry {
 		t.Fatalf("fusion retry = %+v, want %+v", gotRetry, cfg.Fusion.Retry)
+	}
+	if gotAssociation.MaxDistanceMeters != 140 ||
+		gotAssociation.MaxTimeDelta != 6*time.Second ||
+		gotAssociation.MinConfidence != 0.7 ||
+		gotAssociation.AmbiguityMargin != 0.08 {
+		t.Fatalf("fusion association config = %+v", gotAssociation)
 	}
 }
 
@@ -2098,6 +2117,10 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvFusionCandidateMaxComparisons: "19",
 		EnvFusionCandidateMaxBatches:     "4",
 	}
+	env[EnvFusionAssociationMaxDistance] = "123.5"
+	env[EnvFusionAssociationMaxTimeDelta] = "8s"
+	env[EnvFusionAssociationMinConfidence] = "0.72"
+	env[EnvFusionAssociationAmbiguityMargin] = "0.12"
 
 	cfg, err := ConfigFromEnv(func(name string) string { return env[name] })
 	if err != nil {
@@ -2315,6 +2338,12 @@ func TestConfigFromEnv(t *testing.T) {
 		cfg.Fusion.CandidateMaxPairComparisons != 19 ||
 		cfg.Fusion.CandidateMaxBatches != 4 {
 		t.Fatalf("fusion candidate config = %+v", cfg.Fusion)
+	}
+	if cfg.Fusion.AssociationMaxDistanceMeters != 123.5 ||
+		cfg.Fusion.AssociationMaxTimeDelta != 8*time.Second ||
+		cfg.Fusion.AssociationMinConfidence != 0.72 ||
+		cfg.Fusion.AssociationAmbiguityMargin != 0.12 {
+		t.Fatalf("fusion association config = %+v", cfg.Fusion)
 	}
 	if cfg.Fusion.WriteTimeout != 996*time.Millisecond {
 		t.Fatalf("fusion write timeout = %s", cfg.Fusion.WriteTimeout)
@@ -2798,6 +2827,58 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvFusionWriteTimeout: "0s",
 			},
 			want: EnvFusionWriteTimeout,
+		},
+		{
+			name: "bad fusion association max distance",
+			env:  map[string]string{EnvFusionAssociationMaxDistance: "far"},
+			want: EnvFusionAssociationMaxDistance,
+		},
+		{
+			name: "zero fusion association max distance",
+			env: map[string]string{
+				EnvFusionEnabled:                "true",
+				EnvFusionAssociationMaxDistance: "0",
+			},
+			want: EnvFusionAssociationMaxDistance,
+		},
+		{
+			name: "bad fusion association max time delta",
+			env:  map[string]string{EnvFusionAssociationMaxTimeDelta: "soon"},
+			want: EnvFusionAssociationMaxTimeDelta,
+		},
+		{
+			name: "zero fusion association max time delta",
+			env: map[string]string{
+				EnvFusionEnabled:                 "true",
+				EnvFusionAssociationMaxTimeDelta: "0s",
+			},
+			want: EnvFusionAssociationMaxTimeDelta,
+		},
+		{
+			name: "bad fusion association min confidence",
+			env:  map[string]string{EnvFusionAssociationMinConfidence: "certain"},
+			want: EnvFusionAssociationMinConfidence,
+		},
+		{
+			name: "out of range fusion association min confidence",
+			env: map[string]string{
+				EnvFusionEnabled:                  "true",
+				EnvFusionAssociationMinConfidence: "1.2",
+			},
+			want: EnvFusionAssociationMinConfidence,
+		},
+		{
+			name: "bad fusion association ambiguity margin",
+			env:  map[string]string{EnvFusionAssociationAmbiguityMargin: "wide"},
+			want: EnvFusionAssociationAmbiguityMargin,
+		},
+		{
+			name: "out of range fusion association ambiguity margin",
+			env: map[string]string{
+				EnvFusionEnabled:                    "true",
+				EnvFusionAssociationAmbiguityMargin: "0",
+			},
+			want: EnvFusionAssociationAmbiguityMargin,
 		},
 		{
 			name: "bad fusion candidates enabled",

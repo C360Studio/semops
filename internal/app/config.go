@@ -13,6 +13,7 @@ import (
 	klvcomponent "github.com/c360studio/semops/internal/components/klv"
 	sapientcomponent "github.com/c360studio/semops/internal/components/sapient"
 	weathercomponent "github.com/c360studio/semops/internal/components/weather"
+	fusionassociation "github.com/c360studio/semops/internal/fusion/association"
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
 	weathercodec "github.com/c360studio/semops/pkg/adapters/weather"
@@ -115,6 +116,13 @@ const (
 	EnvCOPMAVLinkSystemIDs           = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
 	EnvCOPCoTUIDs                    = "SEMOPS_COP_COT_UIDS"
 	EnvCOPCAPAlertIDs                = "SEMOPS_COP_CAP_ALERT_IDS"
+)
+
+const (
+	EnvFusionAssociationMaxDistance     = "SEMOPS_FUSION_ASSOCIATION_MAX_DISTANCE_METERS"
+	EnvFusionAssociationMaxTimeDelta    = "SEMOPS_FUSION_ASSOCIATION_MAX_TIME_DELTA"
+	EnvFusionAssociationMinConfidence   = "SEMOPS_FUSION_ASSOCIATION_MIN_CONFIDENCE"
+	EnvFusionAssociationAmbiguityMargin = "SEMOPS_FUSION_ASSOCIATION_AMBIGUITY_MARGIN"
 )
 
 type Config struct {
@@ -291,20 +299,24 @@ type WeatherConfig struct {
 }
 
 type FusionConfig struct {
-	Enabled                     bool
-	CandidateProducerEnabled    bool
-	Org                         string
-	Platform                    string
-	TraceID                     string
-	CandidateSubject            string
-	CandidateSources            []string
-	CandidatePollInterval       time.Duration
-	CandidateQueryTimeout       time.Duration
-	CandidateLimitPerSource     int
-	CandidateMaxPairComparisons int
-	CandidateMaxBatches         int
-	WriteTimeout                time.Duration
-	Retry                       natsclient.RetryConfig
+	Enabled                      bool
+	CandidateProducerEnabled     bool
+	Org                          string
+	Platform                     string
+	TraceID                      string
+	CandidateSubject             string
+	CandidateSources             []string
+	CandidatePollInterval        time.Duration
+	CandidateQueryTimeout        time.Duration
+	CandidateLimitPerSource      int
+	CandidateMaxPairComparisons  int
+	CandidateMaxBatches          int
+	AssociationMaxDistanceMeters float64
+	AssociationMaxTimeDelta      time.Duration
+	AssociationMinConfidence     float64
+	AssociationAmbiguityMargin   float64
+	WriteTimeout                 time.Duration
+	Retry                        natsclient.RetryConfig
 }
 
 type COPConfig struct {
@@ -474,19 +486,23 @@ func DefaultConfig() Config {
 			},
 		},
 		Fusion: FusionConfig{
-			Enabled:                     false,
-			CandidateProducerEnabled:    false,
-			Org:                         "c360",
-			Platform:                    "edge",
-			TraceID:                     "semops-fusion-hosted",
-			CandidateSubject:            fusioncomponent.DefaultCandidateSubject,
-			CandidateSources:            []string{"mavlink", "tak", "adsb", "sapient"},
-			CandidatePollInterval:       fusioncomponent.DefaultCandidateProducerInterval,
-			CandidateQueryTimeout:       fusioncomponent.DefaultCandidateProducerQueryTimeout,
-			CandidateLimitPerSource:     fusioncomponent.DefaultCandidateProducerLimitPerSource,
-			CandidateMaxPairComparisons: fusioncomponent.DefaultCandidateProducerMaxPairComparisons,
-			CandidateMaxBatches:         fusioncomponent.DefaultCandidateProducerMaxBatches,
-			WriteTimeout:                2 * time.Second,
+			Enabled:                      false,
+			CandidateProducerEnabled:     false,
+			Org:                          "c360",
+			Platform:                     "edge",
+			TraceID:                      "semops-fusion-hosted",
+			CandidateSubject:             fusioncomponent.DefaultCandidateSubject,
+			CandidateSources:             []string{"mavlink", "tak", "adsb", "sapient"},
+			CandidatePollInterval:        fusioncomponent.DefaultCandidateProducerInterval,
+			CandidateQueryTimeout:        fusioncomponent.DefaultCandidateProducerQueryTimeout,
+			CandidateLimitPerSource:      fusioncomponent.DefaultCandidateProducerLimitPerSource,
+			CandidateMaxPairComparisons:  fusioncomponent.DefaultCandidateProducerMaxPairComparisons,
+			CandidateMaxBatches:          fusioncomponent.DefaultCandidateProducerMaxBatches,
+			AssociationMaxDistanceMeters: fusionassociation.DefaultMaxDistanceMeters,
+			AssociationMaxTimeDelta:      fusionassociation.DefaultMaxTimeDelta,
+			AssociationMinConfidence:     fusionassociation.DefaultMinConfidence,
+			AssociationAmbiguityMargin:   fusionassociation.DefaultAmbiguityMargin,
+			WriteTimeout:                 2 * time.Second,
 			Retry: natsclient.RetryConfig{
 				MaxRetries:        5,
 				InitialBackoff:    50 * time.Millisecond,
@@ -649,6 +665,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvFusionCandidateQueryTimeout,
 		cfg.Fusion.CandidateQueryTimeout,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.AssociationMaxTimeDelta, err = durationFromEnv(
+		getenv,
+		EnvFusionAssociationMaxTimeDelta,
+		cfg.Fusion.AssociationMaxTimeDelta,
 	); err != nil {
 		return Config{}, err
 	}
@@ -890,6 +913,27 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvFusionCandidateMaxBatches,
 		cfg.Fusion.CandidateMaxBatches,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.AssociationMaxDistanceMeters, err = floatFromEnv(
+		getenv,
+		EnvFusionAssociationMaxDistance,
+		cfg.Fusion.AssociationMaxDistanceMeters,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.AssociationMinConfidence, err = floatFromEnv(
+		getenv,
+		EnvFusionAssociationMinConfidence,
+		cfg.Fusion.AssociationMinConfidence,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.AssociationAmbiguityMargin, err = floatFromEnv(
+		getenv,
+		EnvFusionAssociationAmbiguityMargin,
+		cfg.Fusion.AssociationAmbiguityMargin,
 	); err != nil {
 		return Config{}, err
 	}
@@ -1212,6 +1256,18 @@ func (c FusionConfig) Validate() error {
 		if c.WriteTimeout <= 0 {
 			return fmt.Errorf("%s must be greater than zero when fusion is enabled", EnvFusionWriteTimeout)
 		}
+		if c.AssociationMaxDistanceMeters <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion is enabled", EnvFusionAssociationMaxDistance)
+		}
+		if c.AssociationMaxTimeDelta <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion is enabled", EnvFusionAssociationMaxTimeDelta)
+		}
+		if c.AssociationMinConfidence <= 0 || c.AssociationMinConfidence > 1 {
+			return fmt.Errorf("%s must be within (0,1] when fusion is enabled", EnvFusionAssociationMinConfidence)
+		}
+		if c.AssociationAmbiguityMargin <= 0 || c.AssociationAmbiguityMargin > 1 {
+			return fmt.Errorf("%s must be within (0,1] when fusion is enabled", EnvFusionAssociationAmbiguityMargin)
+		}
 	}
 	if c.CandidateProducerEnabled {
 		if len(c.CandidateSources) == 0 {
@@ -1342,6 +1398,18 @@ func intFromEnv(getenv func(string) string, name string, fallback int) (int, err
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
 		return 0, fmt.Errorf("parse %s: %w", name, err)
+	}
+	return parsed, nil
+}
+
+func floatFromEnv(getenv func(string) string, name string, fallback float64) (float64, error) {
+	value := strings.TrimSpace(getenv(name))
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be a float: %w", name, err)
 	}
 	return parsed, nil
 }

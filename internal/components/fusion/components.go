@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -96,6 +97,7 @@ func NewProjectorComponent(cfg ProjectorConfig, bus Bus) (*ProjectorComponent, e
 	if cfg.WriteRetries == 0 {
 		cfg.WriteRetries = 4
 	}
+	cfg.Association = normalizeAssociationConfig(cfg.Association)
 	if cfg.Clock == nil {
 		cfg.Clock = time.Now
 	}
@@ -292,9 +294,13 @@ func (c *ProjectorComponent) OutputPorts() []component.Port {
 func (c *ProjectorComponent) ConfigSchema() component.ConfigSchema {
 	return component.ConfigSchema{
 		Properties: map[string]component.PropertySchema{
-			"candidate_subject": stringProperty("SemStreams subject carrying fusion track-candidate batches", c.cfg.CandidateSubject),
-			"owner":             stringProperty("SemStreams projection owner bound through registry/heartbeat", cop.OwnerFusion),
-			"write_timeout":     stringProperty("Graph mutation request timeout", c.outputTimeout().String()),
+			"candidate_subject":   stringProperty("SemStreams subject carrying fusion track-candidate batches", c.cfg.CandidateSubject),
+			"owner":               stringProperty("SemStreams projection owner bound through registry/heartbeat", cop.OwnerFusion),
+			"write_timeout":       stringProperty("Graph mutation request timeout", c.outputTimeout().String()),
+			"max_distance_meters": floatProperty("Maximum source-track distance for association evidence", c.cfg.Association.MaxDistanceMeters),
+			"max_time_delta":      stringProperty("Maximum source-track observation time delta", c.cfg.Association.MaxTimeDelta.String()),
+			"min_confidence":      floatProperty("Minimum association confidence", c.cfg.Association.MinConfidence),
+			"ambiguity_margin":    floatProperty("Confidence margin for ambiguous association evidence", c.cfg.Association.AmbiguityMargin),
 		},
 		Required: []string{"candidate_subject", "owner"},
 	}
@@ -429,6 +435,26 @@ func streamPort(name string, direction component.Direction, subject string, msgT
 
 func stringProperty(description, fallback string) component.PropertySchema {
 	return component.PropertySchema{Type: "string", Description: description, Default: fallback}
+}
+
+func floatProperty(description string, fallback float64) component.PropertySchema {
+	return component.PropertySchema{Type: "number", Description: description, Default: strconv.FormatFloat(fallback, 'f', -1, 64)}
+}
+
+func normalizeAssociationConfig(cfg fusionassociation.Config) fusionassociation.Config {
+	if cfg.MaxDistanceMeters <= 0 {
+		cfg.MaxDistanceMeters = fusionassociation.DefaultMaxDistanceMeters
+	}
+	if cfg.MaxTimeDelta <= 0 {
+		cfg.MaxTimeDelta = fusionassociation.DefaultMaxTimeDelta
+	}
+	if cfg.MinConfidence <= 0 {
+		cfg.MinConfidence = fusionassociation.DefaultMinConfidence
+	}
+	if cfg.AmbiguityMargin <= 0 {
+		cfg.AmbiguityMargin = fusionassociation.DefaultAmbiguityMargin
+	}
+	return cfg
 }
 
 func markBornForEvidence(
