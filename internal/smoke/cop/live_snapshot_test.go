@@ -19,29 +19,31 @@ import (
 )
 
 const (
-	liveSnapshotURLEnv          = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
-	liveRuntimeURLEnv           = "SEMOPS_COP_SMOKE_RUNTIME_URL"
-	liveScenarioStatusEnv       = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
-	liveComponentMetricsEnv     = "SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL"
-	liveSnapshotUDPAddrEnv      = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
-	liveSnapshotCoTAddrEnv      = "SEMOPS_COP_SMOKE_COT_UDP_ADDR"
-	liveSnapshotTrackIDEnv      = "SEMOPS_COP_SMOKE_EXPECTED_TRACK_ID"
-	liveSnapshotCoTTrackEnv     = "SEMOPS_COP_SMOKE_EXPECTED_COT_TRACK_ID"
-	liveSnapshotCoTTaskEnv      = "SEMOPS_COP_SMOKE_EXPECTED_COT_TASK_ID"
-	liveSnapshotCoTChatEnv      = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
-	liveSnapshotHazardEnv       = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
-	liveScenarioADSBEnv         = "SEMOPS_SCENARIO_ADSB_FIXTURE"
-	liveSnapshotADSBHTTPEnv     = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
-	liveSnapshotSAPIENTEnv      = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
-	liveSnapshotSAPIENTGraphEnv = "SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED"
-	liveSnapshotKLVEnv          = "SEMOPS_COP_SMOKE_KLV_ENABLED"
-	liveSnapshotWeatherEnv      = "SEMOPS_COP_SMOKE_WEATHER_ENABLED"
-	defaultExpectedTrackID      = "c360.edge-compose.cop.mavlink.track.system-42"
-	defaultExpectedCoTTrack     = "c360.edge-compose.cop.tak.track.android-alpha"
-	defaultExpectedCoTTask      = "c360.edge-compose.cop.tak.task.marker-north-gate"
-	defaultExpectedCoTChat      = "c360.edge-compose.cop.tak.advisory.chat-alpha-1"
-	defaultExpectedHazard       = "c360.edge-compose.cop.cap.hazard_area.nws-demo-flood-warning"
-	liveSnapshotPollTimeout     = 30 * time.Second
+	liveSnapshotURLEnv            = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
+	liveRuntimeURLEnv             = "SEMOPS_COP_SMOKE_RUNTIME_URL"
+	liveScenarioStatusEnv         = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
+	liveComponentMetricsEnv       = "SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL"
+	liveSnapshotUDPAddrEnv        = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
+	liveSnapshotCoTAddrEnv        = "SEMOPS_COP_SMOKE_COT_UDP_ADDR"
+	liveSnapshotTrackIDEnv        = "SEMOPS_COP_SMOKE_EXPECTED_TRACK_ID"
+	liveSnapshotCoTTrackEnv       = "SEMOPS_COP_SMOKE_EXPECTED_COT_TRACK_ID"
+	liveSnapshotCoTTaskEnv        = "SEMOPS_COP_SMOKE_EXPECTED_COT_TASK_ID"
+	liveSnapshotCoTChatEnv        = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
+	liveSnapshotHazardEnv         = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
+	liveScenarioADSBEnv           = "SEMOPS_SCENARIO_ADSB_FIXTURE"
+	liveSnapshotADSBHTTPEnv       = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
+	liveSnapshotSAPIENTEnv        = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
+	liveSnapshotSAPIENTGraphEnv   = "SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED"
+	liveSnapshotKLVEnv            = "SEMOPS_COP_SMOKE_KLV_ENABLED"
+	liveSnapshotWeatherEnv        = "SEMOPS_COP_SMOKE_WEATHER_ENABLED"
+	liveSnapshotFusionEnv         = "SEMOPS_COP_SMOKE_FUSION_ENABLED"
+	defaultExpectedTrackID        = "c360.edge-compose.cop.mavlink.track.system-42"
+	defaultExpectedCoTTrack       = "c360.edge-compose.cop.tak.track.android-alpha"
+	defaultExpectedFusionCoTTrack = "c360.edge-compose.cop.tak.track.android-fusion"
+	defaultExpectedCoTTask        = "c360.edge-compose.cop.tak.task.marker-north-gate"
+	defaultExpectedCoTChat        = "c360.edge-compose.cop.tak.advisory.chat-alpha-1"
+	defaultExpectedHazard         = "c360.edge-compose.cop.cap.hazard_area.nws-demo-flood-warning"
+	liveSnapshotPollTimeout       = 30 * time.Second
 )
 
 func TestHostedCOPSnapshotReflectsMAVLinkUDP(t *testing.T) {
@@ -420,6 +422,67 @@ func TestHostedCOPSnapshotReflectsWeatherFixture(t *testing.T) {
 	}
 }
 
+func TestHostedCOPSnapshotReflectsFusionAssociation(t *testing.T) {
+	snapshotURL := os.Getenv(liveSnapshotURLEnv)
+	mavlinkAddr := os.Getenv(liveSnapshotUDPAddrEnv)
+	cotAddr := os.Getenv(liveSnapshotCoTAddrEnv)
+	if snapshotURL == "" || mavlinkAddr == "" || cotAddr == "" {
+		t.Skipf("set %s, %s, and %s to run the hosted COP fusion association smoke",
+			liveSnapshotURLEnv, liveSnapshotUDPAddrEnv, liveSnapshotCoTAddrEnv)
+	}
+	expectFusion, err := boolFromEnv(liveSnapshotFusionEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !expectFusion {
+		t.Skipf("set %s=true to run the hosted COP fusion association smoke", liveSnapshotFusionEnv)
+	}
+	expectedMAVLinkTrackID := firstNonEmpty(os.Getenv(liveSnapshotTrackIDEnv), defaultExpectedTrackID)
+	expectedCoTTrackID := firstNonEmpty(os.Getenv(liveSnapshotCoTTrackEnv), defaultExpectedFusionCoTTrack)
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	mavlinkFrames := generatedMAVLinkFrames(t)
+	cotEvents := generatedFusionCoTEvents(t)
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+	for {
+		if err := sendMAVLinkFrames(ctx, mavlinkAddr, mavlinkFrames); err != nil {
+			lastErr = err
+		}
+		if err := sendCoTEvents(ctx, cotAddr, cotEvents); err != nil {
+			lastErr = err
+		}
+
+		snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
+		if err != nil {
+			lastErr = err
+		} else if !snapshotHasTrack(snapshot, expectedMAVLinkTrackID) {
+			lastErr = fmt.Errorf("snapshot missing MAVLink track %s before fusion association: tracks=%d associations=%d",
+				expectedMAVLinkTrackID, len(snapshot.Tracks), len(snapshot.Associations))
+		} else if !snapshotHasTrack(snapshot, expectedCoTTrackID) {
+			lastErr = fmt.Errorf("snapshot missing close CoT track %s before fusion association: tracks=%d associations=%d",
+				expectedCoTTrackID, len(snapshot.Tracks), len(snapshot.Associations))
+		} else if snapshotHasFusionAssociation(snapshot, expectedMAVLinkTrackID, expectedCoTTrackID) {
+			return
+		} else {
+			lastErr = fmt.Errorf("snapshot missing fusion association between %s and %s: associations=%d",
+				expectedMAVLinkTrackID, expectedCoTTrackID, len(snapshot.Associations))
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("hosted COP snapshot did not reflect fusion association before timeout: %v; last error: %v",
+				ctx.Err(), lastErr)
+		case <-ticker.C:
+		}
+	}
+}
+
 func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 	metricsURL := os.Getenv(liveComponentMetricsEnv)
 	mavlinkAddr := os.Getenv(liveSnapshotUDPAddrEnv)
@@ -448,6 +511,10 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	expectFusion, err := boolFromEnv(liveSnapshotFusionEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
 	defer cancel()
@@ -456,6 +523,9 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 	cotEvents, err := cotcodec.MarshalEvents(cotcodec.SeedEvents(time.Now().UTC()))
 	if err != nil {
 		t.Fatalf("marshal cot seed events: %v", err)
+	}
+	if expectFusion {
+		cotEvents = generatedFusionCoTEvents(t)
 	}
 	expected := []componentMetricExpectation{
 		{Name: "semops-input-mavlink-udp", Feed: "mavlink", Role: "input"},
@@ -496,6 +566,12 @@ func TestHostedCOPComponentPrometheusMetricsReflectFeedFlow(t *testing.T) {
 			componentMetricExpectation{Name: "semops-input-weather-fixture", Feed: "weather", Role: "fixture-input"},
 			componentMetricExpectation{Name: "semops-processor-weather-decode", Feed: "weather", Role: "decoder"},
 			componentMetricExpectation{Name: "semops-processor-weather-project", Feed: "weather", Role: "projector"},
+		)
+	}
+	if expectFusion {
+		expected = append(expected,
+			componentMetricExpectation{Name: "semops-processor-fusion-candidates", Feed: "fusion", Role: "candidate-producer"},
+			componentMetricExpectation{Name: "semops-processor-fusion-associate", Feed: "fusion", Role: "projector"},
 		)
 	}
 
@@ -558,6 +634,10 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	expectFusion, err := boolFromEnv(liveSnapshotFusionEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
 	defer cancel()
@@ -566,6 +646,9 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 	cotEvents, err := cotcodec.MarshalEvents(cotcodec.SeedEvents(time.Now().UTC()))
 	if err != nil {
 		t.Fatalf("marshal cot seed events: %v", err)
+	}
+	if expectFusion {
+		cotEvents = generatedFusionCoTEvents(t)
 	}
 	expected := []runtimeFeedExpectation{
 		{ID: "feed.mavlink", Healthy: 3, Total: 3, RequireFlow: true},
@@ -591,6 +674,9 @@ func TestHostedCOPRuntimeReflectsFeedFlow(t *testing.T) {
 	}
 	if expectWeather {
 		expected = append(expected, runtimeFeedExpectation{ID: "feed.weather", Healthy: 3, Total: 3, RequireFlow: true})
+	}
+	if expectFusion {
+		expected = append(expected, runtimeFeedExpectation{ID: "feed.fusion", Healthy: 2, Total: 2, RequireFlow: true})
 	}
 
 	client := &http.Client{Timeout: 2 * time.Second}
@@ -647,6 +733,26 @@ func generatedMAVLinkFrames(t *testing.T) [][]byte {
 		t.Fatalf("generate position: %v", err)
 	}
 	return [][]byte{heartbeat, position}
+}
+
+func generatedFusionCoTEvents(t *testing.T) [][]byte {
+	t.Helper()
+
+	now := time.Now().UTC()
+	raw, err := cotcodec.MarshalEvents([]cotcodec.Event{{
+		UID:      "ANDROID-FUSION",
+		Type:     cotcodec.TypeOperatorPosition,
+		How:      cotcodec.DefaultHow,
+		Time:     now,
+		Start:    now,
+		Stale:    now.Add(2 * time.Minute),
+		Point:    &cotcodec.Point{Lat: 38.9001, Lon: -77.0002, HAE: 118.4, CE: 4, LE: 9},
+		Callsign: "FUSION",
+	}})
+	if err != nil {
+		t.Fatalf("marshal fusion cot event: %v", err)
+	}
+	return raw
 }
 
 func sendMAVLinkFrames(ctx context.Context, udpAddr string, frames [][]byte) error {
@@ -967,6 +1073,42 @@ func snapshotHasWeatherObservation(snapshot copapi.Snapshot) bool {
 		return true
 	}
 	return false
+}
+
+func snapshotHasFusionAssociation(snapshot copapi.Snapshot, leftTrackID, rightTrackID string) bool {
+	if snapshot.Scenario != "phase-1-live-graph" {
+		return false
+	}
+	for _, association := range snapshot.Associations {
+		if association.Source != "fusion" {
+			continue
+		}
+		if association.Provenance.Owner != "semops.fusion.structural" {
+			continue
+		}
+		if !tracksMatchAssociation(association, leftTrackID, rightTrackID) {
+			continue
+		}
+		if association.Algorithm == "" || association.Confidence <= 0 {
+			return false
+		}
+		if association.DistanceMeters == nil || *association.DistanceMeters > 250 {
+			return false
+		}
+		if association.TimeDeltaSeconds == nil || *association.TimeDeltaSeconds > 10 {
+			return false
+		}
+		if !strings.Contains(association.ClaimPosture, "no source-track merge") {
+			return false
+		}
+		return association.Status == "associated" || association.Status == "ambiguous"
+	}
+	return false
+}
+
+func tracksMatchAssociation(association copapi.Association, leftTrackID, rightTrackID string) bool {
+	return (association.PrimaryTrackID == leftTrackID && association.CandidateTrackID == rightTrackID) ||
+		(association.PrimaryTrackID == rightTrackID && association.CandidateTrackID == leftTrackID)
 }
 
 type componentMetricExpectation struct {

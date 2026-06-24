@@ -149,8 +149,8 @@ func scorePair(left, right TrackObservation, cfg Config) (Evidence, bool) {
 }
 
 func EntityID(org, platform, primaryTrackID, candidateTrackID string) string {
-	primary := entityToken(primaryTrackID)
-	candidate := entityToken(candidateTrackID)
+	primary := trackEntityToken(primaryTrackID)
+	candidate := trackEntityToken(candidateTrackID)
 	if candidate < primary {
 		primary, candidate = candidate, primary
 	}
@@ -161,6 +161,45 @@ func EntityID(org, platform, primaryTrackID, candidateTrackID string) string {
 		primary,
 		candidate,
 	)
+}
+
+func trackEntityToken(trackID string) string {
+	parts := strings.Split(strings.TrimSpace(trackID), ".")
+	if len(parts) == 6 {
+		return entityInstanceToken(parts[3] + "-" + parts[5])
+	}
+	return entityInstanceToken(trackID)
+}
+
+func entityInstanceToken(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			builder.WriteRune(r)
+			lastDash = false
+		case r >= '0' && r <= '9':
+			builder.WriteRune(r)
+			lastDash = false
+		case r == '.' || r == '-' || r == '_':
+			if builder.Len() > 0 && !lastDash {
+				builder.WriteRune('-')
+				lastDash = true
+			}
+		default:
+			if builder.Len() > 0 && !lastDash {
+				builder.WriteRune('-')
+				lastDash = true
+			}
+		}
+	}
+	token := strings.Trim(builder.String(), "-")
+	if token == "" {
+		return "unknown"
+	}
+	return token
 }
 
 func associationReasons(left, right TrackObservation, distance float64, delta time.Duration) []string {

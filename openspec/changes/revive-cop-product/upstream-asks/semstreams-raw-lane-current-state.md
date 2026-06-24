@@ -8,6 +8,25 @@ should not have to rediscover the same boundary.
 
 Filed upstream as [SemStreams issue #340](https://github.com/C360Studio/semstreams/issues/340).
 
+## Upstream Status
+
+SemStreams accepted this as a docs/composition guide rather than a new mandatory framework layer. The response frames
+raw payloads, `StorageReference`, JetStream/KV replay, ownership, indexing profiles, component ports, payload
+registration, buffer/backpressure, and Prometheus-friendly component telemetry as existing primitives that need a
+failure-first recipe.
+
+The agreed shape matches SemOps:
+
+- keep per-source current-state entities owned by their feed projector;
+- keep cross-source fusion as a separate explicitly owned projection;
+- treat ObjectStore as an optional by-reference backend for large/binary payloads, not a required dependency;
+- make replay attribution explicit so replay writers do not impersonate live ownership or re-stamp stale evidence as
+  current state;
+- defer source-reference vocabulary constants and any projector helpers until multiple feeds prove the final shape.
+
+SemStreams opened draft guide PR
+[#344](https://github.com/C360Studio/semstreams/pull/344), `docs/concepts/29-raw-lane-and-current-state-projection.md`.
+
 ## Downstream Evidence
 
 SemOps has the same pattern in multiple feeds:

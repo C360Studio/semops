@@ -51,3 +51,8 @@ flow telemetry. A reusable recipe can tie those pieces together without forcing 
 
 After filing, mark the SemOps raw-lane/current-state upstream task closed with the SemStreams issue reference and keep
 broader indexing/cardinality asks gated until mixed-feed query pressure proves a specific gap.
+
+SemStreams accepted the ask in issue #340 as a docs/composition guide. The upstream response keeps ObjectStore optional,
+promotes replay attribution to a first-class rule, preserves per-source current-state plus separate fusion ownership,
+and defers source-reference vocabulary/helper contracts until more feeds prove the reusable shape. Draft guide PR #344
+is the upstream artifact SemOps should track.

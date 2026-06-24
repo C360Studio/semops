@@ -41,6 +41,7 @@ type RuntimeComponent struct {
 	BytesPerSecond    float64    `json:"bytes_per_second"`
 	ErrorRate         float64    `json:"error_rate"`
 	ErrorCount        int        `json:"error_count"`
+	LastError         string     `json:"last_error,omitempty"`
 	LastActivity      *time.Time `json:"last_activity,omitempty"`
 	LastCheck         *time.Time `json:"last_check,omitempty"`
 	UptimeSeconds     float64    `json:"uptime_seconds"`
@@ -77,6 +78,7 @@ func BuildRuntimeSnapshot(now time.Time, provider RuntimeProvider) RuntimeSnapsh
 			BytesPerSecond:    roundMetric(flow.BytesPerSecond),
 			ErrorRate:         roundMetric(flow.ErrorRate),
 			ErrorCount:        health.ErrorCount,
+			LastError:         health.LastError,
 			LastActivity:      timePtr(flow.LastActivity),
 			LastCheck:         timePtr(health.LastCheck),
 			UptimeSeconds:     roundMetric(health.Uptime.Seconds()),

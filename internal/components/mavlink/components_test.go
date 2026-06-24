@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -336,6 +337,85 @@ func TestProjectorReconcilesExistingBirths(t *testing.T) {
 	}
 }
 
+func TestProjectorReconcilesTextEntityExistsFailures(t *testing.T) {
+	now := time.Date(2026, 6, 20, 11, 15, 0, 0, time.UTC)
+	writer := &recordingPlanWriter{
+		failures: []error{
+			errors.New("request create_with_triples: entity_already_exists: entity already exists: c360.edge.cop.mavlink.asset.system-42"),
+			errors.New("request create_with_triples: entity_already_exists: entity already exists: c360.edge.cop.mavlink.track.system-42"),
+		},
+	}
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Projector: mavprojector.NewProjector(mavprojector.Config{Org: "c360", Platform: "edge"}),
+		Writer:    writer,
+		Clock:     func() time.Time { return now },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+
+	payload := decodedPayloadFromFrame(t, "decoder:test", "mavlink://raw/test/00000001", now, mustHeartbeatFrame(t))
+	if err := projector.HandleDecodedPayload(context.Background(), payload); err != nil {
+		t.Fatalf("handle decoded with text birth reconciliation: %v", err)
+	}
+	if len(writer.plans) != 3 {
+		t.Fatalf("plans = %d, want create retry sequence", len(writer.plans))
+	}
+	last := writer.plans[len(writer.plans)-1]
+	if len(last.Mutations) != 1 || last.Mutations[0].Kind != mavprojector.MutationUpdate {
+		t.Fatalf("last plan = %+v, want update after reconciling existing births", last)
+	}
+}
+
+func TestProjectorSerializesConcurrentGraphWrites(t *testing.T) {
+	now := time.Date(2026, 6, 20, 11, 30, 0, 0, time.UTC)
+	writer := newBlockingPlanWriter()
+	projector, err := NewProjectorComponent(ProjectorConfig{
+		Projector: mavprojector.NewProjector(mavprojector.Config{Org: "c360", Platform: "edge"}),
+		Writer:    writer,
+		Clock:     func() time.Time { return now },
+	}, &recordingBus{})
+	if err != nil {
+		t.Fatalf("new projector: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	payload := decodedPayloadFromFrame(t, "decoder:test", "mavlink://raw/test/00000001", now, mustHeartbeatFrame(t))
+
+	firstDone := make(chan error, 1)
+	go func() {
+		firstDone <- projector.HandleDecodedPayload(ctx, payload)
+	}()
+
+	select {
+	case <-writer.firstEntered:
+	case <-ctx.Done():
+		t.Fatalf("first graph write did not start: %v", ctx.Err())
+	}
+
+	secondDone := make(chan error, 1)
+	go func() {
+		secondDone <- projector.HandleDecodedPayload(ctx, payload)
+	}()
+
+	select {
+	case err := <-secondDone:
+		t.Fatalf("second graph write completed while first write was active: %v", err)
+	case err := <-writer.concurrentApply:
+		t.Fatalf("projector allowed concurrent graph apply: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(writer.releaseFirst)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first graph write: %v", err)
+	}
+	if err := <-secondDone; err != nil {
+		t.Fatalf("second graph write: %v", err)
+	}
+}
+
 func requireMessageTriple(t *testing.T, triples []message.Triple, predicate string, want any) {
 	t.Helper()
 	for _, triple := range triples {
@@ -407,6 +487,56 @@ func (w *recordingPlanWriter) Apply(_ context.Context, plan mavprojector.Plan) e
 	err := w.failures[0]
 	w.failures = w.failures[1:]
 	return err
+}
+
+type blockingPlanWriter struct {
+	mu              sync.Mutex
+	active          bool
+	applyCount      int
+	firstEntered    chan struct{}
+	releaseFirst    chan struct{}
+	concurrentApply chan error
+}
+
+func newBlockingPlanWriter() *blockingPlanWriter {
+	return &blockingPlanWriter{
+		firstEntered:    make(chan struct{}),
+		releaseFirst:    make(chan struct{}),
+		concurrentApply: make(chan error, 1),
+	}
+}
+
+func (w *blockingPlanWriter) Apply(ctx context.Context, _ mavprojector.Plan) error {
+	w.mu.Lock()
+	if w.active {
+		err := errors.New("concurrent graph apply")
+		w.mu.Unlock()
+		select {
+		case w.concurrentApply <- err:
+		default:
+		}
+		return err
+	}
+	w.active = true
+	w.applyCount++
+	applyCount := w.applyCount
+	if applyCount == 1 {
+		close(w.firstEntered)
+	}
+	w.mu.Unlock()
+
+	if applyCount == 1 {
+		select {
+		case <-w.releaseFirst:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	w.mu.Lock()
+	w.active = false
+	w.mu.Unlock()
+	return nil
 }
 
 func mustHeartbeatFrame(t *testing.T) []byte {

@@ -529,8 +529,9 @@ profile semantics.
   or an explicit non-compliance demo decision, service-mode review, and command-authority review. The accepted first
   graph slice is absolute-location detection projection/readback/runtime graph only.
 - Use the hosted fusion candidate producer and association processor for bounded graph-discovered source-track
-  candidates and graph projection; keep automatic demo association, identity policy, and identity-fusion controls
-  gated behind a stack-level e2e smoke and adversarial operator review.
+  candidates and graph projection; the opt-in stack smoke now proves transport-seeded MAVLink/TAK association
+  readback, but automatic demo association, identity policy, and identity-fusion controls remain gated behind
+  adversarial operator review.
 
 ### Phase 3: Semantic Translation And Standards Interop
 

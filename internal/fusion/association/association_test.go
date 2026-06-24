@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/c360studio/semstreams/message"
 )
 
 func TestAssociateTracksEmitsFusionEvidenceForCloseMAVLinkAndADSB(t *testing.T) {
@@ -54,6 +56,16 @@ func TestAssociateTracksEmitsFusionEvidenceForCloseMAVLinkAndADSB(t *testing.T) 
 	}
 	if !strings.HasPrefix(got.EntityID, "c360.edge-demo.cop.fusion.association.") {
 		t.Fatalf("entity ID = %q, want fusion association ID", got.EntityID)
+	}
+	parsedEntityID, err := message.ParseEntityID(got.EntityID)
+	if err != nil {
+		t.Fatalf("fusion association entity ID should remain SemStreams-parseable: %v", err)
+	}
+	if parsedEntityID.System != "fusion" || parsedEntityID.Type != "association" {
+		t.Fatalf("parsed entity ID = %+v, want fusion association", parsedEntityID)
+	}
+	if strings.Contains(parsedEntityID.Instance, ".") {
+		t.Fatalf("association instance = %q, want single entity-id segment", parsedEntityID.Instance)
 	}
 	if got.PrimarySourceRef != "mavlink://raw/udp/0001" || got.CandidateSourceRef != "adsb://opensky/state/0001" {
 		t.Fatalf("source refs not preserved: %+v", got)

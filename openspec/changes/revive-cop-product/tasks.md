@@ -370,8 +370,10 @@
       input subscriptions, born-state reconciliation, and adversarial review before demo identity-fusion claims
 - [x] 8.22 Add a bounded fusion candidate producer from graph-discovered source tracks before enabling automatic
       association in the demo stack
-- [ ] 8.23 Add a stack-level fusion e2e smoke that seeds source tracks, runs candidate production plus association
+- [x] 8.23 Add a stack-level fusion e2e smoke that seeds source tracks, runs candidate production plus association
       projection, and verifies COP association readback before enabling automatic demo association by default
+- [ ] 8.24 Run adversarial operator review on automatic demo association posture, identity policy, and UI affordances
+      before turning fusion association on in the default stack
 
 ## 9. Upstream SemStreams Asks
 
@@ -380,7 +382,7 @@
 - [ ] 9.3 File provenance/confidence convention ask after feed contracts stabilize
 - [ ] 9.4 File spatial-temporal query helper asks from COP workflows
 - [x] 9.5 File raw-lane/current-state projection guidance after MAVLink and one non-MAVLink feed prove it:
-      SemStreams issue #340
+      SemStreams issue #340, draft guide PR #344
 - [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need
 - [ ] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask
 - [x] 9.8 Feed back owner-token ergonomics and capture typed-token/evidence-declaration response

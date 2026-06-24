@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/c360studio/semstreams/graph"
@@ -121,6 +122,9 @@ func (w *GraphWriter) createWithTriples(ctx context.Context, req graph.CreateEnt
 	}
 	var resp graph.CreateEntityWithTriplesResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
+		if mutationErr, ok := legacyCreateMutationFailure(req, respData); ok {
+			return mutationErr
+		}
 		return fmt.Errorf("decode create_with_triples response: %w", err)
 	}
 	return mutationResponseError(
@@ -129,6 +133,24 @@ func (w *GraphWriter) createWithTriples(ctx context.Context, req graph.CreateEnt
 		requestEntityID(req.Entity),
 		resp.MutationResponse,
 	)
+}
+
+func legacyCreateMutationFailure(req graph.CreateEntityWithTriplesRequest, data []byte) (*MutationFailureError, bool) {
+	body := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(body, "error:") {
+		return nil, false
+	}
+	message := strings.TrimSpace(strings.TrimPrefix(body, "error:"))
+	if !strings.Contains(strings.ToLower(message), "entity already exists") {
+		return nil, false
+	}
+	return &MutationFailureError{
+		Operation: "create_with_triples",
+		Kind:      MutationCreate,
+		EntityID:  requestEntityID(req.Entity),
+		ErrorCode: graph.ErrorCodeEntityExists,
+		Message:   message,
+	}, true
 }
 
 func (w *GraphWriter) updateWithTriples(ctx context.Context, req graph.UpdateEntityWithTriplesRequest) error {

@@ -798,6 +798,12 @@ First acceptance gate:
   configured source-owned track prefixes (`mavlink`, `tak`, `adsb`, `sapient` by default), caps tracks per source,
   pair comparisons, and batches per scan, and publishes registered `semops.fusion.track_candidates` payloads without
   graph writes, source mutation, merge authority, or automatic demo enablement by default.
+- Given `SEMOPS_COP_SMOKE_FUSION_ENABLED=true`, the one-command COP stack smoke enables candidate production plus
+  association projection, seeds close-but-separate MAVLink and TAK/CoT tracks through their transport components,
+  verifies fusion-owned association readback through the Caddy-routed COP snapshot, and checks fusion component
+  Prometheus/runtime flow without directly publishing candidate subjects.
+- Next fusion gate: run adversarial operator review on identity policy, automatic-association posture, and UI
+  affordances before turning fusion association on in the default demo stack.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress

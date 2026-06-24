@@ -215,6 +215,32 @@ func TestGraphWriterReportsCreateConflictAsTypedMutationFailure(t *testing.T) {
 	}
 }
 
+func TestGraphWriterClassifiesLegacyCreateConflictBody(t *testing.T) {
+	requester := &recordingRequester{
+		createResponse: []byte("error: entity already exists: c360.edge.cop.mavlink.asset.system-42"),
+	}
+	writer := NewGraphWriter(requester)
+
+	err := writer.Apply(context.Background(), Plan{Mutations: []Mutation{{
+		Kind: MutationCreate,
+		Create: graph.CreateEntityWithTriplesRequest{
+			Entity: &graph.EntityState{ID: "c360.edge.cop.mavlink.asset.system-42"},
+		},
+	}}})
+	if err == nil {
+		t.Fatal("expected create conflict")
+	}
+	var mutationErr *MutationFailureError
+	if !errors.As(err, &mutationErr) {
+		t.Fatalf("error = %T, want MutationFailureError", err)
+	}
+	if mutationErr.Kind != MutationCreate ||
+		mutationErr.EntityID != "c360.edge.cop.mavlink.asset.system-42" ||
+		mutationErr.ErrorCode != graph.ErrorCodeEntityExists {
+		t.Fatalf("mutation error = %+v", mutationErr)
+	}
+}
+
 func TestGraphWriterHonorsCanceledContextBeforeSending(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

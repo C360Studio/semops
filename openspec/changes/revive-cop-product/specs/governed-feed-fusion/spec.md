@@ -67,8 +67,24 @@ authoritative predicates.
   primary and candidate roles reversed during the same scan
 - **AND** the producer exposes `Health()` and `DataFlow()` so runtime telemetry can report throughput, errors, and
   last activity
-- **AND** the producer does not write graph state, mutate source tracks, merge identities, or enable automatic demo
-  association by default until a stack-level e2e smoke and adversarial operator review approve that posture
+- **AND** the producer does not write graph state, mutate source tracks, merge identities, or enable default automatic
+  demo association until adversarial operator review approves that posture
+
+#### Scenario: Stack smoke proves hosted fusion association before default enablement
+
+- **WHEN** the one-command COP stack smoke is run with `SEMOPS_COP_SMOKE_FUSION_ENABLED=true`
+- **THEN** the hosted SemOps process enables the fusion candidate producer and fusion association projector as
+  SemStreams lifecycle components
+- **AND** the smoke seeds close-but-separate MAVLink and TAK/CoT source-owned tracks through their transport
+  components rather than publishing fusion candidate subjects directly
+- **AND** the candidate producer discovers those tracks through SemStreams graph prefix-query request ports and
+  publishes bounded registered candidate batches
+- **AND** the association projector consumes those batches, writes fusion-owned born-first association graph state,
+  and exposes runtime and Prometheus flow telemetry
+- **AND** the COP snapshot readback exposes a fusion association between the two source tracks without mutating either
+  source-owned track
+- **AND** the default stack keeps automatic demo association disabled until identity policy and operator-facing review
+  close as a separate gate
 
 ### Requirement: Graph writes are born-first
 
