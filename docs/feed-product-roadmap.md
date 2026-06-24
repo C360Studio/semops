@@ -178,7 +178,8 @@ Boundary to preserve now:
 Keep codec, raw lane, transport listener, projector, and command authority separate so simulator and hardware support
 can grow without changing graph ownership. Simulator evidence must also name its family (`px4`, `ardupilot`,
 `mavsdk`, `hardware`, or `other`) so one telemetry pass cannot be reused as another simulator or command-control
-claim.
+claim. Command-control preflight can record intended target, action, safety profile, local override, ACK, and
+post-state polling posture, but it must remain blocked until a reviewed native transmitter gate exists.
 
 Not claimed yet:
 Full GCS/autopilot management, hardware certification, or complete mission-command product.

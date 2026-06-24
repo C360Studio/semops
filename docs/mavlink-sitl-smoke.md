@@ -166,6 +166,31 @@ Useful optional knobs:
 - `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack`: starts the preferred PX4/Gazebo headless container and then runs
   the full stack gate.
 
+## Command-Control Preflight
+
+SemOps intentionally has no live MAVLink command transmitter in this gate yet. The `command-preflight` mode records the
+minimum safety posture for a future command-control smoke and exits blocked before any native transmit can happen:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=command-preflight \
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL command preflight" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=px4 \
+SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true \
+SEMOPS_MAVLINK_COMMAND_TARGET_ID=c360.edge-compose.cop.mavlink.track.system-1 \
+SEMOPS_MAVLINK_COMMAND_ACTION=hold_position \
+SEMOPS_MAVLINK_COMMAND_SAFETY_PROFILE=simulator_local_operator \
+SEMOPS_MAVLINK_COMMAND_LOCAL_OVERRIDE_CONFIRMED=true \
+SEMOPS_MAVLINK_COMMAND_ACK_REQUIRED=true \
+SEMOPS_MAVLINK_COMMAND_POST_STATE_POLL_REQUIRED=true \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+The expected result is an evidence file with `result=blocked_no_native_command_transmitter` and exit status `2`.
+Missing simulator family, target, action, safety profile, local override, ACK requirement, or post-state polling
+requirement also blocks before the gate can be cited. If `SEMOPS_MAVLINK_COMMAND_TRANSMITTER` is set or
+`SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED=true`, this mode also blocks because a reviewed native transmitter gate does
+not exist yet.
+
 ## Acceptance
 
 The smoke requires:

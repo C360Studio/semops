@@ -145,6 +145,10 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   repeating that edge, malformed or expired intents fail closed, and the planner does not birth target assets.
 - 2026-06-23: the same command projector package now includes admission tests proving unresolved targets, expired
   intents, and duplicate idempotency keys return no mutation plan before any writer or native transmitter exists.
+- 2026-06-24: `SEMOPS_MAVLINK_SITL_GATE_MODE=command-preflight` with an explicit PX4 simulator family, command
+  target, `hold_position` action, simulator-local safety profile, local override, ACK requirement, and post-command
+  state-polling requirement exited with `result=blocked_no_native_command_transmitter`. This is fail-closed
+  safety-posture evidence only, not live command/control evidence.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -304,6 +308,9 @@ Acceptance:
   override, before running the gate. [done]
 - Preferred PX4/Gazebo headless Docker helper is wired, fail-closed on missing local image unless pull is explicitly
   enabled, and records simulator image/vehicle/world evidence. [done and passed against pulled image on 2026-06-23]
+- Command-control preflight mode records the intended simulator family, target, action, safety profile, local override
+  posture, ACK requirement, and post-command polling requirement, then exits blocked before native transmit because no
+  reviewed live transmitter gate exists. [done as fail-closed evidence only]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs telemetry parity checks before
   any ArduPilot interoperability claim. Live command smoke remains a separate reviewed gate.
   [open]
@@ -345,6 +352,8 @@ Acceptance:
   evidence; ArduPilot parity, MAVSDK/offboard parity, and live command/control remain separate open gates.
 - The helper now fail-closes focused/stack evidence unless the run declares `SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY`.
   PX4 headless mode stamps `px4` automatically and refuses contradictory family values.
+- The helper now has `command-preflight` mode for safety-posture evidence, but it exits with blocked evidence until a
+  reviewed native transmitter gate exists.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
 - Command codec coverage and COMMAND_ACK readback projection are active, but live command transmit, command

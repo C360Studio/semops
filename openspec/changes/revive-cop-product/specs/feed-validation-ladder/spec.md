@@ -209,6 +209,19 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** live command transmission SHALL remain blocked until safety interlocks, local override, stale-command
   rejection, cancellation, supersession, and async status reconciliation are reviewed
 
+#### Scenario: MAVLink command-control preflight is fail-closed before native transmit
+
+- **WHEN** SemOps runs a MAVLink command-control preflight before a reviewed native transmitter exists
+- **THEN** the helper SHALL require a named simulator source, simulator family, born-first command target, command
+  action, and command safety profile
+- **AND** the helper SHALL require explicit local-override, ACK-correlation, and post-command state-polling
+  attestations before it writes command-control evidence
+- **AND** the helper SHALL reject any configured native transmitter or transmit-enabled flag until a reviewed live
+  command gate exists
+- **AND** the helper SHALL write blocked evidence rather than passing the gate
+- **AND** the blocked preflight SHALL NOT be cited as live command/control, mission execution, or native command
+  authority evidence
+
 #### Scenario: MAVLink simulator readiness is not simulator evidence
 
 - **WHEN** the external SITL smoke skips because no COP snapshot URL is configured or local PX4/MAVSDK/ArduPilot

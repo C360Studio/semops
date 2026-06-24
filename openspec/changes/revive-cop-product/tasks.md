@@ -204,6 +204,8 @@
       command authority claims
 - [x] 5.98 Add simulator-family evidence stamping so PX4 telemetry passes cannot satisfy ArduPilot, MAVSDK/offboard,
       hardware, or command-control parity gates
+- [x] 5.99 Add a fail-closed MAVLink command-control preflight that records safety posture while keeping native
+      transmit blocked
 
 ## 6. Structural COP Stack
 
@@ -387,6 +389,8 @@
       upstream CS API status authority
 - [ ] 8.31 Add authenticated operator identity and multi-authority conflict arbitration before review decisions can
       drive command execution, identity fusion, upstream CS API status, or compliance workflows
+- [x] 8.32 Add fail-closed MAVLink command-control preflight evidence before any native transmitter, CS API tasking
+      ingress, or operator execute control is wired
 
 ## 9. Upstream SemStreams Asks
 

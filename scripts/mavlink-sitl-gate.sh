@@ -33,6 +33,15 @@ TIMEOUT="${SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT:-2m}"
 MIN_UPDATES="${SEMOPS_MAVLINK_SITL_SMOKE_MIN_UPDATES:-2}"
 REQUIRE_MOTION="${SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION:-false}"
 
+COMMAND_TARGET_ID="${SEMOPS_MAVLINK_COMMAND_TARGET_ID:-}"
+COMMAND_ACTION="${SEMOPS_MAVLINK_COMMAND_ACTION:-}"
+COMMAND_SAFETY_PROFILE="${SEMOPS_MAVLINK_COMMAND_SAFETY_PROFILE:-}"
+COMMAND_LOCAL_OVERRIDE_CONFIRMED="${SEMOPS_MAVLINK_COMMAND_LOCAL_OVERRIDE_CONFIRMED:-false}"
+COMMAND_ACK_REQUIRED="${SEMOPS_MAVLINK_COMMAND_ACK_REQUIRED:-false}"
+COMMAND_POST_STATE_POLL_REQUIRED="${SEMOPS_MAVLINK_COMMAND_POST_STATE_POLL_REQUIRED:-false}"
+COMMAND_TRANSMITTER="${SEMOPS_MAVLINK_COMMAND_TRANSMITTER:-}"
+COMMAND_TRANSMIT_ENABLED="${SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED:-false}"
+
 bool_is_true() {
   case "${1:-}" in
     1|true|TRUE|True|yes|YES|Yes|on|ON|On)
@@ -119,6 +128,14 @@ write_evidence() {
     echo "timeout=$TIMEOUT"
     echo "min_updates=$MIN_UPDATES"
     echo "require_motion=$REQUIRE_MOTION"
+    echo "command_target_id=$COMMAND_TARGET_ID"
+    echo "command_action=$COMMAND_ACTION"
+    echo "command_safety_profile=$COMMAND_SAFETY_PROFILE"
+    echo "command_local_override_confirmed=$COMMAND_LOCAL_OVERRIDE_CONFIRMED"
+    echo "command_ack_required=$COMMAND_ACK_REQUIRED"
+    echo "command_post_state_poll_required=$COMMAND_POST_STATE_POLL_REQUIRED"
+    echo "command_transmitter=$COMMAND_TRANSMITTER"
+    echo "command_transmit_enabled=$COMMAND_TRANSMIT_ENABLED"
     echo "px4_path=$(command -v px4 2>/dev/null || true)"
     echo "mavsdk_server_path=$(command -v mavsdk_server 2>/dev/null || true)"
     echo "sim_vehicle_path=$(command -v sim_vehicle.py 2>/dev/null || true)"
@@ -133,6 +150,16 @@ print_preflight() {
   echo "Expected simulator UDP route: $SIMULATOR_ROUTE"
   echo "Expected COP track: $EXPECTED_TRACK_ID"
   echo "Simulator family: ${SIMULATOR_FAMILY:-missing}"
+  if [[ "$MODE" == "command-preflight" ]]; then
+    echo "Command target: ${COMMAND_TARGET_ID:-missing}"
+    echo "Command action: ${COMMAND_ACTION:-missing}"
+    echo "Command safety profile: ${COMMAND_SAFETY_PROFILE:-missing}"
+    echo "Command local override confirmed: $COMMAND_LOCAL_OVERRIDE_CONFIRMED"
+    echo "Command ACK required: $COMMAND_ACK_REQUIRED"
+    echo "Command post-state poll required: $COMMAND_POST_STATE_POLL_REQUIRED"
+    echo "Command transmitter: ${COMMAND_TRANSMITTER:-missing}"
+    echo "Command transmit enabled: $COMMAND_TRANSMIT_ENABLED"
+  fi
   echo
   echo "Local simulator commands:"
   echo "  px4: $(command -v px4 2>/dev/null || echo missing)"
@@ -315,6 +342,98 @@ EOF
   fi
 }
 
+require_command_input() {
+  local name="$1"
+  local value="$2"
+  local result="$3"
+  local hint="${4:-}"
+
+  if [[ -n "$value" ]]; then
+    return
+  fi
+
+  cat >&2 <<EOF
+$name is required for command-preflight mode.
+
+$hint
+EOF
+  write_evidence "$result" 2
+  exit 2
+}
+
+require_command_bool() {
+  local name="$1"
+  local value="$2"
+  local result="$3"
+
+  if bool_is_true "$value"; then
+    return
+  fi
+
+  local hint="${4:-}"
+
+  cat >&2 <<EOF
+$name must be true for command-preflight mode.
+
+$hint
+EOF
+  write_evidence "$result" 2
+  exit 2
+}
+
+run_command_preflight() {
+  require_simulator_attestation
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_TARGET_ID" \
+    "$COMMAND_TARGET_ID" \
+    "blocked_missing_command_target" \
+    "Name the born-first graph target that a future native transmitter would command."
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_ACTION" \
+    "$COMMAND_ACTION" \
+    "blocked_missing_command_action" \
+    "Name the safe simulator action under review, for example hold_position, loiter, or arm_disallowed."
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_SAFETY_PROFILE" \
+    "$COMMAND_SAFETY_PROFILE" \
+    "blocked_missing_command_safety_profile" \
+    "Name the reviewed command safety profile. Do not use a production or hardware profile for this preflight."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_LOCAL_OVERRIDE_CONFIRMED" \
+    "$COMMAND_LOCAL_OVERRIDE_CONFIRMED" \
+    "blocked_missing_command_local_override" \
+    "Command evidence must say local operator override and abort authority are understood before any transmit gate."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_ACK_REQUIRED" \
+    "$COMMAND_ACK_REQUIRED" \
+    "blocked_missing_command_ack_requirement" \
+    "The future live gate must correlate COMMAND_ACK or equivalent native readback before claiming command acceptance."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_POST_STATE_POLL_REQUIRED" \
+    "$COMMAND_POST_STATE_POLL_REQUIRED" \
+    "The future live gate must poll post-command state before claiming execution or effect."
+
+  if [[ -n "$COMMAND_TRANSMITTER" ]] || bool_is_true "$COMMAND_TRANSMIT_ENABLED"; then
+    cat >&2 <<'EOF'
+command-preflight mode is non-transmitting by design.
+
+Remove SEMOPS_MAVLINK_COMMAND_TRANSMITTER and keep SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED=false until a reviewed
+native transmitter gate exists.
+EOF
+    write_evidence "blocked_unreviewed_command_transmitter" 2
+    exit 2
+  fi
+
+  cat >&2 <<'EOF'
+MAVLink command-control remains blocked: SemOps has command intent, arbitration, and COMMAND_ACK readback plumbing,
+but no reviewed native transmitter gate exists yet.
+
+This preflight wrote evidence for the intended safety posture and stopped before native transmit.
+EOF
+  write_evidence "blocked_no_native_command_transmitter" 2
+  exit 2
+}
+
 run_guarded_skip_check() {
   (
     cd "$ROOT"
@@ -411,9 +530,12 @@ case "$MODE" in
   px4-headless-stack)
     run_px4_headless_stack_smoke
     ;;
+  command-preflight)
+    run_command_preflight
+    ;;
   *)
     echo "Unsupported SEMOPS_MAVLINK_SITL_GATE_MODE=$MODE" >&2
-    echo "Expected preflight, focused, stack, or px4-headless-stack." >&2
+    echo "Expected preflight, focused, stack, px4-headless-stack, or command-preflight." >&2
     write_evidence "blocked_bad_mode" 2
     exit 2
     ;;
