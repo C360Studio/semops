@@ -12,5 +12,11 @@
   "sensor_elevation_degrees": -12.25,
   "frame_center_latitude": 34.125001,
   "frame_center_longitude": -117.120222,
-  "frame_center_elevation_meters": 905.5
+  "frame_center_elevation_meters": 905.5,
+  "footprint_corners": [
+    { "lat": 34.1262, "lon": -117.1219 },
+    { "lat": 34.1264, "lon": -117.11855 },
+    { "lat": 34.12385, "lon": -117.1184 },
+    { "lat": 34.1236, "lon": -117.1218 }
+  ]
 }

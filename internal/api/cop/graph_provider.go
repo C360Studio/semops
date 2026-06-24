@@ -970,8 +970,8 @@ func firstPhaseFeedHealth(
 		"feed.klv",
 		"KLV",
 		"sensor-footprint",
-		"KLV sensor/frame-center graph proof pending",
-		"Graph-backed KLV sensor/frame-center state",
+		"KLV sensor/footprint graph proof pending",
+		"Graph-backed KLV sensor/footprint state",
 		sensorFootprintObservationTimes(footprints),
 	)
 	if len(footprints) == 0 {
@@ -1301,14 +1301,16 @@ func sensorFootprintFromEntity(entity graph.EntityState, now time.Time, freshnes
 	mediaRef := latestStringProperty(entity, copmodel.SensorFootprintMediaRef, "")
 	packetRef := latestStringProperty(entity, copmodel.SensorFootprintPacketRef, "")
 	platformDesignation := latestStringProperty(entity, copmodel.SensorFootprintPlatformDesignation, "")
+	footprint := latestPolygon(entity, copmodel.SensorFootprintGeometry)
 	return SensorFootprint{
 		ID:                         entity.ID,
 		Label:                      sensorFootprintLabel(entity, platformDesignation),
 		Source:                     source,
-		Status:                     freshnessStatus("active.sensor-frame-center", now, updatedAt, freshness),
+		Status:                     freshnessStatus(sensorFootprintStatus(footprint), now, updatedAt, freshness),
 		SensorPosition:             sensorPosition,
 		FrameCenter:                frameCenter,
 		Ray:                        []GeoPoint{sensorPosition, frameCenter},
+		Footprint:                  footprint,
 		SensorAltitudeMeters:       optionalFloat(entity, copmodel.SensorFootprintSensorAltitude),
 		SensorAzimuthDegrees:       optionalFloat(entity, copmodel.SensorFootprintSensorAzimuth),
 		SensorElevationDegrees:     optionalFloat(entity, copmodel.SensorFootprintSensorElevation),
@@ -1317,7 +1319,7 @@ func sensorFootprintFromEntity(entity graph.EntityState, now time.Time, freshnes
 		PacketRef:                  packetRef,
 		FrameTime:                  updatedAt,
 		PlatformDesignation:        platformDesignation,
-		ClaimPosture:               "sensor-frame-center graph readback; no footprint polygon; no STANAG conformance",
+		ClaimPosture:               sensorFootprintClaimPosture(footprint),
 		DecodedFields:              sensorFootprintDecodedFields(entity),
 		Warnings:                   sensorFootprintWarnings(entity, mediaRef, packetRef),
 		Confidence:                 confidence(entity),
@@ -1328,6 +1330,20 @@ func sensorFootprintFromEntity(entity graph.EntityState, now time.Time, freshnes
 			Observed:  updatedAt,
 		},
 	}, true
+}
+
+func sensorFootprintStatus(footprint []GeoPoint) string {
+	if len(footprint) >= 3 {
+		return "active.footprint-polygon"
+	}
+	return "active.sensor-frame-center"
+}
+
+func sensorFootprintClaimPosture(footprint []GeoPoint) string {
+	if len(footprint) >= 3 {
+		return "sensor/frame-center and footprint polygon graph readback; tested MISB ST 0601 offset-corner subset; no STANAG conformance"
+	}
+	return "sensor-frame-center graph readback; no footprint polygon; no STANAG conformance"
 }
 
 func sensorFootprintLabel(entity graph.EntityState, platformDesignation string) string {
@@ -1353,6 +1369,7 @@ func sensorFootprintDecodedFields(entity graph.EntityState) []string {
 		{name: "sensor_elevation_degrees", predicate: copmodel.SensorFootprintSensorElevation},
 		{name: "frame_center", predicate: copmodel.SensorFootprintFrameCenter},
 		{name: "frame_center_elevation_meters", predicate: copmodel.SensorFootprintFrameCenterElevation},
+		{name: "footprint_polygon", predicate: copmodel.SensorFootprintGeometry},
 	} {
 		if _, ok := latestPropertyValue(entity, field.predicate); ok {
 			fields = append(fields, field.name)
@@ -1369,7 +1386,7 @@ func sensorFootprintWarnings(entity graph.EntityState, mediaRef string, packetRe
 	if strings.TrimSpace(packetRef) == "" {
 		warnings = append(warnings, "packet reference missing")
 	}
-	if _, ok := latestPropertyValue(entity, "cop.sensor_footprint.geometry"); !ok {
+	if len(latestPolygon(entity, copmodel.SensorFootprintGeometry)) == 0 {
 		warnings = append(warnings, "footprint polygon not computed")
 	}
 	return warnings
@@ -1698,6 +1715,14 @@ func optionalLatestPoint(entity graph.EntityState, predicate string) *GeoPoint {
 	return &point
 }
 
+func latestPolygon(entity graph.EntityState, predicate string) []GeoPoint {
+	value, ok := latestPropertyValue(entity, predicate)
+	if !ok {
+		return nil
+	}
+	return geoPolygonFromWKT(value)
+}
+
 func optionalFloat(entity graph.EntityState, predicate string) *float64 {
 	value, ok := latestPropertyValue(entity, predicate)
 	if !ok {
@@ -1956,6 +1981,39 @@ func geoPointFromWKT(value any) (GeoPoint, bool) {
 		return GeoPoint{}, false
 	}
 	return GeoPoint{Lat: lat, Lon: lon}, true
+}
+
+func geoPolygonFromWKT(value any) []GeoPoint {
+	text, ok := stringFromAny(value)
+	if !ok {
+		return nil
+	}
+	text = strings.TrimSpace(text)
+	if !strings.HasPrefix(text, "POLYGON((") || !strings.HasSuffix(text, "))") {
+		return nil
+	}
+	body := strings.TrimSuffix(strings.TrimPrefix(text, "POLYGON(("), "))")
+	rawPoints := strings.Split(body, ",")
+	points := make([]GeoPoint, 0, len(rawPoints))
+	for _, rawPoint := range rawPoints {
+		parts := strings.Fields(strings.TrimSpace(rawPoint))
+		if len(parts) != 2 {
+			return nil
+		}
+		lon, lonErr := strconv.ParseFloat(parts[0], 64)
+		lat, latErr := strconv.ParseFloat(parts[1], 64)
+		if lonErr != nil || latErr != nil {
+			return nil
+		}
+		points = append(points, GeoPoint{Lat: lat, Lon: lon})
+	}
+	if len(points) >= 4 && points[0] == points[len(points)-1] {
+		points = points[:len(points)-1]
+	}
+	if len(points) < 3 {
+		return nil
+	}
+	return points
 }
 
 func stringFromAny(value any) (string, bool) {

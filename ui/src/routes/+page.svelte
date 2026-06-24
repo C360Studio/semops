@@ -327,6 +327,12 @@
           <dt>Frame center</dt>
           <dd>{entity.frame_center.lat.toFixed(5)}, {entity.frame_center.lon.toFixed(5)}</dd>
         </div>
+        {#if entity.footprint && entity.footprint.length >= 3}
+          <div>
+            <dt>Footprint</dt>
+            <dd>{entity.footprint.length} corners</dd>
+          </div>
+        {/if}
         {#if entity.sensor_azimuth_degrees !== undefined}
           <div>
             <dt>Azimuth</dt>

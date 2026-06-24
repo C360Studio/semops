@@ -292,7 +292,9 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByRole('heading', { name: 'TEST-UAS-01 sensor footprint' })).toBeVisible();
   await expect(page.getByText('object://semops/klv/deterministic-001.ts')).toBeVisible();
   await expect(page.getByText('klv://packet/deterministic/00000001').first()).toBeVisible();
-  await expect(page.getByText(/no footprint polygon/)).toBeVisible();
+  await expect(page.getByText('Footprint', { exact: true })).toBeVisible();
+  await expect(page.getByText('4 corners')).toBeVisible();
+  await expect(page.getByText(/no STANAG conformance/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Select 29.4 degC temperature_2m' }).click();
   await expect(page.getByRole('heading', { name: '29.4 degC temperature_2m' })).toBeVisible();

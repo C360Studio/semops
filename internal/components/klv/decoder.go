@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -43,10 +44,21 @@ const (
 	misbTagFrameCenterLatitude  = 23
 	misbTagFrameCenterLongitude = 24
 	misbTagFrameCenterElevation = 25
+	misbTagOffsetCornerLat1     = 26
+	misbTagOffsetCornerLon1     = 27
+	misbTagOffsetCornerLat2     = 28
+	misbTagOffsetCornerLon2     = 29
+	misbTagOffsetCornerLat3     = 30
+	misbTagOffsetCornerLon3     = 31
+	misbTagOffsetCornerLat4     = 32
+	misbTagOffsetCornerLon4     = 33
 
 	misbMaxInt32  = float64(1<<31 - 1)
+	misbMaxInt16  = float64(1<<15 - 1)
 	misbMaxUint16 = float64(1<<16 - 1)
 	misbMaxUint32 = float64(1<<32 - 1)
+
+	misbCornerOffsetMaxDegrees = 0.075
 )
 
 func DecodeMISB0601Packet(packet *PacketPayload) (*MISB0601FramePayload, error) {
@@ -153,6 +165,10 @@ func extractMISB0601LocalSet(packetBytes []byte) ([]byte, error) {
 
 func applyMISB0601LocalSet(frame *MISB0601FramePayload, localSet []byte) error {
 	var unsupported []int
+	var cornerOffsets [4]struct {
+		lat *float64
+		lon *float64
+	}
 	for offset := 0; offset < len(localSet); {
 		tag, next, err := readBEROID(localSet, offset)
 		if err != nil {
@@ -237,14 +253,124 @@ func applyMISB0601LocalSet(frame *MISB0601FramePayload, localSet []byte) error {
 			}
 			frame.FrameCenterElevationMeters = &v
 			addFrameField(frame, "FrameCenterElevation")
+		case misbTagOffsetCornerLat1:
+			if err := decodeOffsetCornerLatitude(frame, cornerOffsets[:], 0, value); err != nil {
+				return err
+			}
+		case misbTagOffsetCornerLon1:
+			if err := decodeOffsetCornerLongitude(frame, cornerOffsets[:], 0, value); err != nil {
+				return err
+			}
+		case misbTagOffsetCornerLat2:
+			if err := decodeOffsetCornerLatitude(frame, cornerOffsets[:], 1, value); err != nil {
+				return err
+			}
+		case misbTagOffsetCornerLon2:
+			if err := decodeOffsetCornerLongitude(frame, cornerOffsets[:], 1, value); err != nil {
+				return err
+			}
+		case misbTagOffsetCornerLat3:
+			if err := decodeOffsetCornerLatitude(frame, cornerOffsets[:], 2, value); err != nil {
+				return err
+			}
+		case misbTagOffsetCornerLon3:
+			if err := decodeOffsetCornerLongitude(frame, cornerOffsets[:], 2, value); err != nil {
+				return err
+			}
+		case misbTagOffsetCornerLat4:
+			if err := decodeOffsetCornerLatitude(frame, cornerOffsets[:], 3, value); err != nil {
+				return err
+			}
+		case misbTagOffsetCornerLon4:
+			if err := decodeOffsetCornerLongitude(frame, cornerOffsets[:], 3, value); err != nil {
+				return err
+			}
 		default:
 			unsupported = append(unsupported, tag)
 		}
 	}
+	applyFootprintCorners(frame, cornerOffsets[:])
 	if len(unsupported) > 0 {
 		addFrameWarning(frame, fmt.Sprintf("unsupported MISB ST 0601 tags ignored: %v", unsupported))
 	}
 	return nil
+}
+
+func decodeOffsetCornerLatitude(
+	frame *MISB0601FramePayload,
+	offsets []struct {
+		lat *float64
+		lon *float64
+	},
+	index int,
+	value []byte,
+) error {
+	v, err := decodeSigned16(value, misbCornerOffsetMaxDegrees)
+	if err != nil {
+		return fmt.Errorf("decode OffsetCornerLatitudePoint%d: %w", index+1, err)
+	}
+	offsets[index].lat = &v
+	addFrameField(frame, fmt.Sprintf("OffsetCornerLatitudePoint%d", index+1))
+	return nil
+}
+
+func decodeOffsetCornerLongitude(
+	frame *MISB0601FramePayload,
+	offsets []struct {
+		lat *float64
+		lon *float64
+	},
+	index int,
+	value []byte,
+) error {
+	v, err := decodeSigned16(value, misbCornerOffsetMaxDegrees)
+	if err != nil {
+		return fmt.Errorf("decode OffsetCornerLongitudePoint%d: %w", index+1, err)
+	}
+	offsets[index].lon = &v
+	addFrameField(frame, fmt.Sprintf("OffsetCornerLongitudePoint%d", index+1))
+	return nil
+}
+
+func applyFootprintCorners(
+	frame *MISB0601FramePayload,
+	offsets []struct {
+		lat *float64
+		lon *float64
+	},
+) {
+	var present int
+	for _, offset := range offsets {
+		if offset.lat != nil || offset.lon != nil {
+			present++
+		}
+	}
+	if present == 0 {
+		return
+	}
+	if frame.FrameCenterLatitude == nil || frame.FrameCenterLongitude == nil {
+		addFrameWarning(frame, "MISB ST 0601 offset corners ignored: frame center latitude/longitude missing")
+		return
+	}
+	points := make([]FootprintCorner, 0, 5)
+	for index, offset := range offsets {
+		if offset.lat == nil || offset.lon == nil {
+			addFrameWarning(frame, fmt.Sprintf("MISB ST 0601 offset corner %d incomplete; footprint polygon not computed", index+1))
+			return
+		}
+		corner := FootprintCorner{
+			Lat: *frame.FrameCenterLatitude + *offset.lat,
+			Lon: *frame.FrameCenterLongitude + *offset.lon,
+		}
+		if corner.Lat < -90 || corner.Lat > 90 || corner.Lon < -180 || corner.Lon > 180 {
+			addFrameWarning(frame, fmt.Sprintf("MISB ST 0601 offset corner %d outside valid WGS84 range; footprint polygon not computed", index+1))
+			return
+		}
+		points = append(points, corner)
+	}
+	points = append(points, points[0])
+	frame.FootprintWKT = footprintWKT(points)
+	addFrameField(frame, "FootprintPolygon")
 }
 
 func readBEROID(data []byte, offset int) (int, int, error) {
@@ -300,6 +426,17 @@ func decodeSigned32(value []byte, maxAbs float64) (float64, error) {
 	return float64(raw) * maxAbs / misbMaxInt32, nil
 }
 
+func decodeSigned16(value []byte, maxAbs float64) (float64, error) {
+	if len(value) != 2 {
+		return 0, fmt.Errorf("got %d bytes, want 2", len(value))
+	}
+	raw := int16(binary.BigEndian.Uint16(value))
+	if raw == -1<<15 {
+		return 0, errors.New("reserved out-of-range value")
+	}
+	return float64(raw) * maxAbs / misbMaxInt16, nil
+}
+
 func decodeUnsigned16Range(value []byte, minValue, maxValue float64) (float64, error) {
 	if len(value) != 2 {
 		return 0, fmt.Errorf("got %d bytes, want 2", len(value))
@@ -333,4 +470,12 @@ func addFrameField(frame *MISB0601FramePayload, field string) {
 
 func addFrameWarning(frame *MISB0601FramePayload, warning string) {
 	frame.Warnings = append(frame.Warnings, warning)
+}
+
+func footprintWKT(points []FootprintCorner) string {
+	parts := make([]string, 0, len(points))
+	for _, point := range points {
+		parts = append(parts, formatKLVCoord(point.Lon)+" "+formatKLVCoord(point.Lat))
+	}
+	return "POLYGON((" + strings.Join(parts, ", ") + "))"
 }

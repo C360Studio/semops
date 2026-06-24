@@ -21,12 +21,13 @@ deck.gl for high-rate tactical overlays.
 
 - **WHEN** the first MapLibre/deck.gl implementation is present
 - **THEN** it renders snapshot tracks, assets, TAK/CoT tasks, TAK/CoT advisories, hazard areas, and KLV
-  sensor/frame-center footprints, plus localized weather observation points, through deck.gl point, polygon, line,
-  label, and picking overlays
+  sensor/frame-center footprints, decoded KLV footprint polygons, plus localized weather observation points, through
+  deck.gl point, polygon, line, label, and picking overlays
 - **AND** when an alert references an existing spatial entity, selecting the alert highlights the referenced map
   geometry while keeping the alert itself selected in the inspector
 - **AND** it does not claim finished basemap tiles, terrain, track trails, an independent alert geometry model, full
-  footprint polygons, full task workflow geometry, or temporal scrubbing until those layers have their own evidence
+  footprint policy, full task workflow geometry, video playback, 3D frustum inspection, or temporal scrubbing until
+  those layers have their own evidence
 
 ### Requirement: Core operator loop is test guarded
 

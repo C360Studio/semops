@@ -20,6 +20,8 @@ func TestDecodeMISB0601PacketDeterministicSubset(t *testing.T) {
 	elevationRaw := int32(-0x10000000)
 	sensorAltRaw := uint16(0x8000)
 	frameCenterAltRaw := uint16(0xffff)
+	cornerLatRaw := []int16{0x0100, 0x0110, -0x0200, -0x0210}
+	cornerLonRaw := []int16{-0x0180, 0x0190, 0x01a0, -0x0170}
 
 	packet := NewPacketPayload(
 		"klv:demux",
@@ -36,6 +38,14 @@ func TestDecodeMISB0601PacketDeterministicSubset(t *testing.T) {
 			misbField(misbTagFrameCenterLatitude, beI32(frameCenterLatRaw)),
 			misbField(misbTagFrameCenterLongitude, beI32(frameCenterLonRaw)),
 			misbField(misbTagFrameCenterElevation, beU16(frameCenterAltRaw)),
+			misbField(misbTagOffsetCornerLat1, beI16(cornerLatRaw[0])),
+			misbField(misbTagOffsetCornerLon1, beI16(cornerLonRaw[0])),
+			misbField(misbTagOffsetCornerLat2, beI16(cornerLatRaw[1])),
+			misbField(misbTagOffsetCornerLon2, beI16(cornerLonRaw[1])),
+			misbField(misbTagOffsetCornerLat3, beI16(cornerLatRaw[2])),
+			misbField(misbTagOffsetCornerLon3, beI16(cornerLonRaw[2])),
+			misbField(misbTagOffsetCornerLat4, beI16(cornerLatRaw[3])),
+			misbField(misbTagOffsetCornerLon4, beI16(cornerLonRaw[3])),
 		),
 	)
 	packet.PacketRef = "klv://packet/deterministic/00000001"
@@ -68,6 +78,17 @@ func TestDecodeMISB0601PacketDeterministicSubset(t *testing.T) {
 	requireClose(t, "frame center latitude", frame.FrameCenterLatitude, scaleSigned32ForTest(frameCenterLatRaw, 90), 1e-9)
 	requireClose(t, "frame center longitude", frame.FrameCenterLongitude, scaleSigned32ForTest(frameCenterLonRaw, 180), 1e-9)
 	requireClose(t, "frame center elevation", frame.FrameCenterElevationMeters, scaleU16ForTest(frameCenterAltRaw, -900, 19000), 1e-9)
+	expectedCorners := make([]FootprintCorner, 0, 5)
+	for index := range cornerLatRaw {
+		expectedCorners = append(expectedCorners, FootprintCorner{
+			Lat: *frame.FrameCenterLatitude + scaleSigned16ForTest(cornerLatRaw[index], misbCornerOffsetMaxDegrees),
+			Lon: *frame.FrameCenterLongitude + scaleSigned16ForTest(cornerLonRaw[index], misbCornerOffsetMaxDegrees),
+		})
+	}
+	expectedCorners = append(expectedCorners, expectedCorners[0])
+	if frame.FootprintWKT != footprintWKT(expectedCorners) {
+		t.Fatalf("footprint WKT = %q, want %q", frame.FootprintWKT, footprintWKT(expectedCorners))
+	}
 
 	for _, field := range []string{
 		"PrecisionTimeStamp",
@@ -80,6 +101,15 @@ func TestDecodeMISB0601PacketDeterministicSubset(t *testing.T) {
 		"FrameCenterLatitude",
 		"FrameCenterLongitude",
 		"FrameCenterElevation",
+		"OffsetCornerLatitudePoint1",
+		"OffsetCornerLongitudePoint1",
+		"OffsetCornerLatitudePoint2",
+		"OffsetCornerLongitudePoint2",
+		"OffsetCornerLatitudePoint3",
+		"OffsetCornerLongitudePoint3",
+		"OffsetCornerLatitudePoint4",
+		"OffsetCornerLongitudePoint4",
+		"FootprintPolygon",
 	} {
 		requireField(t, frame.Fields, field)
 	}
@@ -167,6 +197,33 @@ func TestDecodeMISB0601PacketReportsUnsupportedTags(t *testing.T) {
 	requireField(t, frame.Fields, "PlatformDesignation")
 }
 
+func TestDecodeMISB0601PacketRequiresCompleteOffsetCornerPairs(t *testing.T) {
+	receivedAt := time.Now().UTC()
+	packet := NewPacketPayload(
+		"klv:demux",
+		"object://semops/klv/deterministic.ts",
+		receivedAt,
+		buildMISB0601Packet(
+			misbField(misbTagFrameCenterLatitude, beI32(0x10000000)),
+			misbField(misbTagFrameCenterLongitude, beI32(-0x20000000)),
+			misbField(misbTagOffsetCornerLat1, beI16(0x0100)),
+		),
+	)
+	packet.PacketRef = "klv://packet/deterministic/00000001"
+
+	frame, err := DecodeMISB0601Packet(packet)
+	if err != nil {
+		t.Fatalf("decode packet with incomplete offset corner: %v", err)
+	}
+	if frame.FootprintWKT != "" {
+		t.Fatalf("footprint WKT = %q, want empty for incomplete offset corner", frame.FootprintWKT)
+	}
+	if len(frame.Warnings) != 1 || !strings.Contains(frame.Warnings[0], "offset corner 1 incomplete") {
+		t.Fatalf("warnings = %#v, want incomplete offset corner warning", frame.Warnings)
+	}
+	requireField(t, frame.Fields, "OffsetCornerLatitudePoint1")
+}
+
 type misbLocalField struct {
 	tag   int
 	value []byte
@@ -243,6 +300,12 @@ func beI32(value int32) []byte {
 	return data
 }
 
+func beI16(value int16) []byte {
+	data := make([]byte, 2)
+	binary.BigEndian.PutUint16(data, uint16(value))
+	return data
+}
+
 func beU64(value uint64) []byte {
 	data := make([]byte, 8)
 	binary.BigEndian.PutUint64(data, value)
@@ -271,6 +334,10 @@ func requireField(t *testing.T, fields []string, want string) {
 
 func scaleSigned32ForTest(raw int32, maxAbs float64) float64 {
 	return float64(raw) * maxAbs / misbMaxInt32
+}
+
+func scaleSigned16ForTest(raw int16, maxAbs float64) float64 {
+	return float64(raw) * maxAbs / misbMaxInt16
 }
 
 func scaleU16ForTest(raw uint16, minValue, maxValue float64) float64 {

@@ -135,7 +135,7 @@
     const labels = tacticalLabels(snapshot);
     return [
       new PolygonLayer({
-        id: 'semops-hazards',
+        id: 'semops-polygons',
         data: polygons,
         pickable: true,
         stroked: true,

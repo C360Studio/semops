@@ -995,13 +995,13 @@ Local assets:
   packet on the declared stream. Storage-reference-only media refs are accepted only when an explicit bounded
   materializer is supplied. This is not a production live-media or STANAG conformance claim.
 - `internal/projectors/klv` can plan born-first, owner-token-fenced graph writes for source-partitioned
-  `sensor_footprint` sensor/frame-center state. The contract includes sensor position, frame center,
-  azimuth/elevation, media reference, packet reference, platform designation, and provenance, but not footprint
-  polygons, video service support, or conformance claims.
+  `sensor_footprint` state. The contract includes sensor position, frame center, decoded offset-corner footprint
+  polygon, azimuth/elevation, media reference, packet reference, platform designation, and provenance, but not video
+  service support or conformance claims.
 - `internal/api/cop` and the Svelte COP UI now read back that governed KLV `sensor_footprint` state as selectable
-  sensor points, frame-center points, and rays with a provenance inspector. This is the product-visible proof for
-  sensor/frame-center evidence only, not a video player, footprint polygon, streaming-binary, or STANAG conformance
-  claim.
+  sensor points, frame-center points, rays, and decoded offset-corner footprint polygons with a provenance inspector.
+  This is the product-visible proof for a deterministic MISB ST 0601 subset, not a video player, streaming-binary, or
+  STANAG conformance claim.
 - `cmd/semops-klv-fixture` can generate a tiny deterministic MPEG-TS fixture from SemOps-owned MISB ST 0601 truth
   data, and the generated media output is ignored rather than vendored.
 - The one-command hosted stack smoke can opt into KLV with `SEMOPS_COP_SMOKE_KLV_ENABLED=true`, building the
@@ -1009,7 +1009,7 @@ Local assets:
   Prometheus/runtime readback. The default stack keeps KLV disabled and uses the production image target.
 - `openspec/changes/revive-cop-product/reviews/2026-06-23-klv-claim-language-review.md` records the allowed
   engineering-support wording for the tested MISB ST 0601 subset and blocks STANAG conformance, certification,
-  full-parser, live-media, footprint-polygon, and general streaming-binary claims.
+  full-parser, live-media, broad footprint-policy, and general streaming-binary claims.
 
 Mock or harness:
 
@@ -1068,8 +1068,8 @@ First acceptance gate:
   SemStreams `message.BaseMessage`, enforce by-reference posture for packet payloads that do not carry bounded bytes,
   and connect media-ref -> demux -> decode -> projector through SemStreams flowgraph ports.
 - Given `go test ./internal/components/klv`, the first deterministic MISB ST 0601 local-set decoder extracts frame
-  time, platform designation, sensor position, frame center, azimuth, and elevation from bounded packet bytes without
-  graph writes.
+  time, platform designation, sensor position, frame center, offset-corner footprint polygon, azimuth, and elevation
+  from bounded packet bytes without graph writes.
 - Given the opt-in decoder worker path, a registered `semops.klv_packet.v1` BaseMessage produces a registered
   `semops.klv_misb0601_frame.v1` BaseMessage on the declared frame subject, not a graph mutation subject.
 - Given a storage-reference-only packet payload, decode proceeds only when a configured packet materializer provides
@@ -1093,17 +1093,18 @@ First acceptance gate:
 - Given `SEMOPS_KLV_PUBLIC_SAMPLE_PATH`, `SEMOPS_KLV_PUBLIC_SAMPLE_SOURCE_URL`, and
   `SEMOPS_KLV_PUBLIC_SAMPLE_PROVENANCE` are set, the opt-in public sample smoke exercises the SemOps demux and
   decoder components against a local MPEG-TS KLV file without downloading or vendoring media.
-- Given a deterministic MISB ST 0601 fixture, parsed sensor position, frame time, frame center, azimuth, elevation,
-  and supported field presence match the source truth data within MISB integer quantization tolerances.
+- Given a deterministic MISB ST 0601 fixture, parsed sensor position, frame time, frame center, offset-corner footprint
+  polygon, azimuth, elevation, and supported field presence match the source truth data within MISB integer
+  quantization tolerances.
 - Given `go test ./internal/projectors/klv ./internal/components/klv`, decoded KLV frames project born-first
   source-partitioned `sensor_footprint` state with `indexing_profile=signal`, owner token fencing, sensor position,
-  frame center, media reference, packet reference, and no footprint polygon claim yet.
+  frame center, decoded footprint polygon when all four corner pairs exist, media reference, and packet reference.
 - Given KLV is made visible in the COP, the API/UI first reads back governed `sensor_footprint` graph state and renders
-  only the sensor point, frame-center point, and sensor-to-frame-center ray with provenance for media reference,
-  packet reference, decoded field inventory, warnings, provenance, and claim posture.
+  the sensor point, frame-center point, sensor-to-frame-center ray, and decoded footprint polygon with provenance for
+  media reference, packet reference, decoded field inventory, warnings, provenance, and claim posture.
 - Given the KLV layer is selected, the inspector labels public samples as smoke evidence and deterministic fixtures as
-  engineering-support evidence for the tested MISB ST 0601 subset; it does not imply footprint polygon extraction,
-  video service support, streaming-binary support, or STANAG 4609 conformance.
+  engineering-support evidence for the tested MISB ST 0601 subset; it does not imply video service support,
+  streaming-binary support, or STANAG 4609 conformance.
 - Given any video-plus-KLV path, binary is stored by reference and memory-bounded behavior is proven before any
   "streaming binary" product claim.
 

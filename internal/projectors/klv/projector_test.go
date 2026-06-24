@@ -51,6 +51,7 @@ func TestProjectorCreatesKLVSensorFootprintWithoutForeignEdges(t *testing.T) {
 	requireTriple(t, create.Triples, cop.SensorFootprintFrameCenter, "POINT(-117.1202220 34.1250010)")
 	requireTriple(t, create.Triples, cop.SensorFootprintSensorAzimuth, 87.5)
 	requireTriple(t, create.Triples, cop.SensorFootprintSensorElevation, -12.25)
+	requireTriple(t, create.Triples, cop.SensorFootprintGeometry, "POLYGON((-117.1219000 34.1262000, -117.1185500 34.1264000, -117.1184000 34.1238500, -117.1218000 34.1236000, -117.1219000 34.1262000))")
 	requireTriple(t, create.Triples, cop.ProvenanceSource, "klv")
 	requireTriple(t, create.Triples, cop.ProvenanceSourceRef, "klv://packet/deterministic/00000001")
 }
@@ -124,6 +125,7 @@ func sampleFrame() Frame {
 		FrameCenterLatitude:        &centerLat,
 		FrameCenterLongitude:       &centerLon,
 		FrameCenterElevationMeters: &centerElevation,
+		FootprintWKT:               "POLYGON((-117.1219000 34.1262000, -117.1185500 34.1264000, -117.1184000 34.1238500, -117.1218000 34.1236000, -117.1219000 34.1262000))",
 	}
 }
 

@@ -134,6 +134,7 @@ type SensorFootprint struct {
 	SensorPosition             GeoPoint   `json:"sensor_position"`
 	FrameCenter                GeoPoint   `json:"frame_center"`
 	Ray                        []GeoPoint `json:"ray"`
+	Footprint                  []GeoPoint `json:"footprint,omitempty"`
 	SensorAltitudeMeters       *float64   `json:"sensor_altitude_meters,omitempty"`
 	SensorAzimuthDegrees       *float64   `json:"sensor_azimuth_degrees,omitempty"`
 	SensorElevationDegrees     *float64   `json:"sensor_elevation_degrees,omitempty"`

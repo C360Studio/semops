@@ -64,6 +64,7 @@ func TestKLVProjectorComponentWritesFrameGraphPlan(t *testing.T) {
 	}
 	requireKLVTriple(t, create.Triples, cop.SensorFootprintSensorPosition, "POINT(-117.1234560 34.1234560)")
 	requireKLVTriple(t, create.Triples, cop.SensorFootprintFrameCenter, "POINT(-117.1202220 34.1250010)")
+	requireKLVTriple(t, create.Triples, cop.SensorFootprintGeometry, "POLYGON((-117.1219000 34.1262000, -117.1185500 34.1264000, -117.1184000 34.1238500, -117.1218000 34.1236000, -117.1219000 34.1262000))")
 	if got := component.DataFlow().MessagesPerSecond; got <= 0 {
 		t.Fatalf("projector messages per second = %f, want > 0", got)
 	}
@@ -101,6 +102,7 @@ func deterministicKLVFramePayload() *MISB0601FramePayload {
 	frame.FrameCenterLatitude = &centerLat
 	frame.FrameCenterLongitude = &centerLon
 	frame.FrameCenterElevationMeters = &centerElevation
+	frame.FootprintWKT = "POLYGON((-117.1219000 34.1262000, -117.1185500 34.1264000, -117.1184000 34.1238500, -117.1218000 34.1236000, -117.1219000 34.1262000))"
 	frame.Fields = []string{
 		"PrecisionTimeStamp",
 		"PlatformDesignation",
@@ -112,6 +114,7 @@ func deterministicKLVFramePayload() *MISB0601FramePayload {
 		"FrameCenterLatitude",
 		"FrameCenterLongitude",
 		"FrameCenterElevation",
+		"FootprintPolygon",
 	}
 	return frame
 }

@@ -343,7 +343,7 @@
 - [x] 8.1 Add ADS-B and SAPIENT feed boundaries
 - [x] 8.2 Add statistical track association core and fusion-owned association contract for ambiguous air tracks while
       deferring hosted projector and UI readback
-- [ ] 8.3 Add KLV footprint polygon extraction beyond current sensor/frame-center projection
+- [x] 8.3 Add KLV footprint polygon extraction beyond current sensor/frame-center projection
 - [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge after the command-impedance gate is
       reviewed
 - [ ] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory

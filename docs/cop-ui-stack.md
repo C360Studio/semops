@@ -18,11 +18,12 @@ The current implementation is intentionally narrow:
   component health and flow sources.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
 - The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, TAK/CoT tasks,
-  TAK/CoT advisories, hazards, KLV sensor/frame-center rays, labels, and picking, plus alert, feed state, runtime
-  flow, and provenance panels.
+  TAK/CoT advisories, hazards, KLV sensor/frame-center rays, decoded KLV footprint polygons, labels, and picking,
+  plus alert, feed state, runtime flow, and provenance panels.
 
 This is the first full-stack spine, not the final map implementation. Bounded deltas, real basemap/terrain sources,
-footprint polygons, alert geometry, discovery total-count tuning, and scenario playback remain next gates.
+alert geometry, discovery total-count tuning, scenario playback, video playback, and 3D frustum inspection remain next
+gates.
 
 ## Direction
 
@@ -53,13 +54,13 @@ selected entity needs a richer 3D inspection surface than a map symbol, footprin
 
 The first implemented map layer uses a local empty MapLibre style so the demo does not depend on external tiles while
 the API and graph spine are still moving. deck.gl currently owns point, polygon, line, label, and picking overlays for
-the snapshot's tracks, assets, TAK/CoT tasks, TAK/CoT advisories, hazard areas, and KLV sensor/frame-center evidence.
-Selecting an alert can highlight the referenced map entity when `entity_id` points at a track, asset, task, advisory,
-hazard, or sensor footprint; the alert itself remains the selected inspector object. That proves the rendering and
-selection path, not a finished cartographic basemap, temporal trail layer, independent alert geometry model, full
-footprint polygon, or full tasking workflow. Vite pins deck/luma/math/probe packages into a single renderer chunk to
-avoid luma's circular re-export warning in production builds; the remaining large renderer chunks are accepted while
-the first screen is inherently map-first.
+the snapshot's tracks, assets, TAK/CoT tasks, TAK/CoT advisories, hazard areas, KLV sensor/frame-center evidence, and
+decoded KLV footprint polygons. Selecting an alert can highlight the referenced map entity when `entity_id` points at a
+track, asset, task, advisory, hazard, or sensor footprint; the alert itself remains the selected inspector object. That
+proves the rendering and selection path, not a finished cartographic basemap, temporal trail layer, independent alert
+geometry model, broad footprint policy, or full tasking workflow. Vite pins deck/luma/math/probe packages into a single
+renderer chunk to avoid luma's circular re-export warning in production builds; the remaining large renderer chunks are
+accepted while the first screen is inherently map-first.
 
 ## Browser Contract
 
@@ -118,14 +119,16 @@ overflow. This complements the Docker stack smoke: Playwright proves the browser
 
 The first KLV product-visible slice proves binary-derived evidence through the graph and COP API, not by showing a raw
 video file in the browser. The current KLV projector contract can write source-partitioned `sensor_footprint` state for
-sensor position, frame center, azimuth/elevation, media reference, packet reference, platform designation, and
-provenance. `GET /api/cop/snapshot` now reads that governed state back before any richer media surfaces exist.
+sensor position, frame center, decoded offset-corner footprint polygon, azimuth/elevation, media reference, packet
+reference, platform designation, and provenance. `GET /api/cop/snapshot` now reads that governed state back before any
+richer media surfaces exist.
 
 The first visible layer should include:
 
 - a sensor-position point;
 - a frame-center point;
 - a ray or line between the sensor and frame center;
+- a footprint polygon only when all four MISB ST 0601 offset-corner pairs are decoded;
 - selected-entity provenance with frame time, observed time, platform designation, decoded field inventory, warnings,
   media reference, packet reference, source hash/provenance when available, and component-flow status.
 
@@ -134,16 +137,17 @@ is tied back to governed graph state, packet/media references, and the validatio
 be labeled as smoke only. Deterministic fixtures may support engineering-support language only for the tested MISB ST
 0601 subset.
 
-The implemented UI renders the sensor-position point, frame-center point, and ray as a selectable deck.gl layer. The
-selected inspector shows KLV evidence, media reference, packet reference, decoded-field inventory, warning evidence,
-claim posture, and provenance. Playwright covers the selector, inspector, source card, runtime flow, and narrow
-viewport path. The one-command Docker smoke can additionally opt into the hosted KLV local-media flow with
+The implemented UI renders the sensor-position point, frame-center point, ray, and decoded offset-corner footprint
+polygon as selectable deck.gl layers. The selected inspector shows KLV evidence, media reference, packet reference,
+decoded-field inventory, warning evidence, claim posture, and provenance. Playwright covers the selector, inspector,
+source card, runtime flow, and narrow viewport path. The one-command Docker smoke can additionally opt into the hosted
+KLV local-media flow with
 `SEMOPS_COP_SMOKE_KLV_ENABLED=true`, proving generated deterministic MPEG-TS media through the SemStreams component
 chain and Caddy-routed COP readback without enabling KLV in the default stack.
 
-Do not add a video player, thumbnail strip, 3D frustum, footprint polygon, or STANAG 4609 conformance language as part
-of this gate. Those remain separate gates because each adds a different failure mode: media serving and cache policy,
-operator attention load, footprint computation policy, and formal standards evidence.
+Do not add a video player, thumbnail strip, 3D frustum, broad footprint-policy language, or STANAG 4609 conformance
+language as part of this gate. Those remain separate gates because each adds a different failure mode: media serving
+and cache policy, operator attention load, broader footprint computation policy, and formal standards evidence.
 
 ## Dynamic UI Scope Gate
 

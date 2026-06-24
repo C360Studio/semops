@@ -34,12 +34,12 @@ binary-by-reference storage, and memory-bounded handling.
   split packet. Storage-reference-only media refs require an explicit bounded materializer. This is not a live media
   or production STANAG demux claim.
 - `internal/projectors/klv` now plans born-first, owner-token-fenced `sensor_footprint` graph writes for sensor
-  position, frame center, azimuth/elevation, media reference, packet reference, platform designation, and provenance.
-  This is graph contract evidence only; hosted runtime readback, footprint polygons, video serving, and conformance
-  remain gated.
+  position, frame center, footprint polygon when all four offset-corner pairs are decoded, azimuth/elevation, media
+  reference, packet reference, platform designation, and provenance. This is graph contract evidence only; video
+  serving, broad MISB coverage, and conformance remain gated.
 - `internal/api/cop` now maps governed KLV `sensor_footprint` graph state into the COP snapshot view model. The UI
-  renders selectable sensor points, frame-center points, and rays with KLV evidence in the inspector. This is
-  product-visible sensor/frame-center readback, not footprint polygon extraction, video service support, streaming
+  renders selectable sensor points, frame-center points, rays, and decoded footprint polygons with KLV evidence in the
+  inspector. This is product-visible deterministic MISB ST 0601 subset readback, not video service support, streaming
   binary support, or STANAG 4609 conformance.
 - `cmd/semops-klv-fixture` can generate a tiny deterministic MPEG-TS fixture from the committed MISB ST 0601 truth
   JSON using local FFmpeg tooling and the synthetic `lavfi` `testsrc` video source. The generated media lives under
@@ -51,7 +51,7 @@ binary-by-reference storage, and memory-bounded handling.
 - `openspec/changes/revive-cop-product/reviews/2026-06-23-klv-claim-language-review.md` defines the allowed and
   blocked demo language for KLV, MISB ST 0601, STANAG 4609, and streaming-binary claims. This permits narrow
   engineering-support language for the tested MISB ST 0601 subset while blocking conformance, certification,
-  full-parser, live-media, footprint-polygon, and general streaming-binary claims.
+  full-parser, live-media, broad footprint-policy, and general streaming-binary claims.
 
 ## SemSource Fixture Handoff
 
@@ -117,8 +117,8 @@ lab effort with proper access exists. The accepted claim-language boundary is re
 The first KLV/MISB spike should stay Go-native and deterministic:
 
 - Decode a bounded MISB ST 0601 local-set packet generated in tests.
-- Prove frame time, platform designation, sensor position, frame center, azimuth, and elevation extraction without
-  graph writes.
+- Prove frame time, platform designation, sensor position, frame center, offset-corner footprint polygon, azimuth, and
+  elevation extraction without graph writes.
 - Publish decoded-frame BaseMessages only through the declared frame output port when a bus is provided.
 - Keep MPEG-TS demux behind the demux component boundary.
 - Use FFmpeg/ffprobe as the first fixture-grade demux implementation, with explicit data-stream selection and bounded
@@ -132,29 +132,31 @@ The first KLV/MISB spike should stay Go-native and deterministic:
 
 ## Current UI Gate
 
-COP API and UI readback for the existing KLV `sensor_footprint` graph contract now exists before footprint polygons,
-video players, thumbnails, or broader support language. The current deterministic packet fixture, deterministic MPEG-TS
-wrap/demux smoke, public-sample smoke, projector contract, and UI readback are enough to build a visible proof, but not
-enough to claim STANAG 4609 conformance or production video service support.
+COP API and UI readback for the existing KLV `sensor_footprint` graph contract now includes deterministic
+offset-corner footprint polygons before video players, thumbnails, or broader support language. The current
+deterministic packet fixture, deterministic MPEG-TS wrap/demux smoke, public-sample smoke, projector contract, and UI
+readback are enough to build a visible proof, but not enough to claim STANAG 4609 conformance or production video
+service support.
 
 The visible proof should:
 
 - Read source-partitioned KLV `sensor_footprint` state from SemStreams through the SemOps COP API. [done]
 - Expose sensor position, frame center, a sensor-to-frame-center ray, frame time, observed time, confidence,
-  freshness, media reference, packet reference, decoded field inventory, warnings, source hash/provenance when
-  available, and component-flow status. [partial: source hash/provenance class awaits explicit graph predicates]
-- Render the sensor point, frame-center point, and ray as selectable deck.gl layers. [done]
+  freshness, footprint polygon when all four offset-corner pairs exist, media reference, packet reference, decoded
+  field inventory, warnings, source hash/provenance when available, and component-flow status. [partial: source
+  hash/provenance class awaits explicit graph predicates]
+- Render the sensor point, frame-center point, ray, and decoded footprint polygon as selectable deck.gl layers. [done]
 - Label public-sample evidence as smoke only and deterministic fixtures as engineering-support evidence for the
   tested MISB ST 0601 subset. [done through claim posture and review docs]
-- Keep footprint polygon extraction, video playback, thumbnail/keyframe browsing, 3D frustum inspection, streaming
-  binary claims, and STANAG 4609 conformance as separate gates. [done]
+- Keep video playback, thumbnail/keyframe browsing, 3D frustum inspection, streaming binary claims, broad footprint
+  policy, and STANAG 4609 conformance as separate gates. [done]
 
 The component flow should continue to:
 
 - Accept either a SemSource storage reference or native media ingress reference as input.
 - Demux KLV from MPEG-TS without requiring raw video bytes in graph triples.
 - Parse the first MISB ST 0601 subset needed for sensor position, frame time, frame center, azimuth, elevation, and
-  later footprint inputs.
+  offset-corner footprint polygons.
 - Emit governed derived facts through SemStreams contracts, with `signal` for projected sensor geometry, `trace` for
   packet/decode diagnostics, and `control` for clip/evidence package lifecycle.
 - Publish CoT or CS API JSON only as derived interop outputs, not as the internal KLV model.
@@ -336,8 +338,8 @@ Acceptance:
   without network downloads when FFmpeg tooling is available. [done]
 - `cmd/semops-klv-fixture/main_test.go` asserts the generator uses FFmpeg `lavfi` `testsrc` rather than an external
   video file, preserving clean fixture lineage. [done]
-- The deterministic fixture contains enough ST 0601 metadata to extract sensor position and frame-center evidence;
-  full footprint polygon extraction remains a projector/parser extension. [partial]
+- The deterministic fixture contains enough ST 0601 metadata to extract sensor position, frame-center, and
+  offset-corner footprint-polygon evidence. [done]
 - The fixture is small enough for local tests. [done]
 - CI does not depend on large network downloads or require FFmpeg to be installed.
 
@@ -356,12 +358,13 @@ Acceptance:
   [done]
 - The hosted KLV media-ref input, demux, decode, and projector components run through declared SemStreams ports and
   write governed `sensor_footprint` state through the graph request writer. [done]
-- Caddy-routed COP snapshot readback exposes the KLV sensor point, frame-center point, ray, and claim posture.
+- Caddy-routed COP snapshot readback exposes the KLV sensor point, frame-center point, ray, decoded footprint polygon,
+  and claim posture.
   [done]
 - Caddy-routed Prometheus/runtime readback exposes shared component health and flow samples for the hosted KLV
   component chain. [done]
 - Passing this smoke does not imply live media ingress, video service support, public-sample redistribution clearance,
-  footprint polygon extraction, streaming-binary support, or formal STANAG 4609 conformance. [done]
+  broad footprint policy, streaming-binary support, or formal STANAG 4609 conformance. [done]
 
 ### Media Gate
 
@@ -438,7 +441,7 @@ Acceptance:
   source-hash predicates remain future vocabulary]
 - The Playwright smoke proves the layer, keyboard selection, inspector, and narrow viewport path without requiring a
   video asset. [done]
-- No UI copy or iconography implies footprint polygon extraction, video service support, streaming-binary support, or
+- No UI copy or iconography implies video service support, streaming-binary support, broad footprint-policy support, or
   STANAG 4609 conformance. [done]
 
 ## Known Gaps
@@ -461,8 +464,8 @@ Acceptance:
 - COP API/UI readback exists for KLV `sensor_footprint` graph state, and opt-in hosted KLV runtime composition can
   project local media-derived frames into the graph, but the default stack still does not enable KLV.
 - The opt-in KLV stack smoke proves one deterministic local media fixture through the hosted stack. It does not prove
-  live media ingress, long-running video service behavior, public-sample redistribution clearance, footprint polygons,
-  or formal STANAG 4609 conformance.
+  live media ingress, long-running video service behavior, public-sample redistribution clearance, broad footprint
+  policy, or formal STANAG 4609 conformance.
 - SemSource media path is promising but not proven for KLV or streaming binary.
 - Current SemSource storage path needs a memory-bound review before large video claims.
 

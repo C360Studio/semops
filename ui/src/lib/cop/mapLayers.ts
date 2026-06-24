@@ -26,7 +26,7 @@ export type TacticalPoint = {
 
 export type TacticalPolygon = {
   id: string;
-  kind: 'hazard';
+  kind: Extract<TacticalEntityKind, 'hazard' | 'sensor-footprint'>;
   label: string;
   polygon: [number, number][];
   selected: boolean;
@@ -179,13 +179,13 @@ export function tacticalPoints(snapshot: Snapshot, selected: EntityRef): Tactica
 }
 
 export function tacticalPolygons(snapshot: Snapshot, selected: EntityRef): TacticalPolygon[] {
-  return snapshot.hazards
+  const hazards = snapshot.hazards
     .filter((hazard) => hazard.geometry.length >= 3)
-    .map((hazard) => {
+    .map((hazard): TacticalPolygon => {
       const isSelected = selected.kind === 'hazard' && selected.id === hazard.id;
       return {
         id: hazard.id,
-        kind: 'hazard',
+        kind: 'hazard' as const,
         label: hazard.label,
         polygon: hazard.geometry.map(lngLat),
         selected: isSelected,
@@ -193,6 +193,21 @@ export function tacticalPolygons(snapshot: Snapshot, selected: EntityRef): Tacti
         lineColor: isSelected ? [145, 45, 35, 235] : [168, 79, 40, 205]
       };
     });
+  const footprints = (snapshot.sensor_footprints ?? [])
+    .filter((footprint) => (footprint.footprint ?? []).length >= 3)
+    .map((footprint): TacticalPolygon => {
+      const isSelected = selected.kind === 'sensor-footprint' && selected.id === footprint.id;
+      return {
+        id: footprint.id,
+        kind: 'sensor-footprint' as const,
+        label: footprint.label,
+        polygon: (footprint.footprint ?? []).map(lngLat),
+        selected: isSelected,
+        fillColor: isSelected ? [24, 120, 136, 68] : [32, 130, 145, 46],
+        lineColor: isSelected ? [16, 92, 108, 235] : [34, 113, 126, 196]
+      };
+    });
+  return [...hazards, ...footprints];
 }
 
 export function tacticalRays(snapshot: Snapshot, selected: EntityRef): TacticalRay[] {
@@ -334,7 +349,11 @@ export function tacticalMapView(snapshot: Snapshot): TacticalMapView {
     ...snapshot.tasks.flatMap((task) => (task.position ? [task.position] : [])),
     ...snapshot.advisories.flatMap((advisory) => (advisory.position ? [advisory.position] : [])),
     ...snapshot.hazards.flatMap((hazard) => hazard.geometry),
-    ...(snapshot.sensor_footprints ?? []).flatMap((footprint) => [footprint.sensor_position, footprint.frame_center]),
+    ...(snapshot.sensor_footprints ?? []).flatMap((footprint) => [
+      footprint.sensor_position,
+      footprint.frame_center,
+      ...(footprint.footprint ?? [])
+    ]),
     ...(snapshot.weather_observations ?? []).flatMap((observation) =>
       observation.position ? [observation.position] : []
     )

@@ -186,6 +186,9 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 	if klv.EntityPattern == mavlink.EntityPattern || klv.EntityPattern == tak.EntityPattern || klv.EntityPattern == adsb.EntityPattern || klv.EntityPattern == sapient.EntityPattern {
 		t.Fatalf("KLV sensor-footprint contract must be source-partitioned")
 	}
+	if !contractHasPredicate(klv, SensorFootprintGeometry) {
+		t.Fatal("KLV sensor-footprint contract must own sensor-footprint geometry")
+	}
 	klvRegistration, err := projection.Derive(OwnerKLV, klv)
 	if err != nil {
 		t.Fatalf("derive KLV ownership: %v", err)
@@ -569,6 +572,41 @@ func TestSAPIENTTrackContractDoesNotClaimTaskAlertOrAssociationAuthority(t *test
 			}
 		}
 	}
+}
+
+func TestKLVSensorFootprintContractDoesNotClaimHazardOrAssociationAuthority(t *testing.T) {
+	contract := KLVSensorFootprintContract()
+	for _, group := range contract.Groups {
+		if group.Mode != ownership.ModeReplaceOwned {
+			t.Fatalf("KLV group mode = %q, want replace-owned signal state", group.Mode)
+		}
+		for _, predicate := range group.Predicates {
+			switch predicate {
+			case HazardGeometry,
+				HazardSeverity,
+				HazardStatus,
+				HazardAdvisoryText,
+				HazardEvidence,
+				HazardSource,
+				AssociationKind,
+				AssociationStatus,
+				AssociationPrimaryTrack,
+				AssociationCandidateTrack:
+				t.Fatalf("KLV sensor-footprint contract must not own authority predicate %q", predicate)
+			}
+		}
+	}
+}
+
+func contractHasPredicate(contract projection.Contract, want string) bool {
+	for _, group := range contract.Groups {
+		for _, predicate := range group.Predicates {
+			if predicate == want {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestWeatherObservationContractDoesNotClaimHazardOrDecisionAuthority(t *testing.T) {

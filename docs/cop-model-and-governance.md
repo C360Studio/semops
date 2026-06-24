@@ -31,7 +31,7 @@ Code source: `pkg/cop/contracts.go`
 | `semops.feed.adsb` | ADS-B/OpenSky-shaped aircraft current state | `c360.*.cop.adsb.track.*` | `replace-owned` | `signal` |
 | `semops.feed.sapient` | SAPIENT absolute-location detection current state | `c360.*.cop.sapient.track.*` | `replace-owned` | `signal` |
 | `semops.feed.cap` | CAP hazard/advisory evidence | `c360.*.cop.cap.hazard_area.*` | `append-evidence` | `content` |
-| `semops.feed.klv` | KLV-derived sensor/frame-center state | `c360.*.cop.klv.sensor_footprint.*` | `replace-owned` | `signal` |
+| `semops.feed.klv` | KLV-derived sensor/frame-center and offset-corner footprint state | `c360.*.cop.klv.sensor_footprint.*` | `replace-owned` | `signal` |
 | `semops.feed.weather` | Tactical weather samples | `c360.*.cop.weather.weather_observation.*` | `replace-owned` | `signal` |
 | `semops.command.intent` | Command intent | `c360.*.cop.command.task.*` | `replace-owned` | `control` |
 | `semops.fusion.structural` | Fusion alert state | `c360.*.cop.fusion.alert.*` | `replace-owned` | `control` |
@@ -162,6 +162,7 @@ failing SemOps tests or awkward duplicated code:
   producer and target pattern.
 - Overlapping `replace-owned` predicates are rejected.
 - CAP evidence does not claim authoritative hazard state.
-- KLV sensor-footprint evidence owns sensor/frame-center state without claiming footprint polygons.
+- KLV sensor-footprint evidence owns sensor/frame-center and deterministic offset-corner footprint state without
+  claiming broad footprint policy, video service support, or STANAG 4609 conformance.
 - Weather observation evidence uses `signal` indexing and does not claim hazard, alert, task, or route-decision
   authority.

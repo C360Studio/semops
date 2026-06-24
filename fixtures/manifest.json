@@ -328,8 +328,8 @@
       "source_description": "SemOps-authored deterministic MISB ST 0601 truth fixture.",
       "captured_at": "",
       "derived_at": "2026-06-22T18:00:00Z",
-      "sha256": "43f829861f6da80374f37743d779ebefe643cb6ebb3f81f4692a9bdd37ce1723",
-      "size_bytes": 587,
+      "sha256": "e6e9c5bf3832a7fd317c03c5762482801eb333372a98031ab7c517cb8cbf4a3b",
+      "size_bytes": 786,
       "license_or_provenance": "SemOps-authored deterministic truth data; generated MPEG-TS output remains ignored.",
       "claim_scope": "Engineering-support evidence for the tested MISB ST 0601 subset only; not STANAG 4609 conformance or video service support.",
       "review": "openspec/changes/revive-cop-product/reviews/2026-06-22-klv-deterministic-fixture-review.md",
@@ -345,7 +345,8 @@
         "sensor_elevation_degrees",
         "frame_center_latitude",
         "frame_center_longitude",
-        "frame_center_elevation_meters"
+        "frame_center_elevation_meters",
+        "footprint_corners"
       ]
     },
     {
@@ -356,9 +357,9 @@
       "source_url": "",
       "source_description": "Hex-encoded SemOps-authored MISB ST 0601 packet derived from the truth fixture.",
       "captured_at": "",
-      "derived_at": "2026-06-23T15:00:00Z",
-      "sha256": "d8b5f48643973725fb751e9ce0793b6b35698ab6304ef3beae8e4a34458f12c2",
-      "size_bytes": 178,
+      "derived_at": "2026-06-24T11:53:36Z",
+      "sha256": "0791bc85ccf72d43abdf1ce59d0cb402a904a5b8ba4e6e421a28d149806b60f6",
+      "size_bytes": 243,
       "license_or_provenance": "SemOps-authored synthetic KLV packet bytes; not captured, vendor, or lab data.",
       "claim_scope": "Portable synthetic binary storage/governance proof and tested MISB ST 0601 subset decode only.",
       "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-klv-synthetic-packet-fixture-review.md",
@@ -375,7 +376,15 @@
         "SensorRelativeElevationAngle",
         "FrameCenterLatitude",
         "FrameCenterLongitude",
-        "FrameCenterElevation"
+        "FrameCenterElevation",
+        "OffsetCornerLatitudePoint1",
+        "OffsetCornerLongitudePoint1",
+        "OffsetCornerLatitudePoint2",
+        "OffsetCornerLongitudePoint2",
+        "OffsetCornerLatitudePoint3",
+        "OffsetCornerLongitudePoint3",
+        "OffsetCornerLatitudePoint4",
+        "OffsetCornerLongitudePoint4"
       ]
     }
   ]

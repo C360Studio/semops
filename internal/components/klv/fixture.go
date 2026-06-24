@@ -5,25 +5,33 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 )
 
+type FootprintCorner struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
+}
+
 type MISB0601Truth struct {
-	ID                         string    `json:"id"`
-	Source                     string    `json:"source,omitempty"`
-	MediaRef                   string    `json:"media_ref"`
-	PacketRef                  string    `json:"packet_ref"`
-	ReceivedAt                 time.Time `json:"received_at"`
-	FrameTime                  time.Time `json:"frame_time"`
-	PlatformDesignation        string    `json:"platform_designation,omitempty"`
-	SensorLatitude             *float64  `json:"sensor_latitude,omitempty"`
-	SensorLongitude            *float64  `json:"sensor_longitude,omitempty"`
-	SensorAltitudeMeters       *float64  `json:"sensor_altitude_meters,omitempty"`
-	SensorAzimuthDegrees       *float64  `json:"sensor_azimuth_degrees,omitempty"`
-	SensorElevationDegrees     *float64  `json:"sensor_elevation_degrees,omitempty"`
-	FrameCenterLatitude        *float64  `json:"frame_center_latitude,omitempty"`
-	FrameCenterLongitude       *float64  `json:"frame_center_longitude,omitempty"`
-	FrameCenterElevationMeters *float64  `json:"frame_center_elevation_meters,omitempty"`
+	ID                         string            `json:"id"`
+	Source                     string            `json:"source,omitempty"`
+	MediaRef                   string            `json:"media_ref"`
+	PacketRef                  string            `json:"packet_ref"`
+	ReceivedAt                 time.Time         `json:"received_at"`
+	FrameTime                  time.Time         `json:"frame_time"`
+	PlatformDesignation        string            `json:"platform_designation,omitempty"`
+	SensorLatitude             *float64          `json:"sensor_latitude,omitempty"`
+	SensorLongitude            *float64          `json:"sensor_longitude,omitempty"`
+	SensorAltitudeMeters       *float64          `json:"sensor_altitude_meters,omitempty"`
+	SensorAzimuthDegrees       *float64          `json:"sensor_azimuth_degrees,omitempty"`
+	SensorElevationDegrees     *float64          `json:"sensor_elevation_degrees,omitempty"`
+	FrameCenterLatitude        *float64          `json:"frame_center_latitude,omitempty"`
+	FrameCenterLongitude       *float64          `json:"frame_center_longitude,omitempty"`
+	FrameCenterElevationMeters *float64          `json:"frame_center_elevation_meters,omitempty"`
+	FootprintCorners           []FootprintCorner `json:"footprint_corners,omitempty"`
 }
 
 func (truth MISB0601Truth) Validate() error {
@@ -41,6 +49,9 @@ func (truth MISB0601Truth) Validate() error {
 	}
 	if truth.FrameTime.IsZero() {
 		return errors.New("MISB ST 0601 truth frame_time is required")
+	}
+	if len(truth.FootprintCorners) != 0 && len(truth.FootprintCorners) != 4 {
+		return errors.New("MISB ST 0601 truth footprint_corners must contain four points when present")
 	}
 	return nil
 }
@@ -113,7 +124,60 @@ func EncodeMISB0601Truth(truth MISB0601Truth) ([]byte, error) {
 	}); err != nil {
 		return nil, err
 	}
+	if err := truth.addFootprintCornerFields(&fields); err != nil {
+		return nil, err
+	}
 	return encodeMISB0601Packet(fields...)
+}
+
+func (truth MISB0601Truth) addFootprintCornerFields(fields *[]misbEncodedField) error {
+	if len(truth.FootprintCorners) == 0 {
+		return nil
+	}
+	if truth.FrameCenterLatitude == nil || truth.FrameCenterLongitude == nil {
+		return errors.New("encode footprint_corners: frame center latitude and longitude are required")
+	}
+	latTags := []int{
+		misbTagOffsetCornerLat1,
+		misbTagOffsetCornerLat2,
+		misbTagOffsetCornerLat3,
+		misbTagOffsetCornerLat4,
+	}
+	lonTags := []int{
+		misbTagOffsetCornerLon1,
+		misbTagOffsetCornerLon2,
+		misbTagOffsetCornerLon3,
+		misbTagOffsetCornerLon4,
+	}
+	for index, corner := range truth.FootprintCorners {
+		latOffset := corner.Lat - *truth.FrameCenterLatitude
+		lonOffset := corner.Lon - *truth.FrameCenterLongitude
+		latData, err := encodeSigned16Range(latOffset, misbCornerOffsetMaxDegrees)
+		if err != nil {
+			return fmt.Errorf("encode footprint_corners[%d].lat offset: %w", index, err)
+		}
+		lonData, err := encodeSigned16Range(lonOffset, misbCornerOffsetMaxDegrees)
+		if err != nil {
+			return fmt.Errorf("encode footprint_corners[%d].lon offset: %w", index, err)
+		}
+		*fields = append(*fields, newMISBEncodedField(latTags[index], latData))
+		*fields = append(*fields, newMISBEncodedField(lonTags[index], lonData))
+	}
+	return nil
+}
+
+func (truth MISB0601Truth) FootprintWKT() (string, bool) {
+	if len(truth.FootprintCorners) != 4 {
+		return "", false
+	}
+	points := make([]FootprintCorner, 0, len(truth.FootprintCorners)+1)
+	points = append(points, truth.FootprintCorners...)
+	points = append(points, truth.FootprintCorners[0])
+	parts := make([]string, 0, len(points))
+	for _, point := range points {
+		parts = append(parts, formatKLVCoord(point.Lon)+" "+formatKLVCoord(point.Lat))
+	}
+	return "POLYGON((" + strings.Join(parts, ", ") + "))", true
 }
 
 type misbEncodedField struct {
@@ -232,6 +296,20 @@ func encodeUnsigned16Range(value float64, minValue, maxValue float64) ([]byte, e
 	return encodeUint16BE(uint16(raw)), nil
 }
 
+func encodeSigned16Range(value float64, maxAbs float64) ([]byte, error) {
+	if invalidFloat(value) {
+		return nil, errors.New("value must be finite")
+	}
+	if value < -maxAbs || value > maxAbs {
+		return nil, fmt.Errorf("value %.12f outside range [-%.12f, %.12f]", value, maxAbs, maxAbs)
+	}
+	raw := math.Round(value * misbMaxInt16 / maxAbs)
+	if raw < -misbMaxInt16 || raw > misbMaxInt16 {
+		return nil, fmt.Errorf("scaled value %.0f outside MISB signed16 range", raw)
+	}
+	return encodeInt16BE(int16(raw)), nil
+}
+
 func encodeUnsigned32Range(value float64, minValue, maxValue float64) ([]byte, error) {
 	raw, err := encodeUnsignedRange(value, minValue, maxValue, misbMaxUint32)
 	if err != nil {
@@ -277,6 +355,16 @@ func encodeInt32BE(value int32) []byte {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, uint32(value))
 	return data
+}
+
+func encodeInt16BE(value int16) []byte {
+	data := make([]byte, 2)
+	binary.BigEndian.PutUint16(data, uint16(value))
+	return data
+}
+
+func formatKLVCoord(v float64) string {
+	return strconv.FormatFloat(math.Round(v*1e7)/1e7, 'f', 7, 64)
 }
 
 func encodeUint64BE(value uint64) []byte {

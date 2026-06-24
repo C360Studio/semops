@@ -44,6 +44,7 @@ type Frame struct {
 	FrameCenterLatitude        *float64
 	FrameCenterLongitude       *float64
 	FrameCenterElevationMeters *float64
+	FootprintWKT               string
 }
 
 type Projector struct {
@@ -200,6 +201,9 @@ func (p *Projector) footprintTriples(footprintID string, frame Frame) []message.
 	}
 	if frame.FrameCenterElevationMeters != nil {
 		triples = append(triples, p.triple(footprintID, cop.SensorFootprintFrameCenterElevation, *frame.FrameCenterElevationMeters, when))
+	}
+	if strings.TrimSpace(frame.FootprintWKT) != "" {
+		triples = append(triples, p.triple(footprintID, cop.SensorFootprintGeometry, strings.TrimSpace(frame.FootprintWKT), when))
 	}
 	return triples
 }

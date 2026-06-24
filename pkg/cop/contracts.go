@@ -116,6 +116,7 @@ const (
 	SensorFootprintSensorElevation      = "cop.sensor_footprint.sensor_elevation_degrees"
 	SensorFootprintFrameCenter          = "cop.sensor_footprint.frame_center"
 	SensorFootprintFrameCenterElevation = "cop.sensor_footprint.frame_center_elevation_meters"
+	SensorFootprintGeometry             = "cop.sensor_footprint.geometry"
 	SensorFootprintPlatformDesignation  = "cop.sensor_footprint.platform_designation"
 
 	WeatherNativeID      = "cop.weather.native_id"
@@ -383,8 +384,7 @@ func SAPIENTTrackContract() projection.Contract {
 }
 
 // KLVSensorFootprintContract owns current video-derived sensor geometry for the
-// supported MISB ST 0601 subset. Full footprint polygons remain a later
-// contract extension.
+// supported MISB ST 0601 subset.
 func KLVSensorFootprintContract() projection.Contract {
 	return projection.Contract{
 		Name:            "semops.cop.sensor-footprint.klv-current-state",
@@ -405,6 +405,7 @@ func KLVSensorFootprintContract() projection.Contract {
 				SensorFootprintSensorElevation,
 				SensorFootprintFrameCenter,
 				SensorFootprintFrameCenterElevation,
+				SensorFootprintGeometry,
 				SensorFootprintPlatformDesignation,
 				ProvenanceSource,
 				ProvenanceConfidence,

@@ -93,6 +93,7 @@ func TestMISB0601TruthFixtureEncodesAndDecodesDeterministically(t *testing.T) {
 		truth.FrameCenterElevationMeters,
 		unsignedQuantizationTolerance(-900, 19000, misbMaxUint16),
 	)
+	requireTruthFootprint(t, frame, truth)
 
 	for _, field := range []string{
 		"PrecisionTimeStamp",
@@ -105,6 +106,7 @@ func TestMISB0601TruthFixtureEncodesAndDecodesDeterministically(t *testing.T) {
 		"FrameCenterLatitude",
 		"FrameCenterLongitude",
 		"FrameCenterElevation",
+		"FootprintPolygon",
 	} {
 		requireField(t, frame.Fields, field)
 	}
@@ -167,6 +169,7 @@ func TestCommittedMISB0601PacketHexMatchesTruthFixture(t *testing.T) {
 		truth.FrameCenterLongitude,
 		signed32QuantizationTolerance(180),
 	)
+	requireTruthFootprint(t, frame, truth)
 }
 
 func TestEncodeMISB0601TruthRejectsOutOfRangeValues(t *testing.T) {
@@ -202,6 +205,42 @@ func requireTruthClose(t *testing.T, name string, got *float64, want *float64, t
 		t.Fatalf("%s truth is nil", name)
 	}
 	requireClose(t, name, got, *want, tolerance)
+}
+
+func requireTruthFootprint(t *testing.T, frame *MISB0601FramePayload, truth MISB0601Truth) {
+	t.Helper()
+	if len(truth.FootprintCorners) != 4 || truth.FrameCenterLatitude == nil || truth.FrameCenterLongitude == nil ||
+		frame.FrameCenterLatitude == nil || frame.FrameCenterLongitude == nil {
+		t.Fatal("truth fixture does not include a complete footprint polygon")
+	}
+	corners := make([]FootprintCorner, 0, len(truth.FootprintCorners)+1)
+	for _, corner := range truth.FootprintCorners {
+		encodedLatOffset, err := encodeSigned16Range(corner.Lat-*truth.FrameCenterLatitude, misbCornerOffsetMaxDegrees)
+		if err != nil {
+			t.Fatalf("encode truth footprint latitude offset: %v", err)
+		}
+		encodedLonOffset, err := encodeSigned16Range(corner.Lon-*truth.FrameCenterLongitude, misbCornerOffsetMaxDegrees)
+		if err != nil {
+			t.Fatalf("encode truth footprint longitude offset: %v", err)
+		}
+		latOffset, err := decodeSigned16(encodedLatOffset, misbCornerOffsetMaxDegrees)
+		if err != nil {
+			t.Fatalf("decode truth footprint latitude offset: %v", err)
+		}
+		lonOffset, err := decodeSigned16(encodedLonOffset, misbCornerOffsetMaxDegrees)
+		if err != nil {
+			t.Fatalf("decode truth footprint longitude offset: %v", err)
+		}
+		corners = append(corners, FootprintCorner{
+			Lat: *frame.FrameCenterLatitude + latOffset,
+			Lon: *frame.FrameCenterLongitude + lonOffset,
+		})
+	}
+	corners = append(corners, corners[0])
+	want := footprintWKT(corners)
+	if frame.FootprintWKT != want {
+		t.Fatalf("footprint WKT = %q, want %q", frame.FootprintWKT, want)
+	}
 }
 
 func signed32QuantizationTolerance(maxAbs float64) float64 {

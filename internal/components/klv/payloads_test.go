@@ -55,14 +55,19 @@ func TestPayloadRegistryRoundTripsKLVPayloads(t *testing.T) {
 	frame.SensorLatitude = &lat
 	frame.SensorLongitude = &lon
 	frame.SensorAltitudeMeters = &alt
+	frame.FootprintWKT = "POLYGON((-117.1240000 34.1240000, -117.1220000 34.1240000, -117.1220000 34.1220000, -117.1240000 34.1220000, -117.1240000 34.1240000))"
 	frame.Fields = []string{"PrecisionTimeStamp", "SensorLatitude", "SensorLongitude", "SensorTrueAltitude"}
 	frameWire := mustBaseMessageJSON(t, MISB0601FrameType, frame, "semops-processor-klv-decode", now)
 	frameEnvelope, err := message.NewDecoder(registry).Decode(frameWire)
 	if err != nil {
 		t.Fatalf("decode MISB frame payload: %v", err)
 	}
-	if _, ok := frameEnvelope.Payload().(*MISB0601FramePayload); !ok {
+	gotFrame, ok := frameEnvelope.Payload().(*MISB0601FramePayload)
+	if !ok {
 		t.Fatalf("frame payload type = %T, want *MISB0601FramePayload", frameEnvelope.Payload())
+	}
+	if gotFrame.FootprintWKT != frame.FootprintWKT {
+		t.Fatalf("frame footprint WKT = %q, want %q", gotFrame.FootprintWKT, frame.FootprintWKT)
 	}
 }
 

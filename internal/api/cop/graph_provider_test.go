@@ -456,6 +456,7 @@ func TestGraphProviderMapsKLVSensorFootprints(t *testing.T) {
 					testTriple(footprintID, copmodel.SensorFootprintSensorElevation, -12.5, observed),
 					testTriple(footprintID, copmodel.SensorFootprintFrameCenter, "POINT(-117.1202220 34.1250010)", observed),
 					testTriple(footprintID, copmodel.SensorFootprintFrameCenterElevation, 932.2, observed),
+					testTriple(footprintID, copmodel.SensorFootprintGeometry, "POLYGON((-117.1219000 34.1262000, -117.1185500 34.1264000, -117.1184000 34.1238500, -117.1218000 34.1236000, -117.1219000 34.1262000))", observed),
 					testTriple(footprintID, copmodel.ProvenanceSource, "klv", observed),
 					testTriple(footprintID, copmodel.ProvenanceConfidence, 0.82, observed),
 					testTriple(footprintID, copmodel.ProvenanceObservedAt, observed, observed),
@@ -503,21 +504,27 @@ func TestGraphProviderMapsKLVSensorFootprints(t *testing.T) {
 		footprint.Ray[1] != footprint.FrameCenter {
 		t.Fatalf("KLV ray = %+v", footprint.Ray)
 	}
+	if len(footprint.Footprint) != 4 ||
+		footprint.Footprint[0] != (GeoPoint{Lat: 34.1262, Lon: -117.1219}) ||
+		footprint.Footprint[2] != (GeoPoint{Lat: 34.12385, Lon: -117.1184}) {
+		t.Fatalf("KLV footprint polygon = %+v", footprint.Footprint)
+	}
 	if footprint.SensorAltitudeMeters == nil || *footprint.SensorAltitudeMeters != 1250.5 ||
 		footprint.SensorAzimuthDegrees == nil || *footprint.SensorAzimuthDegrees != 90.25 ||
 		footprint.SensorElevationDegrees == nil || *footprint.SensorElevationDegrees != -12.5 ||
 		footprint.FrameCenterElevationMeters == nil || *footprint.FrameCenterElevationMeters != 932.2 {
 		t.Fatalf("KLV scalar fields = %+v", footprint)
 	}
-	for _, field := range []string{"media_ref", "packet_ref", "sensor_position", "frame_center"} {
+	for _, field := range []string{"media_ref", "packet_ref", "sensor_position", "frame_center", "footprint_polygon"} {
 		if !hasString(footprint.DecodedFields, field) {
 			t.Fatalf("decoded fields = %+v, missing %s", footprint.DecodedFields, field)
 		}
 	}
-	if !hasString(footprint.Warnings, "footprint polygon not computed") ||
-		!strings.Contains(footprint.ClaimPosture, "no footprint polygon") ||
+	if hasString(footprint.Warnings, "footprint polygon not computed") ||
+		footprint.Status != "active.footprint-polygon" ||
+		!strings.Contains(footprint.ClaimPosture, "footprint polygon graph readback") ||
 		!strings.Contains(footprint.ClaimPosture, "no STANAG conformance") {
-		t.Fatalf("claim posture/warnings = %q / %+v", footprint.ClaimPosture, footprint.Warnings)
+		t.Fatalf("status/claim posture/warnings = %q / %q / %+v", footprint.Status, footprint.ClaimPosture, footprint.Warnings)
 	}
 	if findFeed(snapshot.Feeds, "feed.klv").Status != "live" {
 		t.Fatalf("KLV feed = %+v", snapshot.Feeds)

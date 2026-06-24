@@ -73,7 +73,7 @@ export const fixtureSnapshot: Snapshot = {
       kind: 'sensor-footprint',
       status: 'live',
       last_event_at: klvObserved,
-      message: 'Graph-backed KLV sensor/frame-center proof'
+      message: 'Graph-backed KLV sensor/footprint proof'
     },
     {
       id: 'feed.weather',
@@ -242,12 +242,18 @@ export const fixtureSnapshot: Snapshot = {
       id: 'c360.edge.cop.klv.sensor_footprint.object-semops-klv-deterministic-001-ts',
       label: 'TEST-UAS-01 sensor footprint',
       source: 'klv',
-      status: 'active.sensor-frame-center',
+      status: 'active.footprint-polygon',
       sensor_position: { lat: 38.9022, lon: -77.0254 },
       frame_center: { lat: 38.8956, lon: -77.0108 },
       ray: [
         { lat: 38.9022, lon: -77.0254 },
         { lat: 38.8956, lon: -77.0108 }
+      ],
+      footprint: [
+        { lat: 38.8971, lon: -77.0136 },
+        { lat: 38.8968, lon: -77.0079 },
+        { lat: 38.8939, lon: -77.0075 },
+        { lat: 38.8936, lon: -77.0132 }
       ],
       sensor_altitude_meters: 1250.5,
       sensor_azimuth_degrees: 90.25,
@@ -257,7 +263,8 @@ export const fixtureSnapshot: Snapshot = {
       packet_ref: 'klv://packet/deterministic/00000001',
       frame_time: klvObserved,
       platform_designation: 'TEST-UAS-01',
-      claim_posture: 'sensor-frame-center graph readback; no footprint polygon; no STANAG conformance',
+      claim_posture:
+        'sensor/frame-center and footprint polygon graph readback; tested MISB ST 0601 offset-corner subset; no STANAG conformance',
       decoded_fields: [
         'media_ref',
         'packet_ref',
@@ -268,9 +275,10 @@ export const fixtureSnapshot: Snapshot = {
         'sensor_azimuth_degrees',
         'sensor_elevation_degrees',
         'frame_center',
-        'frame_center_elevation_meters'
+        'frame_center_elevation_meters',
+        'footprint_polygon'
       ],
-      warnings: ['footprint polygon not computed'],
+      warnings: [],
       confidence: 0.82,
       updated_at: klvObserved,
       provenance: {

@@ -938,6 +938,7 @@ func projectorFrame(payload *MISB0601FramePayload) (klvprojector.Frame, error) {
 		FrameCenterLatitude:        payload.FrameCenterLatitude,
 		FrameCenterLongitude:       payload.FrameCenterLongitude,
 		FrameCenterElevationMeters: payload.FrameCenterElevationMeters,
+		FootprintWKT:               payload.FootprintWKT,
 	}, nil
 }
 

@@ -428,6 +428,9 @@ SemOps SHALL keep KLV public-sample, deterministic fixture, runtime, and UI evid
 - **THEN** a deterministic fixture traces truth JSON through encoded KLV and optional MPEG-TS wrapping to parsed output
 - **AND** acceptance asserts the parsed field set and parsed numeric values against the original truth data within MISB
   integer quantization tolerances for the supported field subset
+- **AND** footprint-polygon acceptance MAY use MISB ST 0601 offset-corner fields only when all four corner pairs and a
+  frame center are present
+- **AND** partial or unusable corner evidence SHALL produce warning evidence rather than a synthetic polygon
 - **AND** MPEG-TS wrapping is generated locally from the truth fixture and skipped when FFmpeg tooling is unavailable,
   instead of vendoring large binary media into the repo
 
@@ -474,8 +477,9 @@ SemOps SHALL keep KLV public-sample, deterministic fixture, runtime, and UI evid
   optional interop processors
 - **AND** every stage uses declared ports, registered payloads, health, flow metrics, and config schema
 - **AND** graph writes occur only in the projector through declared SemStreams graph request ports
-- **AND** the first projector contract writes only source-partitioned KLV `sensor_footprint` sensor/frame-center state
-  with `indexing_profile=signal`, leaving footprint polygon extraction as a later gate
+- **AND** the first projector contract writes only source-partitioned KLV `sensor_footprint` sensor/frame-center and
+  decoded offset-corner footprint state with `indexing_profile=signal`, leaving broad footprint policy and media
+  service behavior as later gates
 
 #### Scenario: Hosted KLV runtime remains opt-in and local-media bounded
 

@@ -33,8 +33,18 @@ describe('tactical map layer helpers', () => {
       position: [-77.0002, 38.9001],
       selected: true
     });
-    expect(polygons).toHaveLength(1);
+    expect(polygons).toHaveLength(2);
     expect(polygons[0].polygon[0]).toEqual([-77.012, 38.895]);
+    expect(polygons[1]).toMatchObject({
+      id: fixtureSnapshot.sensor_footprints[0].id,
+      kind: 'sensor-footprint',
+      polygon: [
+        [-77.0136, 38.8971],
+        [-77.0079, 38.8968],
+        [-77.0075, 38.8939],
+        [-77.0132, 38.8936]
+      ]
+    });
     expect(rays).toHaveLength(1);
     expect(rays[0]).toMatchObject({
       id: fixtureSnapshot.sensor_footprints[0].id,

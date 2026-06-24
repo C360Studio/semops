@@ -164,6 +164,7 @@ export type SensorFootprint = {
   sensor_position: GeoPoint;
   frame_center: GeoPoint;
   ray: GeoPoint[];
+  footprint?: GeoPoint[];
   sensor_altitude_meters?: number;
   sensor_azimuth_degrees?: number;
   sensor_elevation_degrees?: number;
