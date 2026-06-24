@@ -97,6 +97,47 @@ func TestAssociateTracksMarksAmbiguousWhenCandidatesAreClose(t *testing.T) {
 	}
 }
 
+func TestAssociateTracksUsesSourcePriorityAsTieBreaker(t *testing.T) {
+	observed := time.Date(2026, 6, 23, 15, 0, 0, 0, time.UTC)
+	results := Associate(
+		[]TrackObservation{track("mav", "mavlink", 30.2672, -97.7431, observed, 0.9)},
+		[]TrackObservation{
+			track("adsb", "adsb", 30.2673, -97.7430, observed, 0.9),
+			track("tak", "tak", 30.2673, -97.7430, observed, 0.9),
+		},
+		Config{
+			SourcePriority:  []string{"tak", "adsb"},
+			AmbiguityMargin: 0.01,
+		},
+	)
+
+	if len(results) != 1 {
+		t.Fatalf("associations = %d, want 1", len(results))
+	}
+	if results[0].CandidateTrackID != "c360.edge.cop.tak.track.tak" {
+		t.Fatalf("candidate = %q, want TAK priority winner", results[0].CandidateTrackID)
+	}
+}
+
+func TestAssociateTracksRejectsObservationsOutsideStaleWindow(t *testing.T) {
+	now := time.Date(2026, 6, 23, 15, 0, 0, 0, time.UTC)
+	results := Associate(
+		[]TrackObservation{track("mav", "mavlink", 30.2672, -97.7431, now.Add(-5*time.Second), 0.9)},
+		[]TrackObservation{
+			track("stale", "adsb", 30.26721, -97.74311, now.Add(-20*time.Second), 0.9),
+		},
+		Config{
+			ReferenceTime:     now,
+			MaxObservationAge: 10 * time.Second,
+			MaxTimeDelta:      time.Minute,
+		},
+	)
+
+	if len(results) != 0 {
+		t.Fatalf("associations = %+v, want stale candidate filtered", results)
+	}
+}
+
 func TestAssociateTracksRejectsFarOrStaleCandidates(t *testing.T) {
 	observed := time.Date(2026, 6, 23, 15, 0, 0, 0, time.UTC)
 	results := Associate(

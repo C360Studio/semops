@@ -809,7 +809,9 @@ First acceptance gate:
   raw graph status for machine consumers.
 - Fusion association scoring now exposes mission-configured distance, time-window, confidence, and ambiguity-margin
   knobs through env/runtime config and SemStreams component config schema.
-- Remaining fusion default gate: source-priority/stale-window config and operator acknowledge/challenge affordances.
+- Fusion association scoring also exposes source-priority tie-breaker and maximum observation-age stale-window config;
+  hosted scoring uses the component clock as the stale-window reference time.
+- Remaining fusion default gate: operator acknowledge/challenge affordances.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress

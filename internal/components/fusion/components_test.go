@@ -69,13 +69,22 @@ func TestFusionProjectorComponentExposesStreamAndGraphPorts(t *testing.T) {
 		}
 	}
 	schema := projector.ConfigSchema()
-	for _, key := range []string{"max_distance_meters", "max_time_delta", "min_confidence", "ambiguity_margin"} {
+	for _, key := range []string{
+		"max_distance_meters",
+		"max_time_delta",
+		"max_observation_age",
+		"source_priority",
+		"min_confidence",
+		"ambiguity_margin",
+	} {
 		if _, ok := schema.Properties[key]; !ok {
 			t.Fatalf("missing fusion association config property %q: %+v", key, schema.Properties)
 		}
 	}
 	if schema.Properties["max_distance_meters"].Default != "250" ||
 		schema.Properties["max_time_delta"].Default != "10s" ||
+		schema.Properties["max_observation_age"].Default != "30s" ||
+		schema.Properties["source_priority"].Default != "mavlink,tak,adsb,sapient" ||
 		schema.Properties["min_confidence"].Default != "0.65" ||
 		schema.Properties["ambiguity_margin"].Default != "0.05" {
 		t.Fatalf("fusion association config defaults = %+v", schema.Properties)

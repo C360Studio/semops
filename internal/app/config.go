@@ -119,10 +119,12 @@ const (
 )
 
 const (
-	EnvFusionAssociationMaxDistance     = "SEMOPS_FUSION_ASSOCIATION_MAX_DISTANCE_METERS"
-	EnvFusionAssociationMaxTimeDelta    = "SEMOPS_FUSION_ASSOCIATION_MAX_TIME_DELTA"
-	EnvFusionAssociationMinConfidence   = "SEMOPS_FUSION_ASSOCIATION_MIN_CONFIDENCE"
-	EnvFusionAssociationAmbiguityMargin = "SEMOPS_FUSION_ASSOCIATION_AMBIGUITY_MARGIN"
+	EnvFusionAssociationMaxDistance       = "SEMOPS_FUSION_ASSOCIATION_MAX_DISTANCE_METERS"
+	EnvFusionAssociationMaxTimeDelta      = "SEMOPS_FUSION_ASSOCIATION_MAX_TIME_DELTA"
+	EnvFusionAssociationMaxObservationAge = "SEMOPS_FUSION_ASSOCIATION_MAX_OBSERVATION_AGE"
+	EnvFusionAssociationSourcePriority    = "SEMOPS_FUSION_ASSOCIATION_SOURCE_PRIORITY"
+	EnvFusionAssociationMinConfidence     = "SEMOPS_FUSION_ASSOCIATION_MIN_CONFIDENCE"
+	EnvFusionAssociationAmbiguityMargin   = "SEMOPS_FUSION_ASSOCIATION_AMBIGUITY_MARGIN"
 )
 
 type Config struct {
@@ -313,6 +315,8 @@ type FusionConfig struct {
 	CandidateMaxBatches          int
 	AssociationMaxDistanceMeters float64
 	AssociationMaxTimeDelta      time.Duration
+	AssociationMaxObservationAge time.Duration
+	AssociationSourcePriority    []string
 	AssociationMinConfidence     float64
 	AssociationAmbiguityMargin   float64
 	WriteTimeout                 time.Duration
@@ -500,6 +504,8 @@ func DefaultConfig() Config {
 			CandidateMaxBatches:          fusioncomponent.DefaultCandidateProducerMaxBatches,
 			AssociationMaxDistanceMeters: fusionassociation.DefaultMaxDistanceMeters,
 			AssociationMaxTimeDelta:      fusionassociation.DefaultMaxTimeDelta,
+			AssociationMaxObservationAge: fusionassociation.DefaultMaxObservationAge,
+			AssociationSourcePriority:    append([]string(nil), fusionassociation.DefaultSourcePriority...),
 			AssociationMinConfidence:     fusionassociation.DefaultMinConfidence,
 			AssociationAmbiguityMargin:   fusionassociation.DefaultAmbiguityMargin,
 			WriteTimeout:                 2 * time.Second,
@@ -672,6 +678,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvFusionAssociationMaxTimeDelta,
 		cfg.Fusion.AssociationMaxTimeDelta,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.Fusion.AssociationMaxObservationAge, err = durationFromEnv(
+		getenv,
+		EnvFusionAssociationMaxObservationAge,
+		cfg.Fusion.AssociationMaxObservationAge,
 	); err != nil {
 		return Config{}, err
 	}
@@ -968,6 +981,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.Fusion.AssociationSourcePriority, err = stringListFromEnv(
+		getenv,
+		EnvFusionAssociationSourcePriority,
+		cfg.Fusion.AssociationSourcePriority,
+	); err != nil {
+		return Config{}, err
+	}
 
 	return cfg, cfg.Validate()
 }
@@ -1261,6 +1281,17 @@ func (c FusionConfig) Validate() error {
 		}
 		if c.AssociationMaxTimeDelta <= 0 {
 			return fmt.Errorf("%s must be greater than zero when fusion is enabled", EnvFusionAssociationMaxTimeDelta)
+		}
+		if c.AssociationMaxObservationAge <= 0 {
+			return fmt.Errorf("%s must be greater than zero when fusion is enabled", EnvFusionAssociationMaxObservationAge)
+		}
+		if len(c.AssociationSourcePriority) == 0 {
+			return fmt.Errorf("%s must include at least one source when fusion is enabled", EnvFusionAssociationSourcePriority)
+		}
+		for _, source := range c.AssociationSourcePriority {
+			if strings.TrimSpace(source) == "" {
+				return fmt.Errorf("%s contains an empty source when fusion is enabled", EnvFusionAssociationSourcePriority)
+			}
 		}
 		if c.AssociationMinConfidence <= 0 || c.AssociationMinConfidence > 1 {
 			return fmt.Errorf("%s must be within (0,1] when fusion is enabled", EnvFusionAssociationMinConfidence)

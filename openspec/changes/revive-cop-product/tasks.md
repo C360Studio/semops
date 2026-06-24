@@ -377,8 +377,8 @@
 - [x] 8.25 Normalize association evidence row-level language so unreviewed fusion output reads as candidate/ambiguous
       evidence instead of resolved identity
 - [x] 8.26 Add mission scoring config for fusion association distance, time-window, confidence, and ambiguity margin
-- [ ] 8.27 Add source-priority/stale-window config and operator acknowledge/challenge affordances before enabling
-      automatic association by default
+- [x] 8.27 Add source-priority tie-breaker and stale-window config for fusion association scoring
+- [ ] 8.28 Add operator acknowledge/challenge affordances before enabling automatic association by default
 
 ## 9. Upstream SemStreams Asks
 

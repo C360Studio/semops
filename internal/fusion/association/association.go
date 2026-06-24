@@ -15,9 +15,12 @@ const (
 	DefaultAlgorithm         = "semops.association.geotemporal.v1"
 	DefaultMaxDistanceMeters = 250
 	DefaultMaxTimeDelta      = 10 * time.Second
+	DefaultMaxObservationAge = 30 * time.Second
 	DefaultMinConfidence     = 0.65
 	DefaultAmbiguityMargin   = 0.05
 )
+
+var DefaultSourcePriority = []string{"mavlink", "tak", "adsb", "sapient"}
 
 type GeoPoint struct {
 	Lat float64
@@ -40,6 +43,9 @@ type Config struct {
 	Algorithm         string
 	MaxDistanceMeters float64
 	MaxTimeDelta      time.Duration
+	MaxObservationAge time.Duration
+	ReferenceTime     time.Time
+	SourcePriority    []string
 	MinConfidence     float64
 	AmbiguityMargin   float64
 }
@@ -55,6 +61,8 @@ type Evidence struct {
 	TimeDelta            time.Duration
 	ObservedAt           time.Time
 	Reasons              []string
+	PrimarySource        string
+	CandidateSource      string
 	PrimarySourceRef     string
 	CandidateSourceRef   string
 	PrimaryTrackNative   string
@@ -68,7 +76,7 @@ func Associate(primary, candidates []TrackObservation, cfg Config) []Evidence {
 	cfg = normalizeConfig(cfg)
 	scoredByPrimary := make(map[string][]Evidence, len(primary))
 	for _, left := range primary {
-		if !validTrack(left) {
+		if !validTrackForConfig(left, cfg) {
 			continue
 		}
 		for _, right := range candidates {
@@ -84,6 +92,11 @@ func Associate(primary, candidates []TrackObservation, cfg Config) []Evidence {
 	for _, scored := range scoredByPrimary {
 		sort.Slice(scored, func(i, j int) bool {
 			if scored[i].Confidence == scored[j].Confidence {
+				leftRank := sourcePriorityRank(scored[i].CandidateSource, cfg.SourcePriority)
+				rightRank := sourcePriorityRank(scored[j].CandidateSource, cfg.SourcePriority)
+				if leftRank != rightRank {
+					return leftRank < rightRank
+				}
 				return scored[i].CandidateTrackID < scored[j].CandidateTrackID
 			}
 			return scored[i].Confidence > scored[j].Confidence
@@ -106,7 +119,7 @@ func Associate(primary, candidates []TrackObservation, cfg Config) []Evidence {
 }
 
 func scorePair(left, right TrackObservation, cfg Config) (Evidence, bool) {
-	if !validTrack(right) || left.ID == right.ID || strings.EqualFold(left.Source, right.Source) {
+	if !validTrackForConfig(right, cfg) || left.ID == right.ID || strings.EqualFold(left.Source, right.Source) {
 		return Evidence{}, false
 	}
 	distance := haversineMeters(left.Position, right.Position)
@@ -141,6 +154,8 @@ func scorePair(left, right TrackObservation, cfg Config) (Evidence, bool) {
 		TimeDelta:            delta,
 		ObservedAt:           observedAt,
 		Reasons:              associationReasons(left, right, distance, delta),
+		PrimarySource:        left.Source,
+		CandidateSource:      right.Source,
 		PrimarySourceRef:     left.SourceRef,
 		CandidateSourceRef:   right.SourceRef,
 		PrimaryTrackNative:   left.NativeID,
@@ -226,6 +241,12 @@ func normalizeConfig(cfg Config) Config {
 	if cfg.MaxTimeDelta <= 0 {
 		cfg.MaxTimeDelta = DefaultMaxTimeDelta
 	}
+	if cfg.MaxObservationAge <= 0 {
+		cfg.MaxObservationAge = DefaultMaxObservationAge
+	}
+	if len(cfg.SourcePriority) == 0 {
+		cfg.SourcePriority = append([]string(nil), DefaultSourcePriority...)
+	}
 	if cfg.MinConfidence <= 0 {
 		cfg.MinConfidence = DefaultMinConfidence
 	}
@@ -233,6 +254,17 @@ func normalizeConfig(cfg Config) Config {
 		cfg.AmbiguityMargin = DefaultAmbiguityMargin
 	}
 	return cfg
+}
+
+func validTrackForConfig(track TrackObservation, cfg Config) bool {
+	if !validTrack(track) {
+		return false
+	}
+	if cfg.ReferenceTime.IsZero() || cfg.MaxObservationAge <= 0 {
+		return true
+	}
+	age := cfg.ReferenceTime.UTC().Sub(track.ObservedAt.UTC())
+	return age <= cfg.MaxObservationAge
 }
 
 func validTrack(track TrackObservation) bool {
@@ -249,6 +281,16 @@ func normalizedSourceConfidence(left, right float64) float64 {
 		return 0.5
 	}
 	return (left + right) / 2
+}
+
+func sourcePriorityRank(source string, priority []string) int {
+	source = strings.ToLower(strings.TrimSpace(source))
+	for index, candidate := range priority {
+		if source == strings.ToLower(strings.TrimSpace(candidate)) {
+			return index
+		}
+	}
+	return len(priority)
 }
 
 func clamp01(value float64) float64 {

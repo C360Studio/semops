@@ -1605,6 +1605,8 @@ func TestStartHostsFusionProjectorWhenEnabled(t *testing.T) {
 	cfg.Fusion.WriteTimeout = 812 * time.Millisecond
 	cfg.Fusion.AssociationMaxDistanceMeters = 140
 	cfg.Fusion.AssociationMaxTimeDelta = 6 * time.Second
+	cfg.Fusion.AssociationMaxObservationAge = 21 * time.Second
+	cfg.Fusion.AssociationSourcePriority = []string{"tak", "mavlink"}
 	cfg.Fusion.AssociationMinConfidence = 0.7
 	cfg.Fusion.AssociationAmbiguityMargin = 0.08
 	cfg.Fusion.Retry = natsclient.RetryConfig{
@@ -1673,9 +1675,15 @@ func TestStartHostsFusionProjectorWhenEnabled(t *testing.T) {
 	}
 	if gotAssociation.MaxDistanceMeters != 140 ||
 		gotAssociation.MaxTimeDelta != 6*time.Second ||
+		gotAssociation.MaxObservationAge != 21*time.Second ||
 		gotAssociation.MinConfidence != 0.7 ||
 		gotAssociation.AmbiguityMargin != 0.08 {
 		t.Fatalf("fusion association config = %+v", gotAssociation)
+	}
+	if len(gotAssociation.SourcePriority) != 2 ||
+		gotAssociation.SourcePriority[0] != "tak" ||
+		gotAssociation.SourcePriority[1] != "mavlink" {
+		t.Fatalf("fusion source priority = %+v", gotAssociation.SourcePriority)
 	}
 }
 
@@ -2119,6 +2127,8 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	env[EnvFusionAssociationMaxDistance] = "123.5"
 	env[EnvFusionAssociationMaxTimeDelta] = "8s"
+	env[EnvFusionAssociationMaxObservationAge] = "45s"
+	env[EnvFusionAssociationSourcePriority] = "tak, mavlink, adsb"
 	env[EnvFusionAssociationMinConfidence] = "0.72"
 	env[EnvFusionAssociationAmbiguityMargin] = "0.12"
 
@@ -2341,9 +2351,16 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if cfg.Fusion.AssociationMaxDistanceMeters != 123.5 ||
 		cfg.Fusion.AssociationMaxTimeDelta != 8*time.Second ||
+		cfg.Fusion.AssociationMaxObservationAge != 45*time.Second ||
 		cfg.Fusion.AssociationMinConfidence != 0.72 ||
 		cfg.Fusion.AssociationAmbiguityMargin != 0.12 {
 		t.Fatalf("fusion association config = %+v", cfg.Fusion)
+	}
+	if len(cfg.Fusion.AssociationSourcePriority) != 3 ||
+		cfg.Fusion.AssociationSourcePriority[0] != "tak" ||
+		cfg.Fusion.AssociationSourcePriority[1] != "mavlink" ||
+		cfg.Fusion.AssociationSourcePriority[2] != "adsb" {
+		t.Fatalf("fusion source priority = %+v", cfg.Fusion.AssociationSourcePriority)
 	}
 	if cfg.Fusion.WriteTimeout != 996*time.Millisecond {
 		t.Fatalf("fusion write timeout = %s", cfg.Fusion.WriteTimeout)
@@ -2853,6 +2870,27 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvFusionAssociationMaxTimeDelta: "0s",
 			},
 			want: EnvFusionAssociationMaxTimeDelta,
+		},
+		{
+			name: "bad fusion association max observation age",
+			env:  map[string]string{EnvFusionAssociationMaxObservationAge: "old"},
+			want: EnvFusionAssociationMaxObservationAge,
+		},
+		{
+			name: "zero fusion association max observation age",
+			env: map[string]string{
+				EnvFusionEnabled:                      "true",
+				EnvFusionAssociationMaxObservationAge: "0s",
+			},
+			want: EnvFusionAssociationMaxObservationAge,
+		},
+		{
+			name: "empty fusion association source priority",
+			env: map[string]string{
+				EnvFusionEnabled:                   "true",
+				EnvFusionAssociationSourcePriority: ",",
+			},
+			want: EnvFusionAssociationSourcePriority,
 		},
 		{
 			name: "bad fusion association min confidence",

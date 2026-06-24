@@ -1383,6 +1383,8 @@ func (a *App) startFusionFlow(
 			Platform:          cfg.Platform,
 			MaxDistanceMeters: cfg.AssociationMaxDistanceMeters,
 			MaxTimeDelta:      cfg.AssociationMaxTimeDelta,
+			MaxObservationAge: cfg.AssociationMaxObservationAge,
+			SourcePriority:    append([]string(nil), cfg.AssociationSourcePriority...),
 			MinConfidence:     cfg.AssociationMinConfidence,
 			AmbiguityMargin:   cfg.AssociationAmbiguityMargin,
 		},

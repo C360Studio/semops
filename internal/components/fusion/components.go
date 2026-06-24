@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -189,9 +190,14 @@ func (c *ProjectorComponent) HandleCandidatePayload(ctx context.Context, payload
 	if err != nil {
 		return err
 	}
-	evidence := fusionassociation.Associate(primary, candidates, c.cfg.Association)
+	now := c.cfg.Clock().UTC()
+	associationCfg := c.cfg.Association
+	if associationCfg.ReferenceTime.IsZero() {
+		associationCfg.ReferenceTime = now
+	}
+	evidence := fusionassociation.Associate(primary, candidates, associationCfg)
 	if len(evidence) == 0 {
-		c.recordMessage(len(primary)+len(candidates), c.cfg.Clock().UTC())
+		c.recordMessage(len(primary)+len(candidates), now)
 		return nil
 	}
 	plan, err := c.cfg.Projector.ProjectAssociations(evidence)
@@ -199,13 +205,13 @@ func (c *ProjectorComponent) HandleCandidatePayload(ctx context.Context, payload
 		return fmt.Errorf("project fusion association evidence: %w", err)
 	}
 	if len(plan.Mutations) == 0 {
-		c.recordMessage(len(primary)+len(candidates), c.cfg.Clock().UTC())
+		c.recordMessage(len(primary)+len(candidates), now)
 		return nil
 	}
 	if err := c.writePlan(ctx, evidence, plan); err != nil {
 		return err
 	}
-	c.recordMessage(len(primary)+len(candidates), c.cfg.Clock().UTC())
+	c.recordMessage(len(primary)+len(candidates), now)
 	return nil
 }
 
@@ -299,6 +305,8 @@ func (c *ProjectorComponent) ConfigSchema() component.ConfigSchema {
 			"write_timeout":       stringProperty("Graph mutation request timeout", c.outputTimeout().String()),
 			"max_distance_meters": floatProperty("Maximum source-track distance for association evidence", c.cfg.Association.MaxDistanceMeters),
 			"max_time_delta":      stringProperty("Maximum source-track observation time delta", c.cfg.Association.MaxTimeDelta.String()),
+			"max_observation_age": stringProperty("Maximum source-track observation age before candidate evidence is filtered", c.cfg.Association.MaxObservationAge.String()),
+			"source_priority":     stringProperty("Comma-separated source priority used as equal-score tie-breaker", strings.Join(c.cfg.Association.SourcePriority, ",")),
 			"min_confidence":      floatProperty("Minimum association confidence", c.cfg.Association.MinConfidence),
 			"ambiguity_margin":    floatProperty("Confidence margin for ambiguous association evidence", c.cfg.Association.AmbiguityMargin),
 		},
@@ -447,6 +455,12 @@ func normalizeAssociationConfig(cfg fusionassociation.Config) fusionassociation.
 	}
 	if cfg.MaxTimeDelta <= 0 {
 		cfg.MaxTimeDelta = fusionassociation.DefaultMaxTimeDelta
+	}
+	if cfg.MaxObservationAge <= 0 {
+		cfg.MaxObservationAge = fusionassociation.DefaultMaxObservationAge
+	}
+	if len(cfg.SourcePriority) == 0 {
+		cfg.SourcePriority = append([]string(nil), fusionassociation.DefaultSourcePriority...)
 	}
 	if cfg.MinConfidence <= 0 {
 		cfg.MinConfidence = fusionassociation.DefaultMinConfidence
