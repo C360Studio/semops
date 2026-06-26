@@ -142,6 +142,9 @@ progress:
     HTTP input -> decoder preflight flow with graph projection gated behind `SEMOPS_SAPIENT_GRAPH_ENABLED=true`.
   - The one-command stack smoke enables local ADS-B/SAPIENT fixture-provider flows, verifies shared-airspace snapshot
     readback through Caddy, checks SAPIENT decoded preflight output, and keeps SAPIENT graph projection opt-in.
+  - Recorded the feed-boundary orchestration checkpoint review: future scenario expansion must be claim-scoped by
+    feed boundary, expected COP readback, component/runtime evidence, allowed graph owners, and claim type before it
+    can support command-control, CS API, simulator, provider, standards, or operator-control evidence.
 
 current_evidence:
   - `go test ./internal/contracts`
@@ -184,6 +187,5 @@ remaining:
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
   - Capture provider-backed or public CAP samples before claiming live NWS/IPAWS or alert feed service support.
-  - Add operator/API controls for scenario start, reset, pause/resume, and expected-state checkpoints.
-  - Extend feed-boundary orchestration before citing command-control, CS API, simulator-fidelity, provider,
-    standards, or operator-control evidence.
+  - Add manifest-backed scenario checkpoints for expected COP state, component/runtime evidence, allowed owners, and
+    claim scope before adding operator/API controls for scenario start, reset, pause, or resume.

@@ -133,6 +133,24 @@ SemOps SHALL distinguish product e2e evidence from graph-contract evidence.
 - **AND** owner-token mismatch warnings, stale owner leases, or observe-only owner mismatch deltas fail product e2e
   evidence
 
+#### Scenario: Scenario checkpoints are claim-scoped evidence
+
+- **WHEN** SemOps extends scenario playback beyond the current one-shot HADR product smoke
+- **THEN** each scenario checkpoint declares the claim it is allowed to support, the external feed boundary or
+  SemStreams input component it enters through, the expected COP state, the expected component/runtime evidence, and
+  the owner families that may write graph state
+- **AND** checkpoint success requires Caddy-routed status or snapshot readback plus component health/flow evidence
+  when a hosted component exists for the feed
+- **AND** a checkpoint that enters through direct graph mutation, decoded NATS payload injection, or projected-payload
+  injection is labeled contract/replay evidence only
+- **AND** command-control checkpoints require a reviewed native transmitter or driver, command ACK/status correlation,
+  and post-command COP readback before they can clear a command-control claim
+- **AND** CS API checkpoints require a CS API ingress or egress boundary plus governed desired/actual-state
+  reconciliation before they can clear a CS API claim
+- **AND** provider, simulator-fidelity, standards, and operator scenario-control claims require their own explicit
+  endpoint, simulator family, conformance harness, or reviewed control surface rather than inheriting product e2e
+  evidence from the base HADR playback
+
 ### Requirement: Structural demo stack starts with one command
 
 The first COP stack SHALL run locally with a single documented command after dependencies are installed.
@@ -276,6 +294,10 @@ SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.
 
 - **WHEN** the scenario is paused, resumed, accelerated, or reset
 - **THEN** feed emission and expected COP state remain deterministic enough for tests and stage demos
+- **AND** these controls remain test/stage orchestration primitives until an adversarial UX review approves an
+  operator-facing scenario control surface
+- **AND** a pause, resume, accelerate, or reset action does not by itself prove command-control, CS API, provider,
+  simulator-fidelity, or standards behavior unless the claim-scoped checkpoint for that behavior also passes
 
 ### Requirement: Edge/core split is a later deployment mode
 

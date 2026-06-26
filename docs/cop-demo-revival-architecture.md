@@ -76,9 +76,13 @@ the stack smoke consumes that same-origin status URL by default. The smoke requi
 product mode, fails fast on explicit scenario failure, treats stale status as a wedged run with Compose diagnostics,
 and checks SemStreams owner-token mismatch metrics before it runs any direct contract smokes. ADS-B fixture replay
 through the scenario runner is contract-mode only; product evidence uses the hosted ADS-B HTTP component path. Remaining
-structural evidence includes operator scenario controls, durable checkpoint/read-back reconciliation, live public-alert
-ingestion evidence, and feed-boundary promotion for later command-control and CS API gates. The Compose smoke now
-proves the shared-airspace vignette by requiring one Caddy-routed COP snapshot to contain the HADR scenario's
+structural evidence includes claim-scoped scenario checkpoints, durable checkpoint/read-back reconciliation, live
+public-alert ingestion evidence, and later operator scenario controls. The next orchestration step is not a COP shell:
+each checkpoint must name the claim it supports, the external feed boundary or SemStreams input component used, the
+expected COP state, the expected component/runtime evidence, and the owner families allowed to write graph state.
+Command-control, CS API, simulator-fidelity, provider-integration, standards, and operator-control claims require
+their own checkpoint boundary and feedback loop rather than inheriting the base HADR product smoke. The Compose smoke
+now proves the shared-airspace vignette by requiring one Caddy-routed COP snapshot to contain the HADR scenario's
 MAVLink/TAK state, CAP state from the hosted CAP component, and the local ADS-B HTTP component's aircraft track. That
 keeps ADS-B ownership in the hosted component flow and avoids a second scenario-runner owner claim. SemStreams
 `v1.0.0-beta.114` provides

@@ -323,8 +323,10 @@
       mutation attempts so product smoke can fail on direct-injection evidence
 - [x] 6.73 Route `/scenario/status` through Caddy and make the default product smoke consume same-origin scenario
       evidence instead of the side port
-- [ ] 6.74 Extend feed-boundary orchestration before claiming command-control, CS API, simulator-fidelity,
-      provider-integration, standards, or operator scenario-control evidence
+- [x] 6.74 Record claim-scoped feed-boundary checkpoint rules before citing command-control, CS API,
+      simulator-fidelity, provider-integration, standards, or operator scenario-control evidence
+- [ ] 6.75 Add manifest-backed scenario checkpoints for expected COP state, component/runtime evidence, allowed
+      owners, and claim scope before adding start/reset/pause/resume controls
 
 ## 7. COP UI
 

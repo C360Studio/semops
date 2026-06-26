@@ -138,6 +138,15 @@ ADS-B evidence uses the hosted ADS-B HTTP component. The Compose stack also incl
 `cmd/semops-feed-fixtures`, a local HTTP provider simulator for ADS-B, CAP, and SAPIENT smoke tests. That service is
 mock infrastructure only; it is not a SemOps-owned TAK, CAP, SAPIENT, OpenSky, or CS API product service.
 
+The next scenario-runner expansion is a checkpoint contract, not an operator orchestration shell. A scenario
+checkpoint must name the claim it supports, the feed boundary or SemStreams input component it enters through, the
+expected COP readback, expected component/runtime evidence, and allowed graph-writing owners. A checkpoint can support
+product e2e only when input enters through the hosted feed/component graph. It can support command-control only when a
+reviewed native transmitter or driver produces correlated command status plus post-command COP readback. It can
+support CS API only when a CS API ingress/egress boundary and desired/actual-state reconciliation are in the path.
+Provider, simulator-fidelity, standards, and operator-control claims likewise need explicit checkpoint evidence
+instead of borrowing credibility from the base HADR smoke.
+
 ## Indexing Pressure
 
 This demo will stress-test SemStreams indexing profiles as much as feed decoding.
