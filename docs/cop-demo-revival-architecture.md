@@ -64,14 +64,16 @@ race the service-manager HTTP port. CAP is deliberately proved as append-only ha
 hazard state. The COP now derives CAP hazard lifecycle status from evidence for readback. The
 `semops-scenario-runner` service now defaults to `SEMOPS_SCENARIO_MODE=product`: it waits for
 `SEMOPS_SCENARIO_READY_URL`, emits MAVLink frames to `SEMOPS_SCENARIO_MAVLINK_UDP_ADDR`, emits TAK/CoT XML to
-`SEMOPS_SCENARIO_COT_UDP_ADDR`, exposes `/healthz` plus `/scenario/status`, and does not open a SemStreams NATS
-client, bind owners, or write graph mutations. The stack smoke asserts the Caddy-routed COP snapshot contains the
+`SEMOPS_SCENARIO_COT_UDP_ADDR`, exposes `/healthz` plus `/scenario/status` and `/scenario/controls`, and does not
+open a SemStreams NATS client, bind owners, or write graph mutations. The stack smoke asserts the Caddy-routed COP
+snapshot contains the
 scenario MAVLink track plus TAK/CoT task/advisory through the hosted UDP component paths. CAP product visibility now
 comes from the hosted CAP HTTP poller reading the local `semops-feed-fixtures` `/cap/alert` endpoint, not from
 scenario-runner graph seeding. The direct graph replay path remains available as `SEMOPS_SCENARIO_MODE=contract` for
 contract/replay infrastructure only; it cannot satisfy product e2e, command-control, CS API, simulator-fidelity,
-provider, or standards claims. Caddy now routes browser-facing `/scenario/status` to the hosted scenario runner, and
-the stack smoke consumes that same-origin status URL by default. The smoke requires `ingress_mode` to be
+provider, or standards claims. Caddy now routes browser-facing `/scenario/status` and `/scenario/controls` to the
+hosted scenario runner, and the stack smoke consumes those same-origin URLs by default. The smoke requires
+`ingress_mode` to be
 `feed-boundary`, requires `feed_boundary_deliveries` to equal completed steps, requires zero graph mutations in
 product mode, fails fast on explicit scenario failure, treats stale status as a wedged run with Compose diagnostics,
 and checks SemStreams owner-token mismatch metrics before it runs any direct contract smokes. ADS-B fixture replay
@@ -86,6 +88,9 @@ and command-control/CS API feedback-loop requirements. The hosted scenario runne
 `SEMOPS_SCENARIO_CHECKPOINT_MANIFEST` and exposes runner-owned checkpoint evaluation through `/scenario/status`;
 the stack smoke loads the manifest again and requires the product checkpoint to clear Caddy-routed COP snapshot,
 runtime feed, and Prometheus metric readback.
+Scenario controls now have a Caddy-routed fail-closed guard at `/scenario/controls`: it advertises
+start/reset/pause/resume as supported action names but rejects execution until an `operator_scenario_control`
+checkpoint, authenticated operator policy, authority-conflict semantics, and a real control executor exist.
 Command-control, CS API, simulator-fidelity, provider-integration, standards, and operator-control claims require
 their own checkpoint boundary and feedback loop rather than inheriting the base HADR product smoke. The Compose smoke
 now proves the shared-airspace vignette by requiring one Caddy-routed COP snapshot to contain the HADR scenario's

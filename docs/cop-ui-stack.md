@@ -18,7 +18,8 @@ The current implementation is intentionally narrow:
   component health and flow sources.
 - `compose.cop.yml` runs the UI behind Caddy so `/api/*` is same-origin with the operator surface.
 - The UI also reads same-origin `/scenario/status` through Caddy and renders scenario evidence for ingress mode,
-  feed-boundary deliveries, and graph mutation counts without adding scenario orchestration controls.
+  feed-boundary deliveries, and graph mutation counts without adding scenario orchestration controls; Caddy also
+  routes the fail-closed `/scenario/controls` guard for stack evidence.
 - The UI renders a MapLibre GL JS canvas with deck.gl tactical overlays for tracks, assets, TAK/CoT tasks,
   TAK/CoT advisories, hazards, KLV sensor/frame-center rays, decoded KLV footprint polygons, labels, and picking,
   plus alert, feed state, runtime flow, and provenance panels.
@@ -108,15 +109,18 @@ standard; the browser runtime endpoint is a curated product view and should not 
 orchestration shell.
 
 In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI, proxies `/api/*` plus
-`/healthz` to SemOps API, and proxies `/scenario/status` to the hosted scenario runner so CORS behavior matches the
-expected deployment shape. The direct API and scenario-runner ports stay exposed for diagnostics and overrideable smoke
-tests, but the default product smoke consumes Caddy-routed scenario status.
+`/healthz` to SemOps API, and proxies `/scenario/status` plus `/scenario/controls` to the hosted scenario runner so
+CORS behavior matches the expected deployment shape. The direct API and scenario-runner ports stay exposed for
+diagnostics and overrideable smoke tests, but the default product smoke consumes Caddy-routed scenario status and
+control-guard state.
 
 The first UI scenario surface is read-only evidence. It shows scenario id, state, ingress mode, completed/failed
 steps, feed-boundary deliveries, and graph mutation count so an operator or reviewer can see whether the visible demo
 is running through hosted feed/component boundaries. It does not start, reset, pause, resume, or orchestrate scenarios;
 those controls remain deferred until the operator value, failure modes, and product e2e boundaries survive adversarial
-review.
+review. The `/scenario/controls` endpoint is a fail-closed guardrail: it advertises supported action names but reports
+them blocked until an `operator_scenario_control` checkpoint, authenticated operator policy, conflict semantics, and
+an implemented control executor exist.
 
 The browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts `GET /api/cop/snapshot` and
 `GET /api/cop/runtime` plus same-origin `/scenario/status`, serves API-shaped ADS-B, KLV, and weather discovery plus
@@ -124,7 +128,7 @@ runtime-flow and scenario evidence, and verifies the operator surface renders so
 runtime flow, scenario ingress/delivery evidence, map selection controls, keyboard selection, selected-entity
 provenance, alert-to-map target highlighting, and a narrow viewport without horizontal overflow. This complements the
 Docker stack smoke: Playwright proves the browser contract and interaction path, while `scripts/cop-stack-smoke.sh`
-proves the live SemOps/SemStreams/Caddy plumbing.
+proves the live SemOps/SemStreams/Caddy plumbing and the blocked scenario-control guard.
 
 ## KLV Sensor-Footprint UI Gate
 

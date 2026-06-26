@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -35,6 +36,25 @@ func NewStatusHandler(status StatusFunc) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, status())
+	})
+	mux.HandleFunc("/scenario/controls", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, http.StatusOK, EvaluateControlCapabilities(status()))
+		case http.MethodPost:
+			var request ControlRequest
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("decode control request: %v", err)})
+				return
+			}
+			if !ValidControlAction(request.Action) {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("unsupported scenario control action %q", request.Action)})
+				return
+			}
+			writeJSON(w, http.StatusConflict, RejectControlRequest(status(), request.Action))
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
 	})
 	return mux
 }

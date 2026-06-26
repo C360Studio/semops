@@ -329,6 +329,8 @@
       owners, and claim scope before adding start/reset/pause/resume controls
 - [x] 6.76 Wire scenario checkpoint evaluation into status and stack smoke before adding start/reset/pause/resume
       controls
+- [x] 6.77 Add a Caddy-routed fail-closed scenario control guard before any executable start/reset/pause/resume
+      action or UI control is exposed
 
 ## 7. COP UI
 

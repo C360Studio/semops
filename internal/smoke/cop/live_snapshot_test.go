@@ -24,6 +24,7 @@ const (
 	liveSnapshotURLEnv            = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
 	liveRuntimeURLEnv             = "SEMOPS_COP_SMOKE_RUNTIME_URL"
 	liveScenarioStatusEnv         = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
+	liveScenarioControlsEnv       = "SEMOPS_COP_SMOKE_SCENARIO_CONTROLS_URL"
 	liveScenarioCheckpointEnv     = "SEMOPS_COP_SMOKE_CHECKPOINT_MANIFEST"
 	liveComponentMetricsEnv       = "SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL"
 	liveSnapshotUDPAddrEnv        = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
@@ -278,6 +279,40 @@ func TestHostedCOPSnapshotReflectsADSBHTTPProvider(t *testing.T) {
 				ctx.Err(), lastErr)
 		case <-ticker.C:
 		}
+	}
+}
+
+func TestHostedCOPScenarioControlsFailClosed(t *testing.T) {
+	controlsURL := os.Getenv(liveScenarioControlsEnv)
+	if controlsURL == "" {
+		t.Skipf("set %s to run the hosted scenario control guard smoke", liveScenarioControlsEnv)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
+	defer cancel()
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	controls, err := fetchScenarioControls(ctx, client, controlsURL)
+	if err != nil {
+		t.Fatalf("fetch scenario controls: %v", err)
+	}
+	if controls.Enabled ||
+		controls.State != "blocked" ||
+		controls.RequiredClaimScope != "operator_scenario_control" ||
+		!hasString(controls.SupportedActions, "start") ||
+		!hasString(controls.SupportedActions, "reset") ||
+		!strings.Contains(controls.Reason, "reviewed operator_scenario_control checkpoint") {
+		t.Fatalf("scenario controls should fail closed: %+v", controls)
+	}
+	result, err := postScenarioControl(ctx, client, controlsURL, "reset")
+	if err != nil {
+		t.Fatalf("post scenario control: %v", err)
+	}
+	if result.Accepted ||
+		result.Action != "reset" ||
+		result.State != "blocked" ||
+		result.Controls.Enabled {
+		t.Fatalf("scenario control action should be rejected: %+v", result)
 	}
 }
 
@@ -970,6 +1005,75 @@ type scenarioStatus struct {
 		ContractGraphMutationAttempts int `json:"contract_graph_mutation_attempts"`
 		Mutations                     int `json:"mutations"`
 	} `json:"summary"`
+}
+
+type scenarioControls struct {
+	Enabled            bool     `json:"enabled"`
+	State              string   `json:"state"`
+	Reason             string   `json:"reason"`
+	SupportedActions   []string `json:"supported_actions"`
+	RequiredClaimScope string   `json:"required_claim_scope"`
+}
+
+type scenarioControlResult struct {
+	Accepted bool             `json:"accepted"`
+	Action   string           `json:"action"`
+	State    string           `json:"state"`
+	Reason   string           `json:"reason"`
+	Controls scenarioControls `json:"controls"`
+}
+
+func fetchScenarioControls(ctx context.Context, client *http.Client, controlsURL string) (scenarioControls, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, controlsURL, nil)
+	if err != nil {
+		return scenarioControls{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return scenarioControls{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return scenarioControls{}, fmt.Errorf("scenario controls = %d", resp.StatusCode)
+	}
+	var controls scenarioControls
+	if err := json.NewDecoder(resp.Body).Decode(&controls); err != nil {
+		return scenarioControls{}, fmt.Errorf("decode scenario controls: %w", err)
+	}
+	return controls, nil
+}
+
+func postScenarioControl(
+	ctx context.Context,
+	client *http.Client,
+	controlsURL string,
+	action string,
+) (scenarioControlResult, error) {
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		controlsURL,
+		strings.NewReader(fmt.Sprintf(`{"action":%q}`, action)),
+	)
+	if err != nil {
+		return scenarioControlResult{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return scenarioControlResult{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		return scenarioControlResult{}, fmt.Errorf("scenario control post = %d", resp.StatusCode)
+	}
+	var result scenarioControlResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return scenarioControlResult{}, fmt.Errorf("decode scenario control result: %w", err)
+	}
+	return result, nil
 }
 
 func loadScenarioCheckpointManifest(t *testing.T, path string) scenario.CheckpointManifest {

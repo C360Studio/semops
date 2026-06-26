@@ -152,6 +152,10 @@ readback, and CS API checkpoints without desired/actual-state reconciliation. Th
 manifest and reports runner-owned checkpoint state on `/scenario/status`; `scripts/cop-stack-smoke.sh` passes the same
 manifest into `internal/smoke/cop` so the product checkpoint must prove status, COP snapshot, runtime feed, and
 Prometheus metric readback through Caddy before scenario controls are added.
+The first scenario-control endpoint is intentionally fail-closed: `/scenario/controls` is Caddy-routed and smoke-tested
+as blocked, and `POST` requests for start/reset/pause/resume return policy evidence instead of mutating scenario or
+graph state until an `operator_scenario_control` checkpoint, authenticated operator policy, conflict semantics, and a
+control executor exist.
 
 ## Indexing Pressure
 

@@ -174,7 +174,9 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **AND** `/healthz` remains unavailable until playback succeeds
 - **AND** `/scenario/status` reports the scenario id, state, ingress mode, completed steps, failed steps, feed-boundary
   delivery count, mutation count, contract graph mutation-attempt count, and last error
-- **AND** Caddy routes browser-facing `/scenario/status` to the hosted scenario runner
+- **AND** `/scenario/controls` reports supported scenario control actions as blocked policy state until executable
+  controls are approved
+- **AND** Caddy routes browser-facing `/scenario/status` and `/scenario/controls` to the hosted scenario runner
 - **AND** the one-command smoke polls the Caddy-routed status endpoint by default rather than inferring scenario
   success from logs
 - **AND** the smoke fails fast on explicit scenario failure and treats stale status progress as a wedged run with
@@ -301,6 +303,10 @@ SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.
 - **THEN** feed emission and expected COP state remain deterministic enough for tests and stage demos
 - **AND** these controls remain test/stage orchestration primitives until an adversarial UX review approves an
   operator-facing scenario control surface
+- **AND** the Caddy-routed scenario control endpoint reports executable controls as blocked until a reviewed
+  `operator_scenario_control` checkpoint and control executor exist
+- **AND** a start, reset, pause, or resume request fails closed with policy evidence rather than mutating scenario or
+  graph state when those gates are absent
 - **AND** a pause, resume, accelerate, or reset action does not by itself prove command-control, CS API, provider,
   simulator-fidelity, or standards behavior unless the claim-scoped checkpoint for that behavior also passes
 

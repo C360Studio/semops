@@ -11,7 +11,7 @@
 	reverse_proxy @semops_api semops:8088
 
 	@scenario_status {
-		path /scenario/status
+		path /scenario/status /scenario/controls
 	}
 	reverse_proxy @scenario_status semops-scenario-runner:8090
 

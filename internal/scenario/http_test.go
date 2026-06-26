@@ -1,9 +1,11 @@
 package scenario
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -69,5 +71,85 @@ func TestStatusHandlerReturnsScenarioStatus(t *testing.T) {
 		status.Summary.ContractGraphMutationAttempts != 18 ||
 		status.Summary.Mutations != 18 {
 		t.Fatalf("status = %+v", status)
+	}
+}
+
+func TestStatusHandlerReturnsFailClosedScenarioControls(t *testing.T) {
+	handler := NewStatusHandler(func() Status {
+		return Status{
+			ScenarioID: "phase-1-hadr-flood-evacuation",
+			State:      StateSucceeded,
+			Checkpoints: []CheckpointEvaluation{{
+				ID:         "operator-review",
+				ClaimScope: ClaimOperatorControl,
+				State:      CheckpointDeclared,
+			}},
+		}
+	})
+	req := httptest.NewRequest(http.MethodGet, "/scenario/controls", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusOK)
+	}
+	var controls ControlCapabilities
+	if err := json.NewDecoder(rec.Body).Decode(&controls); err != nil {
+		t.Fatalf("decode controls: %v", err)
+	}
+	if controls.Enabled ||
+		controls.State != "blocked" ||
+		controls.RequiredClaimScope != ClaimOperatorControl ||
+		controls.CheckpointID != "operator-review" ||
+		controls.CheckpointState != string(CheckpointDeclared) ||
+		len(controls.SupportedActions) != 4 ||
+		!strings.Contains(controls.Reason, "reviewed operator_scenario_control checkpoint") {
+		t.Fatalf("controls = %+v", controls)
+	}
+}
+
+func TestStatusHandlerRejectsScenarioControlActions(t *testing.T) {
+	handler := NewStatusHandler(func() Status {
+		return Status{ScenarioID: "phase-1-hadr-flood-evacuation", State: StateSucceeded}
+	})
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/scenario/controls",
+		bytes.NewBufferString(`{"action":"reset"}`),
+	)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status code = %d, want %d; body=%s", rec.Code, http.StatusConflict, rec.Body.String())
+	}
+	var result ControlResult
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("decode result: %v", err)
+	}
+	if result.Accepted ||
+		result.Action != ControlActionReset ||
+		result.State != "blocked" ||
+		result.Controls.Enabled ||
+		result.Controls.RequiredClaimScope != ClaimOperatorControl {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestStatusHandlerRejectsUnsupportedScenarioControlActions(t *testing.T) {
+	handler := NewStatusHandler(func() Status { return Status{ScenarioID: "scenario-1"} })
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/scenario/controls",
+		bytes.NewBufferString(`{"action":"launch"}`),
+	)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "unsupported scenario control action") {
+		t.Fatalf("response = %d %s", rec.Code, rec.Body.String())
 	}
 }
