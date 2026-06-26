@@ -153,6 +153,9 @@ progress:
   - Added a Caddy-routed fail-closed scenario control guard: `GET /scenario/controls` reports start/reset/pause/resume
     as blocked, and `POST /scenario/controls` rejects supported actions until an `operator_scenario_control`
     checkpoint, authenticated operator policy, conflict semantics, and a control executor exist.
+  - Added a low-friction MVP operator identity resolver for association review audit: local demos can run with no auth
+    setup, optional `X-SemOps-Operator-ID` stamps the reviewer label, and role/scope escalation remains blocked until
+    authenticated multi-authority arbitration exists.
 
 current_evidence:
   - `go test ./internal/contracts`

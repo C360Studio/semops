@@ -156,6 +156,66 @@ func TestHandlerReviewsAssociationAndOverlaysSnapshot(t *testing.T) {
 	}
 }
 
+func TestHandlerReviewUsesOperatorIdentityHeader(t *testing.T) {
+	now := time.Date(2026, 6, 24, 1, 12, 0, 0, time.UTC)
+	handler, err := NewHandler(
+		associationReviewSnapshotProvider{snapshot: Snapshot{
+			Associations: []Association{{ID: "association-1"}},
+		}},
+		WithClock(func() time.Time { return now }),
+	)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/associations/association-1/review",
+		strings.NewReader(`{"decision":"acknowledged","reviewed_by":"operator:body"}`),
+	)
+	req.Header.Set(OperatorIDHeader, "operator:incident-command")
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var review AssociationReview
+	if err := json.Unmarshal(rec.Body.Bytes(), &review); err != nil {
+		t.Fatalf("decode review: %v", err)
+	}
+	if review.ReviewedBy != "operator:incident-command" ||
+		review.ReviewerRole != DefaultAssociationReviewerRole ||
+		review.AuthorityScope != DefaultAssociationReviewAuthorityScope {
+		t.Fatalf("review = %+v", review)
+	}
+}
+
+func TestHandlerRejectsReviewAuthorityEscalation(t *testing.T) {
+	handler, err := NewHandler(associationReviewSnapshotProvider{snapshot: Snapshot{
+		Associations: []Association{{ID: "association-1"}},
+	}})
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/associations/association-1/review",
+		strings.NewReader(`{"decision":"acknowledged","reviewed_by":"operator:lead"}`),
+	)
+	req.Header.Set(OperatorAuthorityScopeHeader, "command.execute")
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "display-only reviews") {
+		t.Fatalf("body = %s, want display-only rejection", rec.Body.String())
+	}
+}
+
 func TestHandlerRejectsInvalidAssociationReviewDecision(t *testing.T) {
 	handler, err := NewHandler(associationReviewSnapshotProvider{snapshot: Snapshot{
 		Associations: []Association{{ID: "association-1"}},

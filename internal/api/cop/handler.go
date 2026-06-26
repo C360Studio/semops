@@ -14,10 +14,11 @@ type SnapshotProvider interface {
 }
 
 type Handler struct {
-	provider        SnapshotProvider
-	runtimeProvider RuntimeProvider
-	reviewStore     AssociationReviewStore
-	now             func() time.Time
+	provider                 SnapshotProvider
+	runtimeProvider          RuntimeProvider
+	reviewStore              AssociationReviewStore
+	operatorIdentityResolver OperatorIdentityResolver
+	now                      func() time.Time
 }
 
 type Option func(*Handler)
@@ -42,14 +43,21 @@ func WithAssociationReviewStore(store AssociationReviewStore) Option {
 	}
 }
 
+func WithOperatorIdentityResolver(resolver OperatorIdentityResolver) Option {
+	return func(h *Handler) {
+		h.operatorIdentityResolver = resolver
+	}
+}
+
 func NewHandler(provider SnapshotProvider, opts ...Option) (*Handler, error) {
 	if provider == nil {
 		return nil, fmt.Errorf("cop api requires a snapshot provider")
 	}
 	handler := &Handler{
-		provider:    provider,
-		reviewStore: NewMemoryAssociationReviewStore(),
-		now:         func() time.Time { return time.Now().UTC() },
+		provider:                 provider,
+		reviewStore:              NewMemoryAssociationReviewStore(),
+		operatorIdentityResolver: ResolveLocalOperatorIdentity,
+		now:                      func() time.Time { return time.Now().UTC() },
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -58,6 +66,9 @@ func NewHandler(provider SnapshotProvider, opts ...Option) (*Handler, error) {
 	}
 	if handler.reviewStore == nil {
 		handler.reviewStore = NewMemoryAssociationReviewStore()
+	}
+	if handler.operatorIdentityResolver == nil {
+		handler.operatorIdentityResolver = ResolveLocalOperatorIdentity
 	}
 	return handler, nil
 }
@@ -134,17 +145,18 @@ func (h *Handler) reviewAssociation(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "association not found"})
 		return
 	}
-	reviewedBy := strings.TrimSpace(request.ReviewedBy)
-	if reviewedBy == "" {
-		reviewedBy = DefaultAssociationReviewer
+	identity, err := h.operatorIdentityResolver(r, request.ReviewedBy)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
 	}
 	review := AssociationReview{
 		AssociationID:  associationID,
 		Decision:       decision,
-		ReviewedBy:     reviewedBy,
+		ReviewedBy:     identity.ID,
 		ReviewedAt:     h.now().UTC(),
-		ReviewerRole:   DefaultAssociationReviewerRole,
-		AuthorityScope: DefaultAssociationReviewAuthorityScope,
+		ReviewerRole:   identity.ReviewerRole,
+		AuthorityScope: identity.AuthorityScope,
 		ConflictPolicy: DefaultAssociationReviewConflictPolicy,
 		Comment:        strings.TrimSpace(request.Comment),
 	}

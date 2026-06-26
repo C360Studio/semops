@@ -425,6 +425,8 @@
       drive command execution, identity fusion, upstream CS API status, or compliance workflows
 - [x] 8.32 Add fail-closed MAVLink command-control preflight evidence before any native transmitter, CS API tasking
       ingress, or operator execute control is wired
+- [x] 8.33 Add a low-friction MVP operator identity resolver for display-only association review while keeping
+      authenticated multi-authority arbitration open under task 8.31
 
 ## 9. Upstream SemStreams Asks
 

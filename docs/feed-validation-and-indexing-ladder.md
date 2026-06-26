@@ -895,6 +895,10 @@ First acceptance gate:
   non-authoritative semantics: `reviewer_role=operator.unverified`, `authority_scope=local.display_only`, and
   `conflict_policy=latest_review_wins_display_only`. Review does not mutate source tracks, merge identities, change
   association status, or grant feed adapters association authority.
+- The MVP identity path is an audit label, not authentication. `X-SemOps-Operator-ID` may stamp the local demo
+  reviewer, otherwise the API falls back to request-body `reviewed_by` and then `operator.local`. Role/scope headers
+  cannot escalate beyond `operator.unverified` and `local.display_only` until the authenticated multi-authority gate is
+  built.
 - Remaining fusion authority gate: authenticated operator identity, multi-authority conflict arbitration, upstream CS
   API status semantics, and identity/command authority semantics.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or

@@ -72,6 +72,12 @@ acknowledge/challenge decisions with `reviewer_role=operator.unverified`, `autho
 `conflict_policy=latest_review_wins_display_only`. That lets the COP show local human-in-the-loop review without
 changing association scores, merging identities, driving command execution, or publishing upstream CS API status.
 
+The MVP operator identity policy is intentionally low-friction. The COP API resolves review identity from
+`X-SemOps-Operator-ID`, then the request body's `reviewed_by`, then `operator.local`. That value is only an audit label:
+the API still records `operator.unverified` and `local.display_only`, and optional `X-SemOps-Operator-Role` or
+`X-SemOps-Authority-Scope` headers may only repeat those display-only values. Non-display authority claims are rejected
+until authenticated operator identity and multi-authority conflict arbitration are implemented.
+
 SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
 absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are
 reviewed, and declares no association or tasking foreign edges.
