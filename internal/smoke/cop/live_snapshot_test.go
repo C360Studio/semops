@@ -166,6 +166,8 @@ func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 		} else if status.State != "succeeded" {
 			lastErr = fmt.Errorf("scenario runner state = %q, completed=%d failed=%d last_error=%q",
 				status.State, status.CompletedSteps, status.FailedSteps, status.LastError)
+		} else if err := requireProductFeedBoundaryScenarioStatus(status); err != nil {
+			lastErr = err
 		} else if expectADSB && status.Summary.ADSBSnapshots < 2 {
 			lastErr = fmt.Errorf("scenario runner ADS-B snapshots = %d, want at least 2",
 				status.Summary.ADSBSnapshots)
@@ -320,6 +322,8 @@ func TestHostedCOPSnapshotReflectsHADRSharedAirspace(t *testing.T) {
 		} else if status.State != "succeeded" {
 			lastErr = fmt.Errorf("scenario runner state = %q, completed=%d failed=%d last_error=%q",
 				status.State, status.CompletedSteps, status.FailedSteps, status.LastError)
+		} else if err := requireProductFeedBoundaryScenarioStatus(status); err != nil {
+			lastErr = err
 		} else {
 			snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
 			if err != nil {
@@ -908,14 +912,38 @@ func fetchScenarioStatus(ctx context.Context, client *http.Client, statusURL str
 }
 
 type scenarioStatus struct {
+	IngressMode    string `json:"ingress_mode"`
 	State          string `json:"state"`
 	CompletedSteps int    `json:"completed_steps"`
 	FailedSteps    int    `json:"failed_steps"`
 	LastError      string `json:"last_error"`
 	Summary        struct {
-		CAPAlerts     int `json:"cap_alerts"`
-		ADSBSnapshots int `json:"adsb_snapshots"`
+		CAPAlerts                     int `json:"cap_alerts"`
+		ADSBSnapshots                 int `json:"adsb_snapshots"`
+		FeedBoundaryDeliveries        int `json:"feed_boundary_deliveries"`
+		ContractGraphMutationAttempts int `json:"contract_graph_mutation_attempts"`
+		Mutations                     int `json:"mutations"`
 	} `json:"summary"`
+}
+
+func requireProductFeedBoundaryScenarioStatus(status scenarioStatus) error {
+	if status.IngressMode != "feed-boundary" {
+		return fmt.Errorf("scenario runner ingress_mode = %q, want feed-boundary", status.IngressMode)
+	}
+	if status.CompletedSteps == 0 {
+		return fmt.Errorf("scenario runner completed_steps = 0, want feed-boundary playback evidence")
+	}
+	if status.Summary.Mutations != 0 || status.Summary.ContractGraphMutationAttempts != 0 {
+		return fmt.Errorf("scenario runner product status reported graph mutations: mutations=%d contract_graph_mutation_attempts=%d",
+			status.Summary.Mutations,
+			status.Summary.ContractGraphMutationAttempts)
+	}
+	if status.Summary.FeedBoundaryDeliveries != status.CompletedSteps {
+		return fmt.Errorf("scenario runner feed-boundary deliveries = %d, want completed steps %d",
+			status.Summary.FeedBoundaryDeliveries,
+			status.CompletedSteps)
+	}
+	return nil
 }
 
 func snapshotHasTrack(snapshot copapi.Snapshot, expectedTrackID string) bool {

@@ -319,7 +319,9 @@
       e2e while retaining direct graph replay as explicit contract mode only
 - [x] 6.71 Move default CAP product visibility to hosted CAP HTTP fixture-provider polling and fail product evidence
       on SemStreams owner-token mismatch metrics before direct graph contract smokes run
-- [ ] 6.72 Extend feed-boundary orchestration before claiming command-control, CS API, simulator-fidelity,
+- [x] 6.72 Add scenario status evidence fields for ingress mode, feed-boundary deliveries, and contract graph
+      mutation attempts so product smoke can fail on direct-injection evidence
+- [ ] 6.73 Extend feed-boundary orchestration before claiming command-control, CS API, simulator-fidelity,
       provider-integration, standards, or operator scenario-control evidence
 
 ## 7. COP UI

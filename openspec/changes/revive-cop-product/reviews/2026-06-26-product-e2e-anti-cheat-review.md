@@ -72,6 +72,8 @@ The first follow-up slice is complete for default stack evidence:
   only.
 - Default CAP product visibility now comes from the hosted CAP HTTP poller reading the local fixture provider
   `/cap/alert` endpoint.
+- `/scenario/status` now declares `ingress_mode`, `feed_boundary_deliveries`, and
+  `contract_graph_mutation_attempts`, so product smoke can fail if scenario playback reports direct graph evidence.
 - The one-command stack smoke checks SemStreams owner-token mismatch metrics before direct graph contract smokes run.
 
 Remaining blocked claims are command-control, CS API bidirectional interop, simulator-fidelity, live provider

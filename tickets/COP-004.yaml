@@ -129,6 +129,9 @@ progress:
     local provider fixture so CAP product visibility enters through the hosted CAP component path.
   - Added a product-evidence guard to `scripts/cop-stack-smoke.sh` that fails on SemStreams owner-token mismatch
     metrics before direct graph contract smokes run.
+  - Extended `/scenario/status` with `ingress_mode`, `feed_boundary_deliveries`, and
+    `contract_graph_mutation_attempts`; product stack smoke now requires feed-boundary ingress, zero graph mutations,
+    and feed-boundary deliveries equal to completed steps.
 
 current_evidence:
   - `go test ./internal/contracts`

@@ -28,6 +28,13 @@ const (
 	StateFailed    State = "failed"
 )
 
+type IngressMode string
+
+const (
+	IngressModeFeedBoundary        IngressMode = "feed-boundary"
+	IngressModeDirectGraphContract IngressMode = "direct-graph-contract"
+)
+
 type MAVLinkSink interface {
 	IngestFrame(context.Context, []byte) (mavadapter.IngestResult, error)
 	Health() mavadapter.Health
@@ -60,6 +67,7 @@ type Config struct {
 	CAPProjector CAPProjector
 	CAPWriter    CAPPlanWriter
 	Clock        func() time.Time
+	IngressMode  IngressMode
 }
 
 type Runner struct {
@@ -70,6 +78,7 @@ type Runner struct {
 	capProjector CAPProjector
 	capWriter    CAPPlanWriter
 	clock        func() time.Time
+	ingressMode  IngressMode
 
 	mu     sync.RWMutex
 	status Status
@@ -109,45 +118,50 @@ type ADSBSnapshot struct {
 }
 
 type Status struct {
-	ScenarioID     string    `json:"scenario_id"`
-	State          State     `json:"state"`
-	CurrentStep    string    `json:"current_step,omitempty"`
-	StartedAt      time.Time `json:"started_at,omitempty"`
-	UpdatedAt      time.Time `json:"updated_at,omitempty"`
-	FinishedAt     time.Time `json:"finished_at,omitempty"`
-	CompletedSteps int       `json:"completed_steps"`
-	FailedSteps    int       `json:"failed_steps"`
-	LastError      string    `json:"last_error,omitempty"`
-	Summary        Summary   `json:"summary"`
+	ScenarioID     string      `json:"scenario_id"`
+	State          State       `json:"state"`
+	IngressMode    IngressMode `json:"ingress_mode,omitempty"`
+	CurrentStep    string      `json:"current_step,omitempty"`
+	StartedAt      time.Time   `json:"started_at,omitempty"`
+	UpdatedAt      time.Time   `json:"updated_at,omitempty"`
+	FinishedAt     time.Time   `json:"finished_at,omitempty"`
+	CompletedSteps int         `json:"completed_steps"`
+	FailedSteps    int         `json:"failed_steps"`
+	LastError      string      `json:"last_error,omitempty"`
+	Summary        Summary     `json:"summary"`
 }
 
 type Report struct {
-	ScenarioID string       `json:"scenario_id"`
-	State      State        `json:"state"`
-	StartedAt  time.Time    `json:"started_at,omitempty"`
-	FinishedAt time.Time    `json:"finished_at,omitempty"`
-	Steps      []StepReport `json:"steps"`
-	Summary    Summary      `json:"summary"`
-	LastError  string       `json:"last_error,omitempty"`
+	ScenarioID  string       `json:"scenario_id"`
+	State       State        `json:"state"`
+	IngressMode IngressMode  `json:"ingress_mode,omitempty"`
+	StartedAt   time.Time    `json:"started_at,omitempty"`
+	FinishedAt  time.Time    `json:"finished_at,omitempty"`
+	Steps       []StepReport `json:"steps"`
+	Summary     Summary      `json:"summary"`
+	LastError   string       `json:"last_error,omitempty"`
 }
 
 type Summary struct {
-	MAVLinkFrames int `json:"mavlink_frames"`
-	CoTEvents     int `json:"cot_events"`
-	CAPAlerts     int `json:"cap_alerts"`
-	ADSBSnapshots int `json:"adsb_snapshots"`
-	Mutations     int `json:"mutations"`
-	Errors        int `json:"errors"`
+	MAVLinkFrames                 int `json:"mavlink_frames"`
+	CoTEvents                     int `json:"cot_events"`
+	CAPAlerts                     int `json:"cap_alerts"`
+	ADSBSnapshots                 int `json:"adsb_snapshots"`
+	FeedBoundaryDeliveries        int `json:"feed_boundary_deliveries"`
+	ContractGraphMutationAttempts int `json:"contract_graph_mutation_attempts"`
+	Mutations                     int `json:"mutations"`
+	Errors                        int `json:"errors"`
 }
 
 type StepReport struct {
-	Feed       string    `json:"feed"`
-	Name       string    `json:"name"`
-	RawRef     string    `json:"raw_ref,omitempty"`
-	StartedAt  time.Time `json:"started_at,omitempty"`
-	FinishedAt time.Time `json:"finished_at,omitempty"`
-	Mutations  int       `json:"mutations"`
-	Error      string    `json:"error,omitempty"`
+	Feed        string      `json:"feed"`
+	Name        string      `json:"name"`
+	IngressMode IngressMode `json:"ingress_mode,omitempty"`
+	RawRef      string      `json:"raw_ref,omitempty"`
+	StartedAt   time.Time   `json:"started_at,omitempty"`
+	FinishedAt  time.Time   `json:"finished_at,omitempty"`
+	Mutations   int         `json:"mutations"`
+	Error       string      `json:"error,omitempty"`
 }
 
 func NewRunner(cfg Config) (*Runner, error) {
@@ -173,10 +187,12 @@ func NewRunner(cfg Config) (*Runner, error) {
 		capProjector: cfg.CAPProjector,
 		capWriter:    cfg.CAPWriter,
 		clock:        cfg.Clock,
+		ingressMode:  cfg.IngressMode,
 		status: Status{
-			ScenarioID: fixture.ID,
-			State:      StateIdle,
-			UpdatedAt:  cfg.Clock().UTC(),
+			ScenarioID:  fixture.ID,
+			State:       StateIdle,
+			IngressMode: cfg.IngressMode,
+			UpdatedAt:   cfg.Clock().UTC(),
 		},
 	}
 	return runner, nil
@@ -319,15 +335,17 @@ func (r *Runner) Run(ctx context.Context) (Report, error) {
 
 	started := r.now()
 	report := Report{
-		ScenarioID: r.fixture.ID,
-		State:      StateRunning,
-		StartedAt:  started,
+		ScenarioID:  r.fixture.ID,
+		State:       StateRunning,
+		IngressMode: r.ingressMode,
+		StartedAt:   started,
 	}
 	r.setStatus(Status{
-		ScenarioID: r.fixture.ID,
-		State:      StateRunning,
-		StartedAt:  started,
-		UpdatedAt:  started,
+		ScenarioID:  r.fixture.ID,
+		State:       StateRunning,
+		IngressMode: r.ingressMode,
+		StartedAt:   started,
+		UpdatedAt:   started,
 	})
 
 	for _, frame := range r.fixture.MAVLinkFrames {
@@ -369,6 +387,7 @@ func (r *Runner) Run(ctx context.Context) (Report, error) {
 	r.setStatus(Status{
 		ScenarioID:     report.ScenarioID,
 		State:          StateSucceeded,
+		IngressMode:    report.IngressMode,
 		StartedAt:      report.StartedAt,
 		UpdatedAt:      finished,
 		FinishedAt:     finished,
@@ -466,7 +485,7 @@ func (r *Runner) startStep(feed, name string) StepReport {
 	r.status.CurrentStep = feed + ":" + name
 	r.status.UpdatedAt = started
 	r.mu.Unlock()
-	return StepReport{Feed: feed, Name: name, StartedAt: started}
+	return StepReport{Feed: feed, Name: name, IngressMode: r.ingressMode, StartedAt: started}
 }
 
 func (r *Runner) finishStep(step StepReport, mutations int, rawRef string, err error) StepReport {
@@ -487,6 +506,7 @@ func (r *Runner) failReport(report Report, err error) (Report, error) {
 	r.setStatus(Status{
 		ScenarioID:     report.ScenarioID,
 		State:          StateFailed,
+		IngressMode:    report.IngressMode,
 		CurrentStep:    "",
 		StartedAt:      report.StartedAt,
 		UpdatedAt:      finished,
@@ -503,6 +523,7 @@ func (r *Runner) updateAfterStep(report Report, step StepReport, err error) {
 	status := Status{
 		ScenarioID:     report.ScenarioID,
 		State:          StateRunning,
+		IngressMode:    report.IngressMode,
 		CurrentStep:    step.Feed + ":" + step.Name,
 		StartedAt:      report.StartedAt,
 		UpdatedAt:      step.FinishedAt,
@@ -539,6 +560,12 @@ func appendStep(report Report, step StepReport) Report {
 		report.Summary.ADSBSnapshots++
 	}
 	report.Summary.Mutations += step.Mutations
+	if step.Error == "" && step.IngressMode == IngressModeFeedBoundary {
+		report.Summary.FeedBoundaryDeliveries++
+	}
+	if step.IngressMode == IngressModeDirectGraphContract {
+		report.Summary.ContractGraphMutationAttempts += step.Mutations
+	}
 	if step.Error != "" {
 		report.Summary.Errors++
 	}

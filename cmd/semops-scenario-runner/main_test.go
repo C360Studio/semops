@@ -6,6 +6,7 @@ import (
 	"time"
 
 	semopsapp "github.com/c360studio/semops/internal/app"
+	"github.com/c360studio/semops/internal/scenario"
 	"github.com/c360studio/semops/pkg/cop"
 )
 
@@ -167,7 +168,9 @@ func TestComposeProductRunnerDoesNotRequireNATSOrOwnerBindings(t *testing.T) {
 	if runner == nil {
 		t.Fatal("product scenario runner is nil")
 	}
-	if status := runner.Status(); status.ScenarioID == "" || status.Summary.CAPAlerts != 0 {
+	if status := runner.Status(); status.ScenarioID == "" ||
+		status.IngressMode != scenario.IngressModeFeedBoundary ||
+		status.Summary.CAPAlerts != 0 {
 		t.Fatalf("product runner status = %+v", status)
 	}
 	if _, _, _, err := composeProductRunner(cfg, true, scenarioFeedBoundary{

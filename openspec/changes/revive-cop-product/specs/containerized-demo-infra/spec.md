@@ -149,13 +149,15 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **WHEN** the local Compose stack starts `semops-scenario-runner`
 - **THEN** the service reports the first HADR scenario playback state on startup
 - **AND** `/healthz` remains unavailable until playback succeeds
-- **AND** `/scenario/status` reports the scenario id, state, completed steps, failed steps, mutation count, and last
-  error
+- **AND** `/scenario/status` reports the scenario id, state, ingress mode, completed steps, failed steps, feed-boundary
+  delivery count, mutation count, contract graph mutation-attempt count, and last error
 - **AND** the one-command smoke polls the status endpoint rather than inferring scenario success from logs
 - **AND** the smoke fails fast on explicit scenario failure and treats stale status progress as a wedged run with
   diagnostic output
 - **AND** default product mode emits MAVLink and TAK/CoT through hosted UDP feed boundaries without opening a
   SemStreams client, binding graph owners, or writing graph mutations
+- **AND** default product mode status reports `ingress_mode=feed-boundary`, zero `mutations`, zero
+  `contract_graph_mutation_attempts`, and `feed_boundary_deliveries` equal to completed steps
 - **AND** direct graph projection mode, when retained as `SEMOPS_SCENARIO_MODE=contract`, is labeled
   contract/replay infrastructure rather than product e2e
 

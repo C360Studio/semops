@@ -127,12 +127,14 @@ The first scenario-runner core lives in `internal/scenario`. In default product 
 feed boundaries, reports zero graph mutations, and exposes a pollable run status. The hosted SemOps input, decoder,
 and projector components then own payload registry decode, flowgraph ports, owner tokens, graph writes, health,
 `DataFlow()`, and Prometheus telemetry. The stack smoke polls `/scenario/status`; it also asserts the Caddy-routed COP
-snapshot contains the scenario's MAVLink track plus TAK/CoT task and advisory. CAP product visibility comes from the
-hosted CAP HTTP poller reading `cmd/semops-feed-fixtures` `/cap/alert`, not from scenario-runner graph seeding. The
-direct graph replay path remains available as `SEMOPS_SCENARIO_MODE=contract` and is replay/contract infrastructure
-evidence only; it can cover CAP lifecycle records and opt-in ADS-B snapshots, but not product e2e, full
-shared-airspace, simulator-fidelity, command-control, CS API, provider, standards, or operator scenario-control
-evidence. Product ADS-B evidence uses the hosted ADS-B HTTP component. The Compose stack also includes
+snapshot contains the scenario's MAVLink track plus TAK/CoT task and advisory. The status document declares
+`ingress_mode=feed-boundary`, counts `feed_boundary_deliveries`, and keeps `mutations` plus
+`contract_graph_mutation_attempts` at zero for product evidence. CAP product visibility comes from the hosted CAP
+HTTP poller reading `cmd/semops-feed-fixtures` `/cap/alert`, not from scenario-runner graph seeding. The direct graph
+replay path remains available as `SEMOPS_SCENARIO_MODE=contract` and is replay/contract infrastructure evidence only;
+it can cover CAP lifecycle records and opt-in ADS-B snapshots, but not product e2e, full shared-airspace,
+simulator-fidelity, command-control, CS API, provider, standards, or operator scenario-control evidence. Product
+ADS-B evidence uses the hosted ADS-B HTTP component. The Compose stack also includes
 `cmd/semops-feed-fixtures`, a local HTTP provider simulator for ADS-B, CAP, and SAPIENT smoke tests. That service is
 mock infrastructure only; it is not a SemOps-owned TAK, CAP, SAPIENT, OpenSky, or CS API product service.
 

@@ -113,9 +113,11 @@ func main() {
 			return
 		}
 		log.Printf(
-			"Scenario %s succeeded: steps=%d mutations=%d mavlink=%d cot=%d cap=%d adsb=%d",
+			"Scenario %s succeeded: ingress=%s steps=%d feed_boundary_deliveries=%d mutations=%d mavlink=%d cot=%d cap=%d adsb=%d",
 			report.ScenarioID,
+			report.IngressMode,
 			len(report.Steps),
+			report.Summary.FeedBoundaryDeliveries,
 			report.Summary.Mutations,
 			report.Summary.MAVLinkFrames,
 			report.Summary.CoTEvents,
@@ -178,9 +180,10 @@ func composeProductRunner(
 		return nil, nil, nil, fmt.Errorf("compose CoT feed-boundary sink: %w", err)
 	}
 	runner, err := scenario.NewRunner(scenario.Config{
-		Fixture: fixture,
-		MAVLink: mavlinkSink,
-		CoT:     cotSink,
+		Fixture:     fixture,
+		MAVLink:     mavlinkSink,
+		CoT:         cotSink,
+		IngressMode: scenario.IngressModeFeedBoundary,
 	})
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("create product scenario runner: %w", err)
@@ -268,9 +271,10 @@ func composeContractRunner(
 	}
 
 	runnerConfig := scenario.Config{
-		Fixture: fixture,
-		MAVLink: mavlink,
-		CoT:     cot,
+		Fixture:     fixture,
+		MAVLink:     mavlink,
+		CoT:         cot,
+		IngressMode: scenario.IngressModeDirectGraphContract,
 		CAPProjector: capprojector.NewProjector(capprojector.Config{
 			Org:         cfg.MAVLink.Org,
 			Platform:    cfg.MAVLink.Platform,

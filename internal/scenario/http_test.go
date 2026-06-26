@@ -39,12 +39,14 @@ func TestStatusHandlerReturnsScenarioStatus(t *testing.T) {
 		return Status{
 			ScenarioID:     "phase-1-hadr-flood-evacuation",
 			State:          StateSucceeded,
+			IngressMode:    IngressModeDirectGraphContract,
 			CompletedSteps: 10,
 			Summary: Summary{
-				MAVLinkFrames: 2,
-				CoTEvents:     4,
-				CAPAlerts:     4,
-				Mutations:     18,
+				MAVLinkFrames:                 2,
+				CoTEvents:                     4,
+				CAPAlerts:                     4,
+				ContractGraphMutationAttempts: 18,
+				Mutations:                     18,
 			},
 		}
 	})
@@ -62,7 +64,9 @@ func TestStatusHandlerReturnsScenarioStatus(t *testing.T) {
 	}
 	if status.ScenarioID != "phase-1-hadr-flood-evacuation" ||
 		status.State != StateSucceeded ||
+		status.IngressMode != IngressModeDirectGraphContract ||
 		status.CompletedSteps != 10 ||
+		status.Summary.ContractGraphMutationAttempts != 18 ||
 		status.Summary.Mutations != 18 {
 		t.Fatalf("status = %+v", status)
 	}

@@ -88,8 +88,9 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 			OwnerTokens: tokens,
 			TraceID:     "scenario-runner-test",
 		}),
-		CAPWriter: capWriter,
-		Clock:     fixedClock(start),
+		CAPWriter:   capWriter,
+		Clock:       fixedClock(start),
+		IngressMode: IngressModeDirectGraphContract,
 	})
 	if err != nil {
 		t.Fatalf("runner: %v", err)
@@ -111,8 +112,13 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 		report.Summary.Errors != 0 {
 		t.Fatalf("summary = %+v", report.Summary)
 	}
-	if report.Summary.Mutations == 0 {
-		t.Fatal("expected scenario mutations")
+	if report.IngressMode != IngressModeDirectGraphContract ||
+		report.Summary.Mutations == 0 ||
+		report.Summary.ContractGraphMutationAttempts != report.Summary.Mutations ||
+		report.Summary.FeedBoundaryDeliveries != 0 {
+		t.Fatalf("contract scenario evidence summary = ingress %s summary %+v",
+			report.IngressMode,
+			report.Summary)
 	}
 	if len(mavWriter.plans) != 2 {
 		t.Fatalf("mavlink plans = %d, want heartbeat birth + position update", len(mavWriter.plans))
@@ -155,9 +161,83 @@ func TestRunnerReplaysPhase1HADRFixtureThroughAdapters(t *testing.T) {
 
 	status := runner.Status()
 	if status.State != StateSucceeded ||
+		status.IngressMode != IngressModeDirectGraphContract ||
 		status.CompletedSteps != wantSteps ||
 		status.Summary.Mutations != report.Summary.Mutations {
 		t.Fatalf("status = %+v; report = %+v", status, report.Summary)
+	}
+}
+
+func TestRunnerReportsFeedBoundaryEvidence(t *testing.T) {
+	start := time.Date(2026, 6, 26, 18, 0, 0, 0, time.UTC)
+	mavConn := listenUDP(t)
+	defer mavConn.Close()
+	cotConn := listenUDP(t)
+	defer cotConn.Close()
+	mavSink, err := NewMAVLinkUDPSink(UDPFeedSinkConfig{
+		Addr:         mavConn.LocalAddr().String(),
+		WriteTimeout: time.Second,
+		Clock:        fixedClock(start),
+	})
+	if err != nil {
+		t.Fatalf("mavlink sink: %v", err)
+	}
+	cotSink, err := NewCoTUDPSink(UDPFeedSinkConfig{
+		Addr:         cotConn.LocalAddr().String(),
+		WriteTimeout: time.Second,
+		Clock:        fixedClock(start),
+	})
+	if err != nil {
+		t.Fatalf("cot sink: %v", err)
+	}
+	fixture := Fixture{
+		ID:        "feed-boundary-smoke",
+		StartedAt: start,
+		MAVLinkFrames: []MAVLinkFrame{{
+			Name:  "heartbeat",
+			Frame: []byte{0xfd, 0x00, 0x00, 0x00},
+		}},
+		CoTEvents: []CoTEvent{{
+			Name:   "marker",
+			RawXML: []byte(`<event version="2.0" uid="alpha" type="a-f-G-U-C" how="m-g"/>`),
+		}},
+	}
+	runner, err := NewRunner(Config{
+		Fixture:     fixture,
+		MAVLink:     mavSink,
+		CoT:         cotSink,
+		Clock:       fixedClock(start),
+		IngressMode: IngressModeFeedBoundary,
+	})
+	if err != nil {
+		t.Fatalf("runner: %v", err)
+	}
+
+	report, err := runner.Run(context.Background())
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	if report.IngressMode != IngressModeFeedBoundary ||
+		report.Summary.FeedBoundaryDeliveries != 2 ||
+		report.Summary.Mutations != 0 ||
+		report.Summary.ContractGraphMutationAttempts != 0 {
+		t.Fatalf("feed-boundary report = ingress %s summary %+v", report.IngressMode, report.Summary)
+	}
+	if report.Steps[0].IngressMode != IngressModeFeedBoundary ||
+		report.Steps[1].IngressMode != IngressModeFeedBoundary {
+		t.Fatalf("step ingress modes = %s/%s", report.Steps[0].IngressMode, report.Steps[1].IngressMode)
+	}
+	if status := runner.Status(); status.IngressMode != IngressModeFeedBoundary ||
+		status.Summary.FeedBoundaryDeliveries != report.Summary.FeedBoundaryDeliveries ||
+		status.Summary.Mutations != 0 {
+		t.Fatalf("feed-boundary status = %+v", status)
+	}
+	if got := readUDP(t, mavConn, len(fixture.MAVLinkFrames[0].Frame)); string(got) != string(fixture.MAVLinkFrames[0].Frame) {
+		t.Fatalf("mavlink udp payload = %v", got)
+	}
+	if got := readUDP(t, cotConn, len(fixture.CoTEvents[0].RawXML)); string(got) != string(fixture.CoTEvents[0].RawXML) {
+		t.Fatalf("cot udp payload = %q", got)
 	}
 }
 
