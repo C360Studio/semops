@@ -137,12 +137,20 @@ progress:
   - Added a read-only COP UI scenario evidence panel that consumes Caddy-routed `/scenario/status` and shows scenario
     ingress mode, completed/failed steps, feed-boundary deliveries, and graph mutation counts without adding scenario
     orchestration controls.
+  - Confirmed ADS-B and SAPIENT feed promotion is no longer future planning: ADS-B runs as a hosted
+    OpenSky-compatible HTTP input -> decoder -> graph-projector component flow, while SAPIENT runs as a hosted
+    HTTP input -> decoder preflight flow with graph projection gated behind `SEMOPS_SAPIENT_GRAPH_ENABLED=true`.
+  - The one-command stack smoke enables local ADS-B/SAPIENT fixture-provider flows, verifies shared-airspace snapshot
+    readback through Caddy, checks SAPIENT decoded preflight output, and keeps SAPIENT graph projection opt-in.
 
 current_evidence:
   - `go test ./internal/contracts`
   - `go test ./internal/components/mavlink`
   - `go test ./internal/components/cot`
+  - `go test ./internal/components/adsb`
+  - `go test ./internal/components/sapient`
   - `go test ./internal/adapters/mavlink`
+  - `go test ./internal/adapters/adsb`
   - `go test ./internal/graphrequest`
   - `go test ./internal/app`
   - `go test ./internal/api/cop`
@@ -151,9 +159,13 @@ current_evidence:
   - `go test ./cmd/semops-scenario-runner`
   - `go test ./cmd/semops-feed-fixtures`
   - `go test ./internal/scenario`
+  - `go test ./internal/projectors/adsb`
+  - `go test ./internal/projectors/sapient`
   - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
   - `go test ./internal/stack`
   - `go test ./pkg/adapters/mavlink`
+  - `go test ./pkg/adapters/adsb`
+  - `go test ./pkg/adapters/sapient`
   - `bash scripts/cop-stack-smoke.sh`
   - `(cd ui && npm run check)`
   - `(cd ui && npm run test)`
@@ -165,12 +177,13 @@ current_evidence:
   - `bash scripts/cop-stack-smoke.sh`
 
 remaining:
-  - Wrap live ADS-B ingress, hosted CAP if promoted, and future SAPIENT feed boundaries as SemStreams
-    input and processor components with flowgraph edges, registered payloads, declared ports, and config schemas.
+  - Keep ADS-B receiver/readsb/dump1090/ASTERIX paths, live OpenSky reliability, and credentialed provider access
+    gated behind explicit live/provider evidence rather than the local fixture-backed HTTP component flow.
+  - Keep SAPIENT graph projection limited to the reviewed absolute-location detection contract until product-service
+    mode, harness qualification, tasking, association, UTM, range/bearing, and Apex/middleware behavior are reviewed.
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
   - Capture provider-backed or public CAP samples before claiming live NWS/IPAWS or alert feed service support.
   - Add operator/API controls for scenario start, reset, pause/resume, and expected-state checkpoints.
-  - Add shared-airspace playback once ADS-B/SAPIENT feed boundaries exist.
   - Extend feed-boundary orchestration before citing command-control, CS API, simulator-fidelity, provider,
     standards, or operator-control evidence.

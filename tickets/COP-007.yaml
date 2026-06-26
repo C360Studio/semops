@@ -162,7 +162,7 @@ progress:
     SemStreams input/processor components with registered payloads and telemetry-driven backpressure.
   - Corrected SAPIENT artifact discovery: GOV.UK, BSI Flex 335 v2, Dstl protobufs, the Dstl BSI Flex 335 v2 Test
     Harness, and Apex middleware are now recorded as official planning anchors. SemOps has not run the harness or
-    implemented SAPIENT parsing yet.
+    claimed SAPIENT compliance.
   - Recorded the Dstl harness portability gap as product pressure: Windows-only, .NET 6, PostgreSQL 12 evidence is
     real but not Linux CI-friendly, so a portable SAPIENT preflight suite may be a future ecosystem contribution.
   - Added `pkg/adapters/sapient` as a parser-only JSON preflight gate for representative BSI Flex 335 v2 message
@@ -176,26 +176,32 @@ progress:
   - Recorded the CAP component-promotion gate: current CAP evidence remains parser/projection/scenario replay and
     live graph smoke proof until hosted polling, webhook, watched-file, or vendor feed input creates a real service
     boundary.
-  - Ran the SAPIENT projection ownership/indexing review and kept graph writes blocked: no `OwnerSAPIENT`, projection
-    contract, graph writer, or component package until entity semantics, indexing, service mode, and harness scope are
-    reviewed.
+  - Promoted ADS-B product evidence into a hosted OpenSky-compatible HTTP input -> decoder -> graph-projector
+    SemStreams component flow, with registered payloads, HTTP/timer/stream/request ports, replay capture, component
+    metrics, app-runtime env wiring, local fixture-provider stack smoke, and `semops.feed.adsb` ownership only when
+    the flow is enabled.
+  - Promoted SAPIENT into a hosted HTTP input -> decoder preflight SemStreams component flow for JSON/protobuf
+    payloads, with registered payloads, HTTP/timer/stream ports, replay capture, component metrics, app-runtime env
+    wiring, and no owner registration while graph mode is disabled.
+  - Converted the SAPIENT ownership/indexing review into a narrow source-partitioned, signal-profiled
+    absolute-location detection contract: `OwnerSAPIENT`, projector, graph writer, COP readback, and projector
+    component are available only behind `SEMOPS_SAPIENT_GRAPH_ENABLED=true`.
+  - Added opt-in one-command SAPIENT graph smoke coverage that points the fixture provider at absolute-location
+    detections, verifies Caddy-routed SAPIENT track readback, and expects SAPIENT projector runtime metrics only when
+    graph mode is enabled.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.
   - Continue treating PX4/SITL or MAVSDK as feed-fidelity evidence, not as the born-first graph-compliance gate.
   - Run or qualify the Dstl SAPIENT test harness before any SAPIENT compliance language.
-  - Keep SAPIENT graph writes blocked until the accepted ownership/indexing review is converted into a narrow,
-    tested entity model.
-  - Add hosted SAPIENT raw ingress and source-health only after the parser/replay boundary has a service design and
-    can be expressed as SemStreams input/processor components.
-  - Decide whether generated SAPIENT Go bindings are needed beyond dynamic descriptor decode.
+  - Keep SAPIENT graph writes limited to the reviewed absolute-location detection contract until tasking,
+    association, UTM, range/bearing, detection lifecycle, Apex/middleware behavior, and service mode have their own
+    designs and tests.
   - Evaluate whether SemOps should create or contribute a portable SAPIENT preflight suite while preserving Dstl
     harness results as the official compliance anchor.
   - Revisit SemStreams total-count metadata only after large mixed-feed demos prove cursor paging plus truncation
     alerts are insufficient for operator/source-health decisions.
-  - Decide whether ADS-B live mode starts with optional OpenSky, local receiver/readsb/dump1090 files, or a dedicated
-    adapter service without making live network access the default path.
-  - Once that ADS-B live ingress path is chosen, add the SemStreams component package instead of extending the
-    scenario-runner harness into a service loop.
+  - Keep ADS-B live OpenSky access, credential/rate-limit handling, receiver/readsb/dump1090 paths, ASTERIX, and
+    provider reliability outside the MVP fixture-backed component claim until each has explicit evidence.
   - Implement the CS API bridge only after SemOps has enough stable structural graph state for meaningful ingress,
     egress, replay, and SemConnect conformance checks.
