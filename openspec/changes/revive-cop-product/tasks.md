@@ -206,6 +206,8 @@
       hardware, or command-control parity gates
 - [x] 5.99 Add a fail-closed MAVLink command-control preflight that records safety posture while keeping native
       transmit blocked
+- [x] 5.100 Add an explicit fail-closed ArduPilot SITL parity mode while keeping ArduPilot telemetry parity open until
+      a real ArduPilot source passes the hosted COP stack smoke
 
 ## 6. Structural COP Stack
 

@@ -122,15 +122,28 @@ SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true \
 bash scripts/mavlink-sitl-gate.sh
 ```
 
-ArduPilot telemetry parity uses the same hosted SemOps path, but must declare its own family and launch evidence:
+ArduPilot telemetry parity uses the same hosted SemOps path, but has a dedicated gate mode so the evidence file is
+unambiguously stamped as ArduPilot. The mode defaults to vehicle `ArduCopter`, defaults to motion-required telemetry,
+and requires `sim_vehicle.py`, an ArduPilot/ArduCopter Docker image, or an explicit remote-source override before it
+will run the stack smoke:
 
 ```bash
-SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
-SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="ArduPilot SITL <vehicle/version>" \
-SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=ardupilot \
-SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="sim_vehicle.py <args that route MAVLink to 127.0.0.1:14550>" \
+SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack \
 bash scripts/mavlink-sitl-gate.sh
 ```
+
+Useful ArduPilot knobs:
+
+- `SEMOPS_MAVLINK_SITL_ARDUPILOT_VEHICLE`: default `ArduCopter`.
+- `SEMOPS_MAVLINK_SITL_SIMULATOR_NAME`: optional explicit simulator/version label.
+- `SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND`: optional explicit launch command; default is
+  `sim_vehicle.py -v <vehicle> --out=udp:127.0.0.1:14550`.
+- `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true`: allowed only when an ArduPilot source is already routing MAVLink to
+  SemOps from outside the local PATH/Docker environment.
+
+Current local result: on 2026-06-26T00:44:17Z UTC, `ardupilot-stack` blocked with
+`result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `sim_vehicle.py` and no
+ArduPilot/ArduCopter Docker image. That is readiness-gap evidence only; it does not close ArduPilot parity.
 
 MAVSDK/offboard parity is also separate from raw PX4 telemetry. If a MAVSDK route is the evidence source, stamp it as
 `mavsdk` and keep command/offboard authority closed until a command-control gate exists:

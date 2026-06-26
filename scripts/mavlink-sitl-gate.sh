@@ -26,6 +26,8 @@ PX4_HEADLESS_REPLACE="${SEMOPS_MAVLINK_SITL_DOCKER_REPLACE:-false}"
 PX4_HEADLESS_KEEP="${SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR:-false}"
 PX4_HEADLESS_STARTED=false
 
+ARDUPILOT_VEHICLE="${SEMOPS_MAVLINK_SITL_ARDUPILOT_VEHICLE:-ArduCopter}"
+
 DEFAULT_SNAPSHOT_URL="http://127.0.0.1:${SEMOPS_CADDY_HOST_PORT:-8080}/api/cop/snapshot"
 SNAPSHOT_URL="${SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL:-$DEFAULT_SNAPSHOT_URL}"
 EXPECTED_TRACK_ID="${SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID:-c360.edge-compose.cop.mavlink.track.system-1}"
@@ -123,6 +125,7 @@ write_evidence() {
     echo "px4_headless_host_api=$PX4_HEADLESS_HOST_API"
     echo "px4_headless_boot_wait=$PX4_HEADLESS_BOOT_WAIT"
     echo "px4_headless_pull_allowed=$PX4_HEADLESS_PULL"
+    echo "ardupilot_vehicle=$ARDUPILOT_VEHICLE"
     echo "expected_track_id=$EXPECTED_TRACK_ID"
     echo "snapshot_url=$SNAPSHOT_URL"
     echo "timeout=$TIMEOUT"
@@ -177,6 +180,13 @@ print_preflight() {
     echo "Local simulator-ish Docker images:"
     docker image ls --format '  {{.Repository}}:{{.Tag}}' 2>/dev/null |
       grep -Ei 'px4|mavsdk|ardupilot|arducopter' || echo "  none"
+  fi
+  if [[ "$MODE" == "ardupilot-stack" ]]; then
+    echo
+    echo "ArduPilot parity lane:"
+    echo "  vehicle: $ARDUPILOT_VEHICLE"
+    echo "  default command: $(ardupilot_command_string)"
+    echo "  motion required by default: true"
   fi
 }
 
@@ -236,6 +246,10 @@ px4_headless_command_string() {
   printf 'docker run -d --rm --name %q %q' "$PX4_HEADLESS_CONTAINER" "$PX4_HEADLESS_IMAGE"
   printf ' %q' "${PX4_HEADLESS_ARGS[@]}"
   printf '\n'
+}
+
+ardupilot_command_string() {
+  printf 'sim_vehicle.py -v %q --out=udp:%q\n' "$ARDUPILOT_VEHICLE" "$SIMULATOR_ROUTE"
 }
 
 ensure_px4_headless_image() {
@@ -496,9 +510,55 @@ EOF
   fi
 }
 
-if [[ "$MODE" == "px4-headless-stack" && -z "$SIMULATOR_FAMILY" ]]; then
-  SIMULATOR_FAMILY="px4"
-fi
+run_ardupilot_stack_smoke() {
+  if [[ -n "$SIMULATOR_FAMILY" && "$SIMULATOR_FAMILY" != "ardupilot" ]]; then
+    cat >&2 <<EOF
+ardupilot-stack mode requires SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=ardupilot, got $SIMULATOR_FAMILY
+EOF
+    write_evidence "blocked_bad_ardupilot_family" 2
+    exit 2
+  fi
+  SIMULATOR_FAMILY="ardupilot"
+  if [[ -z "$SIMULATOR_NAME" ]]; then
+    SIMULATOR_NAME="ArduPilot SITL $ARDUPILOT_VEHICLE"
+  fi
+  if [[ -z "$SIMULATOR_COMMAND" ]]; then
+    SIMULATOR_COMMAND="$(ardupilot_command_string)"
+  fi
+  if [[ -z "${SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION:-}" ]]; then
+    REQUIRE_MOTION=true
+  fi
+  require_simulator_attestation
+  if run_stack_smoke; then
+    write_evidence "passed" 0
+  else
+    status=$?
+    write_evidence "failed" "$status"
+    exit "$status"
+  fi
+}
+
+case "$MODE" in
+  px4-headless-stack)
+    if [[ -z "$SIMULATOR_FAMILY" ]]; then
+      SIMULATOR_FAMILY="px4"
+    fi
+    ;;
+  ardupilot-stack)
+    if [[ -z "$SIMULATOR_FAMILY" ]]; then
+      SIMULATOR_FAMILY="ardupilot"
+    fi
+    if [[ -z "$SIMULATOR_NAME" ]]; then
+      SIMULATOR_NAME="ArduPilot SITL $ARDUPILOT_VEHICLE"
+    fi
+    if [[ -z "$SIMULATOR_COMMAND" ]]; then
+      SIMULATOR_COMMAND="$(ardupilot_command_string)"
+    fi
+    if [[ -z "${SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION:-}" ]]; then
+      REQUIRE_MOTION=true
+    fi
+    ;;
+esac
 
 print_preflight
 
@@ -530,12 +590,15 @@ case "$MODE" in
   px4-headless-stack)
     run_px4_headless_stack_smoke
     ;;
+  ardupilot-stack)
+    run_ardupilot_stack_smoke
+    ;;
   command-preflight)
     run_command_preflight
     ;;
   *)
     echo "Unsupported SEMOPS_MAVLINK_SITL_GATE_MODE=$MODE" >&2
-    echo "Expected preflight, focused, stack, px4-headless-stack, or command-preflight." >&2
+    echo "Expected preflight, focused, stack, px4-headless-stack, ardupilot-stack, or command-preflight." >&2
     write_evidence "blocked_bad_mode" 2
     exit 2
     ;;

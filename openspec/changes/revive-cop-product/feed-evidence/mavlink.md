@@ -149,6 +149,11 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   target, `hold_position` action, simulator-local safety profile, local override, ACK requirement, and post-command
   state-polling requirement exited with `result=blocked_no_native_command_transmitter`. This is fail-closed
   safety-posture evidence only, not live command/control evidence.
+- 2026-06-26T00:44:17Z: `SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack bash scripts/mavlink-sitl-gate.sh`
+  exited with `result=blocked_no_local_simulator`. The gate stamped `simulator_family=ardupilot`, defaulted to
+  `ArduCopter`, defaulted to motion-required telemetry, found no `sim_vehicle.py`, and found no ArduPilot/ArduCopter
+  Docker image even though the local PX4/Gazebo headless image was present. This is readiness-gap evidence only; it
+  does not close ArduPilot telemetry parity.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -311,6 +316,9 @@ Acceptance:
 - Command-control preflight mode records the intended simulator family, target, action, safety profile, local override
   posture, ACK requirement, and post-command polling requirement, then exits blocked before native transmit because no
   reviewed live transmitter gate exists. [done as fail-closed evidence only]
+- Dedicated `ardupilot-stack` mode stamps the ArduPilot simulator family, defaults to `ArduCopter`, defaults to
+  motion-required telemetry, and blocks unless a real ArduPilot source is available locally or explicitly routed in.
+  [done as fail-closed readiness evidence only]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs telemetry parity checks before
   any ArduPilot interoperability claim. Live command smoke remains a separate reviewed gate.
   [open]

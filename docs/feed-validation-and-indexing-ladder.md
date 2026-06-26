@@ -208,11 +208,17 @@ Mock or harness:
   `SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY` (`px4`, `ardupilot`, `mavsdk`, `hardware`, or `other`), and require local
   simulator tooling for that family or an explicit `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true` override before
   running the evidence gate.
+- The helper also has an explicit `ardupilot-stack` mode. It stamps `simulator_family=ardupilot`, defaults to
+  `ArduCopter`, defaults to motion-required telemetry, and blocks unless `sim_vehicle.py`, an ArduPilot/ArduCopter
+  Docker image, or an explicit remote-source override is present.
 - The same helper now has `command-preflight` mode. It requires explicit simulator family, command target, command
   action, safety profile, local override posture, ACK requirement, and post-command state-polling requirement, then
   exits with blocked evidence because SemOps has no reviewed native MAVLink transmitter gate yet.
 - 2026-06-24 command-preflight verification exited with `result=blocked_no_native_command_transmitter` after all
   required safety-posture inputs were present.
+- 2026-06-26T00:44:17Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
+  the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. This is
+  readiness-gap evidence only, not ArduPilot simulator interoperability.
 - PX4/Gazebo headless telemetry smoke now has local pass evidence with and without motion required. Treat that as
   PX4 telemetry evidence only; ArduPilot parity, MAVSDK/offboard parity, and live command/control remain separate
   open gates.
