@@ -220,12 +220,14 @@ runs an explicitly reviewed simulator transmitter command, and then polls `GET /
 MAVLink `COMMAND_ACK` task and the post-command MAVLink track refresh are visible:
 
 ```bash
+COMMAND_TX="go run ./cmd/semops-mavlink-command -confirm-simulator-only -route 127.0.0.1:14540"
+
 SEMOPS_MAVLINK_SITL_GATE_MODE=command-live-sim \
 SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL command smoke" \
 SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=px4 \
 SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true \
 SEMOPS_MAVLINK_COMMAND_TARGET_ID=c360.edge-compose.cop.mavlink.track.system-1 \
-SEMOPS_MAVLINK_COMMAND_ACTION=hold_position \
+SEMOPS_MAVLINK_COMMAND_ACTION=request_autopilot_version \
 SEMOPS_MAVLINK_COMMAND_SAFETY_PROFILE=simulator_local_operator \
 SEMOPS_MAVLINK_COMMAND_LOCAL_OVERRIDE_CONFIRMED=true \
 SEMOPS_MAVLINK_COMMAND_ACK_REQUIRED=true \
@@ -234,8 +236,8 @@ SEMOPS_MAVLINK_COMMAND_SIMULATOR_ONLY_CONFIRMED=true \
 SEMOPS_MAVLINK_COMMAND_ABORT_READY=true \
 SEMOPS_MAVLINK_COMMAND_TRANSMITTER_REVIEWED=true \
 SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED=true \
-SEMOPS_MAVLINK_COMMAND_TRANSMITTER="<reviewed simulator transmitter command>" \
-SEMOPS_MAVLINK_COMMAND_EXPECTED_ACK_TASK_ID=c360.edge-compose.cop.mavlink.task.system-1-command-176-target-1-1 \
+SEMOPS_MAVLINK_COMMAND_TRANSMITTER="$COMMAND_TX" \
+SEMOPS_MAVLINK_COMMAND_EXPECTED_ACK_TASK_ID=c360.edge-compose.cop.mavlink.task.system-1-command-512-target-255-190 \
 SEMOPS_MAVLINK_COMMAND_POST_STATE_TRACK_ID=c360.edge-compose.cop.mavlink.track.system-1 \
 bash scripts/mavlink-sitl-gate.sh
 ```
@@ -247,6 +249,17 @@ set by the helper. The test requires the ACK task to be source `mavlink`, kind `
 `semops.feed.mavlink`, non-stale relative to the command start timestamp, and in the expected status set
 (`accepted` by default). It also requires the named MAVLink track to refresh after command start and can require motion
 with `SEMOPS_MAVLINK_COMMAND_POST_STATE_REQUIRE_MOTION=true`.
+
+For MVP, keep the allowlist narrow. The provided `semops-mavlink-command` helper only sends
+`MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`; it is a read-side command used to prove command ACK/readback through
+the COP graph, not mission execution or vehicle control. Its dry-run should print:
+
+```bash
+go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route udp://127.0.0.1:14540
+```
+
+Expected metadata includes `action=request_autopilot_version`, `command=512`, `request_message=148`, and
+`expected_ack_task_suffix=system-1-command-512-target-255-190`.
 
 ## Acceptance
 

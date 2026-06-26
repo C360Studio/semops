@@ -212,6 +212,8 @@
       until a real offboard route passes the hosted COP stack smoke
 - [x] 5.102 Add a fail-closed MAVLink `command-live-sim` gate that requires a reviewed simulator transmitter and
       ACK/post-command COP snapshot polling while keeping task 5.97 open until a real transmitter run passes
+- [x] 5.103 Add the MVP MAVLink simulator transmitter helper as a single read-side `AUTOPILOT_VERSION` request command
+      while keeping mission, mode, arm/disarm, and offboard command authority out of MVP
 
 ## 6. Structural COP Stack
 

@@ -81,6 +81,27 @@ func TestGeneratedCommandAckParsesResult(t *testing.T) {
 	requireField[uint8](t, packet, "target_component", 1)
 }
 
+func TestGeneratedRequestMessageCommandIsReadSideMVPShape(t *testing.T) {
+	generator := NewGenerator(255, 190)
+	frame, err := generator.GenerateCommandLong(CommandLongMessage{
+		Command:           CommandRequestMessage,
+		TargetSystemID:    1,
+		TargetComponentID: 1,
+		Params: [7]float32{
+			float32(MessageIDAutopilotVersion),
+		},
+	})
+	if err != nil {
+		t.Fatalf("generate request message command: %v", err)
+	}
+
+	packet := parseOne(t, frame)
+	requireField[uint16](t, packet, "command", CommandRequestMessage)
+	requireFloatField(t, packet, "param1", float32(MessageIDAutopilotVersion))
+	requireField[uint8](t, packet, "target_system", 1)
+	requireField[uint8](t, packet, "target_component", 1)
+}
+
 func TestMAVResultString(t *testing.T) {
 	tests := []struct {
 		result uint8

@@ -165,6 +165,10 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   reviewed-transmitter attestation, transmit enablement, expected ACK task, and expected post-state track guards, then
   stopped because no actual reviewed simulator transmitter command was provided. This is readiness-gap evidence only;
   it does not close live command/control.
+- 2026-06-26: `cmd/semops-mavlink-command` was added as the MVP simulator transmitter helper. It only allows
+  `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`, requires simulator-only confirmation, and prints
+  `expected_ack_task_suffix=system-1-command-512-target-255-190` in dry-run mode. This supports the read-side feed
+  story and does not claim mission, mode, arm/disarm, offboard, or hardware command authority.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -331,6 +335,9 @@ Acceptance:
   readiness, explicit transmit enablement, a reviewed transmitter command, an expected MAVLink `COMMAND_ACK` task, and
   an expected post-command MAVLink track; it then polls the COP snapshot for ACK task evidence and post-command track
   refresh before it can pass. [done as fail-closed readiness evidence only; open for real transmitter pass]
+- `cmd/semops-mavlink-command` provides the reviewed MVP transmitter command shape: a simulator-only
+  `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`, with dry-run metadata and an ACK task suffix. [done as dry-run
+  evidence only; open for real simulator pass]
 - Dedicated `ardupilot-stack` mode stamps the ArduPilot simulator family, defaults to `ArduCopter`, defaults to
   motion-required telemetry, and blocks unless a real ArduPilot source is available locally or explicitly routed in.
   [done as fail-closed readiness evidence only]

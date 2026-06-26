@@ -21,6 +21,7 @@ const (
 	MessageIDCommandLong       uint32 = 76
 	MessageIDCommandAck        uint32 = 77
 	MessageIDBatteryStatus     uint32 = 147
+	MessageIDAutopilotVersion  uint32 = 148
 )
 
 const (
@@ -54,6 +55,7 @@ const (
 	CommandDoSetMode              uint16 = 176
 	CommandComponentArmDisarm     uint16 = 400
 	CommandSetMessageInterval     uint16 = 511
+	CommandRequestMessage         uint16 = 512
 	CommandRequestAutopilotCaps   uint16 = 520
 	CommandVideoStartCapture      uint16 = 2500
 	CommandVideoStopCapture       uint16 = 2501

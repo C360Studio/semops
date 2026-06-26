@@ -222,12 +222,19 @@ Mock or harness:
   expectations, and a post-command state track. After the transmitter command runs, it polls the COP snapshot with
   `TestCommandControlSimulatorGateCOPSnapshot` and requires graph-visible MAVLink `COMMAND_ACK` task evidence plus
   post-command MAVLink track refresh before it can pass.
+- MVP command scope is intentionally one read-side command. `cmd/semops-mavlink-command` sends
+  `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION` only, requires simulator-only confirmation, and prints the expected
+  ACK task suffix in dry-run mode. This is command ACK/readback evidence for the read-side feed story, not mission
+  execution or vehicle-control evidence.
 - 2026-06-24 command-preflight verification exited with `result=blocked_no_native_command_transmitter` after all
   required safety-posture inputs were present.
 - 2026-06-26T01:23:17Z `command-live-sim` verification exited with `result=blocked_missing_command_transmitter`
   after simulator, safety, ACK, post-state, reviewed-transmitter, and transmit-enabled attestations were present.
   This is readiness-gap evidence only; task 5.97 remains open until a real reviewed transmitter command runs and the
   ACK/post-state COP snapshot smoke passes.
+- 2026-06-26 `go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route
+  udp://127.0.0.1:14540` passed with `action=request_autopilot_version`, `command=512`, `request_message=148`, and
+  `expected_ack_task_suffix=system-1-command-512-target-255-190`.
 - 2026-06-26T00:44:17Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
   the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. This is
   readiness-gap evidence only, not ArduPilot simulator interoperability.

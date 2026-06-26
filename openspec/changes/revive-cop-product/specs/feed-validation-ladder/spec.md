@@ -240,6 +240,18 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** a blocked simulator command gate SHALL NOT be cited as command authority, mission execution, or hardware
   safety evidence
 
+#### Scenario: MAVLink MVP command scope stays read-side
+
+- **WHEN** SemOps provides an MVP MAVLink simulator transmitter helper
+- **THEN** the helper SHALL require simulator-only confirmation before sending any frame
+- **AND** the helper SHALL allow only `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION` unless a later review expands
+  the command scope
+- **AND** the helper SHALL print command metadata and the expected ACK task suffix in dry-run mode
+- **AND** the helper SHALL NOT include mission upload, mode change, arm/disarm, offboard control, or hardware command
+  authority in MVP
+- **AND** passing the helper dry-run SHALL NOT close live command/control until `command-live-sim` observes the ACK
+  task and post-command track refresh through the COP snapshot
+
 #### Scenario: MAVLink simulator readiness is not simulator evidence
 
 - **WHEN** the external SITL smoke skips because no COP snapshot URL is configured or local PX4/MAVSDK/ArduPilot
