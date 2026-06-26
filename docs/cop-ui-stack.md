@@ -104,9 +104,10 @@ producer, or fusion projector flow is active, idle, stale, or degraded. Promethe
 standard; the browser runtime endpoint is a curated product view and should not grow into a topology editor or
 orchestration shell.
 
-In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI and proxies `/api/*` plus
-`/healthz` to SemOps API so CORS behavior matches the expected deployment shape. The direct API port stays exposed for
-diagnostics and smoke tests.
+In local development, Caddy is the browser-facing entrypoint. It serves the Svelte UI, proxies `/api/*` plus
+`/healthz` to SemOps API, and proxies `/scenario/status` to the hosted scenario runner so CORS behavior matches the
+expected deployment shape. The direct API and scenario-runner ports stay exposed for diagnostics and overrideable smoke
+tests, but the default product smoke consumes Caddy-routed scenario status.
 
 The browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts `GET /api/cop/snapshot` and
 `GET /api/cop/runtime`, serves API-shaped ADS-B, KLV, and weather discovery plus runtime-flow evidence, and verifies

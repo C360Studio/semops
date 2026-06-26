@@ -132,6 +132,8 @@ progress:
   - Extended `/scenario/status` with `ingress_mode`, `feed_boundary_deliveries`, and
     `contract_graph_mutation_attempts`; product stack smoke now requires feed-boundary ingress, zero graph mutations,
     and feed-boundary deliveries equal to completed steps.
+  - Routed `/scenario/status` through Caddy and changed the default stack smoke to consume same-origin scenario status
+    instead of the side port while keeping `SEMOPS_SCENARIO_STATUS_URL` overrideable for diagnostics.
 
 current_evidence:
   - `go test ./internal/contracts`

@@ -10,5 +10,10 @@
 	}
 	reverse_proxy @semops_api semops:8088
 
+	@scenario_status {
+		path /scenario/status
+	}
+	reverse_proxy @scenario_status semops-scenario-runner:8090
+
 	reverse_proxy semops-ui:3000
 }

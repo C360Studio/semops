@@ -321,7 +321,9 @@
       on SemStreams owner-token mismatch metrics before direct graph contract smokes run
 - [x] 6.72 Add scenario status evidence fields for ingress mode, feed-boundary deliveries, and contract graph
       mutation attempts so product smoke can fail on direct-injection evidence
-- [ ] 6.73 Extend feed-boundary orchestration before claiming command-control, CS API, simulator-fidelity,
+- [x] 6.73 Route `/scenario/status` through Caddy and make the default product smoke consume same-origin scenario
+      evidence instead of the side port
+- [ ] 6.74 Extend feed-boundary orchestration before claiming command-control, CS API, simulator-fidelity,
       provider-integration, standards, or operator scenario-control evidence
 
 ## 7. COP UI

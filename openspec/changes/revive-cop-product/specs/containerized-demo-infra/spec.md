@@ -151,7 +151,9 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **AND** `/healthz` remains unavailable until playback succeeds
 - **AND** `/scenario/status` reports the scenario id, state, ingress mode, completed steps, failed steps, feed-boundary
   delivery count, mutation count, contract graph mutation-attempt count, and last error
-- **AND** the one-command smoke polls the status endpoint rather than inferring scenario success from logs
+- **AND** Caddy routes browser-facing `/scenario/status` to the hosted scenario runner
+- **AND** the one-command smoke polls the Caddy-routed status endpoint by default rather than inferring scenario
+  success from logs
 - **AND** the smoke fails fast on explicit scenario failure and treats stale status progress as a wedged run with
   diagnostic output
 - **AND** default product mode emits MAVLink and TAK/CoT through hosted UDP feed boundaries without opening a

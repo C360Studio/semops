@@ -70,11 +70,12 @@ scenario MAVLink track plus TAK/CoT task/advisory through the hosted UDP compone
 comes from the hosted CAP HTTP poller reading the local `semops-feed-fixtures` `/cap/alert` endpoint, not from
 scenario-runner graph seeding. The direct graph replay path remains available as `SEMOPS_SCENARIO_MODE=contract` for
 contract/replay infrastructure only; it cannot satisfy product e2e, command-control, CS API, simulator-fidelity,
-provider, or standards claims. The stack smoke actively polls `/scenario/status`, requires `ingress_mode` to be
+provider, or standards claims. Caddy now routes browser-facing `/scenario/status` to the hosted scenario runner, and
+the stack smoke consumes that same-origin status URL by default. The smoke requires `ingress_mode` to be
 `feed-boundary`, requires `feed_boundary_deliveries` to equal completed steps, requires zero graph mutations in
 product mode, fails fast on explicit scenario failure, treats stale status as a wedged run with Compose diagnostics,
-and checks SemStreams owner-token mismatch metrics before it runs any direct contract smokes. ADS-B fixture replay through
-the scenario runner is contract-mode only; product evidence uses the hosted ADS-B HTTP component path. Remaining
+and checks SemStreams owner-token mismatch metrics before it runs any direct contract smokes. ADS-B fixture replay
+through the scenario runner is contract-mode only; product evidence uses the hosted ADS-B HTTP component path. Remaining
 structural evidence includes operator scenario controls, durable checkpoint/read-back reconciliation, live public-alert
 ingestion evidence, and feed-boundary promotion for later command-control and CS API gates. The Compose smoke now
 proves the shared-airspace vignette by requiring one Caddy-routed COP snapshot to contain the HADR scenario's
