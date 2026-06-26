@@ -68,6 +68,7 @@ type Config struct {
 	CAPWriter    CAPPlanWriter
 	Clock        func() time.Time
 	IngressMode  IngressMode
+	Checkpoints  CheckpointManifest
 }
 
 type Runner struct {
@@ -79,6 +80,7 @@ type Runner struct {
 	capWriter    CAPPlanWriter
 	clock        func() time.Time
 	ingressMode  IngressMode
+	checkpoints  CheckpointManifest
 
 	mu     sync.RWMutex
 	status Status
@@ -118,28 +120,30 @@ type ADSBSnapshot struct {
 }
 
 type Status struct {
-	ScenarioID     string      `json:"scenario_id"`
-	State          State       `json:"state"`
-	IngressMode    IngressMode `json:"ingress_mode,omitempty"`
-	CurrentStep    string      `json:"current_step,omitempty"`
-	StartedAt      time.Time   `json:"started_at,omitempty"`
-	UpdatedAt      time.Time   `json:"updated_at,omitempty"`
-	FinishedAt     time.Time   `json:"finished_at,omitempty"`
-	CompletedSteps int         `json:"completed_steps"`
-	FailedSteps    int         `json:"failed_steps"`
-	LastError      string      `json:"last_error,omitempty"`
-	Summary        Summary     `json:"summary"`
+	ScenarioID     string                 `json:"scenario_id"`
+	State          State                  `json:"state"`
+	IngressMode    IngressMode            `json:"ingress_mode,omitempty"`
+	CurrentStep    string                 `json:"current_step,omitempty"`
+	StartedAt      time.Time              `json:"started_at,omitempty"`
+	UpdatedAt      time.Time              `json:"updated_at,omitempty"`
+	FinishedAt     time.Time              `json:"finished_at,omitempty"`
+	CompletedSteps int                    `json:"completed_steps"`
+	FailedSteps    int                    `json:"failed_steps"`
+	LastError      string                 `json:"last_error,omitempty"`
+	Summary        Summary                `json:"summary"`
+	Checkpoints    []CheckpointEvaluation `json:"checkpoints,omitempty"`
 }
 
 type Report struct {
-	ScenarioID  string       `json:"scenario_id"`
-	State       State        `json:"state"`
-	IngressMode IngressMode  `json:"ingress_mode,omitempty"`
-	StartedAt   time.Time    `json:"started_at,omitempty"`
-	FinishedAt  time.Time    `json:"finished_at,omitempty"`
-	Steps       []StepReport `json:"steps"`
-	Summary     Summary      `json:"summary"`
-	LastError   string       `json:"last_error,omitempty"`
+	ScenarioID  string                 `json:"scenario_id"`
+	State       State                  `json:"state"`
+	IngressMode IngressMode            `json:"ingress_mode,omitempty"`
+	StartedAt   time.Time              `json:"started_at,omitempty"`
+	FinishedAt  time.Time              `json:"finished_at,omitempty"`
+	Steps       []StepReport           `json:"steps"`
+	Summary     Summary                `json:"summary"`
+	LastError   string                 `json:"last_error,omitempty"`
+	Checkpoints []CheckpointEvaluation `json:"checkpoints,omitempty"`
 }
 
 type Summary struct {
@@ -179,6 +183,9 @@ func NewRunner(cfg Config) (*Runner, error) {
 	if err := fixture.Validate(); err != nil {
 		return nil, err
 	}
+	if err := validateCheckpointManifestForFixture(cfg.Checkpoints, fixture); err != nil {
+		return nil, err
+	}
 	runner := &Runner{
 		fixture:      fixture,
 		mavlink:      cfg.MAVLink,
@@ -188,6 +195,7 @@ func NewRunner(cfg Config) (*Runner, error) {
 		capWriter:    cfg.CAPWriter,
 		clock:        cfg.Clock,
 		ingressMode:  cfg.IngressMode,
+		checkpoints:  cfg.Checkpoints,
 		status: Status{
 			ScenarioID:  fixture.ID,
 			State:       StateIdle,
@@ -195,6 +203,7 @@ func NewRunner(cfg Config) (*Runner, error) {
 			UpdatedAt:   cfg.Clock().UTC(),
 		},
 	}
+	runner.status.Checkpoints = runner.evaluateCheckpoints(runner.status)
 	return runner, nil
 }
 
@@ -340,13 +349,14 @@ func (r *Runner) Run(ctx context.Context) (Report, error) {
 		IngressMode: r.ingressMode,
 		StartedAt:   started,
 	}
-	r.setStatus(Status{
+	runningStatus := Status{
 		ScenarioID:  r.fixture.ID,
 		State:       StateRunning,
 		IngressMode: r.ingressMode,
 		StartedAt:   started,
 		UpdatedAt:   started,
-	})
+	}
+	r.setStatus(runningStatus)
 
 	for _, frame := range r.fixture.MAVLinkFrames {
 		step, err := r.runMAVLinkStep(ctx, frame)
@@ -384,7 +394,7 @@ func (r *Runner) Run(ctx context.Context) (Report, error) {
 	finished := r.now()
 	report.State = StateSucceeded
 	report.FinishedAt = finished
-	r.setStatus(Status{
+	finalStatus := Status{
 		ScenarioID:     report.ScenarioID,
 		State:          StateSucceeded,
 		IngressMode:    report.IngressMode,
@@ -393,7 +403,10 @@ func (r *Runner) Run(ctx context.Context) (Report, error) {
 		FinishedAt:     finished,
 		CompletedSteps: len(report.Steps),
 		Summary:        report.Summary,
-	})
+	}
+	finalStatus.Checkpoints = r.evaluateCheckpoints(finalStatus)
+	report.Checkpoints = finalStatus.Checkpoints
+	r.setStatus(finalStatus)
 	return report, nil
 }
 
@@ -503,7 +516,7 @@ func (r *Runner) failReport(report Report, err error) (Report, error) {
 	report.State = StateFailed
 	report.FinishedAt = finished
 	report.LastError = err.Error()
-	r.setStatus(Status{
+	failedStatus := Status{
 		ScenarioID:     report.ScenarioID,
 		State:          StateFailed,
 		IngressMode:    report.IngressMode,
@@ -515,7 +528,10 @@ func (r *Runner) failReport(report Report, err error) (Report, error) {
 		FailedSteps:    failedSteps(report.Steps),
 		LastError:      report.LastError,
 		Summary:        report.Summary,
-	})
+	}
+	failedStatus.Checkpoints = r.evaluateCheckpoints(failedStatus)
+	report.Checkpoints = failedStatus.Checkpoints
+	r.setStatus(failedStatus)
 	return report, err
 }
 
@@ -540,7 +556,12 @@ func (r *Runner) updateAfterStep(report Report, step StepReport, err error) {
 func (r *Runner) setStatus(status Status) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	status.Checkpoints = r.evaluateCheckpoints(status)
 	r.status = status
+}
+
+func (r *Runner) evaluateCheckpoints(status Status) []CheckpointEvaluation {
+	return EvaluateCheckpoints(r.checkpoints, status)
 }
 
 func (r *Runner) now() time.Time {

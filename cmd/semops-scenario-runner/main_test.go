@@ -155,7 +155,7 @@ func TestComposeProductRunnerDoesNotRequireNATSOrOwnerBindings(t *testing.T) {
 		MAVLinkUDPAddr: "127.0.0.1:14550",
 		CoTUDPAddr:     "127.0.0.1:18090",
 		WriteTimeout:   time.Second,
-	})
+	}, scenario.CheckpointManifest{})
 	if err != nil {
 		t.Fatalf("compose product runner: %v", err)
 	}
@@ -177,8 +177,37 @@ func TestComposeProductRunnerDoesNotRequireNATSOrOwnerBindings(t *testing.T) {
 		MAVLinkUDPAddr: "127.0.0.1:14550",
 		CoTUDPAddr:     "127.0.0.1:18090",
 		WriteTimeout:   time.Second,
-	}); err == nil {
+	}, scenario.CheckpointManifest{}); err == nil {
 		t.Fatal("expected product runner to reject ADS-B direct scenario fixture")
+	}
+}
+
+func TestScenarioCheckpointManifestFromEnv(t *testing.T) {
+	empty, err := scenarioCheckpointManifestFromEnv(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("empty checkpoint manifest error = %v", err)
+	}
+	if len(empty.Checkpoints) != 0 {
+		t.Fatalf("empty checkpoint manifest = %+v", empty)
+	}
+
+	manifest, err := scenarioCheckpointManifestFromEnv(func(name string) string {
+		if name != envScenarioCheckpoints {
+			t.Fatalf("env name = %q, want %q", name, envScenarioCheckpoints)
+		}
+		return "../../scenarios/phase1-hadr.checkpoints.json"
+	})
+	if err != nil {
+		t.Fatalf("checkpoint manifest error = %v", err)
+	}
+	if manifest.ScenarioID != scenario.Phase1HADRScenarioID ||
+		len(manifest.Checkpoints) == 0 {
+		t.Fatalf("checkpoint manifest = %+v", manifest)
+	}
+
+	_, err = scenarioCheckpointManifestFromEnv(func(string) string { return "missing.json" })
+	if err == nil || !strings.Contains(err.Error(), envScenarioCheckpoints) {
+		t.Fatalf("missing checkpoint manifest error = %v", err)
 	}
 }
 

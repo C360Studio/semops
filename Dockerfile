@@ -68,6 +68,7 @@ COPY --from=builder /out/semops /usr/local/bin/semops
 COPY --from=builder /out/semops-scenario-runner /usr/local/bin/semops-scenario-runner
 COPY --from=builder /out/semops-feed-fixtures /usr/local/bin/semops-feed-fixtures
 COPY --from=builder /src/fixtures/weather /fixtures/weather
+COPY --from=builder /src/scenarios /scenarios
 
 USER nonroot:nonroot
 
@@ -84,6 +85,7 @@ COPY --from=builder /out/semops-scenario-runner /usr/local/bin/semops-scenario-r
 COPY --from=builder /out/semops-feed-fixtures /usr/local/bin/semops-feed-fixtures
 COPY --from=builder /out/semops-klv-fixture /usr/local/bin/semops-klv-fixture
 COPY --from=builder /src/fixtures/weather /fixtures/weather
+COPY --from=builder /src/scenarios /scenarios
 
 USER 65532:65532
 

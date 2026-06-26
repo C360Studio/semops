@@ -76,13 +76,16 @@ the stack smoke consumes that same-origin status URL by default. The smoke requi
 product mode, fails fast on explicit scenario failure, treats stale status as a wedged run with Compose diagnostics,
 and checks SemStreams owner-token mismatch metrics before it runs any direct contract smokes. ADS-B fixture replay
 through the scenario runner is contract-mode only; product evidence uses the hosted ADS-B HTTP component path. Remaining
-structural evidence includes claim-scoped scenario checkpoints, durable checkpoint/read-back reconciliation, live
-public-alert ingestion evidence, and later operator scenario controls. The next orchestration step is not a COP shell:
+structural evidence includes durable checkpoint/read-back reconciliation, live public-alert ingestion evidence, and
+later operator scenario controls. The orchestration direction is not a COP shell:
 each checkpoint must name the claim it supports, the external feed boundary or SemStreams input component used, the
 expected COP state, the expected component/runtime evidence, and the owner families allowed to write graph state.
 The first strict manifest lives at `scenarios/phase1-hadr.checkpoints.json` and is validated by
 `internal/scenario` tests for supported claim scopes, ingress modes, boundary kinds, anti-cheat disallowed evidence,
-and command-control/CS API feedback-loop requirements.
+and command-control/CS API feedback-loop requirements. The hosted scenario runner loads the same manifest from
+`SEMOPS_SCENARIO_CHECKPOINT_MANIFEST` and exposes runner-owned checkpoint evaluation through `/scenario/status`;
+the stack smoke loads the manifest again and requires the product checkpoint to clear Caddy-routed COP snapshot,
+runtime feed, and Prometheus metric readback.
 Command-control, CS API, simulator-fidelity, provider-integration, standards, and operator-control claims require
 their own checkpoint boundary and feedback loop rather than inheriting the base HADR product smoke. The Compose smoke
 now proves the shared-airspace vignette by requiring one Caddy-routed COP snapshot to contain the HADR scenario's

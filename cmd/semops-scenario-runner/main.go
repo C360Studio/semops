@@ -35,6 +35,7 @@ const (
 	envScenarioWriteTimeout   = "SEMOPS_SCENARIO_FEED_WRITE_TIMEOUT"
 	envScenarioReadyURL       = "SEMOPS_SCENARIO_READY_URL"
 	envScenarioReadyTimeout   = "SEMOPS_SCENARIO_READY_TIMEOUT"
+	envScenarioCheckpoints    = "SEMOPS_SCENARIO_CHECKPOINT_MANIFEST"
 	defaultAddr               = ":8090"
 	defaultScenarioMode       = "product"
 	scenarioModeProduct       = "product"
@@ -83,8 +84,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Invalid SemOps scenario runner configuration: %v", err)
 	}
+	checkpoints, err := scenarioCheckpointManifestFromEnv(os.Getenv)
+	if err != nil {
+		log.Fatalf("Invalid SemOps scenario checkpoint configuration: %v", err)
+	}
 
-	client, stopOwners, runner, err := composeRunner(ctx, cfg, includeADSB, mode, boundary)
+	client, stopOwners, runner, err := composeRunner(ctx, cfg, includeADSB, mode, boundary, checkpoints)
 	if err != nil {
 		log.Fatalf("Compose scenario runner: %v", err)
 	}
@@ -140,12 +145,13 @@ func composeRunner(
 	includeADSB bool,
 	mode string,
 	boundary scenarioFeedBoundary,
+	checkpoints scenario.CheckpointManifest,
 ) (*natsclient.Client, func(), *scenario.Runner, error) {
 	switch mode {
 	case scenarioModeProduct:
-		return composeProductRunner(cfg, includeADSB, boundary)
+		return composeProductRunner(cfg, includeADSB, boundary, checkpoints)
 	case scenarioModeContract:
-		return composeContractRunner(ctx, cfg, includeADSB)
+		return composeContractRunner(ctx, cfg, includeADSB, checkpoints)
 	default:
 		return nil, nil, nil, fmt.Errorf("unsupported scenario mode %q", mode)
 	}
@@ -155,6 +161,7 @@ func composeProductRunner(
 	cfg semopsapp.Config,
 	includeADSB bool,
 	boundary scenarioFeedBoundary,
+	checkpoints scenario.CheckpointManifest,
 ) (*natsclient.Client, func(), *scenario.Runner, error) {
 	if includeADSB {
 		return nil, nil, nil, fmt.Errorf("%s=true is not supported in product mode; use hosted ADS-B components", envScenarioADSBFixture)
@@ -184,6 +191,7 @@ func composeProductRunner(
 		MAVLink:     mavlinkSink,
 		CoT:         cotSink,
 		IngressMode: scenario.IngressModeFeedBoundary,
+		Checkpoints: checkpoints,
 	})
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("create product scenario runner: %w", err)
@@ -195,6 +203,7 @@ func composeContractRunner(
 	ctx context.Context,
 	cfg semopsapp.Config,
 	includeADSB bool,
+	checkpoints scenario.CheckpointManifest,
 ) (*natsclient.Client, func(), *scenario.Runner, error) {
 	client, err := natsclient.NewClient(
 		cfg.NATSURL,
@@ -275,6 +284,7 @@ func composeContractRunner(
 		MAVLink:     mavlink,
 		CoT:         cot,
 		IngressMode: scenario.IngressModeDirectGraphContract,
+		Checkpoints: checkpoints,
 		CAPProjector: capprojector.NewProjector(capprojector.Config{
 			Org:         cfg.MAVLink.Org,
 			Platform:    cfg.MAVLink.Platform,
@@ -483,6 +493,21 @@ func scenarioReadyTimeout(getenv func(string) string) (time.Duration, error) {
 		return 0, fmt.Errorf("%s must be greater than zero", envScenarioReadyTimeout)
 	}
 	return duration, nil
+}
+
+func scenarioCheckpointManifestFromEnv(getenv func(string) string) (scenario.CheckpointManifest, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	path := strings.TrimSpace(getenv(envScenarioCheckpoints))
+	if path == "" {
+		return scenario.CheckpointManifest{}, nil
+	}
+	manifest, err := scenario.LoadCheckpointManifest(path)
+	if err != nil {
+		return scenario.CheckpointManifest{}, fmt.Errorf("%s: %w", envScenarioCheckpoints, err)
+	}
+	return manifest, nil
 }
 
 func scenarioADSBFixtureEnabled(getenv func(string) string) (bool, error) {

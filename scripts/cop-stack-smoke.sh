@@ -40,6 +40,7 @@ FUSION_SMOKE_ENABLED="${SEMOPS_COP_SMOKE_FUSION_ENABLED:-${SEMOPS_FUSION_ENABLED
 MAVLINK_SITL_SMOKE_ENABLED="${SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED:-false}"
 KLV_MEDIA_HOST_PATH="${SEMOPS_KLV_MEDIA_HOST_PATH:-$ROOT/fixtures/klv/generated}"
 KLV_FIXTURE_PATH="${SEMOPS_KLV_FIXTURE_PATH:-$KLV_MEDIA_HOST_PATH/deterministic.ts}"
+CHECKPOINT_MANIFEST_PATH="${SEMOPS_COP_SMOKE_CHECKPOINT_MANIFEST:-$ROOT/scenarios/phase1-hadr.checkpoints.json}"
 
 bool_is_true() {
   case "${1:-}" in
@@ -182,13 +183,28 @@ wait_http() {
 json_string_field() {
   local body="$1"
   local field="$2"
-  printf '%s' "$body" | sed -nE 's/.*"'"$field"'":"([^"]*)".*/\1/p'
+  local match
+  match="$(printf '%s' "$body" | grep -Eo '"'"$field"'":"[^"]*"' || true)"
+  match="${match%%$'\n'*}"
+  if [[ -z "$match" ]]; then
+    return 0
+  fi
+  match="${match#\"${field}\":\"}"
+  match="${match%\"}"
+  printf '%s' "$match"
 }
 
 json_number_field() {
   local body="$1"
   local field="$2"
-  printf '%s' "$body" | sed -nE 's/.*"'"$field"'":([0-9]+).*/\1/p'
+  local match
+  match="$(printf '%s' "$body" | grep -Eo '"'"$field"'":[0-9]+' || true)"
+  match="${match%%$'\n'*}"
+  if [[ -z "$match" ]]; then
+    return 0
+  fi
+  match="${match#\"${field}\":}"
+  printf '%s' "$match"
 }
 
 wait_scenario_succeeded() {
@@ -325,6 +341,7 @@ wait_scenario_succeeded "SemOps scenario runner" "$SCENARIO_STATUS_URL" "$SCENAR
 SEMOPS_COP_SMOKE_SNAPSHOT_URL="$COP_API_SNAPSHOT_URL" \
 SEMOPS_COP_SMOKE_RUNTIME_URL="$COP_API_RUNTIME_URL" \
 SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL="$SCENARIO_STATUS_URL" \
+SEMOPS_COP_SMOKE_CHECKPOINT_MANIFEST="$CHECKPOINT_MANIFEST_PATH" \
 SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL="$COP_METRICS_URL" \
 SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR="$MAVLINK_UDP_ADDR" \
 SEMOPS_COP_SMOKE_COT_UDP_ADDR="$COT_UDP_ADDR" \

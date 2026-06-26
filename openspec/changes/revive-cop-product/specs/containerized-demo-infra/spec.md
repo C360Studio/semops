@@ -141,6 +141,9 @@ SemOps SHALL distinguish product e2e evidence from graph-contract evidence.
   the owner families that may write graph state
 - **AND** checkpoint manifests are strictly validated for manifest version, scenario id, unique checkpoint ids,
   supported claim scopes, supported boundary kinds, supported ingress modes, and claim-specific evidence requirements
+- **AND** the hosted scenario runner reports runner-owned checkpoint evaluation on its Caddy-routed status endpoint
+- **AND** the one-command stack smoke loads the same manifest and evaluates product checkpoint snapshot, runtime, and
+  Prometheus readback through Caddy
 - **AND** checkpoint success requires Caddy-routed status or snapshot readback plus component health/flow evidence
   when a hosted component exists for the feed
 - **AND** a checkpoint that enters through direct graph mutation, decoded NATS payload injection, or projected-payload

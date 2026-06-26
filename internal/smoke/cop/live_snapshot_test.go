@@ -15,6 +15,7 @@ import (
 	"time"
 
 	copapi "github.com/c360studio/semops/internal/api/cop"
+	"github.com/c360studio/semops/internal/scenario"
 	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 )
@@ -23,6 +24,7 @@ const (
 	liveSnapshotURLEnv            = "SEMOPS_COP_SMOKE_SNAPSHOT_URL"
 	liveRuntimeURLEnv             = "SEMOPS_COP_SMOKE_RUNTIME_URL"
 	liveScenarioStatusEnv         = "SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL"
+	liveScenarioCheckpointEnv     = "SEMOPS_COP_SMOKE_CHECKPOINT_MANIFEST"
 	liveComponentMetricsEnv       = "SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL"
 	liveSnapshotUDPAddrEnv        = "SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR"
 	liveSnapshotCoTAddrEnv        = "SEMOPS_COP_SMOKE_COT_UDP_ADDR"
@@ -32,7 +34,6 @@ const (
 	liveSnapshotCoTChatEnv        = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
 	liveSnapshotHazardEnv         = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
 	liveSnapshotCAPHTTPEnv        = "SEMOPS_COP_SMOKE_CAP_HTTP_ENABLED"
-	liveScenarioADSBEnv           = "SEMOPS_SCENARIO_ADSB_FIXTURE"
 	liveSnapshotADSBHTTPEnv       = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
 	liveSnapshotSAPIENTEnv        = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
 	liveSnapshotSAPIENTGraphEnv   = "SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED"
@@ -139,16 +140,39 @@ func TestHostedCOPSnapshotReflectsCoTUDP(t *testing.T) {
 func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 	snapshotURL := os.Getenv(liveSnapshotURLEnv)
 	statusURL := os.Getenv(liveScenarioStatusEnv)
-	if snapshotURL == "" || statusURL == "" {
-		t.Skipf("set %s and %s to run the hosted COP scenario runner smoke",
-			liveSnapshotURLEnv, liveScenarioStatusEnv)
+	runtimeURL := os.Getenv(liveRuntimeURLEnv)
+	metricsURL := os.Getenv(liveComponentMetricsEnv)
+	checkpointPath := os.Getenv(liveScenarioCheckpointEnv)
+	if snapshotURL == "" || statusURL == "" || runtimeURL == "" || metricsURL == "" || checkpointPath == "" {
+		t.Skipf("set %s, %s, %s, %s, and %s to run the hosted COP scenario runner smoke",
+			liveSnapshotURLEnv,
+			liveScenarioStatusEnv,
+			liveRuntimeURLEnv,
+			liveComponentMetricsEnv,
+			liveScenarioCheckpointEnv)
 	}
+	manifest := loadScenarioCheckpointManifest(t, checkpointPath)
+	productCheckpoint := productCheckpointFromManifest(t, manifest)
 	expectedTrackID := firstNonEmpty(os.Getenv(liveSnapshotTrackIDEnv), defaultExpectedTrackID)
 	expectedTaskID := firstNonEmpty(os.Getenv(liveSnapshotCoTTaskEnv), defaultExpectedCoTTask)
 	expectedAdvisoryID := firstNonEmpty(os.Getenv(liveSnapshotCoTChatEnv), defaultExpectedCoTChat)
-	expectADSB, err := scenarioADSBExpectedFromEnv()
+	expectADSB, err := boolFromEnv(liveSnapshotADSBHTTPEnv)
 	if err != nil {
 		t.Fatal(err)
+	}
+	expectCAP, err := boolFromEnv(liveSnapshotCAPHTTPEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scenario.CheckpointExpectsFeed(productCheckpoint, "feed.adsb") && !expectADSB {
+		t.Fatalf("product checkpoint %s expects ADS-B runtime/readback evidence; set %s=true",
+			productCheckpoint.ID,
+			liveSnapshotADSBHTTPEnv)
+	}
+	if scenario.CheckpointExpectsFeed(productCheckpoint, "feed.cap") && !expectCAP {
+		t.Fatalf("product checkpoint %s expects CAP runtime/readback evidence; set %s=true",
+			productCheckpoint.ID,
+			liveSnapshotCAPHTTPEnv)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
@@ -168,28 +192,42 @@ func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 				status.State, status.CompletedSteps, status.FailedSteps, status.LastError)
 		} else if err := requireProductFeedBoundaryScenarioStatus(status); err != nil {
 			lastErr = err
-		} else if expectADSB && status.Summary.ADSBSnapshots < 2 {
-			lastErr = fmt.Errorf("scenario runner ADS-B snapshots = %d, want at least 2",
-				status.Summary.ADSBSnapshots)
+		} else if err := requireScenarioCheckpointReady(status, productCheckpoint.ID); err != nil {
+			lastErr = err
 		} else {
-			requireHazard := status.Summary.CAPAlerts > 0
 			expectedHazardID := firstNonEmpty(os.Getenv(liveSnapshotHazardEnv), defaultExpectedHazard)
 			snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
 			if err != nil {
 				lastErr = err
-			} else if snapshotHasScenarioRunnerState(
+			} else if missing := missingCheckpointSnapshotEntities(snapshot, productCheckpoint); len(missing) > 0 {
+				lastErr = fmt.Errorf("snapshot missing product checkpoint entities: %s", strings.Join(missing, ", "))
+			} else if !snapshotHasScenarioRunnerState(
 				snapshot,
 				expectedTrackID,
 				expectedTaskID,
 				expectedAdvisoryID,
 				expectedHazardID,
-				requireHazard,
+				expectCAP,
 				expectADSB,
 			) {
-				return
+				lastErr = fmt.Errorf("snapshot missing scenario runner state: scenario=%s tracks=%d tasks=%d advisories=%d hazards=%d expect_cap=%v expect_adsb=%v",
+					snapshot.Scenario,
+					len(snapshot.Tracks),
+					len(snapshot.Tasks),
+					len(snapshot.Advisories),
+					len(snapshot.Hazards),
+					expectCAP,
+					expectADSB)
+			} else if runtime, err := fetchRuntime(ctx, client, runtimeURL); err != nil {
+				lastErr = err
+			} else if missing := missingCheckpointRuntimeFeeds(runtime, productCheckpoint); len(missing) > 0 {
+				lastErr = fmt.Errorf("runtime missing product checkpoint feed flow: %s", strings.Join(missing, ", "))
+			} else if metrics, err := fetchPrometheusMetrics(ctx, client, metricsURL); err != nil {
+				lastErr = err
+			} else if missing := missingCheckpointPrometheusMetrics(metrics, productCheckpoint); len(missing) > 0 {
+				lastErr = fmt.Errorf("metrics missing product checkpoint samples: %s", strings.Join(missing, ", "))
 			} else {
-				lastErr = fmt.Errorf("snapshot missing scenario runner state: scenario=%s tracks=%d tasks=%d advisories=%d hazards=%d expect_adsb=%v",
-					snapshot.Scenario, len(snapshot.Tracks), len(snapshot.Tasks), len(snapshot.Advisories), len(snapshot.Hazards), expectADSB)
+				return
 			}
 		}
 
@@ -917,13 +955,39 @@ type scenarioStatus struct {
 	CompletedSteps int    `json:"completed_steps"`
 	FailedSteps    int    `json:"failed_steps"`
 	LastError      string `json:"last_error"`
-	Summary        struct {
+	Checkpoints    []struct {
+		ID          string   `json:"id"`
+		ClaimScope  string   `json:"claim_scope"`
+		IngressMode string   `json:"ingress_mode"`
+		Boundary    string   `json:"boundary"`
+		State       string   `json:"state"`
+		Messages    []string `json:"messages"`
+	} `json:"checkpoints"`
+	Summary struct {
 		CAPAlerts                     int `json:"cap_alerts"`
 		ADSBSnapshots                 int `json:"adsb_snapshots"`
 		FeedBoundaryDeliveries        int `json:"feed_boundary_deliveries"`
 		ContractGraphMutationAttempts int `json:"contract_graph_mutation_attempts"`
 		Mutations                     int `json:"mutations"`
 	} `json:"summary"`
+}
+
+func loadScenarioCheckpointManifest(t *testing.T, path string) scenario.CheckpointManifest {
+	t.Helper()
+	manifest, err := scenario.LoadCheckpointManifest(path)
+	if err != nil {
+		t.Fatalf("load scenario checkpoint manifest %s: %v", path, err)
+	}
+	return manifest
+}
+
+func productCheckpointFromManifest(t *testing.T, manifest scenario.CheckpointManifest) scenario.ScenarioCheckpoint {
+	t.Helper()
+	checkpoint, ok := scenario.CheckpointByClaim(manifest, scenario.ClaimProductE2E)
+	if !ok {
+		t.Fatalf("checkpoint manifest %s has no product_e2e checkpoint", manifest.ScenarioID)
+	}
+	return checkpoint
 }
 
 func requireProductFeedBoundaryScenarioStatus(status scenarioStatus) error {
@@ -944,6 +1008,131 @@ func requireProductFeedBoundaryScenarioStatus(status scenarioStatus) error {
 			status.CompletedSteps)
 	}
 	return nil
+}
+
+func requireScenarioCheckpointReady(status scenarioStatus, checkpointID string) error {
+	for _, checkpoint := range status.Checkpoints {
+		if checkpoint.ID != checkpointID {
+			continue
+		}
+		if checkpoint.ClaimScope != string(scenario.ClaimProductE2E) {
+			return fmt.Errorf("scenario checkpoint %s claim_scope = %q, want %q",
+				checkpointID,
+				checkpoint.ClaimScope,
+				scenario.ClaimProductE2E)
+		}
+		if checkpoint.State != string(scenario.CheckpointReadyForReadback) {
+			return fmt.Errorf("scenario checkpoint %s state = %q messages=%s",
+				checkpointID,
+				checkpoint.State,
+				strings.Join(checkpoint.Messages, "; "))
+		}
+		return nil
+	}
+	return fmt.Errorf("scenario checkpoint %s missing from status", checkpointID)
+}
+
+func missingCheckpointSnapshotEntities(
+	snapshot copapi.Snapshot,
+	checkpoint scenario.ScenarioCheckpoint,
+) []string {
+	var missing []string
+	for _, entityID := range checkpoint.ExpectedCOP.Entities {
+		if !snapshotContainsEntity(snapshot, entityID) {
+			missing = append(missing, entityID)
+		}
+	}
+	return missing
+}
+
+func snapshotContainsEntity(snapshot copapi.Snapshot, entityID string) bool {
+	for _, asset := range snapshot.Assets {
+		if asset.ID == entityID {
+			return true
+		}
+	}
+	for _, track := range snapshot.Tracks {
+		if track.ID == entityID {
+			return true
+		}
+	}
+	for _, task := range snapshot.Tasks {
+		if task.ID == entityID {
+			return true
+		}
+	}
+	for _, advisory := range snapshot.Advisories {
+		if advisory.ID == entityID {
+			return true
+		}
+	}
+	for _, hazard := range snapshot.Hazards {
+		if hazard.ID == entityID {
+			return true
+		}
+	}
+	for _, footprint := range snapshot.SensorFootprints {
+		if footprint.ID == entityID {
+			return true
+		}
+	}
+	for _, weather := range snapshot.Weather {
+		if weather.ID == entityID {
+			return true
+		}
+	}
+	for _, association := range snapshot.Associations {
+		if association.ID == entityID {
+			return true
+		}
+	}
+	for _, alert := range snapshot.Alerts {
+		if alert.ID == entityID {
+			return true
+		}
+	}
+	return false
+}
+
+func missingCheckpointRuntimeFeeds(
+	runtime copapi.RuntimeSnapshot,
+	checkpoint scenario.ScenarioCheckpoint,
+) []string {
+	return missingRuntimeFeedFlow(runtime, runtimeExpectationsFromCheckpoint(checkpoint))
+}
+
+func runtimeExpectationsFromCheckpoint(checkpoint scenario.ScenarioCheckpoint) []runtimeFeedExpectation {
+	expectations := make([]runtimeFeedExpectation, 0, len(checkpoint.ExpectedCOP.Feeds))
+	for _, feedID := range checkpoint.ExpectedCOP.Feeds {
+		switch feedID {
+		case "feed.mavlink", "feed.tak", "feed.cap", "feed.adsb":
+			expectations = append(expectations, runtimeFeedExpectation{ID: feedID, Healthy: 3, Total: 3, RequireFlow: true})
+		case "feed.sapient":
+			expectations = append(expectations, runtimeFeedExpectation{ID: feedID, Healthy: 2, Total: 2, RequireFlow: true})
+		case "feed.klv":
+			expectations = append(expectations, runtimeFeedExpectation{ID: feedID, Healthy: 4, Total: 4, RequireFlow: true})
+		case "feed.weather":
+			expectations = append(expectations, runtimeFeedExpectation{ID: feedID, Healthy: 3, Total: 3, RequireFlow: true})
+		case "feed.fusion":
+			expectations = append(expectations, runtimeFeedExpectation{ID: feedID, Healthy: 2, Total: 2, RequireFlow: true})
+		default:
+			expectations = append(expectations, runtimeFeedExpectation{ID: feedID, Healthy: 1, Total: 1, RequireFlow: true})
+		}
+	}
+	return expectations
+}
+
+func missingCheckpointPrometheusMetrics(
+	metrics prometheusSnapshot,
+	checkpoint scenario.ScenarioCheckpoint,
+) []string {
+	var missing []string
+	for _, metric := range checkpoint.RuntimeEvidence.PrometheusMetrics {
+		if metrics.sum(metric, nil) <= 0 {
+			missing = append(missing, metric)
+		}
+	}
+	return missing
 }
 
 func snapshotHasTrack(snapshot copapi.Snapshot, expectedTrackID string) bool {
@@ -1355,10 +1544,6 @@ func prometheusLabelsMatch(got, want map[string]string) bool {
 		}
 	}
 	return true
-}
-
-func scenarioADSBExpectedFromEnv() (bool, error) {
-	return boolFromEnv(liveScenarioADSBEnv)
 }
 
 func boolFromEnv(name string) (bool, error) {

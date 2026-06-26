@@ -148,7 +148,10 @@ Provider, simulator-fidelity, standards, and operator-control claims likewise ne
 instead of borrowing credibility from the base HADR smoke. The first checkpoint manifest is
 `scenarios/phase1-hadr.checkpoints.json`; `go test ./internal/scenario` validates the manifest and rejects direct graph
 product evidence, missing product anti-cheat declarations, command-control checkpoints without ACK/post-command
-readback, and CS API checkpoints without desired/actual-state reconciliation.
+readback, and CS API checkpoints without desired/actual-state reconciliation. The hosted scenario runner loads the
+manifest and reports runner-owned checkpoint state on `/scenario/status`; `scripts/cop-stack-smoke.sh` passes the same
+manifest into `internal/smoke/cop` so the product checkpoint must prove status, COP snapshot, runtime feed, and
+Prometheus metric readback through Caddy before scenario controls are added.
 
 ## Indexing Pressure
 
