@@ -119,6 +119,16 @@ progress:
     scenario-runner graph writes and duplicate live owner incarnations cannot support product e2e claims.
   - Paused further command-control and CS API e2e claims until the scenario runner is refactored into a
     feed-boundary producer/orchestrator for full-stack evidence.
+  - Refactored `cmd/semops-scenario-runner` default product mode into a MAVLink/TAK CoT UDP feed-boundary producer:
+    product mode waits for SemOps readiness, emits native feed payloads, reports zero graph mutations, and does not
+    create a SemStreams client or bind graph owners.
+  - Retained the previous direct graph replay path as `SEMOPS_SCENARIO_MODE=contract` for projection/replay evidence
+    only, and rejected `SEMOPS_SCENARIO_ADSB_FIXTURE=true` in product mode so ADS-B product evidence stays on the
+    hosted ADS-B HTTP component path.
+  - Added `/cap/alert` to `cmd/semops-feed-fixtures` and pointed the default stack smoke CAP HTTP poller at that
+    local provider fixture so CAP product visibility enters through the hosted CAP component path.
+  - Added a product-evidence guard to `scripts/cop-stack-smoke.sh` that fails on SemStreams owner-token mismatch
+    metrics before direct graph contract smokes run.
 
 current_evidence:
   - `go test ./internal/contracts`
@@ -130,6 +140,9 @@ current_evidence:
   - `go test ./internal/api/cop`
   - `go test ./internal/smoke/mavlink`
   - `go test ./internal/smoke/cop`
+  - `go test ./cmd/semops-scenario-runner`
+  - `go test ./cmd/semops-feed-fixtures`
+  - `go test ./internal/scenario`
   - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
   - `go test ./internal/stack`
   - `go test ./pkg/adapters/mavlink`
@@ -147,9 +160,8 @@ remaining:
     input and processor components with flowgraph edges, registered payloads, declared ports, and config schemas.
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
-  - Add hosted CAP polling/webhook transport only if CAP needs to move beyond scenario replay for Phase 1; if so,
-    model it as SemStreams input/processor components with `HTTPClientPort` for outbound polling.
+  - Capture provider-backed or public CAP samples before claiming live NWS/IPAWS or alert feed service support.
   - Add operator/API controls for scenario start, reset, pause/resume, and expected-state checkpoints.
   - Add shared-airspace playback once ADS-B/SAPIENT feed boundaries exist.
-  - Refactor scenario-runner full-stack playback so scenario data enters through hosted SemStreams input components
-    and feed processors instead of direct graph writes before citing it as product e2e.
+  - Extend feed-boundary orchestration before citing command-control, CS API, simulator-fidelity, provider,
+    standards, or operator-control evidence.

@@ -3,12 +3,17 @@
 Date: 2026-06-20
 Scope: `COP-007` opt-in ADS-B scenario-runner replay through the hosted adapter seam
 
+Update: the 2026-06-26 product-evidence review reclassifies this as contract-mode structural replay only. Product
+ADS-B evidence uses the hosted ADS-B HTTP component path, and product mode rejects
+`SEMOPS_SCENARIO_ADSB_FIXTURE=true`.
+
 ## Decision
 
-Accept ADS-B as an optional structural scenario replay source. `SEMOPS_SCENARIO_ADSB_FIXTURE=true` may append the
-deterministic OpenSky-shaped fixture snapshots to the hosted HADR runner, route them through `internal/adapters/adsb`,
-and write token-backed graph mutations. Keep live OpenSky, receiver/readsb/dump1090, ASTERIX, and aircraft
-association out of this acceptance gate.
+Accept ADS-B as an optional structural scenario replay source for contract mode.
+`SEMOPS_SCENARIO_MODE=contract SEMOPS_SCENARIO_ADSB_FIXTURE=true` may append the deterministic OpenSky-shaped fixture
+snapshots to the hosted HADR runner, route them through `internal/adapters/adsb`, and write token-backed graph
+mutations. Keep live OpenSky, receiver/readsb/dump1090, ASTERIX, product e2e, and aircraft association out of this
+acceptance gate.
 
 ## Objections Reviewed
 
@@ -27,15 +32,18 @@ association out of this acceptance gate.
 ## Evidence
 
 - `internal/scenario` replays ADS-B snapshots through an adapter sink instead of direct projector/writer plumbing.
-- `cmd/semops-scenario-runner` adds ADS-B fixture records only when `SEMOPS_SCENARIO_ADSB_FIXTURE=true`.
-- `compose.cop.yml` passes `SEMOPS_SCENARIO_ADSB_FIXTURE` through to the scenario runner with a default of `false`.
+- `cmd/semops-scenario-runner` adds ADS-B fixture records only in contract mode when
+  `SEMOPS_SCENARIO_ADSB_FIXTURE=true`.
+- `compose.cop.yml` passes `SEMOPS_SCENARIO_ADSB_FIXTURE` through to the scenario runner with a default of `false`,
+  while `SEMOPS_SCENARIO_MODE` defaults to `product`.
 - Scenario-runner ownership registration appends `OwnerADSB` plus `ADSBTrackContract` only when the ADS-B fixture
   flag is enabled.
 - Targeted evidence command: `go test ./internal/scenario ./cmd/semops-scenario-runner ./pkg/cop ./internal/copownership -count=1`.
 
 ## Follow-Ups
 
-- Run `SEMOPS_SCENARIO_ADSB_FIXTURE=true ./scripts/cop-stack-smoke.sh` when Docker resources are available.
+- Use hosted ADS-B HTTP component smokes for product evidence; reserve ADS-B scenario fixture replay for focused
+  contract checks.
 - Decide whether live mode starts with optional OpenSky, local receiver/readsb/dump1090 fixtures, or a dedicated
   adapter service.
 - Keep statistical aircraft association behind a separate fusion review.

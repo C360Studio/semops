@@ -13,6 +13,7 @@ import (
 	"time"
 
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
+	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
 )
 
@@ -95,6 +96,15 @@ func fixtureHandler(clock func() time.Time) http.Handler {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(records[0].RawJSON)
+	})
+	mux.HandleFunc("/cap/alert", func(w http.ResponseWriter, _ *http.Request) {
+		records, err := capcodec.LifecycleFixtureRecords(clock().UTC())
+		if err != nil || len(records) == 0 {
+			http.Error(w, "cap fixture unavailable", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/cap+xml")
+		_, _ = w.Write(records[0].RawXML)
 	})
 	mux.HandleFunc("/sapient/messages", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

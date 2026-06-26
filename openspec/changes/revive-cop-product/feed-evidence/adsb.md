@@ -46,15 +46,14 @@ cover readsb/dump1090, receiver TCP/UDP, ASTERIX, or provider reliability. See
   replay capture, stale-source health, and local provider-shaped HTTP fixture tests.
 - `cmd/semops` can opt into the ADS-B HTTP poller -> decoder -> graph-projector chain with `SEMOPS_ADSB_ENABLED=true`,
   `SEMOPS_ADSB_HTTP_URL`, stale/source replay settings, and config-driven raw-lane caps.
-- App-runtime ADS-B ownership appends `semops.feed.adsb` only when the hosted ADS-B flow is enabled, matching the
-  scenario-runner opt-in owner-token discipline.
+- App-runtime ADS-B ownership appends `semops.feed.adsb` only when the hosted ADS-B flow is enabled.
 - `internal/stack.NewADSBAdapter` composes the adapter with either a SemStreams NATS requester or injected writer.
 - `internal/stack.NewADSBPlanWriter` exposes the same SemStreams graph request writer for component runtime wiring
   without calling projector internals from the app layer.
-- `cmd/semops-scenario-runner` can opt into ADS-B replay with `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose
-  service passes the flag through but defaults it off.
-- The scenario runner appends `semops.feed.adsb` ownership only for the opt-in ADS-B path; this is not a live OpenSky
-  or receiver service claim.
+- `cmd/semops-scenario-runner` rejects `SEMOPS_SCENARIO_ADSB_FIXTURE=true` in product mode. ADS-B scenario replay is
+  retained for `SEMOPS_SCENARIO_MODE=contract` only.
+- In contract mode, the scenario runner appends `semops.feed.adsb` ownership only for the opt-in ADS-B path; this is
+  not product e2e, live OpenSky, or receiver service evidence.
 - COP graph prefix discovery reads `c360.<platform>.cop.adsb.track.*` entities back into aircraft tracks and feed
   health without requiring a live ADS-B service.
 
@@ -153,19 +152,18 @@ Acceptance:
 
 ### Structural Scenario Gate
 
-Target command:
-
-```bash
-SEMOPS_SCENARIO_ADSB_FIXTURE=true ./scripts/cop-stack-smoke.sh
-```
+Status: superseded for product evidence by the hosted ADS-B HTTP component path. The old scenario replay gate remains
+contract-mode structural evidence only and should not run through the default product stack smoke, because the product
+smoke now fails on duplicate owner-token evidence before direct graph contract smokes run.
 
 Acceptance:
 
-- The hosted scenario runner appends two deterministic OpenSky-shaped ADS-B snapshots only when explicitly enabled.
-  [done]
+- The hosted scenario runner appends two deterministic OpenSky-shaped ADS-B snapshots only when explicitly enabled in
+  contract mode. [done]
 - ADS-B scenario replay uses `internal/adapters/adsb.Adapter`, not a test-only projector/writer shortcut. [done]
 - ADS-B graph writes are backed by a SemStreams-minted `semops.feed.adsb` owner token. [done]
-- The default stack path remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. [done]
+- The default product stack uses the hosted ADS-B HTTP component for ADS-B evidence and refuses ADS-B scenario fixture
+  injection. [done]
 
 ### Component Promotion Gate
 

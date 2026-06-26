@@ -72,6 +72,11 @@ export SEMOPS_ADSB_ENABLED="${SEMOPS_ADSB_ENABLED:-true}"
 export SEMOPS_ADSB_HTTP_URL="${SEMOPS_ADSB_HTTP_URL:-http://semops-feed-fixtures:8091/adsb/states}"
 export SEMOPS_ADSB_HTTP_POLL_INTERVAL="${SEMOPS_ADSB_HTTP_POLL_INTERVAL:-1s}"
 export SEMOPS_ADSB_HTTP_STALE_AFTER="${SEMOPS_ADSB_HTTP_STALE_AFTER:-10s}"
+export SEMOPS_CAP_ENABLED="${SEMOPS_CAP_ENABLED:-true}"
+export SEMOPS_CAP_HTTP_URL="${SEMOPS_CAP_HTTP_URL:-http://semops-feed-fixtures:8091/cap/alert}"
+export SEMOPS_CAP_HTTP_POLL_INTERVAL="${SEMOPS_CAP_HTTP_POLL_INTERVAL:-1s}"
+export SEMOPS_CAP_HTTP_STALE_AFTER="${SEMOPS_CAP_HTTP_STALE_AFTER:-10s}"
+export SEMOPS_CAP_HTTP_CONTACT_POLICY="${SEMOPS_CAP_HTTP_CONTACT_POLICY:-semops-local-fixture}"
 export SEMOPS_SAPIENT_ENABLED="${SEMOPS_SAPIENT_ENABLED:-true}"
 export SEMOPS_SAPIENT_HTTP_POLL_INTERVAL="${SEMOPS_SAPIENT_HTTP_POLL_INTERVAL:-1s}"
 export SEMOPS_SAPIENT_HTTP_STALE_AFTER="${SEMOPS_SAPIENT_HTTP_STALE_AFTER:-10s}"
@@ -282,6 +287,22 @@ wait_svelte_assets() {
   done
 }
 
+assert_no_owner_mismatch() {
+  local metrics_url="$1"
+  local body
+  body="$(curl -fsS "$metrics_url")"
+  if ! printf '%s\n' "$body" | awk '
+    BEGIN { sum = 0 }
+    /^semstreams_graph_ingest_owner_lease_mismatch_total[{ ]/ { sum += $NF }
+    END { exit(sum > 0 ? 1 : 0) }
+  '; then
+    echo "Product e2e produced SemStreams owner-token mismatch evidence before contract smokes." >&2
+    printf '%s\n' "$body" | grep '^semstreams_graph_ingest_owner_lease_mismatch_total' >&2 || true
+    print_runtime_failure_diagnostics "Owner-token mismatch failed product evidence." ""
+    return 1
+  fi
+}
+
 if ! docker compose -p "$PROJECT" -f "$COMPOSE_FILE" up -d --build --wait; then
   print_compose_failure_diagnostics
   exit 1
@@ -307,6 +328,7 @@ SEMOPS_COP_SMOKE_SCENARIO_STATUS_URL="$SCENARIO_STATUS_URL" \
 SEMOPS_COP_SMOKE_COMPONENT_METRICS_URL="$COP_METRICS_URL" \
 SEMOPS_COP_SMOKE_MAVLINK_UDP_ADDR="$MAVLINK_UDP_ADDR" \
 SEMOPS_COP_SMOKE_COT_UDP_ADDR="$COT_UDP_ADDR" \
+SEMOPS_COP_SMOKE_CAP_HTTP_ENABLED="$SEMOPS_CAP_ENABLED" \
 SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED="$SEMOPS_ADSB_ENABLED" \
 SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED="$SEMOPS_SAPIENT_ENABLED" \
 SEMOPS_COP_SMOKE_SAPIENT_GRAPH_ENABLED="$SAPIENT_GRAPH_SMOKE_ENABLED" \
@@ -314,6 +336,8 @@ SEMOPS_COP_SMOKE_KLV_ENABLED="$KLV_SMOKE_ENABLED" \
 SEMOPS_COP_SMOKE_WEATHER_ENABLED="$WEATHER_SMOKE_ENABLED" \
 SEMOPS_COP_SMOKE_FUSION_ENABLED="$FUSION_SMOKE_ENABLED" \
   go test ./internal/smoke/cop -run 'TestHostedCOP(SnapshotReflects(MAVLinkUDP|CoTUDP|ScenarioRunner|ADSBHTTPProvider|SAPIENTGraphProvider|HADRSharedAirspace|KLVLocalMedia|WeatherFixture|FusionAssociation)|ComponentPrometheusMetricsReflectFeedFlow|RuntimeReflectsFeedFlow)' -count=1 -v
+
+assert_no_owner_mismatch "$METRICS_URL"
 
 SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL="$NATS_URL" \
 SEMOPS_MAVLINK_LIVE_GRAPH_METRICS_URL="$METRICS_URL" \

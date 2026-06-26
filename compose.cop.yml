@@ -76,7 +76,7 @@ services:
       SEMOPS_CAP_ENABLED: "${SEMOPS_CAP_ENABLED:-false}"
       SEMOPS_CAP_SOURCE: cap:http:compose
       SEMOPS_CAP_REPLAY_PATH: "${SEMOPS_CAP_REPLAY_PATH:-}"
-      SEMOPS_CAP_HTTP_URL: "${SEMOPS_CAP_HTTP_URL:-https://api.weather.gov/alerts/active}"
+      SEMOPS_CAP_HTTP_URL: "${SEMOPS_CAP_HTTP_URL:-http://semops-feed-fixtures:8091/cap/alert}"
       SEMOPS_CAP_HTTP_POLL_INTERVAL: "${SEMOPS_CAP_HTTP_POLL_INTERVAL:-5m}"
       SEMOPS_CAP_HTTP_STALE_AFTER: "${SEMOPS_CAP_HTTP_STALE_AFTER:-15m}"
       SEMOPS_CAP_HTTP_CONTACT_POLICY: "${SEMOPS_CAP_HTTP_CONTACT_POLICY:-}"
@@ -177,11 +177,18 @@ services:
     depends_on:
       semstreams:
         condition: service_healthy
+      semops:
+        condition: service_started
     environment:
       SEMOPS_NATS_URL: nats://semops-nats:4222
       SEMOPS_NATS_NAME: semops-scenario-runner
       SEMOPS_SCENARIO_ADDR: :8090
+      SEMOPS_SCENARIO_MODE: "${SEMOPS_SCENARIO_MODE:-product}"
       SEMOPS_SCENARIO_ADSB_FIXTURE: "${SEMOPS_SCENARIO_ADSB_FIXTURE:-false}"
+      SEMOPS_SCENARIO_MAVLINK_UDP_ADDR: "${SEMOPS_SCENARIO_MAVLINK_UDP_ADDR:-semops:14550}"
+      SEMOPS_SCENARIO_COT_UDP_ADDR: "${SEMOPS_SCENARIO_COT_UDP_ADDR:-semops:18090}"
+      SEMOPS_SCENARIO_READY_URL: "${SEMOPS_SCENARIO_READY_URL:-http://semops:8088/healthz}"
+      SEMOPS_SCENARIO_READY_TIMEOUT: "${SEMOPS_SCENARIO_READY_TIMEOUT:-60s}"
       SEMOPS_MAVLINK_ENABLED: "true"
       SEMOPS_MAVLINK_SOURCE: mavlink:scenario
       SEMOPS_COT_ENABLED: "true"

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -26,9 +27,18 @@ import (
 )
 
 const (
-	envScenarioAddr        = "SEMOPS_SCENARIO_ADDR"
-	envScenarioADSBFixture = "SEMOPS_SCENARIO_ADSB_FIXTURE"
-	defaultAddr            = ":8090"
+	envScenarioAddr           = "SEMOPS_SCENARIO_ADDR"
+	envScenarioMode           = "SEMOPS_SCENARIO_MODE"
+	envScenarioADSBFixture    = "SEMOPS_SCENARIO_ADSB_FIXTURE"
+	envScenarioMAVLinkUDPAddr = "SEMOPS_SCENARIO_MAVLINK_UDP_ADDR"
+	envScenarioCoTUDPAddr     = "SEMOPS_SCENARIO_COT_UDP_ADDR"
+	envScenarioWriteTimeout   = "SEMOPS_SCENARIO_FEED_WRITE_TIMEOUT"
+	envScenarioReadyURL       = "SEMOPS_SCENARIO_READY_URL"
+	envScenarioReadyTimeout   = "SEMOPS_SCENARIO_READY_TIMEOUT"
+	defaultAddr               = ":8090"
+	defaultScenarioMode       = "product"
+	scenarioModeProduct       = "product"
+	scenarioModeContract      = "contract"
 )
 
 var (
@@ -56,12 +66,25 @@ func main() {
 		log.Fatalf("Invalid SemOps scenario runner configuration: %v", err)
 	}
 	addr := scenarioAddr(os.Getenv)
+	mode, err := scenarioModeFromEnv(os.Getenv)
+	if err != nil {
+		log.Fatalf("Invalid SemOps scenario runner configuration: %v", err)
+	}
 	includeADSB, err := scenarioADSBFixtureEnabled(os.Getenv)
 	if err != nil {
 		log.Fatalf("Invalid SemOps scenario runner configuration: %v", err)
 	}
+	boundary, err := scenarioFeedBoundaryFromEnv(os.Getenv)
+	if err != nil {
+		log.Fatalf("Invalid SemOps scenario runner configuration: %v", err)
+	}
+	readyURL := scenarioReadyURL(os.Getenv)
+	readyTimeout, err := scenarioReadyTimeout(os.Getenv)
+	if err != nil {
+		log.Fatalf("Invalid SemOps scenario runner configuration: %v", err)
+	}
 
-	client, stopOwners, runner, err := composeRunner(ctx, cfg, includeADSB)
+	client, stopOwners, runner, err := composeRunner(ctx, cfg, includeADSB, mode, boundary)
 	if err != nil {
 		log.Fatalf("Compose scenario runner: %v", err)
 	}
@@ -73,6 +96,13 @@ func main() {
 		log.Fatalf("Start scenario status server: %v", err)
 	}
 	defer closeServer(server, cfg.ShutdownTimeout)
+
+	if mode == scenarioModeProduct && readyURL != "" {
+		log.Printf("Waiting for product feed target readiness: %s", readyURL)
+		if err := waitHTTPReady(ctx, readyURL, readyTimeout); err != nil {
+			log.Fatalf("Wait for product feed target readiness: %v", err)
+		}
+	}
 
 	done := make(chan error, 1)
 	go func() {
@@ -103,6 +133,62 @@ func main() {
 }
 
 func composeRunner(
+	ctx context.Context,
+	cfg semopsapp.Config,
+	includeADSB bool,
+	mode string,
+	boundary scenarioFeedBoundary,
+) (*natsclient.Client, func(), *scenario.Runner, error) {
+	switch mode {
+	case scenarioModeProduct:
+		return composeProductRunner(cfg, includeADSB, boundary)
+	case scenarioModeContract:
+		return composeContractRunner(ctx, cfg, includeADSB)
+	default:
+		return nil, nil, nil, fmt.Errorf("unsupported scenario mode %q", mode)
+	}
+}
+
+func composeProductRunner(
+	cfg semopsapp.Config,
+	includeADSB bool,
+	boundary scenarioFeedBoundary,
+) (*natsclient.Client, func(), *scenario.Runner, error) {
+	if includeADSB {
+		return nil, nil, nil, fmt.Errorf("%s=true is not supported in product mode; use hosted ADS-B components", envScenarioADSBFixture)
+	}
+	fixture, err := scenarioProductFixture(time.Now().UTC())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	mavlinkSink, err := scenario.NewMAVLinkUDPSink(scenario.UDPFeedSinkConfig{
+		Addr:         boundary.MAVLinkUDPAddr,
+		Source:       cfg.MAVLink.Source,
+		WriteTimeout: boundary.WriteTimeout,
+	})
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("compose MAVLink feed-boundary sink: %w", err)
+	}
+	cotSink, err := scenario.NewCoTUDPSink(scenario.UDPFeedSinkConfig{
+		Addr:         boundary.CoTUDPAddr,
+		Source:       cfg.CoT.Source,
+		WriteTimeout: boundary.WriteTimeout,
+	})
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("compose CoT feed-boundary sink: %w", err)
+	}
+	runner, err := scenario.NewRunner(scenario.Config{
+		Fixture: fixture,
+		MAVLink: mavlinkSink,
+		CoT:     cotSink,
+	})
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("create product scenario runner: %w", err)
+	}
+	return nil, func() {}, runner, nil
+}
+
+func composeContractRunner(
 	ctx context.Context,
 	cfg semopsapp.Config,
 	includeADSB bool,
@@ -267,6 +353,16 @@ func scenarioFixture(start time.Time, includeADSB bool) (scenario.Fixture, error
 	return fixture, nil
 }
 
+func scenarioProductFixture(start time.Time) (scenario.Fixture, error) {
+	fixture, err := scenarioFixture(start, false)
+	if err != nil {
+		return scenario.Fixture{}, err
+	}
+	fixture.CAPAlerts = nil
+	fixture.ADSBSnapshots = nil
+	return fixture, nil
+}
+
 func scenarioOwnedContracts(includeADSB bool) []cop.OwnedContract {
 	owned := cop.FirstPhaseOwnedContracts()
 	if includeADSB {
@@ -308,6 +404,83 @@ func scenarioAddr(getenv func(string) string) string {
 	return value
 }
 
+type scenarioFeedBoundary struct {
+	MAVLinkUDPAddr string
+	CoTUDPAddr     string
+	WriteTimeout   time.Duration
+}
+
+func scenarioModeFromEnv(getenv func(string) string) (string, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	value := strings.TrimSpace(getenv(envScenarioMode))
+	if value == "" {
+		return defaultScenarioMode, nil
+	}
+	switch strings.ToLower(value) {
+	case scenarioModeProduct:
+		return scenarioModeProduct, nil
+	case scenarioModeContract:
+		return scenarioModeContract, nil
+	default:
+		return "", fmt.Errorf("%s must be %q or %q", envScenarioMode, scenarioModeProduct, scenarioModeContract)
+	}
+}
+
+func scenarioFeedBoundaryFromEnv(getenv func(string) string) (scenarioFeedBoundary, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	cfg := scenarioFeedBoundary{
+		MAVLinkUDPAddr: firstNonEmpty(strings.TrimSpace(getenv(envScenarioMAVLinkUDPAddr)), "127.0.0.1:14550"),
+		CoTUDPAddr:     firstNonEmpty(strings.TrimSpace(getenv(envScenarioCoTUDPAddr)), "127.0.0.1:18090"),
+		WriteTimeout:   time.Second,
+	}
+	if value := strings.TrimSpace(getenv(envScenarioWriteTimeout)); value != "" {
+		duration, err := time.ParseDuration(value)
+		if err != nil {
+			return scenarioFeedBoundary{}, fmt.Errorf("parse %s: %w", envScenarioWriteTimeout, err)
+		}
+		if duration <= 0 {
+			return scenarioFeedBoundary{}, fmt.Errorf("%s must be greater than zero", envScenarioWriteTimeout)
+		}
+		cfg.WriteTimeout = duration
+	}
+	if cfg.MAVLinkUDPAddr == "" {
+		return scenarioFeedBoundary{}, fmt.Errorf("%s is required in product mode", envScenarioMAVLinkUDPAddr)
+	}
+	if cfg.CoTUDPAddr == "" {
+		return scenarioFeedBoundary{}, fmt.Errorf("%s is required in product mode", envScenarioCoTUDPAddr)
+	}
+	return cfg, nil
+}
+
+func scenarioReadyURL(getenv func(string) string) string {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	return strings.TrimSpace(getenv(envScenarioReadyURL))
+}
+
+func scenarioReadyTimeout(getenv func(string) string) (time.Duration, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	value := strings.TrimSpace(getenv(envScenarioReadyTimeout))
+	if value == "" {
+		return 60 * time.Second, nil
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("parse %s: %w", envScenarioReadyTimeout, err)
+	}
+	if duration <= 0 {
+		return 0, fmt.Errorf("%s must be greater than zero", envScenarioReadyTimeout)
+	}
+	return duration, nil
+}
+
 func scenarioADSBFixtureEnabled(getenv func(string) string) (bool, error) {
 	if getenv == nil {
 		getenv = os.Getenv
@@ -321,6 +494,58 @@ func scenarioADSBFixtureEnabled(getenv func(string) string) (bool, error) {
 		return false, fmt.Errorf("parse %s: %w", envScenarioADSBFixture, err)
 	}
 	return enabled, nil
+}
+
+func waitHTTPReady(ctx context.Context, readyURL string, timeout time.Duration) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if readyURL == "" {
+		return nil
+	}
+	if timeout <= 0 {
+		timeout = 60 * time.Second
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	client := &http.Client{Timeout: 2 * time.Second}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for {
+		req, err := http.NewRequestWithContext(waitCtx, http.MethodGet, readyURL, nil)
+		if err != nil {
+			return err
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+		} else {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				return nil
+			}
+			lastErr = fmt.Errorf("status %d", resp.StatusCode)
+		}
+		select {
+		case <-waitCtx.Done():
+			if lastErr != nil {
+				return fmt.Errorf("timed out waiting for %s: %w", readyURL, lastErr)
+			}
+			return fmt.Errorf("timed out waiting for %s: %w", readyURL, waitCtx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 func cloneADSBRecord(record adsbcodec.RawSnapshotRecord) adsbcodec.RawSnapshotRecord {

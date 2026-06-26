@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	semopsapp "github.com/c360studio/semops/internal/app"
 	"github.com/c360studio/semops/pkg/cop"
 )
 
@@ -38,6 +39,71 @@ func TestScenarioADSBFixtureEnabledParsesBool(t *testing.T) {
 	}
 }
 
+func TestScenarioModeDefaultsToProductAndParsesContract(t *testing.T) {
+	mode, err := scenarioModeFromEnv(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("mode error = %v", err)
+	}
+	if mode != scenarioModeProduct {
+		t.Fatalf("default mode = %q, want %q", mode, scenarioModeProduct)
+	}
+	mode, err = scenarioModeFromEnv(func(name string) string {
+		if name != envScenarioMode {
+			t.Fatalf("env name = %q, want %q", name, envScenarioMode)
+		}
+		return "contract"
+	})
+	if err != nil {
+		t.Fatalf("mode error = %v", err)
+	}
+	if mode != scenarioModeContract {
+		t.Fatalf("mode = %q, want %q", mode, scenarioModeContract)
+	}
+	if _, err := scenarioModeFromEnv(func(string) string { return "graph" }); err == nil {
+		t.Fatal("expected invalid scenario mode error")
+	}
+}
+
+func TestScenarioFeedBoundaryFromEnv(t *testing.T) {
+	cfg, err := scenarioFeedBoundaryFromEnv(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("boundary error = %v", err)
+	}
+	if cfg.MAVLinkUDPAddr != "127.0.0.1:14550" ||
+		cfg.CoTUDPAddr != "127.0.0.1:18090" ||
+		cfg.WriteTimeout != time.Second {
+		t.Fatalf("default boundary = %+v", cfg)
+	}
+	cfg, err = scenarioFeedBoundaryFromEnv(func(name string) string {
+		switch name {
+		case envScenarioMAVLinkUDPAddr:
+			return "semops:14550"
+		case envScenarioCoTUDPAddr:
+			return "semops:18090"
+		case envScenarioWriteTimeout:
+			return "1500ms"
+		default:
+			return ""
+		}
+	})
+	if err != nil {
+		t.Fatalf("boundary error = %v", err)
+	}
+	if cfg.MAVLinkUDPAddr != "semops:14550" ||
+		cfg.CoTUDPAddr != "semops:18090" ||
+		cfg.WriteTimeout != 1500*time.Millisecond {
+		t.Fatalf("boundary = %+v", cfg)
+	}
+	if _, err := scenarioFeedBoundaryFromEnv(func(name string) string {
+		if name == envScenarioWriteTimeout {
+			return "forever"
+		}
+		return ""
+	}); err == nil {
+		t.Fatal("expected invalid timeout error")
+	}
+}
+
 func TestScenarioFixtureAddsADSBWhenEnabled(t *testing.T) {
 	start := time.Date(2026, 6, 20, 16, 0, 0, 0, time.UTC)
 	fixture, err := scenarioFixture(start, true)
@@ -61,6 +127,55 @@ func TestScenarioFixtureAddsADSBWhenEnabled(t *testing.T) {
 	}
 	if err := fixture.Validate(); err != nil {
 		t.Fatalf("fixture should validate: %v", err)
+	}
+}
+
+func TestScenarioProductFixtureOmitsCAPAndADSB(t *testing.T) {
+	fixture, err := scenarioProductFixture(time.Date(2026, 6, 20, 16, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("fixture: %v", err)
+	}
+	if len(fixture.MAVLinkFrames) == 0 || len(fixture.CoTEvents) == 0 {
+		t.Fatalf("product fixture should keep MAVLink and CoT: %+v", fixture)
+	}
+	if len(fixture.CAPAlerts) != 0 || len(fixture.ADSBSnapshots) != 0 {
+		t.Fatalf("product fixture CAP/ADSB = %d/%d, want 0/0",
+			len(fixture.CAPAlerts),
+			len(fixture.ADSBSnapshots))
+	}
+}
+
+func TestComposeProductRunnerDoesNotRequireNATSOrOwnerBindings(t *testing.T) {
+	cfg, err := semopsapp.ConfigFromEnv(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("config: %v", err)
+	}
+	client, stopOwners, runner, err := composeProductRunner(cfg, false, scenarioFeedBoundary{
+		MAVLinkUDPAddr: "127.0.0.1:14550",
+		CoTUDPAddr:     "127.0.0.1:18090",
+		WriteTimeout:   time.Second,
+	})
+	if err != nil {
+		t.Fatalf("compose product runner: %v", err)
+	}
+	if client != nil {
+		t.Fatal("product scenario runner must not create a SemStreams NATS client")
+	}
+	if stopOwners == nil {
+		t.Fatal("product scenario runner should return a no-op owner closer")
+	}
+	if runner == nil {
+		t.Fatal("product scenario runner is nil")
+	}
+	if status := runner.Status(); status.ScenarioID == "" || status.Summary.CAPAlerts != 0 {
+		t.Fatalf("product runner status = %+v", status)
+	}
+	if _, _, _, err := composeProductRunner(cfg, true, scenarioFeedBoundary{
+		MAVLinkUDPAddr: "127.0.0.1:14550",
+		CoTUDPAddr:     "127.0.0.1:18090",
+		WriteTimeout:   time.Second,
+	}); err == nil {
+		t.Fatal("expected product runner to reject ADS-B direct scenario fixture")
 	}
 }
 

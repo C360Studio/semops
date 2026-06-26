@@ -31,6 +31,7 @@ const (
 	liveSnapshotCoTTaskEnv        = "SEMOPS_COP_SMOKE_EXPECTED_COT_TASK_ID"
 	liveSnapshotCoTChatEnv        = "SEMOPS_COP_SMOKE_EXPECTED_COT_ADVISORY_ID"
 	liveSnapshotHazardEnv         = "SEMOPS_COP_SMOKE_EXPECTED_HAZARD_ID"
+	liveSnapshotCAPHTTPEnv        = "SEMOPS_COP_SMOKE_CAP_HTTP_ENABLED"
 	liveScenarioADSBEnv           = "SEMOPS_SCENARIO_ADSB_FIXTURE"
 	liveSnapshotADSBHTTPEnv       = "SEMOPS_COP_SMOKE_ADSB_HTTP_ENABLED"
 	liveSnapshotSAPIENTEnv        = "SEMOPS_COP_SMOKE_SAPIENT_HTTP_ENABLED"
@@ -145,7 +146,6 @@ func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 	expectedTrackID := firstNonEmpty(os.Getenv(liveSnapshotTrackIDEnv), defaultExpectedTrackID)
 	expectedTaskID := firstNonEmpty(os.Getenv(liveSnapshotCoTTaskEnv), defaultExpectedCoTTask)
 	expectedAdvisoryID := firstNonEmpty(os.Getenv(liveSnapshotCoTChatEnv), defaultExpectedCoTChat)
-	expectedHazardID := firstNonEmpty(os.Getenv(liveSnapshotHazardEnv), defaultExpectedHazard)
 	expectADSB, err := scenarioADSBExpectedFromEnv()
 	if err != nil {
 		t.Fatal(err)
@@ -170,6 +170,8 @@ func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 			lastErr = fmt.Errorf("scenario runner ADS-B snapshots = %d, want at least 2",
 				status.Summary.ADSBSnapshots)
 		} else {
+			requireHazard := status.Summary.CAPAlerts > 0
+			expectedHazardID := firstNonEmpty(os.Getenv(liveSnapshotHazardEnv), defaultExpectedHazard)
 			snapshot, err := fetchSnapshot(ctx, client, snapshotURL)
 			if err != nil {
 				lastErr = err
@@ -179,6 +181,7 @@ func TestHostedCOPSnapshotReflectsScenarioRunner(t *testing.T) {
 				expectedTaskID,
 				expectedAdvisoryID,
 				expectedHazardID,
+				requireHazard,
 				expectADSB,
 			) {
 				return
@@ -297,6 +300,10 @@ func TestHostedCOPSnapshotReflectsHADRSharedAirspace(t *testing.T) {
 	expectedTaskID := firstNonEmpty(os.Getenv(liveSnapshotCoTTaskEnv), defaultExpectedCoTTask)
 	expectedAdvisoryID := firstNonEmpty(os.Getenv(liveSnapshotCoTChatEnv), defaultExpectedCoTChat)
 	expectedHazardID := firstNonEmpty(os.Getenv(liveSnapshotHazardEnv), defaultExpectedHazard)
+	expectCAP, err := boolFromEnv(liveSnapshotCAPHTTPEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), liveSnapshotPollTimeout)
 	defer cancel()
@@ -323,6 +330,7 @@ func TestHostedCOPSnapshotReflectsHADRSharedAirspace(t *testing.T) {
 				expectedTaskID,
 				expectedAdvisoryID,
 				expectedHazardID,
+				expectCAP,
 				false,
 			) && snapshotHasADSBTrack(snapshot) {
 				return
@@ -905,6 +913,7 @@ type scenarioStatus struct {
 	FailedSteps    int    `json:"failed_steps"`
 	LastError      string `json:"last_error"`
 	Summary        struct {
+		CAPAlerts     int `json:"cap_alerts"`
 		ADSBSnapshots int `json:"adsb_snapshots"`
 	} `json:"summary"`
 }
@@ -934,12 +943,13 @@ func snapshotHasScenarioRunnerState(
 	expectedTaskID string,
 	expectedAdvisoryID string,
 	expectedHazardID string,
+	requireHazard bool,
 	expectADSB bool,
 ) bool {
 	if !snapshotHasCoT(snapshot, expectedTrackID, expectedTaskID, expectedAdvisoryID) {
 		return false
 	}
-	if !snapshotHasHazard(snapshot, expectedHazardID) {
+	if requireHazard && !snapshotHasHazard(snapshot, expectedHazardID) {
 		return false
 	}
 	if expectADSB {

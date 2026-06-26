@@ -122,17 +122,19 @@ files, but the same test verifies their SHA-256/size when they are present. The 
 under `fixtures/` and fails if a new fixture bypasses the manifest. New portable fixture files should enter the
 manifest in the same change that introduces or promotes them.
 
-The first scenario-runner core lives in `internal/scenario`. It replays generated MAVLink, deterministic TAK/CoT seed
-events, and CAP lifecycle XML records through the real adapter/projector seams and exposes a pollable run status.
-`cmd/semops-scenario-runner` hosts that core in the local Compose stack and the stack smoke polls
-`/scenario/status`; it also asserts the Caddy-routed COP snapshot contains the scenario's MAVLink track, TAK/CoT task
-and advisory, and CAP hazard. The current direct graph replay path is replay/contract infrastructure evidence, not
-product e2e, full shared-airspace, simulator-fidelity, command-control, CS API, provider, standards, or operator
-scenario-control evidence. The runner can also opt into deterministic ADS-B fixture replay with
-`SEMOPS_SCENARIO_ADSB_FIXTURE=true`; that path exercises the hosted ADS-B adapter and born-first owner token without
-making live ADS-B part of the default MVP stack. The Compose stack also includes `cmd/semops-feed-fixtures`, a local
-HTTP provider simulator for ADS-B and SAPIENT smoke tests. That service is mock infrastructure only; it is not a
-SemOps-owned TAK, SAPIENT, OpenSky, or CS API product service.
+The first scenario-runner core lives in `internal/scenario`. In default product mode,
+`cmd/semops-scenario-runner` replays generated MAVLink frames and deterministic TAK/CoT seed events through hosted UDP
+feed boundaries, reports zero graph mutations, and exposes a pollable run status. The hosted SemOps input, decoder,
+and projector components then own payload registry decode, flowgraph ports, owner tokens, graph writes, health,
+`DataFlow()`, and Prometheus telemetry. The stack smoke polls `/scenario/status`; it also asserts the Caddy-routed COP
+snapshot contains the scenario's MAVLink track plus TAK/CoT task and advisory. CAP product visibility comes from the
+hosted CAP HTTP poller reading `cmd/semops-feed-fixtures` `/cap/alert`, not from scenario-runner graph seeding. The
+direct graph replay path remains available as `SEMOPS_SCENARIO_MODE=contract` and is replay/contract infrastructure
+evidence only; it can cover CAP lifecycle records and opt-in ADS-B snapshots, but not product e2e, full
+shared-airspace, simulator-fidelity, command-control, CS API, provider, standards, or operator scenario-control
+evidence. Product ADS-B evidence uses the hosted ADS-B HTTP component. The Compose stack also includes
+`cmd/semops-feed-fixtures`, a local HTTP provider simulator for ADS-B, CAP, and SAPIENT smoke tests. That service is
+mock infrastructure only; it is not a SemOps-owned TAK, CAP, SAPIENT, OpenSky, or CS API product service.
 
 ## Indexing Pressure
 
@@ -788,7 +790,7 @@ Local assets:
 - `internal/projectors/adsb` projects aircraft current state to source-partitioned ADS-B tracks with `signal`
   indexing, provenance, confidence, and source references.
 - `internal/scenario` can replay ADS-B snapshots through parse, projection, graph-plan writing, and born-state
-  marking through the hosted ADS-B adapter when a scenario opts into ADS-B.
+  marking in contract mode only. Product evidence uses the hosted ADS-B HTTP component path.
 - `internal/adapters/adsb` provides a hosted snapshot ingest seam with bounded raw capture, replay append,
   projection writes, SemStreams mutation writer integration, born-first reconciliation, and health counters.
 - `internal/components/adsb` provides the first SemStreams component promotion for OpenSky-compatible HTTP polling:
@@ -800,10 +802,10 @@ Local assets:
   tests, and `scripts/cop-stack-smoke.sh` enables ADS-B against that fixture by default.
 - The one-command hosted stack smoke now asserts Prometheus component health and flow samples for the opt-in ADS-B
   HTTP poller, decoder, and projector chain through SemOps `/metrics`.
-- `cmd/semops-scenario-runner` adds ADS-B snapshots only when `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; the Compose service
-  passes that flag through but defaults it to false.
-- The scenario runner appends `semops.feed.adsb` ownership only for that opt-in path so structural ADS-B graph writes
-  use SemStreams minted owner tokens.
+- `cmd/semops-scenario-runner` rejects `SEMOPS_SCENARIO_ADSB_FIXTURE=true` in product mode and reserves ADS-B fixture
+  replay for `SEMOPS_SCENARIO_MODE=contract`.
+- In contract mode, the scenario runner appends `semops.feed.adsb` ownership only for that opt-in path so structural
+  ADS-B graph writes use SemStreams minted owner tokens.
 - The ADS-B app-runtime path appends `semops.feed.adsb` ownership only when enabled; the default runtime still keeps
   ADS-B off and does not claim live OpenSky reliability, readsb/dump1090 file tailing, receiver TCP/UDP, or ASTERIX
   support.
@@ -840,8 +842,9 @@ First acceptance gate:
   captures optional replay, and mints `semops.feed.adsb` ownership through the runtime ownership registration path.
 - Given the local Compose fixture provider, the one-command stack smoke enables ADS-B, polls the Caddy-routed COP
   snapshot, and verifies an ADS-B track written through the HTTP component path is visible by prefix discovery.
-- Given `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, the hosted scenario runner replays two ADS-B snapshots through the
-  adapter seam and token-backed graph writes without live network access.
+- Given `SEMOPS_SCENARIO_MODE=contract` and `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, the hosted scenario runner replays
+  two ADS-B snapshots through the adapter seam and token-backed graph writes without live network access. This is
+  contract/replay evidence, not product ADS-B evidence.
 - Given a projected ADS-B aircraft state, SemOps writes current-state track evidence without source-asset or
   cross-source association edges and reads it back through prefix discovery.
 - Given fusion-owned association evidence between ADS-B and another source track, SemOps projects and reads back the

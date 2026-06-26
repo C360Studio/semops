@@ -154,23 +154,28 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **AND** the one-command smoke polls the status endpoint rather than inferring scenario success from logs
 - **AND** the smoke fails fast on explicit scenario failure and treats stale status progress as a wedged run with
   diagnostic output
-- **AND** direct graph projection mode, when retained, is labeled contract/replay infrastructure rather than product
-  e2e
+- **AND** default product mode emits MAVLink and TAK/CoT through hosted UDP feed boundaries without opening a
+  SemStreams client, binding graph owners, or writing graph mutations
+- **AND** direct graph projection mode, when retained as `SEMOPS_SCENARIO_MODE=contract`, is labeled
+  contract/replay infrastructure rather than product e2e
 
-#### Scenario: Hosted scenario playback is product-visible
+#### Scenario: Hosted scenario playback and CAP fixture polling are product-visible
 
-- **WHEN** `semops-scenario-runner` reports succeeded in the local Compose stack through hosted feed/component
+- **WHEN** `semops-scenario-runner` reports succeeded in product mode through hosted MAVLink and TAK/CoT feed
   boundaries
 - **THEN** the Caddy-routed COP snapshot contains the scenario MAVLink track
 - **AND** the snapshot contains the scenario TAK/CoT task and advisory
-- **AND** the snapshot contains the scenario CAP hazard with geometry and provenance
+- **AND** when CAP HTTP polling is enabled, the snapshot contains the local CAP fixture hazard with geometry and
+  provenance from the hosted CAP component path
 - **AND** this check runs before direct feed-specific live graph smokes so product visibility fails fast
 - **AND** this check is not satisfied by scenario-runner direct graph writes
+- **AND** the smoke checks SemStreams owner-token mismatch metrics before direct graph contract smokes run
 
 #### Scenario: HADR shared-airspace playback is product-visible
 
 - **WHEN** the local Compose smoke enables the local ADS-B HTTP fixture component alongside the HADR scenario runner
-- **THEN** a single Caddy-routed COP snapshot contains the scenario MAVLink/TAK/CAP state and an ADS-B aircraft track
+- **THEN** a single Caddy-routed COP snapshot contains scenario MAVLink/TAK state, hosted CAP fixture state, and an
+  ADS-B aircraft track
 - **AND** the ADS-B evidence comes from the hosted ADS-B component flow, not a second scenario-runner owner claim
 - **AND** this remains local fixture evidence rather than a live OpenSky, ASTERIX, or receiver-support claim
 

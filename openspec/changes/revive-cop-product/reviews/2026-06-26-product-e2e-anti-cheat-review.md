@@ -61,3 +61,18 @@ hosted feed/component boundaries. Direct graph writes remain useful contract tes
   through the hosted MAVLink input/decoder/projector chain without scenario-runner direct graph seeding.
 - Keep CS API bidirectional e2e blocked until desired-state ingress, native feed execution, async status readback, and
   command-priority policy are tested through product boundaries rather than direct graph fixtures.
+
+## Resolution Update
+
+The first follow-up slice is complete for default stack evidence:
+
+- `cmd/semops-scenario-runner` now defaults to product mode, emits MAVLink and TAK/CoT over hosted UDP feed
+  boundaries, and does not create a SemStreams client, bind owners, or write graph mutations.
+- The previous direct graph path remains available as `SEMOPS_SCENARIO_MODE=contract` and is contract/replay evidence
+  only.
+- Default CAP product visibility now comes from the hosted CAP HTTP poller reading the local fixture provider
+  `/cap/alert` endpoint.
+- The one-command stack smoke checks SemStreams owner-token mismatch metrics before direct graph contract smokes run.
+
+Remaining blocked claims are command-control, CS API bidirectional interop, simulator-fidelity, live provider
+integration, standards conformance, and operator scenario-control behavior.

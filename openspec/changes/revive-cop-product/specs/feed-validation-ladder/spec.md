@@ -123,8 +123,9 @@ become dead-end architecture.
 
 - **WHEN** CAP lifecycle fixtures replay through parser, projector, scenario runner, or direct graph smoke paths
 - **THEN** SemOps treats the result as parser/projection/readback evidence
-- **AND** the first CAP HTTP poller, decoder, and projector components are treated as component-contract evidence, not
-  default live NWS/IPAWS service evidence
+- **AND** the local fixture-provider CAP HTTP poller, decoder, and projector components can satisfy product e2e only
+  for local fixture ingress through hosted SemStreams components
+- **AND** the same evidence is not live NWS/IPAWS service evidence
 - **AND** component health can report stale CAP polling when no fresh payload arrives within the configured
   `stale_after` threshold
 - **AND** the opt-in runtime can capture provider-shaped CAP HTTP responses as replayable native CAP XML records
@@ -135,8 +136,8 @@ become dead-end architecture.
 - **AND** local CAP schema/sample smoke may validate developer-supplied CAP XML files or replay JSONL against a
   developer-supplied CAP 1.2 XSD with `xmllint`, then parse the same samples through SemOps, while skipping by default
   when no local schema is configured
-- **AND** SemOps does not claim hosted CAP polling, webhook, NWS/IPAWS integration, or alert feed service support until
-  opt-in runtime wiring is backed by captured provider samples and alert lifecycle gates for that boundary
+- **AND** SemOps does not claim CAP webhook, NWS/IPAWS integration, or live alert feed service support until runtime
+  wiring is backed by captured provider samples and alert lifecycle gates for that boundary
 
 #### Scenario: Broader EDXL is not CAP evidence
 

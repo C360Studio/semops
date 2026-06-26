@@ -315,8 +315,12 @@
       component metrics, and runtime flow evidence
 - [x] 6.69 Record full-stack anti-cheat rules: product e2e enters through feed/component boundaries, direct graph
       smokes stay contract-only, and duplicate live owner incarnations fail product evidence
-- [ ] 6.70 Refactor scenario-runner full-stack playback into a feed-boundary producer/orchestrator before it supports
-      product e2e, command-control, CS API, simulator-fidelity, provider-integration, or standards claims
+- [x] 6.70 Refactor scenario-runner full-stack playback into a feed-boundary producer for MAVLink and TAK/CoT product
+      e2e while retaining direct graph replay as explicit contract mode only
+- [x] 6.71 Move default CAP product visibility to hosted CAP HTTP fixture-provider polling and fail product evidence
+      on SemStreams owner-token mismatch metrics before direct graph contract smokes run
+- [ ] 6.72 Extend feed-boundary orchestration before claiming command-control, CS API, simulator-fidelity,
+      provider-integration, standards, or operator scenario-control evidence
 
 ## 7. COP UI
 

@@ -92,11 +92,17 @@ progress:
   - Merged PR #12 with the first mixed-feed scenario runner core so future evidence can replay MAVLink, TAK/CoT, and
     CAP lifecycle fixtures through the same born-first adapter/projector seams.
   - Posted the closeout note on SemOps issue #1 and closed it as completed on 2026-06-19.
+  - Added the 2026-06-26 product-evidence follow-up: scenario-runner product mode now emits MAVLink and TAK/CoT
+    through hosted UDP feed boundaries without opening a SemStreams client, binding owners, or writing graph
+    mutations; direct graph replay is explicit contract mode only.
+  - Added a stack-smoke guard that fails product evidence when SemStreams owner-token mismatch metrics are non-zero
+    before direct graph contract smokes run.
 
 remaining:
   - Non-blocking: add durable checkpoint/read-back reconciliation before calling restart/replay fully
     production-grade.
   - Non-blocking: track whether append-evidence-only contributors should use a separate SemStreams declaration API
     once the evidence-contribution/write-fence split graduates beyond the current warning behavior.
-  - Product-evidence follow-up: keep command-control and CS API e2e blocked until scenario data and simulator command
-    readback enter through hosted feed/component paths without duplicate owner incarnations.
+  - Product-evidence follow-up: keep command-control, CS API e2e, simulator-fidelity, provider, and standards claims
+    blocked until their inputs and readback enter through hosted feed/component paths without duplicate owner
+    incarnations.

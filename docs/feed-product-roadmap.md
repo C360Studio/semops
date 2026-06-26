@@ -329,10 +329,11 @@ Recorded OpenSky-shaped JSON fixtures for aircraft current state, freshness, sou
 The first implemented slice is `pkg/adapters/adsb`, which parses `/states/all` snapshot fixtures and preserves
 nullable position fields plus position-source quality before projection. Current slices now include deterministic
 OpenSky snapshot replay, hosted snapshot ingest, source-partitioned ADS-B aircraft projection with `signal` indexing,
-COP graph prefix readback, opt-in structural scenario replay with `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, and an
-OpenSky-compatible HTTP input -> decoder -> graph-projector component package proved with local provider fixtures.
-The hosted app can compose that chain with `SEMOPS_ADSB_ENABLED=true`, provider URL/stale/replay settings, raw-lane
-caps, and `semops.feed.adsb` ownership registration only for the enabled flow.
+COP graph prefix readback, contract-mode structural scenario replay, and an OpenSky-compatible HTTP input -> decoder
+-> graph-projector component package proved with local provider fixtures. The hosted app can compose that chain with
+`SEMOPS_ADSB_ENABLED=true`, provider URL/stale/replay settings, raw-lane caps, and `semops.feed.adsb` ownership
+registration only for the enabled flow. Product ADS-B evidence uses that hosted component path, not scenario-runner
+graph replay.
 
 Full product lane:
 Optional runtime wiring for live OpenSky with rate-limit handling, local receiver/readsb/dump1090 paths, raw ADS-B or

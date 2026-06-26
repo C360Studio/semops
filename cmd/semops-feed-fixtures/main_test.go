@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	adsbcodec "github.com/c360studio/semops/pkg/adapters/adsb"
+	capcodec "github.com/c360studio/semops/pkg/adapters/cap"
 	sapientcodec "github.com/c360studio/semops/pkg/adapters/sapient"
 )
 
@@ -38,6 +40,22 @@ func TestFixtureHandlerServesADSBAndSAPIENTFixtures(t *testing.T) {
 	}
 	if _, err := adsbcodec.ParseOpenSkySnapshot(mustMarshalJSON(t, raw)); err != nil {
 		t.Fatalf("parse adsb fixture: %v", err)
+	}
+
+	capResp, err := http.Get(server.URL + "/cap/alert")
+	if err != nil {
+		t.Fatalf("get cap fixture: %v", err)
+	}
+	defer capResp.Body.Close()
+	if capResp.StatusCode != http.StatusOK {
+		t.Fatalf("cap fixture status = %d", capResp.StatusCode)
+	}
+	capAlert, err := io.ReadAll(capResp.Body)
+	if err != nil {
+		t.Fatalf("read cap fixture: %v", err)
+	}
+	if _, err := capcodec.Parse(capAlert); err != nil {
+		t.Fatalf("parse cap fixture: %v", err)
 	}
 
 	sapientResp, err := http.Get(server.URL + "/sapient/messages")
