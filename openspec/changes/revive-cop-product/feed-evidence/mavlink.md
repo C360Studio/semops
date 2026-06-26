@@ -159,6 +159,12 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   `mavsdk_server udp://:14540`, defaulted to motion-required telemetry, found no `mavsdk_server`, and found no MAVSDK
   Docker image even though the local PX4/Gazebo headless image was present. This is readiness-gap evidence only; it
   does not close MAVSDK/offboard parity or command/control.
+- 2026-06-26T01:23:17Z: `SEMOPS_MAVLINK_SITL_GATE_MODE=command-live-sim bash scripts/mavlink-sitl-gate.sh`
+  exited with `result=blocked_missing_command_transmitter`. The gate got through explicit PX4 simulator family,
+  simulator-only safety profile, local override, abort readiness, ACK requirement, post-state requirement,
+  reviewed-transmitter attestation, transmit enablement, expected ACK task, and expected post-state track guards, then
+  stopped because no actual reviewed simulator transmitter command was provided. This is readiness-gap evidence only;
+  it does not close live command/control.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -320,7 +326,11 @@ Acceptance:
   enabled, and records simulator image/vehicle/world evidence. [done and passed against pulled image on 2026-06-23]
 - Command-control preflight mode records the intended simulator family, target, action, safety profile, local override
   posture, ACK requirement, and post-command polling requirement, then exits blocked before native transmit because no
-  reviewed live transmitter gate exists. [done as fail-closed evidence only]
+  transmitter belongs in preflight. [done as fail-closed evidence only]
+- `command-live-sim` mode requires a simulator family other than hardware, simulator-only safety posture, abort
+  readiness, explicit transmit enablement, a reviewed transmitter command, an expected MAVLink `COMMAND_ACK` task, and
+  an expected post-command MAVLink track; it then polls the COP snapshot for ACK task evidence and post-command track
+  refresh before it can pass. [done as fail-closed readiness evidence only; open for real transmitter pass]
 - Dedicated `ardupilot-stack` mode stamps the ArduPilot simulator family, defaults to `ArduCopter`, defaults to
   motion-required telemetry, and blocks unless a real ArduPilot source is available locally or explicitly routed in.
   [done as fail-closed readiness evidence only]
@@ -368,8 +378,8 @@ Acceptance:
   evidence; ArduPilot parity, MAVSDK/offboard parity, and live command/control remain separate open gates.
 - The helper now fail-closes focused/stack evidence unless the run declares `SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY`.
   PX4 headless mode stamps `px4` automatically and refuses contradictory family values.
-- The helper now has `command-preflight` mode for safety-posture evidence, but it exits with blocked evidence until a
-  reviewed native transmitter gate exists.
+- The helper now has `command-preflight` mode for safety-posture evidence, but it always exits with blocked evidence
+  because preflight is non-transmitting by design. Use `command-live-sim` for reviewed simulator transmit.
 - Old `RoboticsProcessor`, BaseMessage payload graphing, StreamKit, and ObjectStore paths have been removed from the
   active product path rather than preserved as migration targets.
 - Command codec coverage and COMMAND_ACK readback projection are active, but live command transmit, command

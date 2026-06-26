@@ -216,9 +216,18 @@ Mock or harness:
   MAVSDK-family Docker image, or an explicit remote-source override is present.
 - The same helper now has `command-preflight` mode. It requires explicit simulator family, command target, command
   action, safety profile, local override posture, ACK requirement, and post-command state-polling requirement, then
-  exits with blocked evidence because SemOps has no reviewed native MAVLink transmitter gate yet.
+  exits with blocked evidence because preflight is non-transmitting by design.
+- The helper also has `command-live-sim` mode for a running COP stack plus simulator. It refuses hardware family,
+  requires simulator-only safety posture, a reviewed transmitter command, explicit transmit enablement, ACK task
+  expectations, and a post-command state track. After the transmitter command runs, it polls the COP snapshot with
+  `TestCommandControlSimulatorGateCOPSnapshot` and requires graph-visible MAVLink `COMMAND_ACK` task evidence plus
+  post-command MAVLink track refresh before it can pass.
 - 2026-06-24 command-preflight verification exited with `result=blocked_no_native_command_transmitter` after all
   required safety-posture inputs were present.
+- 2026-06-26T01:23:17Z `command-live-sim` verification exited with `result=blocked_missing_command_transmitter`
+  after simulator, safety, ACK, post-state, reviewed-transmitter, and transmit-enabled attestations were present.
+  This is readiness-gap evidence only; task 5.97 remains open until a real reviewed transmitter command runs and the
+  ACK/post-state COP snapshot smoke passes.
 - 2026-06-26T00:44:17Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
   the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. This is
   readiness-gap evidence only, not ArduPilot simulator interoperability.

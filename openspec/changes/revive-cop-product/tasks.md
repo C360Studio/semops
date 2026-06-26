@@ -210,6 +210,8 @@
       a real ArduPilot source passes the hosted COP stack smoke
 - [x] 5.101 Add an explicit fail-closed MAVSDK/PX4 offboard parity mode while keeping MAVSDK/offboard parity open
       until a real offboard route passes the hosted COP stack smoke
+- [x] 5.102 Add a fail-closed MAVLink `command-live-sim` gate that requires a reviewed simulator transmitter and
+      ACK/post-command COP snapshot polling while keeping task 5.97 open until a real transmitter run passes
 
 ## 6. Structural COP Stack
 

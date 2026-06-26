@@ -44,6 +44,16 @@ COMMAND_ACK_REQUIRED="${SEMOPS_MAVLINK_COMMAND_ACK_REQUIRED:-false}"
 COMMAND_POST_STATE_POLL_REQUIRED="${SEMOPS_MAVLINK_COMMAND_POST_STATE_POLL_REQUIRED:-false}"
 COMMAND_TRANSMITTER="${SEMOPS_MAVLINK_COMMAND_TRANSMITTER:-}"
 COMMAND_TRANSMIT_ENABLED="${SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED:-false}"
+COMMAND_TRANSMITTER_REVIEWED="${SEMOPS_MAVLINK_COMMAND_TRANSMITTER_REVIEWED:-false}"
+COMMAND_SIMULATOR_ONLY_CONFIRMED="${SEMOPS_MAVLINK_COMMAND_SIMULATOR_ONLY_CONFIRMED:-false}"
+COMMAND_ABORT_READY="${SEMOPS_MAVLINK_COMMAND_ABORT_READY:-false}"
+COMMAND_EXPECTED_ACK_TASK_ID="${SEMOPS_MAVLINK_COMMAND_EXPECTED_ACK_TASK_ID:-}"
+COMMAND_EXPECTED_ACK_STATUS="${SEMOPS_MAVLINK_COMMAND_EXPECTED_ACK_STATUS:-accepted}"
+COMMAND_EXPECTED_TASK_TARGET_ID="${SEMOPS_MAVLINK_COMMAND_EXPECTED_TASK_TARGET_ID:-}"
+COMMAND_POST_STATE_TRACK_ID="${SEMOPS_MAVLINK_COMMAND_POST_STATE_TRACK_ID:-}"
+COMMAND_SMOKE_TIMEOUT="${SEMOPS_MAVLINK_COMMAND_SMOKE_TIMEOUT:-$TIMEOUT}"
+COMMAND_POST_STATE_MIN_UPDATES="${SEMOPS_MAVLINK_COMMAND_POST_STATE_MIN_UPDATES:-$MIN_UPDATES}"
+COMMAND_POST_STATE_REQUIRE_MOTION="${SEMOPS_MAVLINK_COMMAND_POST_STATE_REQUIRE_MOTION:-$REQUIRE_MOTION}"
 
 bool_is_true() {
   case "${1:-}" in
@@ -141,6 +151,16 @@ write_evidence() {
     echo "command_post_state_poll_required=$COMMAND_POST_STATE_POLL_REQUIRED"
     echo "command_transmitter=$COMMAND_TRANSMITTER"
     echo "command_transmit_enabled=$COMMAND_TRANSMIT_ENABLED"
+    echo "command_transmitter_reviewed=$COMMAND_TRANSMITTER_REVIEWED"
+    echo "command_simulator_only_confirmed=$COMMAND_SIMULATOR_ONLY_CONFIRMED"
+    echo "command_abort_ready=$COMMAND_ABORT_READY"
+    echo "command_expected_ack_task_id=$COMMAND_EXPECTED_ACK_TASK_ID"
+    echo "command_expected_ack_status=$COMMAND_EXPECTED_ACK_STATUS"
+    echo "command_expected_task_target_id=$COMMAND_EXPECTED_TASK_TARGET_ID"
+    echo "command_post_state_track_id=$COMMAND_POST_STATE_TRACK_ID"
+    echo "command_smoke_timeout=$COMMAND_SMOKE_TIMEOUT"
+    echo "command_post_state_min_updates=$COMMAND_POST_STATE_MIN_UPDATES"
+    echo "command_post_state_require_motion=$COMMAND_POST_STATE_REQUIRE_MOTION"
     echo "px4_path=$(command -v px4 2>/dev/null || true)"
     echo "mavsdk_server_path=$(command -v mavsdk_server 2>/dev/null || true)"
     echo "sim_vehicle_path=$(command -v sim_vehicle.py 2>/dev/null || true)"
@@ -155,7 +175,7 @@ print_preflight() {
   echo "Expected simulator UDP route: $SIMULATOR_ROUTE"
   echo "Expected COP track: $EXPECTED_TRACK_ID"
   echo "Simulator family: ${SIMULATOR_FAMILY:-missing}"
-  if [[ "$MODE" == "command-preflight" ]]; then
+  if [[ "$MODE" == "command-preflight" || "$MODE" == "command-live-sim" ]]; then
     echo "Command target: ${COMMAND_TARGET_ID:-missing}"
     echo "Command action: ${COMMAND_ACTION:-missing}"
     echo "Command safety profile: ${COMMAND_SAFETY_PROFILE:-missing}"
@@ -164,6 +184,13 @@ print_preflight() {
     echo "Command post-state poll required: $COMMAND_POST_STATE_POLL_REQUIRED"
     echo "Command transmitter: ${COMMAND_TRANSMITTER:-missing}"
     echo "Command transmit enabled: $COMMAND_TRANSMIT_ENABLED"
+    echo "Command transmitter reviewed: $COMMAND_TRANSMITTER_REVIEWED"
+    echo "Command simulator only confirmed: $COMMAND_SIMULATOR_ONLY_CONFIRMED"
+    echo "Command abort ready: $COMMAND_ABORT_READY"
+    echo "Command expected ACK task: ${COMMAND_EXPECTED_ACK_TASK_ID:-missing}"
+    echo "Command expected ACK status: $COMMAND_EXPECTED_ACK_STATUS"
+    echo "Command expected task target: ${COMMAND_EXPECTED_TASK_TARGET_ID:-optional}"
+    echo "Command post-state track: ${COMMAND_POST_STATE_TRACK_ID:-missing}"
   fi
   echo
   echo "Local simulator commands:"
@@ -205,7 +232,7 @@ require_simulator_family() {
       ;;
     "")
       cat >&2 <<'EOF'
-SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY is required for focused or stack mode.
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY is required for focused, stack, or command-control mode.
 
 Use one of:
   px4
@@ -341,7 +368,7 @@ cleanup_px4_headless_container() {
 require_simulator_attestation() {
   if [[ -z "$SIMULATOR_NAME" ]]; then
     cat >&2 <<'EOF'
-SEMOPS_MAVLINK_SITL_SIMULATOR_NAME is required for focused or stack mode.
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME is required for focused, stack, or command-control mode.
 
 Name the external simulator source explicitly, for example:
   SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL 1.15"
@@ -380,7 +407,7 @@ require_command_input() {
   fi
 
   cat >&2 <<EOF
-$name is required for command-preflight mode.
+$name is required for command-control mode.
 
 $hint
 EOF
@@ -400,7 +427,7 @@ require_command_bool() {
   local hint="${4:-}"
 
   cat >&2 <<EOF
-$name must be true for command-preflight mode.
+$name must be true for command-control mode.
 
 $hint
 EOF
@@ -408,8 +435,57 @@ EOF
   exit 2
 }
 
+require_command_simulator_family() {
+  if [[ "$SIMULATOR_FAMILY" == "hardware" ]]; then
+    cat >&2 <<'EOF'
+command-live-sim mode refuses simulator_family=hardware.
+
+Run this gate against PX4, ArduPilot, MAVSDK/offboard, or another explicitly named simulator source before any
+hardware-adjacent command authority claim.
+EOF
+    write_evidence "blocked_hardware_command_control" 2
+    exit 2
+  fi
+}
+
+require_command_simulator_safety_profile() {
+  case "$COMMAND_SAFETY_PROFILE" in
+    simulator|simulator_*|*_simulator|*_simulator_*|*simulator*)
+      return
+      ;;
+  esac
+
+  cat >&2 <<'EOF'
+SEMOPS_MAVLINK_COMMAND_SAFETY_PROFILE must be simulator-scoped for command-live-sim mode.
+
+Use a reviewed simulator-only profile name such as simulator_local_operator. Do not use production or hardware command
+profiles in this gate.
+EOF
+  write_evidence "blocked_non_simulator_command_safety_profile" 2
+  exit 2
+}
+
+run_command_control_smoke() {
+  local started_at="$1"
+
+  (
+    cd "$ROOT"
+    SEMOPS_MAVLINK_COMMAND_SMOKE_SNAPSHOT_URL="$SNAPSHOT_URL" \
+    SEMOPS_MAVLINK_COMMAND_EXPECTED_ACK_TASK_ID="$COMMAND_EXPECTED_ACK_TASK_ID" \
+    SEMOPS_MAVLINK_COMMAND_EXPECTED_ACK_STATUS="$COMMAND_EXPECTED_ACK_STATUS" \
+    SEMOPS_MAVLINK_COMMAND_EXPECTED_TASK_TARGET_ID="$COMMAND_EXPECTED_TASK_TARGET_ID" \
+    SEMOPS_MAVLINK_COMMAND_POST_STATE_TRACK_ID="$COMMAND_POST_STATE_TRACK_ID" \
+    SEMOPS_MAVLINK_COMMAND_STARTED_AT="$started_at" \
+    SEMOPS_MAVLINK_COMMAND_SMOKE_TIMEOUT="$COMMAND_SMOKE_TIMEOUT" \
+    SEMOPS_MAVLINK_COMMAND_POST_STATE_MIN_UPDATES="$COMMAND_POST_STATE_MIN_UPDATES" \
+    SEMOPS_MAVLINK_COMMAND_POST_STATE_REQUIRE_MOTION="$COMMAND_POST_STATE_REQUIRE_MOTION" \
+      go test ./internal/smoke/mavlink -run TestCommandControlSimulatorGateCOPSnapshot -count=1 -v
+  )
+}
+
 run_command_preflight() {
   require_simulator_attestation
+  require_command_simulator_family
   require_command_input \
     "SEMOPS_MAVLINK_COMMAND_TARGET_ID" \
     "$COMMAND_TARGET_ID" \
@@ -444,21 +520,111 @@ run_command_preflight() {
     cat >&2 <<'EOF'
 command-preflight mode is non-transmitting by design.
 
-Remove SEMOPS_MAVLINK_COMMAND_TRANSMITTER and keep SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED=false until a reviewed
-native transmitter gate exists.
+Remove SEMOPS_MAVLINK_COMMAND_TRANSMITTER and keep SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED=false for preflight.
+Use command-live-sim for the reviewed simulator-transmit path.
 EOF
     write_evidence "blocked_unreviewed_command_transmitter" 2
     exit 2
   fi
 
   cat >&2 <<'EOF'
-MAVLink command-control remains blocked: SemOps has command intent, arbitration, and COMMAND_ACK readback plumbing,
-but no reviewed native transmitter gate exists yet.
+MAVLink command-preflight remains blocked by design: SemOps has command intent, arbitration, and COMMAND_ACK readback
+plumbing, but preflight does not transmit.
 
-This preflight wrote evidence for the intended safety posture and stopped before native transmit.
+This preflight wrote evidence for the intended safety posture and stopped before native transmit. Use
+command-live-sim for the reviewed simulator-transmit gate.
 EOF
   write_evidence "blocked_no_native_command_transmitter" 2
   exit 2
+}
+
+run_command_live_simulator_gate() {
+  require_simulator_attestation
+  require_command_simulator_family
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_TARGET_ID" \
+    "$COMMAND_TARGET_ID" \
+    "blocked_missing_command_target" \
+    "Name the born-first graph target that the simulator command will affect."
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_ACTION" \
+    "$COMMAND_ACTION" \
+    "blocked_missing_command_action" \
+    "Name the safe simulator action under review, for example hold_position, loiter, or arm_disallowed."
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_SAFETY_PROFILE" \
+    "$COMMAND_SAFETY_PROFILE" \
+    "blocked_missing_command_safety_profile" \
+    "Name the reviewed simulator-only command safety profile."
+  require_command_simulator_safety_profile
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_LOCAL_OVERRIDE_CONFIRMED" \
+    "$COMMAND_LOCAL_OVERRIDE_CONFIRMED" \
+    "blocked_missing_command_local_override" \
+    "Command evidence must say local operator override and abort authority are understood before simulator transmit."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_ACK_REQUIRED" \
+    "$COMMAND_ACK_REQUIRED" \
+    "blocked_missing_command_ack_requirement" \
+    "The gate must correlate COMMAND_ACK or equivalent native readback before claiming command acceptance."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_POST_STATE_POLL_REQUIRED" \
+    "$COMMAND_POST_STATE_POLL_REQUIRED" \
+    "blocked_missing_command_post_state_poll_requirement" \
+    "The gate must poll post-command state before claiming execution or effect."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_SIMULATOR_ONLY_CONFIRMED" \
+    "$COMMAND_SIMULATOR_ONLY_CONFIRMED" \
+    "blocked_missing_command_simulator_only_confirmation" \
+    "This mode is simulator-only and refuses hardware-adjacent command claims."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_ABORT_READY" \
+    "$COMMAND_ABORT_READY" \
+    "blocked_missing_command_abort_ready" \
+    "A local abort or override path must be identified before running a live simulator command."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_TRANSMITTER_REVIEWED" \
+    "$COMMAND_TRANSMITTER_REVIEWED" \
+    "blocked_unreviewed_command_transmitter" \
+    "The transmitter command must be reviewed for simulator-only use before this gate can run it."
+  require_command_bool \
+    "SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED" \
+    "$COMMAND_TRANSMIT_ENABLED" \
+    "blocked_missing_command_transmit_enabled" \
+    "Set this true only for command-live-sim after the simulator and transmitter command are reviewed."
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_TRANSMITTER" \
+    "$COMMAND_TRANSMITTER" \
+    "blocked_missing_command_transmitter" \
+    "Provide the reviewed simulator transmitter command to run after the COP stack and simulator are already live."
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_EXPECTED_ACK_TASK_ID" \
+    "$COMMAND_EXPECTED_ACK_TASK_ID" \
+    "blocked_missing_command_ack_task" \
+    "Name the expected COP task ID created from MAVLink COMMAND_ACK readback."
+  require_command_input \
+    "SEMOPS_MAVLINK_COMMAND_POST_STATE_TRACK_ID" \
+    "$COMMAND_POST_STATE_TRACK_ID" \
+    "blocked_missing_command_post_state_track" \
+    "Name the MAVLink track that must refresh after the command starts."
+
+  local started_at
+  started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "Running reviewed MAVLink simulator transmitter at $started_at"
+  if bash -lc "$COMMAND_TRANSMITTER"; then
+    :
+  else
+    status=$?
+    write_evidence "failed_command_transmitter" "$status"
+    exit "$status"
+  fi
+  if run_command_control_smoke "$started_at"; then
+    write_evidence "passed" 0
+  else
+    status=$?
+    write_evidence "failed_command_control_smoke" "$status"
+    exit "$status"
+  fi
 }
 
 run_guarded_skip_check() {
@@ -654,9 +820,12 @@ case "$MODE" in
   command-preflight)
     run_command_preflight
     ;;
+  command-live-sim)
+    run_command_live_simulator_gate
+    ;;
   *)
     echo "Unsupported SEMOPS_MAVLINK_SITL_GATE_MODE=$MODE" >&2
-    echo "Expected preflight, focused, stack, px4-headless-stack, ardupilot-stack, mavsdk-offboard-stack, or command-preflight." >&2
+    echo "Expected preflight, focused, stack, px4-headless-stack, ardupilot-stack, mavsdk-offboard-stack, command-preflight, or command-live-sim." >&2
     write_evidence "blocked_bad_mode" 2
     exit 2
     ;;

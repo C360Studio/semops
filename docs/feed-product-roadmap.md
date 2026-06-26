@@ -164,10 +164,10 @@ Demo/MVP lane:
 Generated/replay and UDP current-state ingest for heartbeat, position, attitude, battery, bounded raw lane,
 born-first source asset and track graph writes. COMMAND_ACK readback now projects to control task state with a
 born-first target edge, but this is command lifecycle evidence only. SemOps also has a product-owned command-intent
-contract for desired tasking state with authority, priority, expiry, idempotency, and correlation fields before any
-native transmitter is connected. The next simulator-fidelity step is a skipped-by-default external SITL/MAVSDK
-telemetry smoke that observes a real simulator track through the hosted COP snapshot without injecting generated
-frames.
+contract for desired tasking state with authority, priority, expiry, idempotency, and correlation fields. PX4/Gazebo
+telemetry has a hosted COP snapshot smoke with local pass evidence; ArduPilot and MAVSDK/offboard have fail-closed
+family-specific modes. Simulator command-control now has a `command-live-sim` gate that can run a reviewed external
+transmitter and requires graph-visible `COMMAND_ACK` task evidence plus post-command track refresh before passing.
 
 Full product lane:
 PX4/ArduPilot SITL and hardware profiles, MAVSDK smoke, UDP/TCP/serial transports, signed or authenticated links
@@ -180,7 +180,8 @@ can grow without changing graph ownership. Simulator evidence must also name its
 `mavsdk`, `hardware`, or `other`) so one telemetry pass cannot be reused as another simulator or command-control
 claim. Dedicated ArduPilot and MAVSDK/offboard lanes now fail closed until real family-specific sources are present.
 Command-control preflight can record intended target, action, safety profile, local override, ACK, and post-state
-polling posture, but it must remain blocked until a reviewed native transmitter gate exists.
+polling posture. The live simulator gate exists, but command authority remains unclaimed until a reviewed transmitter
+command passes the ACK/post-state snapshot smoke against a named simulator source.
 
 Not claimed yet:
 Full GCS/autopilot management, hardware certification, or complete mission-command product.

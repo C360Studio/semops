@@ -190,10 +190,10 @@ Useful optional knobs:
 - `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack`: starts the preferred PX4/Gazebo headless container and then runs
   the full stack gate.
 
-## Command-Control Preflight
+## Command-Control Gates
 
-SemOps intentionally has no live MAVLink command transmitter in this gate yet. The `command-preflight` mode records the
-minimum safety posture for a future command-control smoke and exits blocked before any native transmit can happen:
+SemOps keeps command-control as a separate simulator evidence path. The non-transmitting `command-preflight` mode
+records the minimum safety posture and exits blocked before any native transmit can happen:
 
 ```bash
 SEMOPS_MAVLINK_SITL_GATE_MODE=command-preflight \
@@ -212,8 +212,41 @@ bash scripts/mavlink-sitl-gate.sh
 The expected result is an evidence file with `result=blocked_no_native_command_transmitter` and exit status `2`.
 Missing simulator family, target, action, safety profile, local override, ACK requirement, or post-state polling
 requirement also blocks before the gate can be cited. If `SEMOPS_MAVLINK_COMMAND_TRANSMITTER` is set or
-`SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED=true`, this mode also blocks because a reviewed native transmitter gate does
-not exist yet.
+`SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED=true`, this mode also blocks because preflight is non-transmitting by design.
+Use `command-live-sim` for the reviewed simulator-transmit path.
+
+The transmitting simulator gate is `command-live-sim`. It assumes the COP stack and simulator are already running,
+runs an explicitly reviewed simulator transmitter command, and then polls `GET /api/cop/snapshot` until both the
+MAVLink `COMMAND_ACK` task and the post-command MAVLink track refresh are visible:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=command-live-sim \
+SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL command smoke" \
+SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=px4 \
+SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true \
+SEMOPS_MAVLINK_COMMAND_TARGET_ID=c360.edge-compose.cop.mavlink.track.system-1 \
+SEMOPS_MAVLINK_COMMAND_ACTION=hold_position \
+SEMOPS_MAVLINK_COMMAND_SAFETY_PROFILE=simulator_local_operator \
+SEMOPS_MAVLINK_COMMAND_LOCAL_OVERRIDE_CONFIRMED=true \
+SEMOPS_MAVLINK_COMMAND_ACK_REQUIRED=true \
+SEMOPS_MAVLINK_COMMAND_POST_STATE_POLL_REQUIRED=true \
+SEMOPS_MAVLINK_COMMAND_SIMULATOR_ONLY_CONFIRMED=true \
+SEMOPS_MAVLINK_COMMAND_ABORT_READY=true \
+SEMOPS_MAVLINK_COMMAND_TRANSMITTER_REVIEWED=true \
+SEMOPS_MAVLINK_COMMAND_TRANSMIT_ENABLED=true \
+SEMOPS_MAVLINK_COMMAND_TRANSMITTER="<reviewed simulator transmitter command>" \
+SEMOPS_MAVLINK_COMMAND_EXPECTED_ACK_TASK_ID=c360.edge-compose.cop.mavlink.task.system-1-command-176-target-1-1 \
+SEMOPS_MAVLINK_COMMAND_POST_STATE_TRACK_ID=c360.edge-compose.cop.mavlink.track.system-1 \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+`command-live-sim` refuses `simulator_family=hardware`, requires a simulator-scoped safety profile, and writes blocked
+evidence unless the transmitter command is explicitly reviewed and transmit is explicitly enabled. The acceptance test
+is `TestCommandControlSimulatorGateCOPSnapshot`; it is skipped unless `SEMOPS_MAVLINK_COMMAND_SMOKE_SNAPSHOT_URL` is
+set by the helper. The test requires the ACK task to be source `mavlink`, kind `mavlink.command_ack`, owned by
+`semops.feed.mavlink`, non-stale relative to the command start timestamp, and in the expected status set
+(`accepted` by default). It also requires the named MAVLink track to refresh after command start and can require motion
+with `SEMOPS_MAVLINK_COMMAND_POST_STATE_REQUIRE_MOTION=true`.
 
 ## Acceptance
 
@@ -231,7 +264,8 @@ The smoke requires:
 ## Claim Boundary
 
 Passing this smoke is simulator telemetry evidence only. Command authority and mission semantics need a separate
-reviewed gate with safe commands, ACK handling, post-command state polling, and simulator-specific readiness checks.
+passing `command-live-sim` run with a reviewed simulator transmitter, ACK handling, post-command state polling, and
+simulator-specific readiness checks.
 
 For a future pass, record the simulator name and version, launch command, system ID, UDP route, SemOps commit,
 simulator family, stack-smoke command, pass/fail result, whether motion was required, and any unresolved simulator

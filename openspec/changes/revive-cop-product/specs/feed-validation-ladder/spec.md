@@ -216,11 +216,29 @@ public conformance suite, or documented interoperability test backs the claim.
   action, and command safety profile
 - **AND** the helper SHALL require explicit local-override, ACK-correlation, and post-command state-polling
   attestations before it writes command-control evidence
-- **AND** the helper SHALL reject any configured native transmitter or transmit-enabled flag until a reviewed live
-  command gate exists
+- **AND** the preflight helper SHALL reject any configured native transmitter or transmit-enabled flag because
+  preflight is non-transmitting
 - **AND** the helper SHALL write blocked evidence rather than passing the gate
 - **AND** the blocked preflight SHALL NOT be cited as live command/control, mission execution, or native command
   authority evidence
+
+#### Scenario: MAVLink live simulator command gate requires ACK and post-state evidence
+
+- **WHEN** SemOps runs a MAVLink live simulator command-control gate
+- **THEN** the helper SHALL require a named simulator source, simulator family, born-first command target, command
+  action, simulator-scoped safety profile, local override posture, abort readiness, ACK requirement, and post-command
+  state-polling requirement
+- **AND** the helper SHALL reject hardware-family command evidence in this simulator gate
+- **AND** the helper SHALL require an explicitly reviewed transmitter command and explicit transmit enablement before
+  running any command
+- **AND** the helper SHALL run the reviewed transmitter only after the COP stack and simulator are already live
+- **AND** the helper SHALL poll the COP snapshot for graph-visible MAVLink `COMMAND_ACK` task evidence owned by the
+  MAVLink feed
+- **AND** the helper SHALL poll the COP snapshot for post-command MAVLink track refresh after the command start time
+- **AND** the helper SHALL write blocked evidence rather than passing if the transmitter command, expected ACK task,
+  or expected post-command track is missing
+- **AND** a blocked simulator command gate SHALL NOT be cited as command authority, mission execution, or hardware
+  safety evidence
 
 #### Scenario: MAVLink simulator readiness is not simulator evidence
 
