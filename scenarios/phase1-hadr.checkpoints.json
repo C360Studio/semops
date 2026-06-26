@@ -1,0 +1,122 @@
+{
+  "version": "semops.scenario-checkpoints.v1",
+  "scenario_id": "phase-1-hadr-flood-evacuation",
+  "checkpoints": [
+    {
+      "id": "hadr-shared-airspace-product-e2e",
+      "label": "HADR shared-airspace product smoke",
+      "claim_scope": "product_e2e",
+      "ingress_mode": "feed-boundary",
+      "boundary": {
+        "kind": "external_feed_boundary",
+        "feeds": ["mavlink", "tak-cot", "cap", "adsb"],
+        "components": [
+          "semops-input-mavlink-udp",
+          "semops-input-cot-udp",
+          "semops-input-cap-http",
+          "semops-input-adsb-http"
+        ],
+        "endpoints": [
+          "udp://semops:14550",
+          "udp://semops:18090",
+          "http://semops-feed-fixtures:8091/cap/alert",
+          "http://semops-feed-fixtures:8091/adsb/states"
+        ]
+      },
+      "expected_cop": {
+        "snapshot_url": "/api/cop/snapshot",
+        "scenario_status_url": "/scenario/status",
+        "scenario_state": "succeeded",
+        "entities": [
+          "c360.edge-compose.cop.mavlink.track.system-42",
+          "c360.edge-compose.cop.tak.task.marker-north-gate",
+          "c360.edge-compose.cop.tak.advisory.chat-alpha-1",
+          "c360.edge-compose.cop.cap.hazard_area.nws-demo-flood-warning"
+        ],
+        "feeds": ["feed.mavlink", "feed.tak", "feed.cap", "feed.adsb"]
+      },
+      "runtime_evidence": {
+        "runtime_url": "/api/cop/runtime",
+        "metrics_url": "/metrics",
+        "component_feeds": ["mavlink", "tak", "cap", "adsb"],
+        "prometheus_metrics": [
+          "semops_component_health_status",
+          "semops_component_flow_messages_per_second",
+          "semops_component_flow_last_activity_timestamp_seconds"
+        ]
+      },
+      "allowed_owners": [
+        "semops.feed.mavlink",
+        "semops.feed.tak",
+        "semops.feed.cap",
+        "semops.feed.adsb"
+      ],
+      "disallowed_evidence": [
+        "direct_graph_mutation",
+        "decoded_nats_payload_injection",
+        "projected_payload_injection"
+      ]
+    },
+    {
+      "id": "sapient-preflight-decoded-stream",
+      "label": "SAPIENT decoded-stream preflight",
+      "claim_scope": "component_preflight",
+      "ingress_mode": "feed-boundary",
+      "boundary": {
+        "kind": "semstreams_input_component",
+        "feeds": ["sapient"],
+        "components": [
+          "semops-input-sapient-http",
+          "semops-processor-sapient-decode"
+        ],
+        "endpoints": ["http://semops-feed-fixtures:8091/sapient/messages"]
+      },
+      "expected_cop": {
+        "snapshot_url": "/api/cop/snapshot",
+        "scenario_status_url": "/scenario/status",
+        "scenario_state": "succeeded",
+        "feeds": ["feed.sapient"]
+      },
+      "runtime_evidence": {
+        "runtime_url": "/api/cop/runtime",
+        "metrics_url": "/metrics",
+        "component_feeds": ["sapient"],
+        "prometheus_metrics": [
+          "semops_component_health_status",
+          "semops_component_flow_messages_per_second"
+        ]
+      },
+      "allowed_owners": [],
+      "disallowed_evidence": [
+        "direct_graph_mutation",
+        "decoded_nats_payload_injection",
+        "projected_payload_injection"
+      ]
+    },
+    {
+      "id": "contract-graph-replay",
+      "label": "Direct graph contract replay",
+      "claim_scope": "contract_replay",
+      "ingress_mode": "direct-graph-contract",
+      "boundary": {
+        "kind": "direct_graph_contract",
+        "feeds": ["mavlink", "tak-cot", "cap", "adsb"]
+      },
+      "expected_cop": {
+        "snapshot_url": "/api/cop/snapshot",
+        "entities": [
+          "c360.edge-compose.cop.mavlink.track.system-42",
+          "c360.edge-compose.cop.tak.task.marker-north-gate"
+        ]
+      },
+      "runtime_evidence": {},
+      "allowed_owners": [
+        "semops.feed.mavlink",
+        "semops.feed.tak",
+        "semops.feed.cap",
+        "semops.feed.adsb"
+      ],
+      "disallowed_evidence": []
+    }
+  ]
+}

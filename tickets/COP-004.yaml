@@ -145,6 +145,8 @@ progress:
   - Recorded the feed-boundary orchestration checkpoint review: future scenario expansion must be claim-scoped by
     feed boundary, expected COP readback, component/runtime evidence, allowed graph owners, and claim type before it
     can support command-control, CS API, simulator, provider, standards, or operator-control evidence.
+  - Added `scenarios/phase1-hadr.checkpoints.json` plus strict `internal/scenario` checkpoint-manifest validation for
+    product e2e, component-preflight, and contract-replay claims before adding scenario controls.
 
 current_evidence:
   - `go test ./internal/contracts`
@@ -187,5 +189,5 @@ remaining:
   - Decide whether Phase 1 needs TCP/serial MAVLink transport variants or whether UDP plus replay is enough.
   - Wire the replay store into scenario-runner playback, retention policy, and durable restart checkpoint/read-back.
   - Capture provider-backed or public CAP samples before claiming live NWS/IPAWS or alert feed service support.
-  - Add manifest-backed scenario checkpoints for expected COP state, component/runtime evidence, allowed owners, and
-    claim scope before adding operator/API controls for scenario start, reset, pause, or resume.
+  - Wire scenario checkpoint evaluation into status and stack smoke before adding operator/API controls for scenario
+    start, reset, pause, or resume.

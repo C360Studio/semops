@@ -145,7 +145,10 @@ product e2e only when input enters through the hosted feed/component graph. It c
 reviewed native transmitter or driver produces correlated command status plus post-command COP readback. It can
 support CS API only when a CS API ingress/egress boundary and desired/actual-state reconciliation are in the path.
 Provider, simulator-fidelity, standards, and operator-control claims likewise need explicit checkpoint evidence
-instead of borrowing credibility from the base HADR smoke.
+instead of borrowing credibility from the base HADR smoke. The first checkpoint manifest is
+`scenarios/phase1-hadr.checkpoints.json`; `go test ./internal/scenario` validates the manifest and rejects direct graph
+product evidence, missing product anti-cheat declarations, command-control checkpoints without ACK/post-command
+readback, and CS API checkpoints without desired/actual-state reconciliation.
 
 ## Indexing Pressure
 

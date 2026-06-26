@@ -80,6 +80,9 @@ structural evidence includes claim-scoped scenario checkpoints, durable checkpoi
 public-alert ingestion evidence, and later operator scenario controls. The next orchestration step is not a COP shell:
 each checkpoint must name the claim it supports, the external feed boundary or SemStreams input component used, the
 expected COP state, the expected component/runtime evidence, and the owner families allowed to write graph state.
+The first strict manifest lives at `scenarios/phase1-hadr.checkpoints.json` and is validated by
+`internal/scenario` tests for supported claim scopes, ingress modes, boundary kinds, anti-cheat disallowed evidence,
+and command-control/CS API feedback-loop requirements.
 Command-control, CS API, simulator-fidelity, provider-integration, standards, and operator-control claims require
 their own checkpoint boundary and feedback loop rather than inheriting the base HADR product smoke. The Compose smoke
 now proves the shared-airspace vignette by requiring one Caddy-routed COP snapshot to contain the HADR scenario's

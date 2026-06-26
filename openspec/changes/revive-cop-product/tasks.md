@@ -325,8 +325,10 @@
       evidence instead of the side port
 - [x] 6.74 Record claim-scoped feed-boundary checkpoint rules before citing command-control, CS API,
       simulator-fidelity, provider-integration, standards, or operator scenario-control evidence
-- [ ] 6.75 Add manifest-backed scenario checkpoints for expected COP state, component/runtime evidence, allowed
+- [x] 6.75 Add manifest-backed scenario checkpoints for expected COP state, component/runtime evidence, allowed
       owners, and claim scope before adding start/reset/pause/resume controls
+- [ ] 6.76 Wire scenario checkpoint evaluation into status and stack smoke before adding start/reset/pause/resume
+      controls
 
 ## 7. COP UI
 
