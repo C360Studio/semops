@@ -86,6 +86,31 @@ export type RuntimeComponent = {
   uptime_seconds: number;
 };
 
+export type ScenarioStatus = {
+  scenario_id: string;
+  state: 'idle' | 'running' | 'succeeded' | 'failed' | string;
+  ingress_mode?: 'feed-boundary' | 'direct-graph-contract' | string;
+  current_step?: string;
+  started_at?: string;
+  updated_at?: string;
+  finished_at?: string;
+  completed_steps: number;
+  failed_steps: number;
+  last_error?: string;
+  summary: ScenarioSummary;
+};
+
+export type ScenarioSummary = {
+  mavlink_frames: number;
+  cot_events: number;
+  cap_alerts: number;
+  adsb_snapshots: number;
+  feed_boundary_deliveries: number;
+  contract_graph_mutation_attempts: number;
+  mutations: number;
+  errors: number;
+};
+
 export type Asset = {
   id: string;
   label: string;

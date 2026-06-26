@@ -134,6 +134,9 @@ progress:
     and feed-boundary deliveries equal to completed steps.
   - Routed `/scenario/status` through Caddy and changed the default stack smoke to consume same-origin scenario status
     instead of the side port while keeping `SEMOPS_SCENARIO_STATUS_URL` overrideable for diagnostics.
+  - Added a read-only COP UI scenario evidence panel that consumes Caddy-routed `/scenario/status` and shows scenario
+    ingress mode, completed/failed steps, feed-boundary deliveries, and graph mutation counts without adding scenario
+    orchestration controls.
 
 current_evidence:
   - `go test ./internal/contracts`
@@ -154,6 +157,7 @@ current_evidence:
   - `bash scripts/cop-stack-smoke.sh`
   - `(cd ui && npm run check)`
   - `(cd ui && npm run test)`
+  - `(cd ui && npm run test:e2e)`
   - `(cd ui && npm run build)`
   - `go build ./cmd/semops`
   - `go build ./cmd/semops-scenario-runner`

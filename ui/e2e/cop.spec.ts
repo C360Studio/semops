@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { fixtureSnapshot } from '../src/lib/cop/fixture';
-import type { AssociationReview, RuntimeSnapshot, Snapshot } from '../src/lib/cop/types';
+import type { AssociationReview, RuntimeSnapshot, ScenarioStatus, Snapshot } from '../src/lib/cop/types';
 
 const adsbTrack = {
   id: 'c360.edge-compose.cop.adsb.track.a1b2c3',
@@ -181,6 +181,27 @@ const runtimeSnapshot: RuntimeSnapshot = {
   components: []
 };
 
+const scenarioStatus: ScenarioStatus = {
+  scenario_id: 'phase-1-hadr-flood-evacuation',
+  state: 'succeeded',
+  ingress_mode: 'feed-boundary',
+  started_at: '2026-06-21T16:20:45Z',
+  updated_at: '2026-06-21T16:21:00Z',
+  finished_at: '2026-06-21T16:21:00Z',
+  completed_steps: 6,
+  failed_steps: 0,
+  summary: {
+    mavlink_frames: 2,
+    cot_events: 4,
+    cap_alerts: 0,
+    adsb_snapshots: 0,
+    feed_boundary_deliveries: 6,
+    contract_graph_mutation_attempts: 0,
+    mutations: 0,
+    errors: 0
+  }
+};
+
 async function routeCOPState(page: Page) {
   let snapshotRequests = 0;
   let associationReview: AssociationReview | undefined;
@@ -227,6 +248,13 @@ async function routeCOPState(page: Page) {
       body: JSON.stringify(runtimeSnapshot)
     });
   });
+  await page.route('/scenario/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(scenarioStatus)
+    });
+  });
   return {
     snapshotRequests: () => snapshotRequests
   };
@@ -255,6 +283,10 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('ADS-B discovery counts')).toContainText('track 1');
   await expect(page.getByLabel('ADS-B runtime flow')).toContainText('4.5 msg/s');
   await expect(page.getByLabel('ADS-B runtime flow')).toContainText('3/3 healthy');
+  await expect(page.getByLabel('Scenario evidence')).toContainText('phase 1 hadr flood evacuation');
+  await expect(page.getByLabel('Scenario evidence')).toContainText('feed-boundary');
+  await expect(page.getByLabel('Scenario evidence')).toContainText('6');
+  await expect(page.getByLabel('Scenario evidence')).toContainText('Graph');
   await expect(page.getByLabel('Command source state')).toBeVisible();
   await expect(page.getByLabel('Command discovery counts')).toContainText('task 1');
   const commandTaskRow = page.getByRole('button', { name: 'Route MAVLink system 42 to North Gate cancel_requested' });
@@ -335,6 +367,7 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await expect(page.getByRole('heading', { name: 'Common Operating Picture' })).toBeVisible();
   await expect(page.getByLabel('Tactical map')).toBeVisible();
   await expect(page.getByLabel('Map entities')).toBeVisible();
+  await expect(page.getByLabel('Scenario evidence')).toBeVisible();
   await expect(page.getByLabel('ADS-B source state')).toBeVisible();
   await expect(page.getByLabel('KLV source state')).toBeVisible();
   await expect(page.getByLabel('Weather source state')).toBeVisible();

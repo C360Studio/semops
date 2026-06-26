@@ -1,5 +1,5 @@
 import { fixtureSnapshot } from './fixture';
-import type { AssociationReview, AssociationReviewDecision, RuntimeSnapshot, Snapshot } from './types';
+import type { AssociationReview, AssociationReviewDecision, RuntimeSnapshot, ScenarioStatus, Snapshot } from './types';
 
 export type SnapshotLoadResult = {
   snapshot: Snapshot;
@@ -9,6 +9,11 @@ export type SnapshotLoadResult = {
 
 export type RuntimeLoadResult = {
   runtime: RuntimeSnapshot | null;
+  error?: string;
+};
+
+export type ScenarioStatusLoadResult = {
+  status: ScenarioStatus | null;
   error?: string;
 };
 
@@ -51,6 +56,24 @@ export async function loadRuntime(fetcher: typeof fetch = fetch): Promise<Runtim
     return {
       runtime: null,
       error: error instanceof Error ? error.message : 'runtime unavailable'
+    };
+  }
+}
+
+export async function loadScenarioStatus(fetcher: typeof fetch = fetch): Promise<ScenarioStatusLoadResult> {
+  try {
+    const response = await fetcher('/scenario/status', {
+      headers: { accept: 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`scenario status request failed: ${response.status}`);
+    }
+    const status = (await response.json()) as ScenarioStatus;
+    return { status };
+  } catch (error) {
+    return {
+      status: null,
+      error: error instanceof Error ? error.message : 'scenario status unavailable'
     };
   }
 }

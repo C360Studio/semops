@@ -43,8 +43,8 @@ SemOps SHALL keep the first COP operator loop covered by focused component/helpe
 #### Scenario: Browser flow remains keyboard and narrow-viewport usable
 
 - **WHEN** Playwright exercises the first COP screen
-- **THEN** it verifies named source cards, map entity controls, alert controls, selected-entity provenance, keyboard
-  activation, alert-to-map target highlighting, and a narrow viewport without horizontal overflow
+- **THEN** it verifies named source cards, scenario evidence, map entity controls, alert controls, selected-entity
+  provenance, keyboard activation, alert-to-map target highlighting, and a narrow viewport without horizontal overflow
 
 ### Requirement: Browser state comes through SemOps API
 
@@ -88,6 +88,17 @@ Phase 1.
 - **AND** the browser consumes that curated view instead of scraping Prometheus, connecting to NATS, or inferring raw
   subject topology
 - **AND** an unavailable runtime view does not replace the snapshot fallback or make the first screen empty
+
+#### Scenario: Scenario status is visible evidence, not orchestration
+
+- **WHEN** the hosted scenario runner exposes Caddy-routed `/scenario/status`
+- **THEN** the browser reads that same-origin status and renders scenario id, state, ingress mode, completed and failed
+  steps, feed-boundary deliveries, and graph mutation count
+- **AND** product evidence is visually distinguishable only when status reports feed-boundary ingress, zero direct graph
+  mutations, zero contract graph mutation attempts, and no failed steps or errors
+- **AND** the UI does not expose scenario start, reset, pause, resume, command-control, or orchestration-shell controls
+  until those controls have separate operator-value and adversarial failure-mode review
+- **AND** an unavailable scenario-status view does not replace the snapshot fallback or make the first screen empty
 
 #### Scenario: Native trace stays behind the API
 

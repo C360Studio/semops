@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadRuntime, loadSnapshot, freshnessLabel, formatRate, reviewAssociation } from './client';
+import { loadRuntime, loadScenarioStatus, loadSnapshot, freshnessLabel, formatRate, reviewAssociation } from './client';
 import { fixtureSnapshot } from './fixture';
 
 describe('loadSnapshot', () => {
@@ -56,6 +56,52 @@ describe('loadRuntime', () => {
     });
 
     expect(result.runtime).toBeNull();
+    expect(result.error).toContain('offline');
+  });
+});
+
+describe('loadScenarioStatus', () => {
+  it('uses same-origin scenario status when available', async () => {
+    let requestedURL = '';
+    const result = await loadScenarioStatus(async (url) => {
+      requestedURL = url.toString();
+      return new Response(
+        JSON.stringify({
+          scenario_id: 'phase-1-hadr-flood-evacuation',
+          state: 'succeeded',
+          ingress_mode: 'feed-boundary',
+          completed_steps: 6,
+          failed_steps: 0,
+          summary: {
+            mavlink_frames: 2,
+            cot_events: 4,
+            cap_alerts: 0,
+            adsb_snapshots: 0,
+            feed_boundary_deliveries: 6,
+            contract_graph_mutation_attempts: 0,
+            mutations: 0,
+            errors: 0
+          }
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    });
+
+    expect(requestedURL).toBe('/scenario/status');
+    expect(result.error).toBeUndefined();
+    expect(result.status?.ingress_mode).toBe('feed-boundary');
+    expect(result.status?.summary.feed_boundary_deliveries).toBe(6);
+  });
+
+  it('does not replace COP state when scenario status is unavailable', async () => {
+    const result = await loadScenarioStatus(async () => {
+      throw new Error('offline');
+    });
+
+    expect(result.status).toBeNull();
     expect(result.error).toContain('offline');
   });
 });

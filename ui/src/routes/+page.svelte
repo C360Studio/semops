@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Activity, AlertTriangle, CheckCircle2, CircleAlert, Database, Link2, RefreshCcw } from '@lucide/svelte';
-  import { loadRuntime, loadSnapshot, freshnessLabel, reviewAssociation } from '$lib/cop/client';
+  import { loadRuntime, loadScenarioStatus, loadSnapshot, freshnessLabel, reviewAssociation } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, resolveMapSelection, type SelectableEntity } from '$lib/cop/selection';
   import SourceCard from '$lib/cop/SourceCard.svelte';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
@@ -16,6 +16,7 @@
     EntityRef,
     Hazard,
     RuntimeSnapshot,
+    ScenarioStatus,
     SensorFootprint,
     Snapshot,
     Task,
@@ -25,6 +26,7 @@
 
   let snapshot = $state<Snapshot | null>(null);
   let runtime = $state<RuntimeSnapshot | null>(null);
+  let scenarioStatus = $state<ScenarioStatus | null>(null);
   let source = $state<'api' | 'fixture'>('fixture');
   let error = $state<string | undefined>();
   let selected = $state<EntityRef>({ kind: 'track', id: 'c360.edge.cop.mavlink.track.system-42' });
@@ -37,11 +39,16 @@
 
   async function refresh() {
     loading = true;
-    const [snapshotResult, runtimeResult] = await Promise.all([loadSnapshot(), loadRuntime()]);
+    const [snapshotResult, runtimeResult, scenarioResult] = await Promise.all([
+      loadSnapshot(),
+      loadRuntime(),
+      loadScenarioStatus()
+    ]);
     snapshot = snapshotResult.snapshot;
     runtime = runtimeResult.runtime;
+    scenarioStatus = scenarioResult.status;
     source = snapshotResult.source;
-    error = [snapshotResult.error, runtimeResult.error].filter(Boolean).join('; ') || undefined;
+    error = [snapshotResult.error, runtimeResult.error, scenarioResult.error].filter(Boolean).join('; ') || undefined;
     selected = reconcileSelection(snapshot, selected);
     loading = false;
   }
@@ -67,6 +74,24 @@
   function formatInstant(isoTime: string | undefined) {
     if (!isoTime) return 'unknown';
     return isoTime.replace('T', ' ').replace('Z', 'Z');
+  }
+
+  function scenarioTone(status: ScenarioStatus) {
+    if (status.state === 'failed' || status.summary.errors > 0 || status.failed_steps > 0) return 'failed';
+    if (
+      status.state === 'succeeded' &&
+      status.ingress_mode === 'feed-boundary' &&
+      status.summary.mutations === 0 &&
+      status.summary.contract_graph_mutation_attempts === 0
+    ) {
+      return 'validated';
+    }
+    if (status.state === 'running' || status.state === 'idle') return 'running';
+    return 'attention';
+  }
+
+  function scenarioIDLabel(id: string) {
+    return id.replace(/-/g, ' ');
   }
 
   function associationStatusLabel(status: string | undefined) {
@@ -204,6 +229,44 @@
       </section>
 
       <section class="right-rail">
+        {#if scenarioStatus}
+          {@const tone = scenarioTone(scenarioStatus)}
+          <section class="scenario-strip" aria-label="Scenario evidence">
+            <div class="scenario-title">
+              {#if tone === 'validated'}
+                <CheckCircle2 size={17} />
+              {:else if tone === 'failed'}
+                <CircleAlert size={17} />
+              {:else}
+                <Activity size={17} />
+              {/if}
+              <h2>Scenario</h2>
+            </div>
+            <strong>{scenarioIDLabel(scenarioStatus.scenario_id)}</strong>
+            <div class="scenario-state" class:validated={tone === 'validated'} class:failed={tone === 'failed'}>
+              <span>{scenarioStatus.state}</span>
+              <span>{scenarioStatus.ingress_mode ?? 'unknown ingress'}</span>
+            </div>
+            <dl class="scenario-metrics">
+              <div>
+                <dt>Steps</dt>
+                <dd>{scenarioStatus.completed_steps}/{scenarioStatus.completed_steps + scenarioStatus.failed_steps}</dd>
+              </div>
+              <div>
+                <dt>Delivered</dt>
+                <dd>{scenarioStatus.summary.feed_boundary_deliveries}</dd>
+              </div>
+              <div>
+                <dt>Graph</dt>
+                <dd>{scenarioStatus.summary.mutations}</dd>
+              </div>
+            </dl>
+            {#if scenarioStatus.last_error}
+              <p class="scenario-error">{scenarioStatus.last_error}</p>
+            {/if}
+          </section>
+        {/if}
+
         <section class="task-strip">
           <h2>Tasks</h2>
           {#each snapshot.tasks as task}

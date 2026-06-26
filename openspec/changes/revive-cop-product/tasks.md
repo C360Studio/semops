@@ -363,6 +363,8 @@
 - [x] 7.28 Add SAPIENT graph-prefix COP API readback for absolute-location detections while deferring dedicated
       SAPIENT UI semantics
 - [x] 7.29 Add read-only command lifecycle task readback in the COP API/UI while deferring command controls
+- [x] 7.30 Surface Caddy-routed scenario evidence in the COP UI with ingress/delivery/graph counts while deferring
+      scenario orchestration controls
 
 ## 8. Tier Escalation And Egress
 
