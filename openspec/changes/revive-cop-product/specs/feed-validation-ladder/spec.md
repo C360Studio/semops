@@ -243,6 +243,9 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** any ArduPilot-specific helper mode SHALL stamp `simulator_family=ardupilot`, default to motion-required
   telemetry, and block unless `sim_vehicle.py`, an ArduPilot-family Docker image, or an explicit remote-source override
   is present
+- **AND** any MAVSDK/offboard-specific helper mode SHALL stamp `simulator_family=mavsdk`, default to motion-required
+  telemetry, and block unless `mavsdk_server`, a MAVSDK-family Docker image, or an explicit remote-source override is
+  present
 - **AND** helper evidence SHALL be written to ignored local paths rather than committed as portable demo evidence
 
 #### Scenario: SAPIENT parser preflight is not conformance

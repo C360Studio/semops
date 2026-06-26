@@ -27,6 +27,7 @@ PX4_HEADLESS_KEEP="${SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR:-false}"
 PX4_HEADLESS_STARTED=false
 
 ARDUPILOT_VEHICLE="${SEMOPS_MAVLINK_SITL_ARDUPILOT_VEHICLE:-ArduCopter}"
+MAVSDK_OFFBOARD_ROUTE="${SEMOPS_MAVLINK_SITL_MAVSDK_OFFBOARD_ROUTE:-udp://:14540}"
 
 DEFAULT_SNAPSHOT_URL="http://127.0.0.1:${SEMOPS_CADDY_HOST_PORT:-8080}/api/cop/snapshot"
 SNAPSHOT_URL="${SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL:-$DEFAULT_SNAPSHOT_URL}"
@@ -126,6 +127,7 @@ write_evidence() {
     echo "px4_headless_boot_wait=$PX4_HEADLESS_BOOT_WAIT"
     echo "px4_headless_pull_allowed=$PX4_HEADLESS_PULL"
     echo "ardupilot_vehicle=$ARDUPILOT_VEHICLE"
+    echo "mavsdk_offboard_route=$MAVSDK_OFFBOARD_ROUTE"
     echo "expected_track_id=$EXPECTED_TRACK_ID"
     echo "snapshot_url=$SNAPSHOT_URL"
     echo "timeout=$TIMEOUT"
@@ -186,6 +188,13 @@ print_preflight() {
     echo "ArduPilot parity lane:"
     echo "  vehicle: $ARDUPILOT_VEHICLE"
     echo "  default command: $(ardupilot_command_string)"
+    echo "  motion required by default: true"
+  fi
+  if [[ "$MODE" == "mavsdk-offboard-stack" ]]; then
+    echo
+    echo "MAVSDK/offboard parity lane:"
+    echo "  route: $MAVSDK_OFFBOARD_ROUTE"
+    echo "  default command: $(mavsdk_offboard_command_string)"
     echo "  motion required by default: true"
   fi
 }
@@ -250,6 +259,10 @@ px4_headless_command_string() {
 
 ardupilot_command_string() {
   printf 'sim_vehicle.py -v %q --out=udp:%q\n' "$ARDUPILOT_VEHICLE" "$SIMULATOR_ROUTE"
+}
+
+mavsdk_offboard_command_string() {
+  printf 'mavsdk_server %q\n' "$MAVSDK_OFFBOARD_ROUTE"
 }
 
 ensure_px4_headless_image() {
@@ -538,6 +551,34 @@ EOF
   fi
 }
 
+run_mavsdk_offboard_stack_smoke() {
+  if [[ -n "$SIMULATOR_FAMILY" && "$SIMULATOR_FAMILY" != "mavsdk" ]]; then
+    cat >&2 <<EOF
+mavsdk-offboard-stack mode requires SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=mavsdk, got $SIMULATOR_FAMILY
+EOF
+    write_evidence "blocked_bad_mavsdk_family" 2
+    exit 2
+  fi
+  SIMULATOR_FAMILY="mavsdk"
+  if [[ -z "$SIMULATOR_NAME" ]]; then
+    SIMULATOR_NAME="MAVSDK/PX4 offboard route"
+  fi
+  if [[ -z "$SIMULATOR_COMMAND" ]]; then
+    SIMULATOR_COMMAND="$(mavsdk_offboard_command_string)"
+  fi
+  if [[ -z "${SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION:-}" ]]; then
+    REQUIRE_MOTION=true
+  fi
+  require_simulator_attestation
+  if run_stack_smoke; then
+    write_evidence "passed" 0
+  else
+    status=$?
+    write_evidence "failed" "$status"
+    exit "$status"
+  fi
+}
+
 case "$MODE" in
   px4-headless-stack)
     if [[ -z "$SIMULATOR_FAMILY" ]]; then
@@ -553,6 +594,20 @@ case "$MODE" in
     fi
     if [[ -z "$SIMULATOR_COMMAND" ]]; then
       SIMULATOR_COMMAND="$(ardupilot_command_string)"
+    fi
+    if [[ -z "${SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION:-}" ]]; then
+      REQUIRE_MOTION=true
+    fi
+    ;;
+  mavsdk-offboard-stack)
+    if [[ -z "$SIMULATOR_FAMILY" ]]; then
+      SIMULATOR_FAMILY="mavsdk"
+    fi
+    if [[ -z "$SIMULATOR_NAME" ]]; then
+      SIMULATOR_NAME="MAVSDK/PX4 offboard route"
+    fi
+    if [[ -z "$SIMULATOR_COMMAND" ]]; then
+      SIMULATOR_COMMAND="$(mavsdk_offboard_command_string)"
     fi
     if [[ -z "${SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION:-}" ]]; then
       REQUIRE_MOTION=true
@@ -593,12 +648,15 @@ case "$MODE" in
   ardupilot-stack)
     run_ardupilot_stack_smoke
     ;;
+  mavsdk-offboard-stack)
+    run_mavsdk_offboard_stack_smoke
+    ;;
   command-preflight)
     run_command_preflight
     ;;
   *)
     echo "Unsupported SEMOPS_MAVLINK_SITL_GATE_MODE=$MODE" >&2
-    echo "Expected preflight, focused, stack, px4-headless-stack, ardupilot-stack, or command-preflight." >&2
+    echo "Expected preflight, focused, stack, px4-headless-stack, ardupilot-stack, mavsdk-offboard-stack, or command-preflight." >&2
     write_evidence "blocked_bad_mode" 2
     exit 2
     ;;

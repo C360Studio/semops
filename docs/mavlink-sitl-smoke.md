@@ -145,16 +145,27 @@ Current local result: on 2026-06-26T00:44:17Z UTC, `ardupilot-stack` blocked wit
 `result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `sim_vehicle.py` and no
 ArduPilot/ArduCopter Docker image. That is readiness-gap evidence only; it does not close ArduPilot parity.
 
-MAVSDK/offboard parity is also separate from raw PX4 telemetry. If a MAVSDK route is the evidence source, stamp it as
-`mavsdk` and keep command/offboard authority closed until a command-control gate exists:
+MAVSDK/offboard parity is also separate from raw PX4 telemetry. Use the dedicated offboard lane so the evidence is
+stamped as `mavsdk`, defaults to motion-required telemetry, and stays separate from the raw PX4/Gazebo telemetry
+helper:
 
 ```bash
-SEMOPS_MAVLINK_SITL_GATE_MODE=stack \
-SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="MAVSDK route <version>" \
-SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=mavsdk \
-SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="<MAVSDK/PX4 offboard launch command>" \
+SEMOPS_MAVLINK_SITL_GATE_MODE=mavsdk-offboard-stack \
 bash scripts/mavlink-sitl-gate.sh
 ```
+
+Useful MAVSDK/offboard knobs:
+
+- `SEMOPS_MAVLINK_SITL_MAVSDK_OFFBOARD_ROUTE`: default `udp://:14540`.
+- `SEMOPS_MAVLINK_SITL_SIMULATOR_NAME`: optional explicit MAVSDK/offboard route label.
+- `SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND`: optional explicit launch command; default is
+  `mavsdk_server udp://:14540`.
+- `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true`: allowed only when a MAVSDK/offboard route is already active and the
+  associated MAVLink telemetry is already routing to SemOps.
+
+Current local result: on 2026-06-26T01:08:56Z UTC, `mavsdk-offboard-stack` blocked with
+`result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `mavsdk_server` and no
+MAVSDK Docker image. That is readiness-gap evidence only; it does not close MAVSDK/offboard parity or command/control.
 
 ## Focused Smoke Against A Running Stack
 

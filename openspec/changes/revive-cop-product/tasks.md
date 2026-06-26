@@ -208,6 +208,8 @@
       transmit blocked
 - [x] 5.100 Add an explicit fail-closed ArduPilot SITL parity mode while keeping ArduPilot telemetry parity open until
       a real ArduPilot source passes the hosted COP stack smoke
+- [x] 5.101 Add an explicit fail-closed MAVSDK/PX4 offboard parity mode while keeping MAVSDK/offboard parity open
+      until a real offboard route passes the hosted COP stack smoke
 
 ## 6. Structural COP Stack
 

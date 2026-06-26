@@ -154,6 +154,11 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   `ArduCopter`, defaulted to motion-required telemetry, found no `sim_vehicle.py`, and found no ArduPilot/ArduCopter
   Docker image even though the local PX4/Gazebo headless image was present. This is readiness-gap evidence only; it
   does not close ArduPilot telemetry parity.
+- 2026-06-26T01:08:56Z: `SEMOPS_MAVLINK_SITL_GATE_MODE=mavsdk-offboard-stack bash scripts/mavlink-sitl-gate.sh`
+  exited with `result=blocked_no_local_simulator`. The gate stamped `simulator_family=mavsdk`, defaulted to
+  `mavsdk_server udp://:14540`, defaulted to motion-required telemetry, found no `mavsdk_server`, and found no MAVSDK
+  Docker image even though the local PX4/Gazebo headless image was present. This is readiness-gap evidence only; it
+  does not close MAVSDK/offboard parity or command/control.
 - Ignored ArduPilot SITL controller/scenario reference files were deleted after command encoding and ACK parsing moved
   into the active adapter and the live controller was rejected as legacy scaffolding.
 
@@ -319,6 +324,9 @@ Acceptance:
 - Dedicated `ardupilot-stack` mode stamps the ArduPilot simulator family, defaults to `ArduCopter`, defaults to
   motion-required telemetry, and blocks unless a real ArduPilot source is available locally or explicitly routed in.
   [done as fail-closed readiness evidence only]
+- Dedicated `mavsdk-offboard-stack` mode stamps the MAVSDK simulator family, defaults to `mavsdk_server udp://:14540`,
+  defaults to motion-required telemetry, and blocks unless a real MAVSDK/offboard source is available locally or
+  explicitly routed in. [done as fail-closed readiness evidence only]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs telemetry parity checks before
   any ArduPilot interoperability claim. Live command smoke remains a separate reviewed gate.
   [open]
