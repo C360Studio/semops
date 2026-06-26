@@ -105,6 +105,34 @@ SemOps SHALL also prefer SemStreams shared utility packages for common runtime c
 - **AND** new flow/config artifacts derive from current SemStreams component metadata, flowgraph topology, registered
   payload types, ports, and config schemas
 
+### Requirement: Product e2e evidence enters through feed boundaries
+
+SemOps SHALL distinguish product e2e evidence from graph-contract evidence.
+
+#### Scenario: Full-stack smokes cannot bypass feed components
+
+- **WHEN** a smoke is used to claim product, operator UI, simulator-fidelity, provider-integration, CS API, or
+  command-control behavior
+- **THEN** test input enters through a supported external feed boundary or through a SemStreams input component that
+  emits registered native/raw payloads
+- **AND** the smoke exercises hosted component lifecycle, flowgraph ports, payload registry decoding, graph request
+  ports, owner tokens, component health, `DataFlow()`, and Prometheus telemetry when those surfaces exist for the
+  feed
+- **AND** the smoke MUST NOT seed target COP state by publishing graph mutations, decoded payloads, or projected
+  payloads directly around the hosted component graph
+- **AND** direct graph smokes remain contract-only evidence for projection, SemStreams compatibility, restart
+  reconciliation, indexing, and ownership behavior
+- **AND** direct graph smokes MUST NOT satisfy product e2e, operator UI, simulator-fidelity, command-control,
+  CS API, provider-integration, or standards-conformance gates
+
+#### Scenario: One live owner incarnation writes each product e2e path
+
+- **WHEN** a product e2e stack starts graph-writing components
+- **THEN** each governed feed owner in the path under test is bound by one live process incarnation
+- **AND** a second live process MUST NOT bind the same feed owner to seed demo state for the same product e2e path
+- **AND** owner-token mismatch warnings, stale owner leases, or observe-only owner mismatch deltas fail product e2e
+  evidence
+
 ### Requirement: Structural demo stack starts with one command
 
 The first COP stack SHALL run locally with a single documented command after dependencies are installed.
@@ -119,21 +147,25 @@ The first COP stack SHALL run locally with a single documented command after dep
 #### Scenario: Hosted scenario runner reports concrete playback state
 
 - **WHEN** the local Compose stack starts `semops-scenario-runner`
-- **THEN** the service replays the first HADR scenario into the live SemStreams graph on startup
+- **THEN** the service reports the first HADR scenario playback state on startup
 - **AND** `/healthz` remains unavailable until playback succeeds
 - **AND** `/scenario/status` reports the scenario id, state, completed steps, failed steps, mutation count, and last
   error
 - **AND** the one-command smoke polls the status endpoint rather than inferring scenario success from logs
 - **AND** the smoke fails fast on explicit scenario failure and treats stale status progress as a wedged run with
   diagnostic output
+- **AND** direct graph projection mode, when retained, is labeled contract/replay infrastructure rather than product
+  e2e
 
 #### Scenario: Hosted scenario playback is product-visible
 
-- **WHEN** `semops-scenario-runner` reports succeeded in the local Compose stack
+- **WHEN** `semops-scenario-runner` reports succeeded in the local Compose stack through hosted feed/component
+  boundaries
 - **THEN** the Caddy-routed COP snapshot contains the scenario MAVLink track
 - **AND** the snapshot contains the scenario TAK/CoT task and advisory
 - **AND** the snapshot contains the scenario CAP hazard with geometry and provenance
 - **AND** this check runs before direct feed-specific live graph smokes so product visibility fails fast
+- **AND** this check is not satisfied by scenario-runner direct graph writes
 
 #### Scenario: HADR shared-airspace playback is product-visible
 
@@ -193,13 +225,15 @@ The first COP stack SHALL run locally with a single documented command after dep
 - **WHEN** the local Compose stack is used as the Phase 1 demo harness
 - **THEN** the smoke sends generated MAVLink over the hosted SemOps UDP listener
 - **AND** it sends CoT seed events over the hosted SemOps UDP listener
-- **AND** it waits for the hosted scenario runner to report a succeeded HADR replay
-- **AND** it waits for the Caddy-routed COP snapshot to expose the scenario runner's MAVLink, TAK/CoT, and CAP state
+- **AND** it waits for the hosted scenario runner to report a succeeded HADR feed-boundary replay
+- **AND** it waits for the Caddy-routed COP snapshot to expose the scenario's MAVLink, TAK/CoT, and CAP state from
+  hosted component paths rather than scenario-runner direct graph writes
 - **AND** it waits for the same-origin Caddy COP snapshot path to expose graph-backed MAVLink track state and
   TAK/CoT task/advisory state
 - **AND** it can opt into a weather fixture check that waits for the Caddy-routed COP snapshot to expose graph-backed
   `weather_observation` evidence and component/runtime flow without enabling a default live weather provider
-- **AND** it runs direct live graph smokes for MAVLink, TAK/CoT, and CAP evidence through SemStreams
+- **AND** it may run direct live graph smokes for MAVLink, TAK/CoT, and CAP contract evidence through SemStreams after
+  product path checks pass
 - **AND** it keeps the Svelte immutable asset cache check in place so Caddy remains a reverse proxy rather than a
   replacement static server
 
@@ -212,7 +246,9 @@ SemOps SHALL include a scenario runner for deterministic HA/DR demo playback.
 - **WHEN** the first HADR scenario fixture is replayed in tests
 - **THEN** the runner sends generated MAVLink frames through the MAVLink adapter harness
 - **AND** it sends deterministic TAK/CoT seed events through the CoT adapter harness
-- **AND** it sends CAP lifecycle XML records through the CAP projector and graph writer
+- **AND** it sends CAP lifecycle XML records through a feed-boundary or component path before CAP scenario output is
+  cited as product e2e evidence
+- **AND** direct CAP projector/graph-writer replay remains projection-contract evidence only
 - **AND** it exposes a pollable run status with completed steps, failures, mutation counts, and last error
 - **AND** missing feed sinks fail the run before it can report a false-green scenario result
 

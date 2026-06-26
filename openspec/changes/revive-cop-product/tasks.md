@@ -218,6 +218,8 @@
       ACK/post-command COP snapshot polling while keeping task 5.97 open until a real transmitter run passes
 - [x] 5.103 Add the MVP MAVLink simulator transmitter helper as a single read-side `AUTOPILOT_VERSION` request command
       while keeping mission, mode, arm/disarm, and offboard command authority out of MVP
+- [x] 5.104 Record product e2e evidence-tier rules so direct graph smokes cannot satisfy product, simulator,
+      command-control, CS API, provider, or standards claims
 
 ## 6. Structural COP Stack
 
@@ -249,7 +251,7 @@
 - [x] 6.26 Add CAP live graph smoke to the one-command COP stack
 - [x] 6.27 Add in-process HADR scenario runner core for MAVLink, TAK/CoT, and CAP lifecycle replay
 - [x] 6.28 Add hosted scenario-runner service with active status polling to the one-command stack smoke
-- [x] 6.29 Assert hosted scenario-runner graph writes are visible through the COP snapshot
+- [x] 6.29 Assert hosted scenario-runner direct replay is visible through the COP snapshot as contract/replay evidence
 - [x] 6.30 Move SemStreams dedicated health to a non-conflicting container port and print NATS/SemStreams diagnostics
       on compose startup failure
 - [x] 6.31 Remove required CoT/CAP seed IDs from the COP snapshot path and rely on prefix discovery for hosted
@@ -311,6 +313,10 @@
       enabled
 - [x] 6.68 Add opt-in one-command SAPIENT graph smoke for fixture-backed detection projection, COP snapshot readback,
       component metrics, and runtime flow evidence
+- [x] 6.69 Record full-stack anti-cheat rules: product e2e enters through feed/component boundaries, direct graph
+      smokes stay contract-only, and duplicate live owner incarnations fail product evidence
+- [ ] 6.70 Refactor scenario-runner full-stack playback into a feed-boundary producer/orchestrator before it supports
+      product e2e, command-control, CS API, simulator-fidelity, provider-integration, or standards claims
 
 ## 7. COP UI
 

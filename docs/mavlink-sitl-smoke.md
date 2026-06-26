@@ -250,6 +250,13 @@ set by the helper. The test requires the ACK task to be source `mavlink`, kind `
 (`accepted` by default). It also requires the named MAVLink track to refresh after command start and can require motion
 with `SEMOPS_MAVLINK_COMMAND_POST_STATE_REQUIRE_MOTION=true`.
 
+Current pause, 2026-06-26: `command-live-sim` must not use scenario-runner direct graph state as its ACK or
+post-command evidence. A passing command gate requires the simulator telemetry and `COMMAND_ACK` task to enter through
+the hosted MAVLink input -> decoder -> projector component chain, with component health/flow and Prometheus evidence
+available through the COP stack. Owner-token mismatch warnings between the hosted SemOps runtime and any scenario
+runner or helper process fail the product command evidence even if the expected task or track eventually appears in
+the graph. Direct graph smokes remain valid for MAVLink projection-contract coverage only.
+
 For MVP, keep the allowlist narrow. The provided `semops-mavlink-command` helper only sends
 `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`; it is a read-side command used to prove command ACK/readback through
 the COP graph, not mission execution or vehicle control. Its dry-run should print:

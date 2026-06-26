@@ -17,10 +17,15 @@ scope:
 acceptance:
   - One command starts the structural demo stack locally.
   - Health checks prove NATS, SemStreams, SemOps API, and the scenario runner are alive.
-  - The scenario runner produces visible graph writes from at least two feed types.
+  - The scenario runner produces visible COP state through hosted feed/component boundaries from at least two feed
+    types before the result is cited as product e2e.
+  - Any direct scenario-runner graph projection mode is labeled contract/replay infrastructure and cannot satisfy
+    product e2e, command-control, CS API, simulator-fidelity, provider, or standards claims.
   - Logs and metrics distinguish raw ingest, projection writes, rules, and COP API state.
   - Feed graph writes declare expected indexing profiles and do not create graph entities per raw packet.
   - Smoke tests prove feed adapters create entities before updates or ADR-056 foreign-edge writes.
+  - Product e2e smokes fail on owner-token mismatch warnings, stale owner leases, or observe-only owner mismatch
+    deltas for the feed owners under test.
   - Hosted feed services declare SemStreams input/processor lifecycle, flowgraph, payload-registry, port,
     config-schema, health, and flow-metric surfaces before they are treated as framework-managed components.
   - A generated/replay MAVLink smoke clears the ADR-055/056 must-exist graph gate before UI or second-feed expansion.
@@ -110,6 +115,10 @@ progress:
   - Reran `bash scripts/cop-stack-smoke.sh` after the SemStreams `v1.0.0-beta.115` ADR-060 graph error migration:
     scenario runner reported `state=succeeded completed=10 failed=0`, hosted snapshot/component metrics smokes passed,
     direct MAVLink/CoT/CAP born-first graph smokes passed, SAPIENT preflight passed, and the stack tore down cleanly.
+  - Recorded the 2026-06-26 product e2e anti-cheat review after command-gate diagnostics showed why direct
+    scenario-runner graph writes and duplicate live owner incarnations cannot support product e2e claims.
+  - Paused further command-control and CS API e2e claims until the scenario runner is refactored into a
+    feed-boundary producer/orchestrator for full-stack evidence.
 
 current_evidence:
   - `go test ./internal/contracts`
@@ -142,3 +151,5 @@ remaining:
     model it as SemStreams input/processor components with `HTTPClientPort` for outbound polling.
   - Add operator/API controls for scenario start, reset, pause/resume, and expected-state checkpoints.
   - Add shared-airspace playback once ADS-B/SAPIENT feed boundaries exist.
+  - Refactor scenario-runner full-stack playback so scenario data enters through hosted SemStreams input components
+    and feed processors instead of direct graph writes before citing it as product e2e.

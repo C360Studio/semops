@@ -16,6 +16,36 @@ Each feed SHALL pass documented validation gates before it is treated as a SemOp
 - **AND** broader EDXL formats beyond CAP require separate product need, fixture, projection, and review gates before
   they enter Phase 1 scope
 
+### Requirement: Feed evidence tiers cannot bypass product ingress
+
+SemOps SHALL keep parser, projection-contract, component-flow, simulator, provider, standards, and product e2e
+evidence separate for every feed.
+
+#### Scenario: Product e2e enters through native or component ingress
+
+- **WHEN** SemOps cites a feed as product-visible or end-to-end in the COP
+- **THEN** input reaches the product through a supported native protocol boundary, fixture provider boundary, file
+  boundary, HTTP polling boundary, or other declared SemStreams input component
+- **AND** downstream parsing, decoding, projection, graph requests, component health, data flow, and Prometheus
+  metrics are exercised when implemented for that feed
+- **AND** a test helper MUST NOT inject graph mutations, decoded payloads, projected payloads, or raw NATS messages
+  around the hosted component graph to satisfy the claim
+
+#### Scenario: Direct graph smokes remain contract-only
+
+- **WHEN** a direct live graph smoke writes feed projection plans through SemStreams
+- **THEN** the evidence may clear born-first, ownership, indexing, restart-reconciliation, classified-error, and graph
+  readback gates
+- **AND** it MUST NOT clear product e2e, simulator-fidelity, live command-control, CS API interop, provider-service,
+  or standards-conformance gates
+
+#### Scenario: Duplicate owner incarnations fail product evidence
+
+- **WHEN** a feed owner writes current COP state during product e2e
+- **THEN** one live component or service incarnation owns that feed path
+- **AND** owner-token mismatch warnings, stale leases, or observe-only owner mismatch deltas fail the product e2e
+  claim even if graph readback eventually contains the expected entity
+
 ### Requirement: Feed fixtures declare promotion tier and provenance
 
 SemOps SHALL track every feed fixture by promotion tier so live evidence, committed demo data, and synthetic story

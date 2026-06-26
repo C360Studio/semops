@@ -57,20 +57,24 @@ and used typed owner tokens minted by SemStreams registry/bind results. The host
 registers COP owners before composing the MAVLink and TAK/CoT component flows. The Docker Compose smoke now starts NATS,
 SemStreams graph backend, SemOps runtime/API, Svelte UI, and Caddy; polls health, metrics, API, UI, and Svelte
 immutable assets; sends generated MAVLink and CoT seed events over hosted UDP listeners; waits for the Caddy-routed
-COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink, CoT, and CAP live graph smokes.
+COP snapshot to show graph-backed track/task/advisory state; then runs direct MAVLink, CoT, and CAP contract-only live
+graph smokes.
 SemStreams health uses its dedicated listener on container port `8081`, mapped to host port `18080`, so it does not
 race the service-manager HTTP port. CAP is deliberately proved as append-only hazard evidence, not authoritative
 hazard state. The COP now derives CAP hazard lifecycle status from evidence for readback. The
 `semops-scenario-runner` service now runs the first HADR
 flood/evacuation fixture against the live SemStreams graph in Compose, exposes `/healthz` plus `/scenario/status`,
 and the stack smoke asserts the Caddy-routed COP snapshot contains the scenario MAVLink track, TAK/CoT task/advisory,
-and CAP hazard. The stack smoke actively polls `/scenario/status`, reports completed/failed step progress, fails fast
-on explicit scenario failure, and treats stale status as a wedged run with Compose diagnostics instead of relying on a
-passive log tail or one-shot health check. The runner can also opt into deterministic ADS-B fixture replay with
+and CAP hazard. This current direct graph replay path is contract/replay infrastructure; it must be promoted to
+feed-boundary playback before it supports new product e2e, command-control, CS API, simulator-fidelity, provider, or
+standards claims. The stack smoke actively polls `/scenario/status`, reports completed/failed step progress, fails
+fast on explicit scenario failure, and treats stale status as a wedged run with Compose diagnostics instead of relying
+on a passive log tail or one-shot health check. The runner can also opt into deterministic ADS-B fixture replay with
 `SEMOPS_SCENARIO_ADSB_FIXTURE=true`, using the hosted ADS-B adapter and `semops.feed.adsb` owner token; the default
-stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence includes operator
-scenario controls, durable checkpoint/read-back reconciliation, and provider-backed CAP fixture evidence before live
-public-alert ingestion is claimed. The Compose smoke now proves the shared-airspace vignette by
+stack remains MAVLink, TAK/CoT, and CAP so live ADS-B is not implied. Remaining structural evidence includes
+feed-boundary scenario playback, operator scenario controls, durable checkpoint/read-back reconciliation, and
+provider-backed CAP fixture evidence before live public-alert ingestion is claimed. The Compose smoke now proves the
+shared-airspace vignette by
 requiring one Caddy-routed COP snapshot to contain the HADR scenario's MAVLink/TAK/CAP state and the local ADS-B HTTP
 component's aircraft track. That keeps ADS-B ownership in the hosted component flow and avoids a second scenario-runner
 owner claim. SemStreams `v1.0.0-beta.114` provides
@@ -98,6 +102,16 @@ Hosted components expose SemStreams `Health()` and `DataFlow()` through two prod
 for the COP UI. The UI facade is read-only source-health evidence. It must not become a topology editor, NATS-subject
 browser, or orchestration shell unless a later adversarial review proves that operator value.
 
+Full-stack evidence boundary: product e2e must enter SemOps through native feed boundaries or declared SemStreams
+input components. Direct graph smokes are still valuable for born-first projection, owner-token, indexing,
+classified-error, and restart-reconciliation contracts, but they are contract-only evidence. They do not prove
+transport ingress, payload registry decode, component lifecycle, flowgraph wiring, backpressure, Prometheus metrics,
+runtime health, operator UI behavior, live command-control, CS API interop, provider integration, or standards
+conformance. A product e2e stack must have one live writer incarnation per governed feed owner; owner-token mismatch
+warnings, stale leases, or observe-only owner mismatch deltas fail product evidence even when graph readback contains
+the expected state. The recorded review is
+`openspec/changes/revive-cop-product/reviews/2026-06-26-product-e2e-anti-cheat-review.md`.
+
 UI gate: the frontend starts as a clean-sheet Svelte 5/SvelteKit COP using MapLibre GL JS for the basemap and deck.gl
 for high-rate tactical overlays. Dynamic ontology-generated UI is not a Phase 1 feature. Ontology and projection
 metadata should hydrate inspectors, provenance, filters, legends, and confidence/freshness badges; SemOps owns the
@@ -123,10 +137,11 @@ SemOps started materially stale; the first revival slices are correcting that:
   TAK/CoT, and CAP lifecycle replay through the same adapter/projector seams used by hosted graph writes. It can also
   opt into ADS-B snapshot replay through the hosted ADS-B adapter. Container packaging is now present through
   `cmd/semops-scenario-runner`; an operator/API control surface remains open. The
-  one-command stack smoke now verifies the runner's graph writes are product-visible through the same-origin COP
-  snapshot and actively polls the scenario status document so failed or wedged demo runs stop with concrete progress
-  evidence. The stack smoke also checks that the same snapshot can carry the HADR scenario state and the local ADS-B
-  HTTP component's aircraft track for the first shared-airspace vignette.
+  one-command stack smoke now verifies the runner's current direct graph replay is visible through the same-origin
+  COP snapshot and actively polls the scenario status document so failed or wedged demo runs stop with concrete
+  progress evidence. That replay is contract/replay evidence until the scenario runner becomes a feed-boundary
+  producer/orchestrator for product e2e claims. The stack smoke also checks that the same snapshot can carry the HADR
+  scenario state and the local ADS-B HTTP component's aircraft track for the first shared-airspace vignette.
 - The old `configs/robotics-flow.json` StreamKit-style flow was deleted because it taught raw subject topology and did
   not describe the current SemStreams component lifecycle, flowgraph, payload-registry, port/config, graph ingest, or
   projection surface.
@@ -249,18 +264,21 @@ The short rule is: ontology hydrates the inspector; SemOps owns the view.
 7. Hosted feed boundaries use SemStreams input/processor component lifecycle, flowgraph, payload-registry, port,
    config-schema, health, and flow-metric patterns rather than a SemOps-local framework. Raw NATS subjects are port
    configuration; every output port should be tappable by another component.
-8. SemOps should prefer SemStreams utility packages before adding local equivalents: `natsclient` for NATS,
+8. Product e2e evidence enters through those hosted feed boundaries. Direct graph writes may prove projection
+   contracts, but they must not seed product smokes, command gates, CS API gates, provider gates, simulator gates, or
+   standards claims.
+9. SemOps should prefer SemStreams utility packages before adding local equivalents: `natsclient` for NATS,
    JetStream, KV, retry, and request/reply behavior; `pkg/errs` for classified framework errors; `pkg/cache` for
    shared cache semantics; and `pkg/buffer` for bounded concurrent queues and raw lanes where its policies fit.
-9. Backpressure is a flow-level contract, not an afterthought inside adapters. Components expose SemStreams
+10. Backpressure is a flow-level contract, not an afterthought inside adapters. Components expose SemStreams
    `Health()` and `DataFlow()` metrics first, then Prometheus counters/histograms/gauges through SemStreams metric
    helpers where hosted. SemOps exposes running component health and flow at `/metrics` using Prometheus samples
    derived from SemStreams `Discoverable` components; any future UI summary should derive from that standard surface,
    not a parallel SemOps telemetry API. Plain NATS subjects are acceptable for first local smokes, but durable or
    high-rate feed edges should promote to JetStream ports, bounded `pkg/buffer`, or `pkg/cache` only when telemetry
    shows lag, drops, redelivery/retry pressure, replay need, or smoothing need.
-10. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
-11. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
+11. SemOps can evaluate tier-placement and escalation behavior, but only after a concrete operator-value case exists.
+12. Adversarial reviews are part of the delivery plan. A stage is not ready because it is plausible; it is ready after
    architect, reviewer, and technical-writer roles have tried to break the assumptions and recorded the result.
 
 ## Born-First Graph Discipline

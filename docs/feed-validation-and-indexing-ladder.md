@@ -59,6 +59,25 @@ absence must be explicit.
 Before a feed enters the structural stack, run an adversarial review against the evidence, indexing profile,
 cardinality risk, stale-data behavior, and claim language.
 
+## Product E2E Evidence Rules
+
+Each feed has multiple valid evidence tiers, and they are not interchangeable:
+
+- Parser and replay tests prove native decoding and deterministic fixture behavior.
+- Direct graph smokes prove projection contracts, born-first ownership, indexing profiles, classified graph errors,
+  restart reconciliation, and SemStreams compatibility.
+- Component-flow tests prove lifecycle, ports, payload registry, health, data flow, and local transport or poller
+  behavior.
+- Product e2e proves the feed reaches the COP through hosted native ingress or a declared SemStreams input component,
+  then passes through hosted processors, graph request ports, SemOps API, Caddy, and UI/API readback.
+
+The anti-cheat rule is strict: product e2e must not seed target COP state by publishing graph mutations, decoded
+payloads, projected payloads, or raw NATS messages around the hosted component graph. A direct graph smoke may clear a
+projection-contract gate, but it does not clear product e2e, simulator-fidelity, live command-control, CS API interop,
+provider-service, or standards-conformance gates. A product e2e stack also needs one live writer incarnation per
+governed feed owner; owner-token mismatch warnings, stale leases, or observe-only owner mismatch deltas fail the
+product claim even when the final graph state looks correct.
+
 ## Fixture Promotion Tiers
 
 Live feeds are evidence sources before they become traveling demo data. Each feed should track fixtures in three
@@ -107,8 +126,9 @@ The first scenario-runner core lives in `internal/scenario`. It replays generate
 events, and CAP lifecycle XML records through the real adapter/projector seams and exposes a pollable run status.
 `cmd/semops-scenario-runner` hosts that core in the local Compose stack and the stack smoke polls
 `/scenario/status`; it also asserts the Caddy-routed COP snapshot contains the scenario's MAVLink track, TAK/CoT task
-and advisory, and CAP hazard. This is replay infrastructure evidence, not a full shared-airspace vignette or operator
-scenario control surface. The runner can also opt into deterministic ADS-B fixture replay with
+and advisory, and CAP hazard. The current direct graph replay path is replay/contract infrastructure evidence, not
+product e2e, full shared-airspace, simulator-fidelity, command-control, CS API, provider, standards, or operator
+scenario-control evidence. The runner can also opt into deterministic ADS-B fixture replay with
 `SEMOPS_SCENARIO_ADSB_FIXTURE=true`; that path exercises the hosted ADS-B adapter and born-first owner token without
 making live ADS-B part of the default MVP stack. The Compose stack also includes `cmd/semops-feed-fixtures`, a local
 HTTP provider simulator for ADS-B and SAPIENT smoke tests. That service is mock infrastructure only; it is not a
