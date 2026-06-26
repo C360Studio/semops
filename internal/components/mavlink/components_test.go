@@ -337,36 +337,6 @@ func TestProjectorReconcilesExistingBirths(t *testing.T) {
 	}
 }
 
-func TestProjectorReconcilesTextEntityExistsFailures(t *testing.T) {
-	now := time.Date(2026, 6, 20, 11, 15, 0, 0, time.UTC)
-	writer := &recordingPlanWriter{
-		failures: []error{
-			errors.New("request create_with_triples: entity_already_exists: entity already exists: c360.edge.cop.mavlink.asset.system-42"),
-			errors.New("request create_with_triples: entity_already_exists: entity already exists: c360.edge.cop.mavlink.track.system-42"),
-		},
-	}
-	projector, err := NewProjectorComponent(ProjectorConfig{
-		Projector: mavprojector.NewProjector(mavprojector.Config{Org: "c360", Platform: "edge"}),
-		Writer:    writer,
-		Clock:     func() time.Time { return now },
-	}, &recordingBus{})
-	if err != nil {
-		t.Fatalf("new projector: %v", err)
-	}
-
-	payload := decodedPayloadFromFrame(t, "decoder:test", "mavlink://raw/test/00000001", now, mustHeartbeatFrame(t))
-	if err := projector.HandleDecodedPayload(context.Background(), payload); err != nil {
-		t.Fatalf("handle decoded with text birth reconciliation: %v", err)
-	}
-	if len(writer.plans) != 3 {
-		t.Fatalf("plans = %d, want create retry sequence", len(writer.plans))
-	}
-	last := writer.plans[len(writer.plans)-1]
-	if len(last.Mutations) != 1 || last.Mutations[0].Kind != mavprojector.MutationUpdate {
-		t.Fatalf("last plan = %+v, want update after reconciling existing births", last)
-	}
-}
-
 func TestProjectorSerializesConcurrentGraphWrites(t *testing.T) {
 	now := time.Date(2026, 6, 20, 11, 30, 0, 0, time.UTC)
 	writer := newBlockingPlanWriter()

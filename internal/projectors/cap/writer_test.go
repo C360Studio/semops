@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/c360studio/semstreams/graph"
+	"github.com/c360studio/semstreams/pkg/errs"
 )
 
 func TestGraphWriterAppliesCAPCreateAndUpdate(t *testing.T) {
 	requester := &recordingRequester{
 		responses: [][]byte{
-			mustMutationResponse(t, true, "", ""),
-			mustMutationResponse(t, true, "", ""),
+			mustMutationResponse(t),
+			mustMutationResponse(t),
 		},
 	}
 	writer := NewGraphWriter(requester, WithWriteTimeout(25*time.Millisecond))
@@ -65,7 +66,7 @@ func TestGraphWriterAppliesCAPCreateAndUpdate(t *testing.T) {
 
 func TestGraphWriterReturnsMutationFailure(t *testing.T) {
 	requester := &recordingRequester{
-		responses: [][]byte{mustMutationResponse(t, false, graph.ErrorCodeEntityExists, "already exists")},
+		errors: []error{classifiedEntityExistsError("hazard-1")},
 	}
 	writer := NewGraphWriter(requester)
 	err := writer.Apply(context.Background(), Plan{Mutations: []Mutation{{
@@ -99,6 +100,7 @@ type recordedRequest struct {
 type recordingRequester struct {
 	calls     []recordedRequest
 	responses [][]byte
+	errors    []error
 }
 
 func (r *recordingRequester) Request(
@@ -112,6 +114,13 @@ func (r *recordingRequester) Request(
 		payload: append([]byte(nil), data...),
 		timeout: timeout,
 	})
+	if len(r.errors) != 0 {
+		err := r.errors[0]
+		r.errors = r.errors[1:]
+		if err != nil {
+			return nil, err
+		}
+	}
 	if len(r.responses) == 0 {
 		return nil, errors.New("no response queued")
 	}
@@ -120,17 +129,22 @@ func (r *recordingRequester) Request(
 	return resp, nil
 }
 
-func mustMutationResponse(t *testing.T, success bool, code string, msg string) []byte {
+func mustMutationResponse(t *testing.T) []byte {
 	t.Helper()
 	data, err := json.Marshal(graph.CreateEntityWithTriplesResponse{
-		MutationResponse: graph.MutationResponse{
-			Success:   success,
-			ErrorCode: code,
-			Error:     msg,
-		},
+		MutationResponse: graph.MutationResponse{},
 	})
 	if err != nil {
 		t.Fatalf("marshal mutation response: %v", err)
 	}
 	return data
+}
+
+func classifiedEntityExistsError(entityID string) error {
+	return errs.ClassifiedCodeDetail(
+		errs.ErrorInvalid,
+		graph.ErrorCodeEntityExists,
+		map[string]any{"entity": entityID},
+		errors.New("already exists"),
+	)
 }

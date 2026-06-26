@@ -11,6 +11,7 @@ import (
 	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
+	"github.com/c360studio/semstreams/pkg/errs"
 )
 
 func TestGraphWriterAppliesProjectionPlanInOrder(t *testing.T) {
@@ -108,9 +109,8 @@ func TestGraphWriterTreatsDegradedSuccessAsCommitted(t *testing.T) {
 	requester := &recordingRequester{
 		createResponse: mustJSON(t, graph.CreateEntityWithTriplesResponse{
 			MutationResponse: graph.MutationResponse{
-				Success:  true,
-				Degraded: true,
-				Error:    "post-write read-back failed",
+				Degraded:       true,
+				DegradedReason: "post-write read-back failed",
 			},
 		}),
 	}
@@ -150,13 +150,11 @@ func TestGraphWriterStopsOnFirstTransportFailure(t *testing.T) {
 
 func TestGraphWriterSurfacesMutationFailureResponse(t *testing.T) {
 	requester := &recordingRequester{
-		updateResponse: mustJSON(t, graph.UpdateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{
-				Success:   false,
-				ErrorCode: graph.ErrorCodeOwnerLeaseStale,
-				Error:     "owner lease stale",
-			},
-		}),
+		updateErr: classifiedMutationError(
+			graph.ErrorCodeOwnerLeaseStale,
+			"c360.edge.cop.mavlink.track.system-42",
+			"owner lease stale",
+		),
 	}
 	writer := NewGraphWriter(requester)
 
@@ -185,39 +183,11 @@ func TestGraphWriterSurfacesMutationFailureResponse(t *testing.T) {
 
 func TestGraphWriterReportsCreateConflictAsTypedMutationFailure(t *testing.T) {
 	requester := &recordingRequester{
-		createResponse: mustJSON(t, graph.CreateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{
-				Success:   false,
-				ErrorCode: graph.ErrorCodeEntityExists,
-				Error:     "entity already exists",
-			},
-		}),
-	}
-	writer := NewGraphWriter(requester)
-
-	err := writer.Apply(context.Background(), Plan{Mutations: []Mutation{{
-		Kind: MutationCreate,
-		Create: graph.CreateEntityWithTriplesRequest{
-			Entity: &graph.EntityState{ID: "c360.edge.cop.mavlink.asset.system-42"},
-		},
-	}}})
-	if err == nil {
-		t.Fatal("expected create conflict")
-	}
-	var mutationErr *MutationFailureError
-	if !errors.As(err, &mutationErr) {
-		t.Fatalf("error = %T, want MutationFailureError", err)
-	}
-	if mutationErr.Kind != MutationCreate ||
-		mutationErr.EntityID != "c360.edge.cop.mavlink.asset.system-42" ||
-		mutationErr.ErrorCode != graph.ErrorCodeEntityExists {
-		t.Fatalf("mutation error = %+v", mutationErr)
-	}
-}
-
-func TestGraphWriterClassifiesLegacyCreateConflictBody(t *testing.T) {
-	requester := &recordingRequester{
-		createResponse: []byte("error: entity already exists: c360.edge.cop.mavlink.asset.system-42"),
+		createErr: classifiedMutationError(
+			graph.ErrorCodeEntityExists,
+			"c360.edge.cop.mavlink.asset.system-42",
+			"entity already exists",
+		),
 	}
 	writer := NewGraphWriter(requester)
 
@@ -287,6 +257,8 @@ type recordingRequester struct {
 	failOnCall     int
 	createResponse []byte
 	updateResponse []byte
+	createErr      error
+	updateErr      error
 }
 
 func (r *recordingRequester) Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error) {
@@ -300,18 +272,24 @@ func (r *recordingRequester) Request(ctx context.Context, subject string, data [
 	}
 	switch subject {
 	case SubjectEntityCreateWithTriples:
+		if r.createErr != nil {
+			return nil, r.createErr
+		}
 		if len(r.createResponse) != 0 {
 			return r.createResponse, nil
 		}
 		return mustJSONBytes(graph.CreateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{Success: true},
+			MutationResponse: graph.MutationResponse{},
 		}), nil
 	case SubjectEntityUpdateWithTriples:
+		if r.updateErr != nil {
+			return nil, r.updateErr
+		}
 		if len(r.updateResponse) != 0 {
 			return r.updateResponse, nil
 		}
 		return mustJSONBytes(graph.UpdateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{Success: true},
+			MutationResponse: graph.MutationResponse{},
 		}), nil
 	default:
 		return nil, errors.New("unexpected subject")
@@ -340,4 +318,13 @@ func mustJSONBytes(value any) []byte {
 		panic(err)
 	}
 	return data
+}
+
+func classifiedMutationError(code string, entityID string, message string) error {
+	return errs.ClassifiedCodeDetail(
+		errs.ErrorInvalid,
+		code,
+		map[string]any{"entity": entityID},
+		errors.New(message),
+	)
 }

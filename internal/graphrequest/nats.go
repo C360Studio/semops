@@ -9,7 +9,7 @@ import (
 )
 
 type RetryRequester interface {
-	RequestWithRetry(
+	RequestWithRetryClassified(
 		ctx context.Context,
 		subject string,
 		data []byte,
@@ -51,5 +51,5 @@ func (r *NATSRequester) Request(
 	if r == nil || r.client == nil {
 		return nil, fmt.Errorf("semstreams NATS requester has no client")
 	}
-	return r.client.RequestWithRetry(ctx, subject, data, timeout, r.retry)
+	return r.client.RequestWithRetryClassified(ctx, subject, data, timeout, r.retry)
 }

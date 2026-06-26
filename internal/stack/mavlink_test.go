@@ -227,6 +227,16 @@ func (r *recordingRetryRequester) RequestWithRetry(
 	}
 }
 
+func (r *recordingRetryRequester) RequestWithRetryClassified(
+	ctx context.Context,
+	subject string,
+	data []byte,
+	timeout time.Duration,
+	retry natsclient.RetryConfig,
+) ([]byte, error) {
+	return r.RequestWithRetry(ctx, subject, data, timeout, retry)
+}
+
 type recordingPlanWriter struct {
 	plans []mavprojector.Plan
 }
@@ -238,13 +248,13 @@ func (w *recordingPlanWriter) Apply(_ context.Context, plan mavprojector.Plan) e
 
 func successCreateResponse() graph.CreateEntityWithTriplesResponse {
 	return graph.CreateEntityWithTriplesResponse{
-		MutationResponse: graph.MutationResponse{Success: true},
+		MutationResponse: graph.MutationResponse{},
 	}
 }
 
 func successUpdateResponse() graph.UpdateEntityWithTriplesResponse {
 	return graph.UpdateEntityWithTriplesResponse{
-		MutationResponse: graph.MutationResponse{Success: true},
+		MutationResponse: graph.MutationResponse{},
 	}
 }
 

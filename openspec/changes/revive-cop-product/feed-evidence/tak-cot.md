@@ -116,7 +116,7 @@ go test ./internal/components/cot ./internal/projectors/cot ./internal/adapters/
 Acceptance:
 
 - CoT graph writer applies creates and updates through SemStreams graph mutation request subjects in plan order.
-- CoT adapter writes projection plans only after raw capture/replay and reconciles `entity_already_exists` birth
+- CoT adapter writes projection plans only after raw capture/replay and reconciles typed `entity_already_exists` birth
   conflicts without re-emitting strict source edges on updates.
 - `internal/stack` can compose a NATS-backed CoT adapter or injected test writer.
 - `internal/components/cot` exposes UDP/TCP input components, decoder and projector processors, registered raw/decoded

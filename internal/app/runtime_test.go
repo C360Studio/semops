@@ -3055,15 +3055,25 @@ func (c *fakeSemStreamsClient) RequestWithRetry(
 	switch subject {
 	case mavprojector.SubjectEntityCreateWithTriples:
 		return mustRuntimeJSON(graph.CreateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{Success: true},
+			MutationResponse: graph.MutationResponse{},
 		}), nil
 	case mavprojector.SubjectEntityUpdateWithTriples:
 		return mustRuntimeJSON(graph.UpdateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{Success: true},
+			MutationResponse: graph.MutationResponse{},
 		}), nil
 	default:
 		return nil, errors.New("unexpected request subject: " + subject)
 	}
+}
+
+func (c *fakeSemStreamsClient) RequestWithRetryClassified(
+	ctx context.Context,
+	subject string,
+	data []byte,
+	timeout time.Duration,
+	retry natsclient.RetryConfig,
+) ([]byte, error) {
+	return c.RequestWithRetry(ctx, subject, data, timeout, retry)
 }
 
 func (c *fakeSemStreamsClient) Request(

@@ -63,6 +63,14 @@ SemOps SHALL also prefer SemStreams shared utility packages for common runtime c
 - **AND** parser or decoder processors emit decoded feed messages that other components can tap
 - **AND** projection processors write governed graph mutations only through declared SemStreams NATS request ports
 
+#### Scenario: Graph mutation failures use the SemStreams ADR-060 error contract
+
+- **WHEN** SemOps writes governed graph mutations through SemStreams request/reply ports
+- **THEN** requesters use classified request helpers that preserve stable SemStreams graph error codes
+- **AND** feed writers reconcile `entity_already_exists`, `owner_lease_stale`, and future graph mutation failures from
+  typed classified Go errors
+- **AND** SemOps does not parse legacy text response bodies or `MutationResponse` failure fields for conflict handling
+
 #### Scenario: Flowgraph defines feed topology
 
 - **WHEN** SemOps composes hosted feed behavior

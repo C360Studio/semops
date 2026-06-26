@@ -73,7 +73,7 @@ scenario controls, durable checkpoint/read-back reconciliation, and provider-bac
 public-alert ingestion is claimed. The Compose smoke now proves the shared-airspace vignette by
 requiring one Caddy-routed COP snapshot to contain the HADR scenario's MAVLink/TAK/CAP state and the local ADS-B HTTP
 component's aircraft track. That keeps ADS-B ownership in the hosted component flow and avoids a second scenario-runner
-owner claim. SemStreams `v1.0.0-beta.114` now provides
+owner claim. SemStreams `v1.0.0-beta.114` provides
 `component.HTTPClientPort` for the outbound HTTP/polling dependency shape that CAP/NWS, OpenSky ADS-B, and possible
 SAPIENT/Apex integrations expose. ADS-B now has an OpenSky-compatible HTTP input -> decoder -> graph-projector
 component package proved against local provider fixtures, and the hosted app can wire that chain behind
@@ -164,8 +164,9 @@ SemOps has salvageable MAVLink depth:
   replay before scenario-runner wiring.
 - An in-process MAVLink adapter harness now composes parse, raw capture, projection, graph plan writing, and pollable
   health counters before the future container service boundary.
-- A SemStreams NATS requester adapter now routes graph mutation writers through `RequestWithRetry`, preserving the
-  framework's mutation retry rule for transient responder startup races.
+- A SemStreams NATS requester adapter now routes graph mutation writers through `RequestWithRetryClassified`,
+  preserving the framework's mutation retry rule for transient responder startup races and ADR-060 classified error
+  returns.
 - A structural wiring factory now composes the MAVLink parser, raw lane, projector, retry-aware graph requester, graph
   writer, and adapter harness from config so service hosting can stay thin.
 - The next hosted-feed hardening step is to prove ADS-B's opt-in OpenSky-compatible runtime flow in the full Compose
@@ -290,12 +291,16 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - SemOps now exposes product-runtime component health and flow metrics at `/metrics` via Caddy. The one-command smoke
   asserts `semops_component_*` Prometheus samples for the hosted MAVLink, TAK/CoT, ADS-B, and SAPIENT component flow
   when those feeds are enabled, and includes the SAPIENT projector only when graph smoke is explicitly enabled.
-- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.114`, retaining
-  the beta.113 prefix-discovery contract and adding the beta.114 `HTTPClientPort` component boundary.
+- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.115`, retaining
+  the beta.113 prefix-discovery contract, the beta.114 `HTTPClientPort` component boundary, and the beta.115 ADR-060
+  graph-mutation error contract.
 - The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,
   `go test ./...`, `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
 - The 2026-06-20 beta.114 adoption added a SemOps contract test for `component.HTTPClientPort`, confirming outbound
   HTTP client inputs classify as `flowgraph.PatternHTTPClient` and are not treated as internal orphaned inputs.
+- The 2026-06-26 beta.115 adoption moved graph writers to ADR-060 typed Go error returns. SemOps graph requesters use
+  `RequestWithRetryClassified`, feed graph writers convert `*errs.ClassifiedError` into local typed
+  `MutationFailureError` values, and restart reconciliation no longer parses legacy text or failure response bodies.
 - The one-command smoke now prints NATS/SemStreams diagnostics on compose startup failure. This caught a local Docker
   Desktop storage condition where NATS JetStream reported `Max Storage: 0 B`; after pruning unused Docker build cache
   and moving SemStreams dedicated health off the service-manager port, the stack smoke passed again.
@@ -486,6 +491,9 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
   non-standard telemetry API.
 - External HTTP client/polling port metadata is now a shipped SemStreams contract:
   `component.HTTPClientPort` in `v1.0.0-beta.114`.
+- Unified graph mutation error signaling is now a shipped SemStreams contract in `v1.0.0-beta.115`: mutation failures
+  return classified Go errors with stable graph error codes and optional detail, while `MutationResponse` is success
+  only.
 - Edge/core sync guidance for structural edge nodes and inference-heavy core nodes.
 - Governance helpers for tolerant-reader adapters that append evidence without replacing owned predicates.
 

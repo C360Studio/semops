@@ -8,6 +8,7 @@ build
 .svelte-kit
 node_modules
 coverage
+.cache
 
 ui/build
 ui/.svelte-kit

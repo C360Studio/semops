@@ -52,10 +52,14 @@ progress:
     declarations from enforceable write-fence ownership claims.
   - Migrated SemOps runtime/projector wiring to typed `ownership.OwnerToken` values from SemStreams bind results;
     `OwnerToken.Wire()` is now called only at graph mutation request construction.
-  - Added MAVLink restart create-conflict reconciliation: strict `entity_already_exists` responses for known
-    asset/track births mark that entity born, reproject the current packet, and continue as update-only state.
+  - Added MAVLink restart create-conflict reconciliation: typed `entity_already_exists` errors for known asset/track
+    births mark that entity born, reproject the current packet, and continue as update-only state.
   - Added and ran `bash scripts/cop-stack-smoke.sh`, proving the one-command graph scaffold passes the metrics-enabled
     MAVLink live graph smoke against Docker-hosted NATS, SemStreams graph backend, and SemOps runtime.
+  - Reran `bash scripts/cop-stack-smoke.sh` on SemStreams `v1.0.0-beta.115` after migrating SemOps graph writers to
+    ADR-060 classified Go errors. The stack reached healthy NATS/SemStreams/SemOps/UI/Caddy services, scenario runner
+    completed 10 steps with 0 failures, hosted COP snapshot/component metrics checks passed, direct MAVLink/CoT/CAP
+    born-first graph smokes passed, SAPIENT preflight passed, and teardown removed containers/network/volume cleanly.
   - Reran `go test ./... -count=1`, `go build -o /private/tmp/semops-build ./cmd/semops`, and
     `bash scripts/cop-stack-smoke.sh` after the typed-token and restart-reconciliation changes.
   - Added graph-backed COP snapshots for configured MAVLink source asset/track IDs and a hosted UDP-to-Caddy-snapshot
@@ -78,6 +82,8 @@ progress:
     the passing `bash scripts/cop-stack-smoke.sh` evidence.
   - Adopted SemStreams `v1.0.0-beta.114`, adding a SemOps contract test for `component.HTTPClientPort` so future
     CAP/NWS, OpenSky ADS-B, and SAPIENT/Apex pollers use the framework port shape instead of local HTTP metadata.
+  - Adopted SemStreams `v1.0.0-beta.115`, moving graph requesters to `RequestWithRetryClassified` and graph writers
+    to ADR-060 typed error reconciliation with no legacy text-body conflict path.
   - Merged PR #12 with the first mixed-feed scenario runner core so future evidence can replay MAVLink, TAK/CoT, and
     CAP lifecycle fixtures through the same born-first adapter/projector seams.
   - Posted the closeout note on SemOps issue #1 and closed it as completed on 2026-06-19.

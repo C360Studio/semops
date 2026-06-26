@@ -51,13 +51,13 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   `graph.mutation.entity.update_with_triples` request/reply subjects.
 - `internal/projectors/mavlink/writer_test.go` proves write ordering, owner-token transit,
   committed-but-degraded response handling, cancellation, failure stops, and unsupported mutation rejection.
-- `internal/graphrequest` adapts SemStreams `natsclient.Client.RequestWithRetry` into the graph writer requester
-  interface so mutation writers do not use bare query-style request calls.
+- `internal/graphrequest` adapts SemStreams `natsclient.Client.RequestWithRetryClassified` into the graph writer
+  requester interface so mutation writers preserve retry behavior and ADR-060 classified graph mutation errors.
 - `internal/adapters/mavlink` composes parser, raw lane, projector, graph plan writer, and pollable health counters
   for the future adapter service boundary.
 - `internal/adapters/mavlink/adapter_test.go` proves valid telemetry writes graph plans, command ACK frames are
   captured and written as control-task readback state, corrupt frames stop before graph writes, writer failures are
-  reflected in health, and strict `entity_already_exists` birth conflicts after restart are reconciled into update-only
+  reflected in health, and typed `entity_already_exists` birth conflicts after restart are reconciled into update-only
   writes.
 - `internal/adapters/mavlink/udp_listener.go` hosts an opt-in UDP datagram loop that feeds real datagrams into the
   adapter without letting corrupt frames terminate the listener.
@@ -218,7 +218,9 @@ Acceptance:
 - Vehicle current state uses `indexing_profile=signal`.
 - The graph writer targets the current SemStreams create/update-with-triples request subjects.
 - A committed-but-degraded mutation response is treated as committed and not retried.
-- NATS-backed graph mutation requests use SemStreams retry-aware mutation request handling.
+- NATS-backed graph mutation requests use SemStreams retry-aware classified mutation request handling.
+- Graph mutation conflicts are reconciled only from ADR-060 typed classified errors, not text response bodies or
+  retired `MutationResponse` failure fields.
 - The in-process adapter harness exposes pollable health counters for raw ingest, projection, graph writes, and errors.
 - Structural wiring can compose the NATS-backed writer path without launching the full stack.
 - Commands, mission state, and battery alerts use `indexing_profile=control`.
@@ -375,7 +377,7 @@ Acceptance:
   launch it with SemStreams. Scenario playback is not wired into the stack yet.
 - The optional metrics smoke performs before/after counter deltas for SemOps message types; the hosted stack still
   needs to expand beyond the graph scaffold.
-- Restart reconciliation now handles strict `entity_already_exists` create conflicts for known MAVLink asset/track
+- Restart reconciliation now handles typed `entity_already_exists` create conflicts for known MAVLink asset/track
   births by marking the conflicted entity born and reprojecting the current packet. Durable checkpoint/read-back
   recovery and scenario-runner replay integration remain open.
 - No live SITL controller remains; a modern harness must be rebuilt with explicit readiness and state polling before

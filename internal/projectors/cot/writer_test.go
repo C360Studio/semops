@@ -11,6 +11,7 @@ import (
 	cotcodec "github.com/c360studio/semops/pkg/adapters/cot"
 	"github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
+	"github.com/c360studio/semstreams/pkg/errs"
 )
 
 func TestGraphWriterAppliesProjectionPlanInOrder(t *testing.T) {
@@ -88,13 +89,11 @@ func TestGraphWriterStopsOnFirstTransportFailure(t *testing.T) {
 
 func TestGraphWriterReportsCreateConflictAsTypedMutationFailure(t *testing.T) {
 	requester := &recordingRequester{
-		createResponse: mustJSON(t, graph.CreateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{
-				Success:   false,
-				ErrorCode: graph.ErrorCodeEntityExists,
-				Error:     "entity already exists",
-			},
-		}),
+		createErr: classifiedMutationError(
+			graph.ErrorCodeEntityExists,
+			"c360.edge.cop.tak.asset.android-alpha",
+			"entity already exists",
+		),
 	}
 	writer := NewGraphWriter(requester)
 
@@ -149,6 +148,8 @@ type recordingRequester struct {
 	failOnCall     int
 	createResponse []byte
 	updateResponse []byte
+	createErr      error
+	updateErr      error
 }
 
 func (r *recordingRequester) Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error) {
@@ -162,18 +163,24 @@ func (r *recordingRequester) Request(ctx context.Context, subject string, data [
 	}
 	switch subject {
 	case SubjectEntityCreateWithTriples:
+		if r.createErr != nil {
+			return nil, r.createErr
+		}
 		if len(r.createResponse) != 0 {
 			return r.createResponse, nil
 		}
 		return mustJSONBytes(graph.CreateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{Success: true},
+			MutationResponse: graph.MutationResponse{},
 		}), nil
 	case SubjectEntityUpdateWithTriples:
+		if r.updateErr != nil {
+			return nil, r.updateErr
+		}
 		if len(r.updateResponse) != 0 {
 			return r.updateResponse, nil
 		}
 		return mustJSONBytes(graph.UpdateEntityWithTriplesResponse{
-			MutationResponse: graph.MutationResponse{Success: true},
+			MutationResponse: graph.MutationResponse{},
 		}), nil
 	default:
 		return nil, errors.New("unexpected subject")
@@ -202,4 +209,13 @@ func mustJSONBytes(value any) []byte {
 		panic(err)
 	}
 	return data
+}
+
+func classifiedMutationError(code string, entityID string, message string) error {
+	return errs.ClassifiedCodeDetail(
+		errs.ErrorInvalid,
+		code,
+		map[string]any{"entity": entityID},
+		errors.New(message),
+	)
 }

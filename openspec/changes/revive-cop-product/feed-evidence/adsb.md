@@ -36,7 +36,7 @@ cover readsb/dump1090, receiver TCP/UDP, ASTERIX, or provider reliability. See
 - `internal/projectors/adsb` projects aircraft current state into source-partitioned ADS-B track entities with
   `indexing_profile=signal`, provenance, confidence, source references, and no cross-source association edge.
 - `internal/projectors/adsb` has a graph writer boundary for SemStreams create/update mutation request/reply
-  contracts.
+  contracts and ADR-060 classified graph mutation errors.
 - `internal/scenario` can replay ADS-B snapshot records through parse, projection, graph-plan writing, and born-state
   marking through the hosted adapter seam when a scenario opts into ADS-B.
 - `internal/adapters/adsb` hosts an OpenSky-shaped snapshot ingest seam with bounded raw capture, JSONL replay
@@ -148,7 +148,7 @@ Acceptance:
   [done]
 - The adapter projects snapshots through the ADS-B projector/writer seam and records graph mutation health. [done]
 - Malformed snapshots are captured and replayed before parse failure, without graph writes. [done]
-- `entity_already_exists` birth conflicts reconcile into update-only projection for already-born tracks. [done]
+- Typed `entity_already_exists` birth conflicts reconcile into update-only projection for already-born tracks. [done]
 - Stack wiring can use SemStreams NATS request/reply with retry configuration or an injected writer. [done]
 
 ### Structural Scenario Gate

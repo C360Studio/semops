@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/c360studio/semops/internal/projectors/graphwrite"
 	"github.com/c360studio/semstreams/graph"
 )
 
@@ -118,39 +118,13 @@ func (w *GraphWriter) createWithTriples(ctx context.Context, req graph.CreateEnt
 	}
 	respData, err := w.requester.Request(ctx, w.createSubject, data, w.timeout)
 	if err != nil {
-		return fmt.Errorf("request create_with_triples: %w", err)
+		return mutationRequestError("create_with_triples", MutationCreate, requestEntityID(req.Entity), err)
 	}
 	var resp graph.CreateEntityWithTriplesResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
-		if mutationErr, ok := legacyCreateMutationFailure(req, respData); ok {
-			return mutationErr
-		}
 		return fmt.Errorf("decode create_with_triples response: %w", err)
 	}
-	return mutationResponseError(
-		"create_with_triples",
-		MutationCreate,
-		requestEntityID(req.Entity),
-		resp.MutationResponse,
-	)
-}
-
-func legacyCreateMutationFailure(req graph.CreateEntityWithTriplesRequest, data []byte) (*MutationFailureError, bool) {
-	body := strings.TrimSpace(string(data))
-	if !strings.HasPrefix(body, "error:") {
-		return nil, false
-	}
-	message := strings.TrimSpace(strings.TrimPrefix(body, "error:"))
-	if !strings.Contains(strings.ToLower(message), "entity already exists") {
-		return nil, false
-	}
-	return &MutationFailureError{
-		Operation: "create_with_triples",
-		Kind:      MutationCreate,
-		EntityID:  requestEntityID(req.Entity),
-		ErrorCode: graph.ErrorCodeEntityExists,
-		Message:   message,
-	}, true
+	return nil
 }
 
 func (w *GraphWriter) updateWithTriples(ctx context.Context, req graph.UpdateEntityWithTriplesRequest) error {
@@ -160,36 +134,31 @@ func (w *GraphWriter) updateWithTriples(ctx context.Context, req graph.UpdateEnt
 	}
 	respData, err := w.requester.Request(ctx, w.updateSubject, data, w.timeout)
 	if err != nil {
-		return fmt.Errorf("request update_with_triples: %w", err)
+		return mutationRequestError("update_with_triples", MutationUpdate, requestEntityID(req.Entity), err)
 	}
 	var resp graph.UpdateEntityWithTriplesResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return fmt.Errorf("decode update_with_triples response: %w", err)
 	}
-	return mutationResponseError(
-		"update_with_triples",
-		MutationUpdate,
-		requestEntityID(req.Entity),
-		resp.MutationResponse,
-	)
+	return nil
 }
 
-func mutationResponseError(
+func mutationRequestError(
 	operation string,
 	kind MutationKind,
 	entityID string,
-	resp graph.MutationResponse,
+	err error,
 ) error {
-	if resp.Success {
-		return nil
+	if failure, ok := graphwrite.Classified(err); ok {
+		return &MutationFailureError{
+			Operation: operation,
+			Kind:      kind,
+			EntityID:  graphwrite.EntityID(failure.Detail, entityID),
+			ErrorCode: failure.Code,
+			Message:   err.Error(),
+		}
 	}
-	return &MutationFailureError{
-		Operation: operation,
-		Kind:      kind,
-		EntityID:  entityID,
-		ErrorCode: resp.ErrorCode,
-		Message:   resp.Error,
-	}
+	return fmt.Errorf("request %s: %w", operation, err)
 }
 
 func requestEntityID(entity *graph.EntityState) string {

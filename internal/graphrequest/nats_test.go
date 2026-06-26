@@ -9,7 +9,7 @@ import (
 	"github.com/c360studio/semstreams/natsclient"
 )
 
-func TestNATSRequesterUsesRequestWithRetry(t *testing.T) {
+func TestNATSRequesterUsesRequestWithRetryClassified(t *testing.T) {
 	client := &fakeRetryRequester{response: []byte(`{"success":true}`)}
 	retry := natsclient.RetryConfig{
 		MaxRetries:        7,
@@ -92,7 +92,7 @@ type fakeRetryRequester struct {
 	err      error
 }
 
-func (f *fakeRetryRequester) RequestWithRetry(
+func (f *fakeRetryRequester) RequestWithRetryClassified(
 	ctx context.Context,
 	subject string,
 	data []byte,

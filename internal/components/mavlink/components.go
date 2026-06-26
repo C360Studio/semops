@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -695,9 +694,6 @@ func (c *ProjectorComponent) writePlan(ctx context.Context, packet *mavcodec.Pac
 	for attempt := 0; attempt < attempts; attempt++ {
 		if err := c.cfg.Writer.Apply(ctx, plan); err != nil {
 			entityID, ok := entityAlreadyExists(err)
-			if ok && entityID == "" {
-				entityID = firstCreateEntityID(plan)
-			}
 			if !ok || entityID == "" || !c.cfg.Projector.MarkBornForPacket(packet, entityID) {
 				return fmt.Errorf("write MAVLink graph plan: %w", err)
 			}
@@ -975,45 +971,13 @@ func splitUDPListen(listenAddr string) (string, int) {
 
 func entityAlreadyExists(err error) (string, bool) {
 	var mutationErr *mavprojector.MutationFailureError
-	if errors.As(err, &mutationErr) {
-		if mutationErr.Kind == mavprojector.MutationCreate &&
-			mutationErr.ErrorCode == graph.ErrorCodeEntityExists {
-			return mutationErr.EntityID, true
-		}
-	}
-	return entityAlreadyExistsText(err)
-}
-
-func entityAlreadyExistsText(err error) (string, bool) {
-	if err == nil {
+	if !errors.As(err, &mutationErr) {
 		return "", false
 	}
-	text := err.Error()
-	if !strings.Contains(text, graph.ErrorCodeEntityExists) &&
-		!strings.Contains(strings.ToLower(text), "entity already exists") {
+	if mutationErr.Kind != mavprojector.MutationCreate ||
+		mutationErr.ErrorCode != graph.ErrorCodeEntityExists ||
+		mutationErr.EntityID == "" {
 		return "", false
 	}
-	const marker = "entity already exists:"
-	idx := strings.LastIndex(strings.ToLower(text), marker)
-	if idx < 0 {
-		return "", true
-	}
-	entityID := strings.TrimSpace(text[idx+len(marker):])
-	if fields := strings.Fields(entityID); len(fields) > 0 {
-		entityID = fields[0]
-	}
-	entityID = strings.Trim(entityID, `"'`)
-	if _, err := message.ParseEntityID(entityID); err != nil {
-		return "", true
-	}
-	return entityID, true
-}
-
-func firstCreateEntityID(plan mavprojector.Plan) string {
-	for _, mutation := range plan.Mutations {
-		if mutation.Kind == mavprojector.MutationCreate && mutation.Create.Entity != nil {
-			return mutation.Create.Entity.ID
-		}
-	}
-	return ""
+	return mutationErr.EntityID, true
 }

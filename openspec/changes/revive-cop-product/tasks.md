@@ -48,6 +48,10 @@
 - [x] 2.24 Add the first concrete SAPIENT graph projector processor component behind explicit graph opt-in using
       SemStreams request ports, payload registry, health, flow metrics, and born-first reconciliation for
       absolute-location detections
+- [x] 2.25 Bump SemOps to SemStreams `v1.0.0-beta.115` and migrate graph writers to ADR-060 typed classified error
+      returns with no legacy text-body conflict parsing
+- [x] 2.26 Rerun the one-command COP stack smoke on `v1.0.0-beta.115`, including hosted snapshot, component metrics,
+      direct MAVLink/CoT/CAP born-first graph smokes, and SAPIENT preflight
 
 ## 3. COP Model And Governance
 

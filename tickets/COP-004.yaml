@@ -39,8 +39,8 @@ progress:
     reach the graph writer.
   - Added a file-backed MAVLink replay store that appends raw-lane records as JSON Lines and loads them back into
     parseable frame records.
-  - Added `internal/graphrequest.NATSRequester` so graph writers use SemStreams `RequestWithRetry` for mutation
-    request/reply instead of bare query-style requests.
+  - Added `internal/graphrequest.NATSRequester` so graph writers use SemStreams `RequestWithRetryClassified` for
+    mutation request/reply instead of bare query-style requests.
   - Added a SemStreams component-boundary contract guard and removed the stale StreamKit-era robotics flow config so
     hosted feed services must move toward input/processor lifecycle, flowgraph, payload-registry, port/config surfaces
     instead of raw subject plumbing.
@@ -59,6 +59,8 @@ progress:
     CAP service, and polling/webhook promotion must use SemStreams input/processor components.
   - Adopted SemStreams `v1.0.0-beta.114` `HTTPClientPort` as the framework answer for external HTTP polling/client
     metadata exposed by CAP/NWS, OpenSky ADS-B, and possible SAPIENT/Apex integrations.
+  - Adopted SemStreams `v1.0.0-beta.115` ADR-060 graph mutation error returns so writers reconcile classified Go
+    errors instead of legacy mutation failure response bodies.
   - Added `internal/stack.NewMAVLinkAdapter` as a structural wiring factory for parser, raw lane, projector,
     retry-aware NATS requester, graph writer, adapter harness, and health state.
   - SemOps issue #1 triage prioritizes a generated/replay MAVLink live graph smoke before PX4/SITL, UI, or
@@ -105,6 +107,9 @@ progress:
   - Diagnosed a local Docker Desktop resource failure where NATS JetStream reported `Max Storage: 0 B`; after pruning
     unused Docker build cache and moving SemStreams health to the non-conflicting listener port, reran
     `bash scripts/cop-stack-smoke.sh` successfully.
+  - Reran `bash scripts/cop-stack-smoke.sh` after the SemStreams `v1.0.0-beta.115` ADR-060 graph error migration:
+    scenario runner reported `state=succeeded completed=10 failed=0`, hosted snapshot/component metrics smokes passed,
+    direct MAVLink/CoT/CAP born-first graph smokes passed, SAPIENT preflight passed, and the stack tore down cleanly.
 
 current_evidence:
   - `go test ./internal/contracts`
@@ -119,6 +124,7 @@ current_evidence:
   - `SEMOPS_MAVLINK_LIVE_GRAPH_NATS_URL=<nats-url> go test ./internal/smoke/mavlink -v`
   - `go test ./internal/stack`
   - `go test ./pkg/adapters/mavlink`
+  - `bash scripts/cop-stack-smoke.sh`
   - `(cd ui && npm run check)`
   - `(cd ui && npm run test)`
   - `(cd ui && npm run build)`
