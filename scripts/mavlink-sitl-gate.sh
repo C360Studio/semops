@@ -483,6 +483,18 @@ run_command_control_smoke() {
   )
 }
 
+run_command_telemetry_preflight() {
+  (
+    cd "$ROOT"
+    SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL="$SNAPSHOT_URL" \
+    SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID="$COMMAND_POST_STATE_TRACK_ID" \
+    SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT="$COMMAND_SMOKE_TIMEOUT" \
+    SEMOPS_MAVLINK_SITL_SMOKE_MIN_UPDATES=1 \
+    SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=false \
+      go test ./internal/smoke/mavlink -run TestExternalSITLTelemetryCOPSnapshot -count=1 -v
+  )
+}
+
 run_command_preflight() {
   require_simulator_attestation
   require_command_simulator_family
@@ -607,6 +619,14 @@ run_command_live_simulator_gate() {
     "$COMMAND_POST_STATE_TRACK_ID" \
     "blocked_missing_command_post_state_track" \
     "Name the MAVLink track that must refresh after the command starts."
+
+  if run_command_telemetry_preflight; then
+    :
+  else
+    status=$?
+    write_evidence "blocked_command_baseline_telemetry" "$status"
+    exit "$status"
+  fi
 
   local started_at
   started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

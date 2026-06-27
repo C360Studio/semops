@@ -335,8 +335,10 @@ Acceptance:
   transmitter belongs in preflight. [done as fail-closed evidence only]
 - `command-live-sim` mode requires a simulator family other than hardware, simulator-only safety posture, abort
   readiness, explicit transmit enablement, a reviewed transmitter command, an expected MAVLink `COMMAND_ACK` task, and
-  an expected post-command MAVLink track; it then polls the COP snapshot for ACK task evidence and post-command track
-  refresh before it can pass. [done as fail-closed readiness evidence only; open for real transmitter pass]
+  an expected post-command MAVLink track. It now first polls the COP snapshot for the named track as baseline
+  live-telemetry evidence and blocks before transmit if that track is stale or missing; after transmit it polls for ACK
+  task evidence and post-command track refresh before it can pass. [done as fail-closed readiness evidence only; open
+  for real transmitter pass]
 - `cmd/semops-mavlink-command` provides the reviewed MVP transmitter command shape: a simulator-only
   `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`, with dry-run metadata and an ACK task suffix. [done as dry-run
   evidence only; open for real simulator pass]

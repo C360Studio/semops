@@ -276,7 +276,9 @@ Mock or harness:
   exits with blocked evidence because preflight is non-transmitting by design.
 - The helper also has `command-live-sim` mode for a running COP stack plus simulator. It refuses hardware family,
   requires simulator-only safety posture, a reviewed transmitter command, explicit transmit enablement, ACK task
-  expectations, and a post-command state track. After the transmitter command runs, it polls the COP snapshot with
+  expectations, and a post-command state track. Before transmit, it first polls the COP snapshot for the named
+  MAVLink track with `TestExternalSITLTelemetryCOPSnapshot`; stale or missing baseline telemetry blocks before any
+  simulator command runs. After the transmitter command runs, it polls the COP snapshot with
   `TestCommandControlSimulatorGateCOPSnapshot` and requires graph-visible MAVLink `COMMAND_ACK` task evidence plus
   post-command MAVLink track refresh before it can pass.
 - MVP command scope is intentionally one read-side command. `cmd/semops-mavlink-command` sends

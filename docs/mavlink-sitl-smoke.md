@@ -216,8 +216,9 @@ requirement also blocks before the gate can be cited. If `SEMOPS_MAVLINK_COMMAND
 Use `command-live-sim` for the reviewed simulator-transmit path.
 
 The transmitting simulator gate is `command-live-sim`. It assumes the COP stack and simulator are already running,
-runs an explicitly reviewed simulator transmitter command, and then polls `GET /api/cop/snapshot` until both the
-MAVLink `COMMAND_ACK` task and the post-command MAVLink track refresh are visible:
+first polls `GET /api/cop/snapshot` for the named MAVLink track as baseline live-telemetry evidence, runs an
+explicitly reviewed simulator transmitter command only after that preflight passes, and then polls the same snapshot
+until both the MAVLink `COMMAND_ACK` task and the post-command MAVLink track refresh are visible:
 
 ```bash
 COMMAND_TX="go run ./cmd/semops-mavlink-command -confirm-simulator-only -route 127.0.0.1:14540"
@@ -243,12 +244,14 @@ bash scripts/mavlink-sitl-gate.sh
 ```
 
 `command-live-sim` refuses `simulator_family=hardware`, requires a simulator-scoped safety profile, and writes blocked
-evidence unless the transmitter command is explicitly reviewed and transmit is explicitly enabled. The acceptance test
-is `TestCommandControlSimulatorGateCOPSnapshot`; it is skipped unless `SEMOPS_MAVLINK_COMMAND_SMOKE_SNAPSHOT_URL` is
-set by the helper. The test requires the ACK task to be source `mavlink`, kind `mavlink.command_ack`, owned by
-`semops.feed.mavlink`, non-stale relative to the command start timestamp, and in the expected status set
-(`accepted` by default). It also requires the named MAVLink track to refresh after command start and can require motion
-with `SEMOPS_MAVLINK_COMMAND_POST_STATE_REQUIRE_MOTION=true`.
+evidence unless the transmitter command is explicitly reviewed and transmit is explicitly enabled. Before transmit, it
+reuses `TestExternalSITLTelemetryCOPSnapshot` with the post-state track ID and one required update so stale or missing
+baseline telemetry blocks before any simulator command runs. After transmit, the acceptance test is
+`TestCommandControlSimulatorGateCOPSnapshot`; it is skipped unless `SEMOPS_MAVLINK_COMMAND_SMOKE_SNAPSHOT_URL` is set
+by the helper. The test requires the ACK task to be source `mavlink`, kind `mavlink.command_ack`, owned by
+`semops.feed.mavlink`, non-stale relative to the command start timestamp, and in the expected status set (`accepted`
+by default). It also requires the named MAVLink track to refresh after command start and can require motion with
+`SEMOPS_MAVLINK_COMMAND_POST_STATE_REQUIRE_MOTION=true`.
 
 Current pause, 2026-06-26: `command-live-sim` must not use scenario-runner direct graph state as its ACK or
 post-command evidence. A passing command gate requires the simulator telemetry and `COMMAND_ACK` task to enter through
