@@ -34,6 +34,7 @@ const (
 	EnvTraceID                       = "SEMOPS_TRACE_ID"
 	EnvMAVLinkWriteTimeout           = "SEMOPS_MAVLINK_WRITE_TIMEOUT"
 	EnvMAVLinkUDPListenAddr          = "SEMOPS_MAVLINK_UDP_LISTEN_ADDR"
+	EnvMAVLinkUDPExtraListenAddrs    = "SEMOPS_MAVLINK_UDP_EXTRA_LISTEN_ADDRS"
 	EnvMAVLinkUDPMaxDatagramBytes    = "SEMOPS_MAVLINK_UDP_MAX_DATAGRAM_BYTES"
 	EnvCoTEnabled                    = "SEMOPS_COT_ENABLED"
 	EnvCoTSource                     = "SEMOPS_COT_SOURCE"
@@ -166,6 +167,7 @@ type MAVLinkConfig struct {
 
 type MAVLinkUDPConfig struct {
 	ListenAddr       string
+	ExtraListenAddrs []string
 	MaxDatagramBytes int
 }
 
@@ -987,6 +989,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.MAVLink.UDP.ExtraListenAddrs, err = stringListFromEnv(
+		getenv,
+		EnvMAVLinkUDPExtraListenAddrs,
+		cfg.MAVLink.UDP.ExtraListenAddrs,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.Fusion.CandidateSources, err = stringListFromEnv(
 		getenv,
 		EnvFusionCandidateSources,
@@ -1102,10 +1111,22 @@ func (c Config) Validate() error {
 	if c.MAVLink.WriteTimeout <= 0 {
 		return fmt.Errorf("%s must be greater than zero when MAVLink is enabled", EnvMAVLinkWriteTimeout)
 	}
-	if strings.TrimSpace(c.MAVLink.UDP.ListenAddr) != "" && c.MAVLink.UDP.MaxDatagramBytes <= 0 {
+	if c.MAVLink.UDP.hasListenAddrs() && c.MAVLink.UDP.MaxDatagramBytes <= 0 {
 		return fmt.Errorf("%s must be greater than zero when MAVLink UDP is enabled", EnvMAVLinkUDPMaxDatagramBytes)
 	}
 	return nil
+}
+
+func (c MAVLinkUDPConfig) hasListenAddrs() bool {
+	if strings.TrimSpace(c.ListenAddr) != "" {
+		return true
+	}
+	for _, addr := range c.ExtraListenAddrs {
+		if strings.TrimSpace(addr) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func (c ADSBConfig) Validate() error {

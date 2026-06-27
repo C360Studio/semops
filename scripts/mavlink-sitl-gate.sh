@@ -20,6 +20,15 @@ PX4_HEADLESS_VEHICLE="${SEMOPS_MAVLINK_SITL_PX4_VEHICLE:-gz_x500}"
 PX4_HEADLESS_WORLD="${SEMOPS_MAVLINK_SITL_PX4_WORLD:-default}"
 PX4_HEADLESS_HOST_QGC="${SEMOPS_MAVLINK_SITL_PX4_HOST_QGC:-}"
 PX4_HEADLESS_HOST_API="${SEMOPS_MAVLINK_SITL_PX4_HOST_API:-}"
+if [[ -n "${SEMOPS_MAVLINK_SITL_PX4_ROUTE_MODE:-}" ]]; then
+  PX4_HEADLESS_ROUTE_MODE="$SEMOPS_MAVLINK_SITL_PX4_ROUTE_MODE"
+elif [[ -n "$PX4_HEADLESS_HOST_QGC" || -n "$PX4_HEADLESS_HOST_API" ]]; then
+  PX4_HEADLESS_ROUTE_MODE="host"
+else
+  PX4_HEADLESS_ROUTE_MODE="compose-network"
+fi
+PX4_HEADLESS_DOCKER_NETWORK="${SEMOPS_MAVLINK_SITL_DOCKER_NETWORK:-${SEMOPS_COP_PROJECT:-semops-cop}_default}"
+PX4_HEADLESS_NETWORK_TARGET="${SEMOPS_MAVLINK_SITL_PX4_NETWORK_TARGET:-semops}"
 PX4_HEADLESS_BOOT_WAIT="${SEMOPS_MAVLINK_SITL_PX4_BOOT_WAIT:-20}"
 PX4_HEADLESS_PULL="${SEMOPS_MAVLINK_SITL_DOCKER_PULL:-false}"
 PX4_HEADLESS_REPLACE="${SEMOPS_MAVLINK_SITL_DOCKER_REPLACE:-false}"
@@ -134,6 +143,9 @@ write_evidence() {
     echo "px4_headless_world=$PX4_HEADLESS_WORLD"
     echo "px4_headless_host_qgc=$PX4_HEADLESS_HOST_QGC"
     echo "px4_headless_host_api=$PX4_HEADLESS_HOST_API"
+    echo "px4_headless_route_mode=$PX4_HEADLESS_ROUTE_MODE"
+    echo "px4_headless_docker_network=$PX4_HEADLESS_DOCKER_NETWORK"
+    echo "px4_headless_network_target=$PX4_HEADLESS_NETWORK_TARGET"
     echo "px4_headless_boot_wait=$PX4_HEADLESS_BOOT_WAIT"
     echo "px4_headless_pull_allowed=$PX4_HEADLESS_PULL"
     echo "ardupilot_vehicle=$ARDUPILOT_VEHICLE"
@@ -204,6 +216,11 @@ print_preflight() {
     echo "  image present: $(if have_px4_headless_image; then echo yes; else echo no; fi)"
     echo "  container: $PX4_HEADLESS_CONTAINER"
     echo "  vehicle/world: $PX4_HEADLESS_VEHICLE / $PX4_HEADLESS_WORLD"
+    echo "  route mode: $PX4_HEADLESS_ROUTE_MODE"
+    if [[ "$PX4_HEADLESS_ROUTE_MODE" == "compose-network" ]]; then
+      echo "  docker network: $PX4_HEADLESS_DOCKER_NETWORK"
+      echo "  network target: $PX4_HEADLESS_NETWORK_TARGET"
+    fi
     echo "  pull allowed: $PX4_HEADLESS_PULL"
     echo
     echo "Local simulator-ish Docker images:"
@@ -259,12 +276,19 @@ EOF
 }
 
 px4_headless_args() {
+  local host_qgc="$PX4_HEADLESS_HOST_QGC"
+  local host_api="$PX4_HEADLESS_HOST_API"
+  if [[ "$PX4_HEADLESS_ROUTE_MODE" == "compose-network" ]]; then
+    host_qgc="${host_qgc:-$PX4_HEADLESS_NETWORK_TARGET}"
+    host_api="${host_api:-$PX4_HEADLESS_NETWORK_TARGET}"
+  fi
+
   PX4_HEADLESS_ARGS=(-v "$PX4_HEADLESS_VEHICLE" -w "$PX4_HEADLESS_WORLD")
-  if [[ -n "$PX4_HEADLESS_HOST_QGC" && -n "$PX4_HEADLESS_HOST_API" ]]; then
-    PX4_HEADLESS_ARGS+=("$PX4_HEADLESS_HOST_QGC" "$PX4_HEADLESS_HOST_API")
-  elif [[ -n "$PX4_HEADLESS_HOST_API" ]]; then
-    PX4_HEADLESS_ARGS+=("$PX4_HEADLESS_HOST_API")
-  elif [[ -n "$PX4_HEADLESS_HOST_QGC" ]]; then
+  if [[ -n "$host_qgc" && -n "$host_api" ]]; then
+    PX4_HEADLESS_ARGS+=("$host_qgc" "$host_api")
+  elif [[ -n "$host_api" ]]; then
+    PX4_HEADLESS_ARGS+=("$host_api")
+  elif [[ -n "$host_qgc" ]]; then
     cat >&2 <<'EOF'
 SEMOPS_MAVLINK_SITL_PX4_HOST_QGC requires SEMOPS_MAVLINK_SITL_PX4_HOST_API.
 
@@ -277,11 +301,43 @@ EOF
   fi
 }
 
+px4_headless_docker_args() {
+  PX4_HEADLESS_DOCKER_ARGS=(-d --rm --name "$PX4_HEADLESS_CONTAINER")
+  if [[ "$PX4_HEADLESS_ROUTE_MODE" == "compose-network" ]]; then
+    PX4_HEADLESS_DOCKER_ARGS+=(--network "$PX4_HEADLESS_DOCKER_NETWORK")
+  fi
+  PX4_HEADLESS_DOCKER_ARGS+=("$PX4_HEADLESS_IMAGE")
+}
+
 px4_headless_command_string() {
   px4_headless_args
-  printf 'docker run -d --rm --name %q %q' "$PX4_HEADLESS_CONTAINER" "$PX4_HEADLESS_IMAGE"
+  px4_headless_docker_args
+  printf 'docker run'
+  printf ' %q' "${PX4_HEADLESS_DOCKER_ARGS[@]}"
   printf ' %q' "${PX4_HEADLESS_ARGS[@]}"
   printf '\n'
+}
+
+px4_headless_start_hook_command_string() {
+  printf 'cd %q && ' "$ROOT"
+  printf 'SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-start'
+  printf ' SEMOPS_MAVLINK_SITL_DOCKER_IMAGE=%q' "$PX4_HEADLESS_IMAGE"
+  printf ' SEMOPS_MAVLINK_SITL_DOCKER_CONTAINER=%q' "$PX4_HEADLESS_CONTAINER"
+  printf ' SEMOPS_MAVLINK_SITL_PX4_VEHICLE=%q' "$PX4_HEADLESS_VEHICLE"
+  printf ' SEMOPS_MAVLINK_SITL_PX4_WORLD=%q' "$PX4_HEADLESS_WORLD"
+  printf ' SEMOPS_MAVLINK_SITL_PX4_HOST_QGC=%q' "$PX4_HEADLESS_HOST_QGC"
+  printf ' SEMOPS_MAVLINK_SITL_PX4_HOST_API=%q' "$PX4_HEADLESS_HOST_API"
+  printf ' SEMOPS_MAVLINK_SITL_PX4_ROUTE_MODE=%q' "$PX4_HEADLESS_ROUTE_MODE"
+  printf ' SEMOPS_MAVLINK_SITL_DOCKER_NETWORK=%q' "$PX4_HEADLESS_DOCKER_NETWORK"
+  printf ' SEMOPS_MAVLINK_SITL_PX4_NETWORK_TARGET=%q' "$PX4_HEADLESS_NETWORK_TARGET"
+  printf ' SEMOPS_MAVLINK_SITL_PX4_BOOT_WAIT=%q' "$PX4_HEADLESS_BOOT_WAIT"
+  printf ' SEMOPS_MAVLINK_SITL_DOCKER_PULL=%q' "$PX4_HEADLESS_PULL"
+  printf ' SEMOPS_MAVLINK_SITL_DOCKER_REPLACE=%q' "$PX4_HEADLESS_REPLACE"
+  printf ' bash scripts/mavlink-sitl-gate.sh'
+}
+
+px4_headless_stop_hook_command_string() {
+  printf 'docker stop %q' "$PX4_HEADLESS_CONTAINER"
 }
 
 ardupilot_command_string() {
@@ -325,13 +381,61 @@ container_running() {
   docker ps --format '{{.Names}}' | grep -Fxq "$PX4_HEADLESS_CONTAINER"
 }
 
+container_on_px4_network() {
+  docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$PX4_HEADLESS_CONTAINER" 2>/dev/null |
+    grep -Fxq "$PX4_HEADLESS_DOCKER_NETWORK"
+}
+
 start_px4_headless_container() {
   if ! have_command docker; then
     echo "Docker is required for px4-headless-stack mode." >&2
     write_evidence "blocked_missing_docker" 2
     exit 2
   fi
+  case "$PX4_HEADLESS_ROUTE_MODE" in
+    host|compose-network)
+      ;;
+    *)
+      cat >&2 <<EOF
+Unsupported SEMOPS_MAVLINK_SITL_PX4_ROUTE_MODE=$PX4_HEADLESS_ROUTE_MODE
+
+Expected host or compose-network.
+EOF
+      write_evidence "blocked_bad_px4_route_mode" 2
+      exit 2
+      ;;
+  esac
   ensure_px4_headless_image
+  if [[ "$PX4_HEADLESS_ROUTE_MODE" == "compose-network" ]] &&
+    ! docker network inspect "$PX4_HEADLESS_DOCKER_NETWORK" >/dev/null 2>&1; then
+    cat >&2 <<EOF
+PX4 compose-network route requires an existing Docker network: $PX4_HEADLESS_DOCKER_NETWORK
+
+The px4-headless-stack mode creates this by starting the COP stack first. For a standalone PX4 container, either create
+the network yourself or set SEMOPS_MAVLINK_SITL_PX4_ROUTE_MODE=host.
+EOF
+    write_evidence "blocked_missing_px4_docker_network" 2
+    exit 2
+  fi
+  if container_running; then
+    if [[ "$PX4_HEADLESS_ROUTE_MODE" == "compose-network" ]] && ! container_on_px4_network; then
+      if bool_is_true "$PX4_HEADLESS_REPLACE"; then
+        docker rm -f "$PX4_HEADLESS_CONTAINER" >/dev/null
+      else
+        cat >&2 <<EOF
+PX4 headless container is already running but is not attached to $PX4_HEADLESS_DOCKER_NETWORK: $PX4_HEADLESS_CONTAINER
+
+Stop it yourself or set:
+  SEMOPS_MAVLINK_SITL_DOCKER_REPLACE=true
+EOF
+        write_evidence "blocked_px4_container_wrong_network" 2
+        exit 2
+      fi
+    else
+      echo "Reusing running PX4 headless container: $PX4_HEADLESS_CONTAINER"
+      return
+    fi
+  fi
   if container_running; then
     echo "Reusing running PX4 headless container: $PX4_HEADLESS_CONTAINER"
     return
@@ -351,10 +455,11 @@ EOF
     fi
   fi
   px4_headless_args
-  docker run -d --rm --name "$PX4_HEADLESS_CONTAINER" "$PX4_HEADLESS_IMAGE" "${PX4_HEADLESS_ARGS[@]}" >/dev/null
+  px4_headless_docker_args
+  docker run "${PX4_HEADLESS_DOCKER_ARGS[@]}" "${PX4_HEADLESS_ARGS[@]}" >/dev/null
   PX4_HEADLESS_STARTED=true
   echo "Started PX4 headless container: $PX4_HEADLESS_CONTAINER"
-  echo "Waiting $PX4_HEADLESS_BOOT_WAIT for PX4/Gazebo boot before launching the COP stack..."
+  echo "Waiting $PX4_HEADLESS_BOOT_WAIT for PX4/Gazebo boot..."
   sleep "$PX4_HEADLESS_BOOT_WAIT"
 }
 
@@ -667,9 +772,17 @@ run_focused_smoke() {
 }
 
 run_stack_smoke() {
+  local after_stack_ready_cmd="${1:-${SEMOPS_COP_SMOKE_AFTER_STACK_READY_CMD:-}}"
+  local before_mavlink_sitl_cmd="${2:-${SEMOPS_COP_SMOKE_BEFORE_MAVLINK_SITL_CMD:-}}"
+  local before_cleanup_cmd="${3:-${SEMOPS_COP_SMOKE_BEFORE_CLEANUP_CMD:-}}"
+  local keep_stack="${4:-${SEMOPS_COP_KEEP_STACK:-}}"
   (
     cd "$ROOT"
     SEMOPS_COP_MAVLINK_SYSTEM_IDS="${SEMOPS_COP_MAVLINK_SYSTEM_IDS:-1,42}" \
+    SEMOPS_COP_KEEP_STACK="$keep_stack" \
+    SEMOPS_COP_SMOKE_AFTER_STACK_READY_CMD="$after_stack_ready_cmd" \
+    SEMOPS_COP_SMOKE_BEFORE_MAVLINK_SITL_CMD="$before_mavlink_sitl_cmd" \
+    SEMOPS_COP_SMOKE_BEFORE_CLEANUP_CMD="$before_cleanup_cmd" \
     SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true \
     SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID="$EXPECTED_TRACK_ID" \
     SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT="$TIMEOUT" \
@@ -677,6 +790,18 @@ run_stack_smoke() {
     SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION="$REQUIRE_MOTION" \
       bash scripts/cop-stack-smoke.sh
   )
+}
+
+run_px4_headless_start_only() {
+  if [[ -n "$SIMULATOR_FAMILY" && "$SIMULATOR_FAMILY" != "px4" ]]; then
+    cat >&2 <<EOF
+px4-headless-start mode requires SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=px4, got $SIMULATOR_FAMILY
+EOF
+    write_evidence "blocked_bad_px4_headless_family" 2
+    exit 2
+  fi
+  SIMULATOR_FAMILY="px4"
+  start_px4_headless_container
 }
 
 run_px4_headless_stack_smoke() {
@@ -697,9 +822,24 @@ EOF
   if [[ -z "$SIMULATOR_COMMAND" ]]; then
     SIMULATOR_COMMAND="$(px4_headless_command_string)"
   fi
-  start_px4_headless_container
   trap cleanup_px4_headless_container EXIT
   require_simulator_attestation
+  if [[ "$PX4_HEADLESS_ROUTE_MODE" == "compose-network" ]]; then
+    PX4_HEADLESS_STARTED=true
+    local keep_stack="${SEMOPS_COP_KEEP_STACK:-}"
+    if bool_is_true "$PX4_HEADLESS_KEEP"; then
+      keep_stack="true"
+    fi
+    if run_stack_smoke "" "$(px4_headless_start_hook_command_string)" "$(px4_headless_stop_hook_command_string)" "$keep_stack"; then
+      write_evidence "passed" 0
+    else
+      status=$?
+      write_evidence "failed" "$status"
+      exit "$status"
+    fi
+    return
+  fi
+  start_px4_headless_container
   if run_stack_smoke; then
     write_evidence "passed" 0
   else
@@ -766,7 +906,7 @@ EOF
 }
 
 case "$MODE" in
-  px4-headless-stack)
+  px4-headless-stack|px4-headless-start)
     if [[ -z "$SIMULATOR_FAMILY" ]]; then
       SIMULATOR_FAMILY="px4"
     fi
@@ -831,6 +971,9 @@ case "$MODE" in
   px4-headless-stack)
     run_px4_headless_stack_smoke
     ;;
+  px4-headless-start)
+    run_px4_headless_start_only
+    ;;
   ardupilot-stack)
     run_ardupilot_stack_smoke
     ;;
@@ -845,7 +988,7 @@ case "$MODE" in
     ;;
   *)
     echo "Unsupported SEMOPS_MAVLINK_SITL_GATE_MODE=$MODE" >&2
-    echo "Expected preflight, focused, stack, px4-headless-stack, ardupilot-stack, mavsdk-offboard-stack, command-preflight, or command-live-sim." >&2
+    echo "Expected preflight, focused, stack, px4-headless-stack, px4-headless-start, ardupilot-stack, mavsdk-offboard-stack, command-preflight, or command-live-sim." >&2
     write_evidence "blocked_bad_mode" 2
     exit 2
     ;;

@@ -220,6 +220,9 @@
       while keeping mission, mode, arm/disarm, and offboard command authority out of MVP
 - [x] 5.104 Record product e2e evidence-tier rules so direct graph smokes cannot satisfy product, simulator,
       command-control, CS API, provider, or standards claims
+- [x] 5.105 Harden the PX4/Gazebo headless telemetry route with a managed Compose-network simulator path and dual
+      hosted MAVLink UDP listeners while keeping live command/control open until native command reply frames appear
+      through the hosted component chain
 
 ## 6. Structural COP Stack
 

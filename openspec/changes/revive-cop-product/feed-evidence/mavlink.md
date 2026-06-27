@@ -1,12 +1,13 @@
 # MAVLink Feed Evidence
 
 Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner, SemStreams graph writer boundary,
-structural wiring, typed owner-token wiring, restart create-conflict reconciliation, opt-in UDP transport hosting, COP
-owner-registration smoke evidence, generated-frame live graph smoke evidence, a skipped-by-default external
-PX4/MAVSDK/SITL telemetry smoke harness, one passed PX4/Gazebo headless Docker telemetry smoke, and COMMAND_ACK
-control-task readback projection. SemOps also has a product-owned command-intent graph contract for future desired
-tasking state before native execution. Live feed integration remains blocked by durable replay playback, TCP/serial
-transport work, ArduPilot parity, and outbound command/control fidelity work in `COP-004`.
+structural wiring, typed owner-token wiring, restart create-conflict reconciliation, opt-in UDP transport hosting,
+multi-listener hosted UDP input, COP owner-registration smoke evidence, generated-frame live graph smoke evidence, a
+skipped-by-default external PX4/MAVSDK/SITL telemetry smoke harness, passed PX4/Gazebo headless Docker telemetry smoke
+through a managed Compose-network route, and COMMAND_ACK control-task readback projection. SemOps also has a
+product-owned command-intent graph contract for future desired tasking state before native execution. Live feed
+integration remains blocked by durable replay playback, TCP/serial transport work, ArduPilot parity, and outbound
+command/control fidelity work in `COP-004`.
 
 ## Decision
 
@@ -90,7 +91,8 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   evidence, `in_progress` maps to `executing`, rejection-style MAVLink results map to `rejected`, and final mission or
   task success remains out of scope.
 - `internal/app` and `cmd/semops` connect to SemStreams, register first-phase COP ownership, enroll heartbeat, and
-  compose the hosted MAVLink adapter with registry-derived owner tokens.
+  compose the hosted MAVLink adapter with registry-derived owner tokens. The hosted runtime can bind multiple MAVLink
+  UDP listeners through `SEMOPS_MAVLINK_UDP_LISTEN_ADDR` and `SEMOPS_MAVLINK_UDP_EXTRA_LISTEN_ADDRS`.
 - `internal/smoke/mavlink/live_graph_test.go` drives generated heartbeat and position frames through the configured
   stack, registers COP ownership, polls SemStreams graph state, and asserts source asset, track, `cop.track.source`,
   `cop.track.position`, owner lookup, and foreign-edge claim readback.
@@ -120,6 +122,9 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - `scripts/mavlink-sitl-gate.sh` now has `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack`, which starts the preferred
   PX4/Gazebo headless container, waits for boot, runs the full hosted COP stack smoke with the external SITL telemetry
   assertion enabled, and stops only the simulator container it started unless `SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR=true`.
+  The managed stack path defaults to a Compose-network route: it starts PX4 after the baseline hosted COP/MAVLink graph
+  smokes, attaches PX4 to `semops-cop_default`, points both PX4 target arguments at the `semops` service alias, and
+  stops PX4 before Compose cleanup removes the network.
 - 2026-06-23: `SEMOPS_MAVLINK_SITL_DOCKER_PULL=true SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack bash
   scripts/mavlink-sitl-gate.sh` passed on commit `767fef0` after pulling `jonasvautherin/px4-gazebo-headless:1.17.0`.
   The generated evidence recorded `result=passed`, PX4/Gazebo headless Docker simulator version `1.17.0`, vehicle
@@ -133,6 +138,28 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   recorded `result=passed`, `require_motion=true`, `timeout=60s`, `min_updates=2`, vehicle `gz_x500`, world `default`,
   and expected track `c360.edge-compose.cop.mavlink.track.system-1`. The external SITL snapshot smoke passed in 25.52s,
   proving the PX4/Gazebo headless route produced enough position delta for the motion-required gate.
+- 2026-06-27: `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack
+  SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT=90s SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true bash
+  scripts/mavlink-sitl-gate.sh` passed with `px4_headless_route_mode=compose-network`,
+  `px4_headless_docker_network=semops-cop_default`, and `px4_headless_network_target=semops`. The external SITL smoke
+  passed in 0.52s after the PX4 boot wait, and the before-cleanup hook stopped `semops-px4-gazebo-headless` before
+  Compose removed the network. This is still PX4 telemetry evidence only; ArduPilot parity, MAVSDK/offboard parity, and
+  live command/control remain separate gates.
+- 2026-06-27: SemOps hosted runtime and Compose stack gained dual MAVLink UDP listener coverage. `compose.cop.yml`
+  defaults to primary `:14550` plus extra `:14540`, and `go test ./cmd/semops-mavlink-command ./internal/app
+  ./internal/smoke/mavlink` passed after adding the extra-listener config/runtime tests.
+- 2026-06-27: command-gate diagnostics improved the MVP transmitter helper with optional GCS heartbeat-first and reply
+  forwarding knobs, and focused command codec tests passed:
+  `go test ./pkg/adapters/mavlink -run
+  'TestGeneratedCommandLongUsesCanonicalWireOrderAndParses|TestGeneratedRequestMessageCommandIsReadSideMVPShape|TestGeneratedCommandAckParsesResult'
+  -count=1 -v`.
+- 2026-06-27: `command-live-sim` remains open after a real PX4/Gazebo command-gate attempt. Baseline telemetry passed,
+  but the reviewed read-side command produced no graph-visible MAVLink `COMMAND_ACK` task; the transmitter helper
+  forwarded zero simulator replies, and a filtered decoded-stream diagnostic observed no `COMMAND_LONG`, `COMMAND_ACK`,
+  or `AUTOPILOT_VERSION` frames entering the hosted MAVLink component chain. The evidence file
+  `tmp/mavlink-sitl-evidence/2026-06-27T20-31-09Z-command-live-sim.env` records
+  `result=failed_command_control_smoke`. This is blocker evidence for live command/control only; it does not invalidate
+  the PX4 telemetry pass.
 - 2026-06-23: `go test ./pkg/cop ./internal/projectors/mavlink ./internal/adapters/mavlink
   ./internal/components/mavlink ./internal/copownership` passed after adding the MAVLink command-task ownership
   contract and COMMAND_ACK readback projection. This is evidence of governed command lifecycle readback only; live

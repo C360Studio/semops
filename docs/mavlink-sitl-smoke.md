@@ -8,8 +8,9 @@ conformance.
 
 ## Prerequisites
 
-- A simulator or MAVSDK route that emits MAVLink heartbeat and `GLOBAL_POSITION_INT` telemetry to UDP
-  `127.0.0.1:14550`.
+- A simulator or MAVSDK route that emits MAVLink heartbeat and `GLOBAL_POSITION_INT` telemetry to the hosted SemOps
+  UDP component. The Compose default listens on `:14550` and also on `:14540` for PX4 offboard/MAVSDK-style return
+  traffic.
 - The simulator's first vehicle should use MAVLink system ID `1`, or `SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID`
   should be set to the expected graph track ID.
 - Docker resources sufficient to run the COP stack.
@@ -18,8 +19,18 @@ conformance.
 
 For the dev/demo lane, use `jonasvautherin/px4-gazebo-headless:1.17.0`. It is an Apache-2.0, unofficial
 PX4/Gazebo headless image that packages a runnable simulator instead of only a PX4 build toolchain. The upstream
-README says the current supported PX4 release is `v1.17.0`, the default vehicle is `gz_x500`, and the container sends
-MAVLink to the host on UDP `14550` for QGroundControl and `14540` for offboard/MAVSDK-style clients.
+README says the current supported PX4 release is `v1.17.0`, the default vehicle is `gz_x500`, and the container can
+send MAVLink to a named peer on UDP `14550` for QGroundControl and `14540` for offboard/MAVSDK-style clients.
+
+The SemOps managed stack path defaults to `SEMOPS_MAVLINK_SITL_PX4_ROUTE_MODE=compose-network`. In that mode the
+helper starts the COP stack first, starts PX4 on the Compose network `semops-cop_default`, points both PX4 target
+arguments at the `semops` service alias, and stops PX4 before Compose teardown. This avoids relying on Docker Desktop
+UDP host-port hairpin behavior for the simulator-to-SemOps path.
+
+The hosted SemOps runtime can bind multiple MAVLink UDP listeners. The COP Compose stack defaults to
+`SEMOPS_MAVLINK_UDP_LISTEN_ADDR=:14550` and `SEMOPS_MAVLINK_UDP_EXTRA_LISTEN_ADDRS=:14540`, publishing both UDP ports
+to the host. That lets PX4's QGroundControl-style and offboard/MAVSDK-style telemetry return paths enter the same
+MAVLink input -> decoder -> projector component chain.
 
 The SemOps helper keeps the pull opt-in because the image is large:
 
@@ -48,12 +59,19 @@ Useful optional knobs:
 - `SEMOPS_MAVLINK_SITL_DOCKER_CONTAINER`: default `semops-px4-gazebo-headless`.
 - `SEMOPS_MAVLINK_SITL_PX4_VEHICLE`: default `gz_x500`.
 - `SEMOPS_MAVLINK_SITL_PX4_WORLD`: default `default`.
+- `SEMOPS_MAVLINK_SITL_PX4_ROUTE_MODE`: default `compose-network` unless explicit PX4 host targets are provided; use
+  `host` for the older host-port route.
+- `SEMOPS_MAVLINK_SITL_DOCKER_NETWORK`: default `semops-cop_default`.
+- `SEMOPS_MAVLINK_SITL_PX4_NETWORK_TARGET`: default `semops`.
 - `SEMOPS_MAVLINK_SITL_PX4_BOOT_WAIT`: default `20`, in seconds.
-- `SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR`: set `true` to leave the PX4 container running after the smoke.
+- `SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR`: set `true` to leave the PX4 container running after the smoke. In
+  `compose-network` mode this also keeps the COP stack alive so the Docker network remains available.
 - `SEMOPS_MAVLINK_SITL_DOCKER_REPLACE`: set `true` to remove a stopped container with the configured name.
 - `SEMOPS_MAVLINK_SITL_PX4_HOST_API`: optional explicit target IP for PX4 UDP `14540`.
 - `SEMOPS_MAVLINK_SITL_PX4_HOST_QGC`: optional explicit target IP for PX4 UDP `14550`; requires
   `SEMOPS_MAVLINK_SITL_PX4_HOST_API`.
+- `SEMOPS_MAVLINK_UDP_EXTRA_LISTEN_ADDRS`: extra hosted SemOps MAVLink UDP listeners; Compose defaults to `:14540`.
+- `SEMOPS_MAVLINK_UDP_OFFBOARD_HOST_PORT`: host UDP port published for the default extra listener; default `14540`.
 
 This is the fastest path to simulator-fidelity telemetry evidence. It is not official PX4 conformance and should not
 be used for command authority claims without a separate reviewed command/ACK/state gate.
@@ -75,6 +93,15 @@ Latest local evidence:
   SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT=60s bash
   scripts/mavlink-sitl-gate.sh` passed against the same local image and route, with
   `TestExternalSITLTelemetryCOPSnapshot` observing the required position delta in 25.52s.
+- 2026-06-27: `SEMOPS_MAVLINK_SITL_GATE_MODE=px4-headless-stack
+  SEMOPS_MAVLINK_SITL_SMOKE_TIMEOUT=90s SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true bash
+  scripts/mavlink-sitl-gate.sh` passed with the managed `compose-network` route. The helper started PX4 as
+  `docker run -d --rm --name semops-px4-gazebo-headless --network semops-cop_default
+  jonasvautherin/px4-gazebo-headless:1.17.0 -v gz_x500 -w default semops semops`, `TestExternalSITLTelemetryCOPSnapshot`
+  passed in 0.52s after the boot wait, and the before-cleanup hook stopped PX4 before Compose removed the network.
+- 2026-06-27: a kept-stack diagnostic pass confirmed the hosted SemOps container publishes both UDP `14550` and
+  `14540`, and `TestExternalSITLTelemetryCOPSnapshot` still passed against the PX4 `system-1` track with the dual
+  listener runtime enabled.
 
 ## Local Readiness Preflight
 
@@ -221,7 +248,7 @@ explicitly reviewed simulator transmitter command only after that preflight pass
 until both the MAVLink `COMMAND_ACK` task and the post-command MAVLink track refresh are visible:
 
 ```bash
-COMMAND_TX="go run ./cmd/semops-mavlink-command -confirm-simulator-only -route 127.0.0.1:14540"
+COMMAND_TX="go run ./cmd/semops-mavlink-command -confirm-simulator-only -send-heartbeat-first -route 127.0.0.1:<simulator-command-port>"
 
 SEMOPS_MAVLINK_SITL_GATE_MODE=command-live-sim \
 SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL command smoke" \
@@ -262,7 +289,19 @@ the graph. Direct graph smokes remain valid for MAVLink projection-contract cove
 
 For MVP, keep the allowlist narrow. The provided `semops-mavlink-command` helper only sends
 `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`; it is a read-side command used to prove command ACK/readback through
-the COP graph, not mission execution or vehicle control. Its dry-run should print:
+the COP graph, not mission execution or vehicle control. The helper can optionally send a GCS heartbeat first and can
+forward any simulator replies it receives to a SemOps UDP listener for diagnostics:
+
+```bash
+go run ./cmd/semops-mavlink-command \
+  -confirm-simulator-only \
+  -send-heartbeat-first \
+  -route 127.0.0.1:<simulator-command-port> \
+  -forward-replies-to 127.0.0.1:14540 \
+  -reply-timeout 2s
+```
+
+The command `-route` is the simulator command endpoint, not the SemOps telemetry listener. Its dry-run should print:
 
 ```bash
 go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route udp://127.0.0.1:14540
@@ -270,6 +309,15 @@ go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route udp:
 
 Expected metadata includes `action=request_autopilot_version`, `command=512`, `request_message=148`, and
 `expected_ack_task_suffix=system-1-command-512-target-255-190`.
+
+Current command-gate blocker, 2026-06-27: after the compose-network telemetry route passed, `command-live-sim` still
+failed against the local PX4/Gazebo headless image. The helper sent the read-side command through host-published PX4
+ports and from inside the Compose network with heartbeat-first enabled; no direct simulator replies were available to
+forward, and a filtered decoded-stream subscriber observed no `COMMAND_LONG`, `COMMAND_ACK`, or `AUTOPILOT_VERSION`
+frames entering the hosted MAVLink component chain. The last evidence file for that attempt is
+`tmp/mavlink-sitl-evidence/2026-06-27T20-31-09Z-command-live-sim.env` with
+`result=failed_command_control_smoke`. This does not weaken the telemetry evidence, but it keeps live
+command/control open.
 
 ## Acceptance
 

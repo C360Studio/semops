@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"net"
 	"strings"
 	"testing"
+	"time"
 
 	mavlink "github.com/c360studio/semops/pkg/adapters/mavlink"
 )
@@ -45,6 +47,96 @@ func TestBuildCommandFrameRejectsWithoutSimulatorConfirmation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "simulator-only confirmation is required") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestBuildGCSHeartbeatFrameUsesCommandSourceIdentity(t *testing.T) {
+	frame, err := buildGCSHeartbeatFrame(config{
+		SourceSystem:    250,
+		SourceComponent: 191,
+	})
+	if err != nil {
+		t.Fatalf("build heartbeat: %v", err)
+	}
+	packets, err := mavlink.NewParser().Parse(frame)
+	if err != nil {
+		t.Fatalf("parse heartbeat: %v", err)
+	}
+	if len(packets) != 1 {
+		t.Fatalf("packets = %d, want 1", len(packets))
+	}
+	packet := packets[0]
+	if packet.MessageID != mavlink.MessageIDHeartbeat ||
+		packet.SystemID != 250 ||
+		packet.ComponentID != 191 {
+		t.Fatalf("heartbeat packet = %+v", packet)
+	}
+	if packet.ParsedFields["type"] != mavlink.TypeGCS ||
+		packet.ParsedFields["autopilot"] != mavlink.AutopilotInvalid {
+		t.Fatalf("heartbeat fields = %+v", packet.ParsedFields)
+	}
+}
+
+func TestRunForwardsSimulatorReplies(t *testing.T) {
+	simulator, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen simulator UDP: %v", err)
+	}
+	defer simulator.Close()
+	forwardSink, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen forward sink UDP: %v", err)
+	}
+	defer forwardSink.Close()
+
+	reply := []byte("px4-command-ack-frame")
+	simulatorDone := make(chan error, 1)
+	go func() {
+		buffer := make([]byte, 512)
+		if err := simulator.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+			simulatorDone <- err
+			return
+		}
+		_, addr, err := simulator.ReadFrom(buffer)
+		if err != nil {
+			simulatorDone <- err
+			return
+		}
+		_, err = simulator.WriteTo(reply, addr)
+		simulatorDone <- err
+	}()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	err = run([]string{
+		"-confirm-simulator-only",
+		"-route", simulator.LocalAddr().String(),
+		"-forward-replies-to", forwardSink.LocalAddr().String(),
+		"-timeout", "200ms",
+		"-reply-timeout", "200ms",
+	}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run command with reply forwarding: %v\nstderr: %s", err, stderr.String())
+	}
+	if err := <-simulatorDone; err != nil {
+		t.Fatalf("simulator reply: %v", err)
+	}
+
+	buffer := make([]byte, 512)
+	if err := forwardSink.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set forward sink deadline: %v", err)
+	}
+	n, _, err := forwardSink.ReadFrom(buffer)
+	if err != nil {
+		t.Fatalf("read forwarded reply: %v\nstdout: %s", err, stdout.String())
+	}
+	if got := string(buffer[:n]); got != string(reply) {
+		t.Fatalf("forwarded reply = %q, want %q", got, string(reply))
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "forwarded_reply_bytes=") ||
+		!strings.Contains(output, "forwarded_replies=1") {
+		t.Fatalf("forwarding output missing counters:\n%s", output)
 	}
 }
 

@@ -166,11 +166,11 @@ Generated/replay and UDP current-state ingest for heartbeat, position, attitude,
 born-first source asset and track graph writes. COMMAND_ACK readback now projects to control task state with a
 born-first target edge, but this is command lifecycle evidence only. SemOps also has a product-owned command-intent
 contract for desired tasking state with authority, priority, expiry, idempotency, and correlation fields. PX4/Gazebo
-telemetry has a hosted COP snapshot smoke with local pass evidence; ArduPilot and MAVSDK/offboard have fail-closed
+telemetry has hosted COP snapshot smoke pass evidence through a managed Compose-network route, and the hosted MAVLink
+runtime can listen on both `14550` and `14540` for PX4 return paths. ArduPilot and MAVSDK/offboard have fail-closed
 family-specific modes. Simulator command-control now has a `command-live-sim` gate that can run a reviewed external
-transmitter and requires graph-visible `COMMAND_ACK` task evidence plus post-command track refresh before passing.
-For MVP, that transmitter should stay to a single read-side command: `MAV_CMD_REQUEST_MESSAGE` for
-`AUTOPILOT_VERSION`.
+transmitter and requires graph-visible `COMMAND_ACK` task evidence plus post-command track refresh before passing. For
+MVP, that transmitter should stay to a single read-side command: `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`.
 
 Full product lane:
 PX4/ArduPilot SITL and hardware profiles, MAVSDK smoke, UDP/TCP/serial transports, signed or authenticated links
@@ -184,8 +184,10 @@ can grow without changing graph ownership. Simulator evidence must also name its
 claim. Dedicated ArduPilot and MAVSDK/offboard lanes now fail closed until real family-specific sources are present.
 Command-control preflight can record intended target, action, safety profile, local override, ACK, and post-state
 polling posture. The live simulator gate exists, but command authority remains unclaimed until a reviewed transmitter
-command passes the ACK/post-state snapshot smoke against a named simulator source. Do not expand the MVP into mission
-upload, mode control, arm/disarm, or offboard command authority; read-side feed validation remains the priority.
+command passes the ACK/post-state snapshot smoke against a named simulator source. A 2026-06-27 PX4/Gazebo attempt
+kept telemetry live but produced no decoded `COMMAND_ACK`, `COMMAND_LONG`, or `AUTOPILOT_VERSION` reply frames through
+the hosted component chain. Do not expand the MVP into mission upload, mode control, arm/disarm, or offboard command
+authority; read-side feed validation remains the priority.
 
 Not claimed yet:
 Full GCS/autopilot management, hardware certification, or complete mission-command product.

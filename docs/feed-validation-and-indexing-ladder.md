@@ -257,6 +257,9 @@ Mock or harness:
   `SEMOPS_COP_SMOKE_MAVLINK_SITL_ENABLED=true`; in that mode `compose.cop.yml` honors
   `SEMOPS_COP_MAVLINK_SYSTEM_IDS`, defaulting to systems `1,42` for PX4-style system ID 1 plus the deterministic
   generated-frame system 42.
+- The hosted MAVLink runtime can bind multiple UDP listeners. The COP Compose stack defaults to primary listener
+  `:14550` and extra/offboard listener `:14540`, so PX4 QGroundControl-style and offboard/MAVSDK-style return paths
+  can feed the same MAVLink input -> decoder -> projector chain.
 - 2026-06-23 local readiness preflight found no `px4`, `mavsdk_server`, or `sim_vehicle.py` on PATH and no local
   PX4/MAVSDK/ArduPilot simulator Docker image. The external SITL smoke skip behavior passed, and focused
   parser/projector/component tests passed, but this is readiness-gap evidence only.
@@ -294,6 +297,11 @@ Mock or harness:
 - 2026-06-26 `go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route
   udp://127.0.0.1:14540` passed with `action=request_autopilot_version`, `command=512`, `request_message=148`, and
   `expected_ack_task_suffix=system-1-command-512-target-255-190`.
+- 2026-06-27 PX4/Gazebo headless telemetry passed through the managed Compose-network route with motion required, and
+  a kept-stack diagnostic confirmed both hosted SemOps MAVLink UDP listeners were exposed.
+- 2026-06-27 `command-live-sim` stayed blocked after a real PX4/Gazebo command attempt. Baseline telemetry was live,
+  but the helper forwarded zero simulator replies and no `COMMAND_LONG`, `COMMAND_ACK`, or `AUTOPILOT_VERSION` frames
+  were observed entering the hosted MAVLink decoded stream, so task 5.97 remains open.
 - 2026-06-26T00:44:17Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
   the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. This is
   readiness-gap evidence only, not ArduPilot simulator interoperability.

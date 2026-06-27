@@ -42,7 +42,7 @@ type App struct {
 	client           semstreamsClient
 	ownershipStop    func()
 	ownershipResult  copownership.BindingResult
-	mavlinkInput     *mavcomponent.UDPInputComponent
+	mavlinkInputs    []*mavcomponent.UDPInputComponent
 	mavlinkDecoder   *mavcomponent.DecoderComponent
 	mavlinkProjector *mavcomponent.ProjectorComponent
 	cotUDPInput      *cotcomponent.UDPInputComponent
@@ -142,8 +142,11 @@ func (a *App) Close(ctx context.Context) error {
 		a.runtimeCancel()
 	}
 	var errs []error
-	if a.mavlinkInput != nil {
-		if err := a.mavlinkInput.Stop(remainingTimeout(ctx)); err != nil {
+	for _, input := range a.mavlinkInputs {
+		if input == nil {
+			continue
+		}
+		if err := input.Stop(remainingTimeout(ctx)); err != nil {
 			errs = append(errs, fmt.Errorf("stop MAVLink input component: %w", err))
 		}
 	}
@@ -286,10 +289,17 @@ func (a *App) OwnershipBinding() copownership.BindingResult {
 }
 
 func (a *App) MAVLinkInput() *mavcomponent.UDPInputComponent {
+	if a == nil || len(a.mavlinkInputs) == 0 {
+		return nil
+	}
+	return a.mavlinkInputs[0]
+}
+
+func (a *App) MAVLinkInputs() []*mavcomponent.UDPInputComponent {
 	if a == nil {
 		return nil
 	}
-	return a.mavlinkInput
+	return append([]*mavcomponent.UDPInputComponent(nil), a.mavlinkInputs...)
 }
 
 func (a *App) MAVLinkDecoder() *mavcomponent.DecoderComponent {
@@ -472,8 +482,10 @@ func (a *App) ComponentMetricSources() []componentmetrics.Source {
 		return nil
 	}
 	sources := make([]componentmetrics.Source, 0, 24)
-	if a.mavlinkInput != nil {
-		sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "input", Component: a.mavlinkInput})
+	for _, input := range a.mavlinkInputs {
+		if input != nil {
+			sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "input", Component: input})
+		}
 	}
 	if a.mavlinkDecoder != nil {
 		sources = append(sources, componentmetrics.Source{Feed: "mavlink", Role: "decoder", Component: a.mavlinkDecoder})
@@ -849,22 +861,44 @@ func (a *App) startMAVLinkFlow(
 	if err := startLifecycle(ctx, "MAVLink decoder", decoder); err != nil {
 		return err
 	}
-	if cfg.UDP.ListenAddr != "" {
+	for idx, listenAddr := range mavlinkUDPListenAddrs(cfg.UDP) {
+		inputName := ""
+		if idx > 0 {
+			inputName = fmt.Sprintf("semops-input-mavlink-udp-%d", idx+1)
+		}
 		input, err := deps.newMAVLinkUDPInput(mavcomponent.UDPInputConfig{
+			Name:             inputName,
 			Source:           cfg.Source,
-			ListenAddr:       cfg.UDP.ListenAddr,
+			ListenAddr:       listenAddr,
 			RawSubject:       mavcomponent.DefaultRawSubject,
 			MaxDatagramBytes: cfg.UDP.MaxDatagramBytes,
 		}, bus)
 		if err != nil {
 			return fmt.Errorf("compose MAVLink UDP input component: %w", err)
 		}
-		a.mavlinkInput = input
-		if err := startLifecycle(ctx, "MAVLink UDP input", input); err != nil {
+		a.mavlinkInputs = append(a.mavlinkInputs, input)
+		if err := startLifecycle(ctx, fmt.Sprintf("MAVLink UDP input %s", listenAddr), input); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func mavlinkUDPListenAddrs(cfg MAVLinkUDPConfig) []string {
+	addrs := make([]string, 0, 1+len(cfg.ExtraListenAddrs))
+	seen := map[string]struct{}{}
+	for _, addr := range append([]string{cfg.ListenAddr}, cfg.ExtraListenAddrs...) {
+		addr = strings.TrimSpace(addr)
+		if addr == "" {
+			continue
+		}
+		if _, ok := seen[addr]; ok {
+			continue
+		}
+		seen[addr] = struct{}{}
+		addrs = append(addrs, addr)
+	}
+	return addrs
 }
 
 func (a *App) startCoTFlow(

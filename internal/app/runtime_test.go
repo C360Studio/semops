@@ -1738,6 +1738,7 @@ func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	client := &fakeSemStreamsClient{}
 	cfg := DefaultConfig()
 	cfg.MAVLink.UDP.ListenAddr = "127.0.0.1:0"
+	cfg.MAVLink.UDP.ExtraListenAddrs = []string{"localhost:0"}
 	cfg.MAVLink.UDP.MaxDatagramBytes = 2048
 
 	app, err := start(context.Background(), cfg, dependencies{
@@ -1759,23 +1760,41 @@ func TestStartHostsMAVLinkUDPInputFlowWhenConfigured(t *testing.T) {
 	if app.MAVLinkInput() == nil {
 		t.Fatal("expected hosted MAVLink UDP input component")
 	}
-	if app.MAVLinkInput().Addr() == nil {
-		t.Fatal("expected hosted MAVLink UDP input address")
+	inputs := app.MAVLinkInputs()
+	if len(inputs) != 2 {
+		t.Fatalf("MAVLink UDP inputs = %d, want 2", len(inputs))
+	}
+	for _, input := range inputs {
+		if input.Addr() == nil {
+			t.Fatal("expected hosted MAVLink UDP input address")
+		}
 	}
 	if !client.hasSubscription(mavcomponent.DefaultRawSubject) ||
 		!client.hasSubscription(mavcomponent.DefaultDecodedSubject) {
 		t.Fatalf("subscriptions = %+v", client.subscriptionSubjects())
 	}
 
-	conn, err := net.Dial("udp", app.MAVLinkInput().Addr().String())
-	if err != nil {
-		t.Fatalf("dial MAVLink UDP input: %v", err)
+	for _, input := range inputs {
+		conn, err := net.Dial("udp", input.Addr().String())
+		if err != nil {
+			t.Fatalf("dial MAVLink UDP input: %v", err)
+		}
+		if _, err := conn.Write(mustRuntimeHeartbeatFrame(t)); err != nil {
+			_ = conn.Close()
+			t.Fatalf("write MAVLink UDP frame: %v", err)
+		}
+		if err := conn.Close(); err != nil {
+			t.Fatalf("close MAVLink UDP test connection: %v", err)
+		}
 	}
-	defer conn.Close()
-	if _, err := conn.Write(mustRuntimeHeartbeatFrame(t)); err != nil {
-		t.Fatalf("write MAVLink UDP frame: %v", err)
-	}
-	waitFor(t, time.Second, func() bool { return client.requestCount() >= 2 })
+	waitFor(t, time.Second, func() bool {
+		for _, input := range inputs {
+			if input.DataFlow().LastActivity.IsZero() {
+				return false
+			}
+		}
+		return true
+	})
 
 	if err := app.Close(context.Background()); err != nil {
 		t.Fatalf("close app: %v", err)
@@ -2049,6 +2068,7 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvTraceID:                       "trace-7",
 		EnvMAVLinkWriteTimeout:           "900ms",
 		EnvMAVLinkUDPListenAddr:          "127.0.0.1:14550",
+		EnvMAVLinkUDPExtraListenAddrs:    "127.0.0.1:14540, 127.0.0.1:14541",
 		EnvMAVLinkUDPMaxDatagramBytes:    "2048",
 		EnvCoTEnabled:                    "true",
 		EnvCoTSource:                     "udp:cot",
@@ -2187,6 +2207,11 @@ func TestConfigFromEnv(t *testing.T) {
 	if cfg.MAVLink.UDP.ListenAddr != "127.0.0.1:14550" ||
 		cfg.MAVLink.UDP.MaxDatagramBytes != 2048 {
 		t.Fatalf("MAVLink UDP config = %+v", cfg.MAVLink.UDP)
+	}
+	if len(cfg.MAVLink.UDP.ExtraListenAddrs) != 2 ||
+		cfg.MAVLink.UDP.ExtraListenAddrs[0] != "127.0.0.1:14540" ||
+		cfg.MAVLink.UDP.ExtraListenAddrs[1] != "127.0.0.1:14541" {
+		t.Fatalf("MAVLink UDP extra listen addrs = %+v", cfg.MAVLink.UDP.ExtraListenAddrs)
 	}
 	if !cfg.CoT.Enabled {
 		t.Fatal("CoT enabled = false, want true")
@@ -2590,6 +2615,14 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			name: "zero udp max datagram",
 			env: map[string]string{
 				EnvMAVLinkUDPListenAddr:       "127.0.0.1:14550",
+				EnvMAVLinkUDPMaxDatagramBytes: "0",
+			},
+			want: EnvMAVLinkUDPMaxDatagramBytes,
+		},
+		{
+			name: "zero udp max datagram with extra listen addr",
+			env: map[string]string{
+				EnvMAVLinkUDPExtraListenAddrs: "127.0.0.1:14540",
 				EnvMAVLinkUDPMaxDatagramBytes: "0",
 			},
 			want: EnvMAVLinkUDPMaxDatagramBytes,

@@ -283,8 +283,12 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the helper SHALL poll the COP snapshot for graph-visible MAVLink `COMMAND_ACK` task evidence owned by the
   MAVLink feed
 - **AND** the helper SHALL poll the COP snapshot for post-command MAVLink track refresh after the command start time
+- **AND** command-gate success SHALL require native command reply evidence to enter through the hosted MAVLink input,
+  decoder, and projector component chain
 - **AND** the helper SHALL write blocked evidence rather than passing if the transmitter command, expected ACK task,
   or expected post-command track is missing
+- **AND** absence of decoded command-related MAVLink frames such as `COMMAND_LONG`, `COMMAND_ACK`, or the requested
+  reply message SHALL keep the gate blocked even when baseline telemetry is live
 - **AND** a blocked simulator command gate SHALL NOT be cited as command authority, mission execution, or hardware
   safety evidence
 
@@ -324,6 +328,13 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** any MAVSDK/offboard-specific helper mode SHALL stamp `simulator_family=mavsdk`, default to motion-required
   telemetry, and block unless `mavsdk_server`, a MAVSDK-family Docker image, or an explicit remote-source override is
   present
+- **AND** any managed PX4 Docker stack helper MAY attach the simulator to the SemOps Compose network and route
+  simulator telemetry to the hosted `semops` service alias when host UDP routing is unreliable
+- **AND** the hosted SemOps runtime MAY expose multiple MAVLink UDP listeners when the simulator has separate
+  QGroundControl-style and offboard/MAVSDK-style return paths, provided those listeners feed the same governed
+  MAVLink component chain
+- **AND** such a managed Compose-network helper SHALL stop the simulator before tearing down the Compose network unless
+  the operator explicitly requests keeping the stack or simulator alive
 - **AND** helper evidence SHALL be written to ignored local paths rather than committed as portable demo evidence
 
 #### Scenario: SAPIENT parser preflight is not conformance
