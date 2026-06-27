@@ -58,6 +58,19 @@ Latest failed command evidence:
 `tmp/mavlink-sitl-evidence/2026-06-27T20-31-09Z-command-live-sim.env`, with
 `result=failed_command_control_smoke`.
 
+A follow-up transmitter-helper change added route learning from `semops.feed.mavlink.raw`. The helper can now subscribe
+to NATS, filter raw MAVLink BaseMessages for the target system, and use the payload `remote_addr` as the simulator UDP
+destination before sending the reviewed read-side command. This removed the remaining guessed-port variable from the
+PX4 command attempt.
+
+Learned-route command evidence:
+`tmp/mavlink-sitl-evidence/2026-06-27T21-21-20Z-command-live-sim.env`, with
+`result=failed_command_control_smoke`, and transmitter log
+`tmp/mavlink-sitl-evidence/2026-06-27T21-21-20Z-command-live-sim-transmitter.log`. The transmitter output learned
+`172.19.0.9:14580` for PX4 `system-1`, sent the heartbeat and `AUTOPILOT_VERSION` request to that route from inside
+`semops-cop_default`, and still reported `forwarded_replies=0`. The COP snapshot after the run remained healthy but
+still contained no `mavlink.command_ack` task.
+
 ## Boundary
 
 This closes a route reliability gap for PX4 telemetry evidence. It does not close ArduPilot parity, MAVSDK/offboard

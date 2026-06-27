@@ -160,6 +160,16 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   `tmp/mavlink-sitl-evidence/2026-06-27T20-31-09Z-command-live-sim.env` records
   `result=failed_command_control_smoke`. This is blocker evidence for live command/control only; it does not invalidate
   the PX4 telemetry pass.
+- 2026-06-27: the MVP transmitter helper gained route learning from live raw MAVLink telemetry via
+  `SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_NATS_URL` / `-learn-route-nats-url`. A Compose-network rerun learned
+  `172.19.0.9:14580` from `semops.feed.mavlink.raw` for PX4 `system-1`, sent the heartbeat and
+  `AUTOPILOT_VERSION` request to that learned route from inside `semops-cop_default`, and still recorded
+  `forwarded_replies=0` with no `mavlink.command_ack` task in the COP snapshot. The evidence file
+  `tmp/mavlink-sitl-evidence/2026-06-27T21-21-20Z-command-live-sim.env` records
+  `result=failed_command_control_smoke` and points at
+  `tmp/mavlink-sitl-evidence/2026-06-27T21-21-20Z-command-live-sim-transmitter.log` for the learned-route output.
+  This narrows the blocker from guessed host ports to PX4 image/endpoint command reply behavior or a missing
+  MAVSDK-style command driver path.
 - 2026-06-23: `go test ./pkg/cop ./internal/projectors/mavlink ./internal/adapters/mavlink
   ./internal/components/mavlink ./internal/copownership` passed after adding the MAVLink command-task ownership
   contract and COMMAND_ACK readback projection. This is evidence of governed command lifecycle readback only; live

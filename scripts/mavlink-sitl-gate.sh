@@ -63,6 +63,7 @@ COMMAND_POST_STATE_TRACK_ID="${SEMOPS_MAVLINK_COMMAND_POST_STATE_TRACK_ID:-}"
 COMMAND_SMOKE_TIMEOUT="${SEMOPS_MAVLINK_COMMAND_SMOKE_TIMEOUT:-$TIMEOUT}"
 COMMAND_POST_STATE_MIN_UPDATES="${SEMOPS_MAVLINK_COMMAND_POST_STATE_MIN_UPDATES:-$MIN_UPDATES}"
 COMMAND_POST_STATE_REQUIRE_MOTION="${SEMOPS_MAVLINK_COMMAND_POST_STATE_REQUIRE_MOTION:-$REQUIRE_MOTION}"
+COMMAND_TRANSMITTER_OUTPUT_FILE="${SEMOPS_MAVLINK_COMMAND_TRANSMITTER_OUTPUT_FILE:-$EVIDENCE_DIR/${EVIDENCE_STAMP}-${MODE}-transmitter.log}"
 
 bool_is_true() {
   case "${1:-}" in
@@ -173,6 +174,7 @@ write_evidence() {
     echo "command_smoke_timeout=$COMMAND_SMOKE_TIMEOUT"
     echo "command_post_state_min_updates=$COMMAND_POST_STATE_MIN_UPDATES"
     echo "command_post_state_require_motion=$COMMAND_POST_STATE_REQUIRE_MOTION"
+    echo "command_transmitter_output_file=$COMMAND_TRANSMITTER_OUTPUT_FILE"
     echo "px4_path=$(command -v px4 2>/dev/null || true)"
     echo "mavsdk_server_path=$(command -v mavsdk_server 2>/dev/null || true)"
     echo "sim_vehicle_path=$(command -v sim_vehicle.py 2>/dev/null || true)"
@@ -736,10 +738,13 @@ run_command_live_simulator_gate() {
   local started_at
   started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "Running reviewed MAVLink simulator transmitter at $started_at"
-  if bash -lc "$COMMAND_TRANSMITTER"; then
+  mkdir -p "$(dirname "$COMMAND_TRANSMITTER_OUTPUT_FILE")"
+  if bash -lc "$COMMAND_TRANSMITTER" >"$COMMAND_TRANSMITTER_OUTPUT_FILE" 2>&1; then
+    cat "$COMMAND_TRANSMITTER_OUTPUT_FILE"
     :
   else
     status=$?
+    cat "$COMMAND_TRANSMITTER_OUTPUT_FILE"
     write_evidence "failed_command_transmitter" "$status"
     exit "$status"
   fi

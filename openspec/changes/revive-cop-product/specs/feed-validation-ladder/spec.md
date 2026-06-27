@@ -280,6 +280,10 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the helper SHALL run the reviewed transmitter only after the COP stack and simulator are already live
 - **AND** the helper SHALL poll the COP snapshot for the named post-state MAVLink track before running the transmitter
 - **AND** the helper SHALL write blocked evidence and SHALL NOT transmit if baseline telemetry is stale or missing
+- **AND** the reviewed transmitter MAY learn the simulator UDP destination from hosted raw MAVLink telemetry rather
+  than relying on fixed host-published ports
+- **AND** transmitter stdout and stderr SHALL be captured to ignored local evidence when the gate runs a live simulator
+  transmitter
 - **AND** the helper SHALL poll the COP snapshot for graph-visible MAVLink `COMMAND_ACK` task evidence owned by the
   MAVLink feed
 - **AND** the helper SHALL poll the COP snapshot for post-command MAVLink track refresh after the command start time

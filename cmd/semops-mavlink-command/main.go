@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"flag"
@@ -12,7 +13,11 @@ import (
 	"strings"
 	"time"
 
-	mavlink "github.com/c360studio/semops/pkg/adapters/mavlink"
+	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
+	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
+	"github.com/c360studio/semstreams/message"
+	"github.com/c360studio/semstreams/payloadregistry"
+	"github.com/nats-io/nats.go"
 )
 
 const (
@@ -24,23 +29,27 @@ const (
 	defaultTargetComponent        = 1
 	defaultTimeout                = 2 * time.Second
 	defaultReplyTimeout           = 2 * time.Second
+	defaultLearnRouteTimeout      = 5 * time.Second
 	defaultHeartbeatSettle        = 250 * time.Millisecond
-	replyBufferBytes              = mavlink.MaxPayloadLength + 64
+	replyBufferBytes              = mavcodec.MaxPayloadLength + 64
 )
 
 type config struct {
-	Route            string
-	Action           string
-	SourceSystem     int
-	SourceComponent  int
-	TargetSystem     int
-	TargetComponent  int
-	ForwardRepliesTo string
-	SendHeartbeat    bool
-	SimulatorOnly    bool
-	DryRun           bool
-	Timeout          time.Duration
-	ReplyTimeout     time.Duration
+	Route             string
+	Action            string
+	SourceSystem      int
+	SourceComponent   int
+	TargetSystem      int
+	TargetComponent   int
+	ForwardRepliesTo  string
+	LearnRouteNATSURL string
+	LearnRouteSubject string
+	SendHeartbeat     bool
+	SimulatorOnly     bool
+	DryRun            bool
+	Timeout           time.Duration
+	ReplyTimeout      time.Duration
+	LearnRouteTimeout time.Duration
 }
 
 func main() {
@@ -65,11 +74,14 @@ func run(args []string, stdout, stderr io.Writer) error {
 	fs.IntVar(&cfg.TargetSystem, "target-system", cfg.TargetSystem, "MAVLink target system ID")
 	fs.IntVar(&cfg.TargetComponent, "target-component", cfg.TargetComponent, "MAVLink target component ID")
 	fs.StringVar(&cfg.ForwardRepliesTo, "forward-replies-to", cfg.ForwardRepliesTo, "optional UDP route that receives simulator reply frames observed by this helper")
+	fs.StringVar(&cfg.LearnRouteNATSURL, "learn-route-nats-url", cfg.LearnRouteNATSURL, "optional NATS URL for learning the simulator UDP route from raw MAVLink telemetry")
+	fs.StringVar(&cfg.LearnRouteSubject, "learn-route-subject", cfg.LearnRouteSubject, "NATS subject carrying raw MAVLink frames used for route learning")
 	fs.BoolVar(&cfg.SendHeartbeat, "send-heartbeat-first", cfg.SendHeartbeat, "send a GCS heartbeat before the command so simulators can learn the endpoint")
 	fs.BoolVar(&cfg.SimulatorOnly, "confirm-simulator-only", cfg.SimulatorOnly, "confirm this command is routed only to a simulator")
 	fs.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "print command metadata without sending the frame")
 	fs.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, "UDP write timeout")
 	fs.DurationVar(&cfg.ReplyTimeout, "reply-timeout", cfg.ReplyTimeout, "how long to read simulator replies when forwarding is enabled")
+	fs.DurationVar(&cfg.LearnRouteTimeout, "learn-route-timeout", cfg.LearnRouteTimeout, "how long to wait for raw MAVLink telemetry when learning the command route")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -84,7 +96,17 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return nil
 	}
 
-	route, err := normalizeUDPRoute(cfg.Route)
+	route := cfg.Route
+	if cfg.LearnRouteNATSURL != "" {
+		learned, err := learnRouteFromNATS(cfg)
+		if err != nil {
+			return err
+		}
+		route = learned
+		fmt.Fprintf(stdout, "learned_route=%s nats_url=%s subject=%s target_system=%d\n",
+			route, cfg.LearnRouteNATSURL, cfg.LearnRouteSubject, cfg.TargetSystem)
+	}
+	route, err = normalizeUDPRoute(route)
 	if err != nil {
 		return err
 	}
@@ -138,6 +160,14 @@ func defaultConfig() (config, error) {
 		}
 		replyTimeout = parsed
 	}
+	learnRouteTimeout := defaultLearnRouteTimeout
+	if value := os.Getenv("SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_TIMEOUT"); value != "" {
+		parsed, err := time.ParseDuration(value)
+		if err != nil {
+			return config{}, fmt.Errorf("SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_TIMEOUT=%q is not a duration: %w", value, err)
+		}
+		learnRouteTimeout = parsed
+	}
 	sourceSystem, err := envInt("SEMOPS_MAVLINK_COMMAND_SOURCE_SYSTEM", defaultSourceSystem)
 	if err != nil {
 		return config{}, err
@@ -163,18 +193,120 @@ func defaultConfig() (config, error) {
 		return config{}, err
 	}
 	return config{
-		Route:            firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_UDP_ROUTE"), defaultRoute),
-		Action:           firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_ACTION"), actionRequestAutopilotVersion),
-		SourceSystem:     sourceSystem,
-		SourceComponent:  sourceComponent,
-		TargetSystem:     targetSystem,
-		TargetComponent:  targetComponent,
-		ForwardRepliesTo: os.Getenv("SEMOPS_MAVLINK_COMMAND_FORWARD_REPLIES_TO"),
-		SendHeartbeat:    sendHeartbeat,
-		SimulatorOnly:    simulatorOnly,
-		Timeout:          timeout,
-		ReplyTimeout:     replyTimeout,
+		Route:             firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_UDP_ROUTE"), defaultRoute),
+		Action:            firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_ACTION"), actionRequestAutopilotVersion),
+		SourceSystem:      sourceSystem,
+		SourceComponent:   sourceComponent,
+		TargetSystem:      targetSystem,
+		TargetComponent:   targetComponent,
+		ForwardRepliesTo:  os.Getenv("SEMOPS_MAVLINK_COMMAND_FORWARD_REPLIES_TO"),
+		LearnRouteNATSURL: os.Getenv("SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_NATS_URL"),
+		LearnRouteSubject: firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_SUBJECT"), mavcomponent.DefaultRawSubject),
+		SendHeartbeat:     sendHeartbeat,
+		SimulatorOnly:     simulatorOnly,
+		Timeout:           timeout,
+		ReplyTimeout:      replyTimeout,
+		LearnRouteTimeout: learnRouteTimeout,
 	}, nil
+}
+
+func learnRouteFromNATS(cfg config) (string, error) {
+	if cfg.LearnRouteTimeout <= 0 {
+		return "", errors.New("learn route timeout must be greater than zero")
+	}
+	if strings.TrimSpace(cfg.LearnRouteSubject) == "" {
+		return "", errors.New("learn route subject is required")
+	}
+	targetSystem, err := uint8ID("target-system", cfg.TargetSystem, false)
+	if err != nil {
+		return "", err
+	}
+	registry := payloadregistry.New()
+	if err := mavcomponent.RegisterPayloads(registry); err != nil {
+		return "", fmt.Errorf("register MAVLink payloads for route learning: %w", err)
+	}
+	decoder := message.NewDecoder(registry)
+	parser := mavcodec.NewParser()
+
+	nc, err := nats.Connect(
+		cfg.LearnRouteNATSURL,
+		nats.Name("semops-mavlink-command-route-learner"),
+		nats.Timeout(cfg.LearnRouteTimeout),
+	)
+	if err != nil {
+		return "", fmt.Errorf("connect NATS for MAVLink route learning: %w", err)
+	}
+	defer nc.Close()
+
+	sub, err := nc.SubscribeSync(cfg.LearnRouteSubject)
+	if err != nil {
+		return "", fmt.Errorf("subscribe MAVLink raw subject %s: %w", cfg.LearnRouteSubject, err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.FlushTimeout(cfg.LearnRouteTimeout); err != nil {
+		return "", fmt.Errorf("flush MAVLink route learning subscription: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.LearnRouteTimeout)
+	defer cancel()
+	var lastErr error
+	for {
+		msg, err := sub.NextMsgWithContext(ctx)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				if lastErr != nil {
+					return "", fmt.Errorf("learn MAVLink simulator route timed out after %s: %w", cfg.LearnRouteTimeout, lastErr)
+				}
+				return "", fmt.Errorf("learn MAVLink simulator route timed out after %s waiting for target system %d on %s",
+					cfg.LearnRouteTimeout, targetSystem, cfg.LearnRouteSubject)
+			}
+			return "", fmt.Errorf("receive MAVLink raw frame for route learning: %w", err)
+		}
+		route, ok, err := routeFromRawFrame(msg.Data, decoder, parser, targetSystem)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if ok {
+			return route, nil
+		}
+	}
+}
+
+func routeFromRawFrame(
+	data []byte,
+	decoder *message.Decoder,
+	parser *mavcodec.Parser,
+	targetSystem uint8,
+) (string, bool, error) {
+	if decoder == nil {
+		return "", false, errors.New("route learning decoder is nil")
+	}
+	if parser == nil {
+		parser = mavcodec.NewParser()
+	}
+	envelope, err := decoder.Decode(data)
+	if err != nil {
+		return "", false, fmt.Errorf("decode raw MAVLink route-learning payload: %w", err)
+	}
+	payload, ok := envelope.Payload().(*mavcomponent.RawFramePayload)
+	if !ok {
+		return "", false, fmt.Errorf("route-learning payload = %T, want *mavlink.RawFramePayload", envelope.Payload())
+	}
+	if strings.TrimSpace(payload.RemoteAddr) == "" {
+		return "", false, nil
+	}
+	packets, err := parser.Parse(payload.Frame)
+	if err != nil {
+		return "", false, fmt.Errorf("parse MAVLink route-learning frame: %w", err)
+	}
+	if len(packets) != 1 {
+		return "", false, nil
+	}
+	if packets[0].SystemID != targetSystem {
+		return "", false, nil
+	}
+	return payload.RemoteAddr, true, nil
 }
 
 func forwardReplies(conn net.Conn, forwardRoute string, timeout time.Duration, stdout io.Writer) (int, error) {
@@ -227,11 +359,11 @@ func buildGCSHeartbeatFrame(cfg config) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	generator := mavlink.NewGenerator(sourceSystem, sourceComponent)
-	return generator.GenerateHeartbeat(mavlink.HeartbeatMessage{
-		VehicleType:    mavlink.TypeGCS,
-		Autopilot:      mavlink.AutopilotInvalid,
-		SystemStatus:   mavlink.StateActive,
+	generator := mavcodec.NewGenerator(sourceSystem, sourceComponent)
+	return generator.GenerateHeartbeat(mavcodec.HeartbeatMessage{
+		VehicleType:    mavcodec.TypeGCS,
+		Autopilot:      mavcodec.AutopilotInvalid,
+		SystemStatus:   mavcodec.StateActive,
 		MavlinkVersion: 3,
 	})
 }
@@ -261,8 +393,8 @@ func buildCommandFrame(cfg config) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	generator := mavlink.NewGenerator(sourceSystem, sourceComponent)
-	frame, err := generator.GenerateCommandLong(mavlink.CommandLongMessage{
+	generator := mavcodec.NewGenerator(sourceSystem, sourceComponent)
+	frame, err := generator.GenerateCommandLong(mavcodec.CommandLongMessage{
 		Command:           command,
 		TargetSystemID:    targetSystem,
 		TargetComponentID: targetComponent,
@@ -276,7 +408,7 @@ func buildCommandFrame(cfg config) ([]byte, string, error) {
 		"action=%s command=%d request_message=%d source=%d/%d target=%d/%d expected_ack_task_suffix=system-%d-command-%d-target-%d-%d",
 		cfg.Action,
 		command,
-		mavlink.MessageIDAutopilotVersion,
+		mavcodec.MessageIDAutopilotVersion,
 		sourceSystem,
 		sourceComponent,
 		targetSystem,
@@ -292,7 +424,7 @@ func buildCommandFrame(cfg config) ([]byte, string, error) {
 func commandForAction(action string) (uint16, [7]float32, error) {
 	switch strings.TrimSpace(action) {
 	case actionRequestAutopilotVersion:
-		return mavlink.CommandRequestMessage, [7]float32{float32(mavlink.MessageIDAutopilotVersion)}, nil
+		return mavcodec.CommandRequestMessage, [7]float32{float32(mavcodec.MessageIDAutopilotVersion)}, nil
 	default:
 		return 0, [7]float32{}, fmt.Errorf("unsupported action %q; MVP allowlist: %s", action, actionRequestAutopilotVersion)
 	}

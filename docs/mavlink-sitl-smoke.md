@@ -310,14 +310,27 @@ go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route udp:
 Expected metadata includes `action=request_autopilot_version`, `command=512`, `request_message=148`, and
 `expected_ack_task_suffix=system-1-command-512-target-255-190`.
 
+The helper can also learn a simulator command route from live raw telemetry before it sends. This is intended for
+Docker Compose-network PX4 runs where the correct UDP destination is the inbound `remote_addr` on
+`semops.feed.mavlink.raw`, not a stable host-published port:
+
+```bash
+go run ./cmd/semops-mavlink-command \
+  -confirm-simulator-only \
+  -send-heartbeat-first \
+  -learn-route-nats-url nats://127.0.0.1:4222 \
+  -learn-route-timeout 10s
+```
+
+When `command-live-sim` runs a transmitter, it writes transmitter stdout/stderr to the ignored evidence log named by
+`command_transmitter_output_file` in the `.env` evidence file.
+
 Current command-gate blocker, 2026-06-27: after the compose-network telemetry route passed, `command-live-sim` still
-failed against the local PX4/Gazebo headless image. The helper sent the read-side command through host-published PX4
-ports and from inside the Compose network with heartbeat-first enabled; no direct simulator replies were available to
-forward, and a filtered decoded-stream subscriber observed no `COMMAND_LONG`, `COMMAND_ACK`, or `AUTOPILOT_VERSION`
-frames entering the hosted MAVLink component chain. The last evidence file for that attempt is
-`tmp/mavlink-sitl-evidence/2026-06-27T20-31-09Z-command-live-sim.env` with
-`result=failed_command_control_smoke`. This does not weaken the telemetry evidence, but it keeps live
-command/control open.
+failed against the local PX4/Gazebo headless image. The helper first tried host-published PX4 ports and an in-network
+route. A follow-up route-learning run subscribed to raw MAVLink telemetry from inside `semops-cop_default`, learned
+`172.19.0.9:14580` for PX4 `system-1`, sent the heartbeat and read-side command there, and still saw
+`forwarded_replies=0`. The command-control snapshot smoke found no `mavlink.command_ack` task. This does not weaken
+the telemetry evidence, but it keeps live command/control open.
 
 ## Acceptance
 

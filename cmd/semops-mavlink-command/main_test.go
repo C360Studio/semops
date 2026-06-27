@@ -2,12 +2,16 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"net"
 	"strings"
 	"testing"
 	"time"
 
-	mavlink "github.com/c360studio/semops/pkg/adapters/mavlink"
+	mavcomponent "github.com/c360studio/semops/internal/components/mavlink"
+	mavcodec "github.com/c360studio/semops/pkg/adapters/mavlink"
+	"github.com/c360studio/semstreams/message"
+	"github.com/c360studio/semstreams/payloadregistry"
 )
 
 func TestRunDryRunBuildsReadSideMVPCommand(t *testing.T) {
@@ -58,7 +62,7 @@ func TestBuildGCSHeartbeatFrameUsesCommandSourceIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build heartbeat: %v", err)
 	}
-	packets, err := mavlink.NewParser().Parse(frame)
+	packets, err := mavcodec.NewParser().Parse(frame)
 	if err != nil {
 		t.Fatalf("parse heartbeat: %v", err)
 	}
@@ -66,14 +70,47 @@ func TestBuildGCSHeartbeatFrameUsesCommandSourceIdentity(t *testing.T) {
 		t.Fatalf("packets = %d, want 1", len(packets))
 	}
 	packet := packets[0]
-	if packet.MessageID != mavlink.MessageIDHeartbeat ||
+	if packet.MessageID != mavcodec.MessageIDHeartbeat ||
 		packet.SystemID != 250 ||
 		packet.ComponentID != 191 {
 		t.Fatalf("heartbeat packet = %+v", packet)
 	}
-	if packet.ParsedFields["type"] != mavlink.TypeGCS ||
-		packet.ParsedFields["autopilot"] != mavlink.AutopilotInvalid {
+	if packet.ParsedFields["type"] != mavcodec.TypeGCS ||
+		packet.ParsedFields["autopilot"] != mavcodec.AutopilotInvalid {
 		t.Fatalf("heartbeat fields = %+v", packet.ParsedFields)
+	}
+}
+
+func TestRouteFromRawFrameLearnsTargetSystemRemoteAddr(t *testing.T) {
+	decoder := newRouteLearningDecoder(t)
+	parser := mavcodec.NewParser()
+	frame := mustHeartbeatFrame(t, 1, 1)
+	wire := mustRawFrameMessage(t, "172.18.0.9:18570", frame)
+
+	route, ok, err := routeFromRawFrame(wire, decoder, parser, 1)
+	if err != nil {
+		t.Fatalf("learn route from raw frame: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected route to be learned")
+	}
+	if route != "172.18.0.9:18570" {
+		t.Fatalf("route = %q", route)
+	}
+}
+
+func TestRouteFromRawFrameIgnoresOtherSystem(t *testing.T) {
+	decoder := newRouteLearningDecoder(t)
+	parser := mavcodec.NewParser()
+	frame := mustHeartbeatFrame(t, 42, 1)
+	wire := mustRawFrameMessage(t, "172.18.0.42:18570", frame)
+
+	route, ok, err := routeFromRawFrame(wire, decoder, parser, 1)
+	if err != nil {
+		t.Fatalf("learn route from other system: %v", err)
+	}
+	if ok || route != "" {
+		t.Fatalf("route = %q ok=%v, want no route", route, ok)
 	}
 }
 
@@ -145,16 +182,56 @@ func TestCommandForActionOnlyAllowsReadSideMVPCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("command for action: %v", err)
 	}
-	if command != mavlink.CommandRequestMessage {
-		t.Fatalf("command = %d, want %d", command, mavlink.CommandRequestMessage)
+	if command != mavcodec.CommandRequestMessage {
+		t.Fatalf("command = %d, want %d", command, mavcodec.CommandRequestMessage)
 	}
-	if params[0] != float32(mavlink.MessageIDAutopilotVersion) {
-		t.Fatalf("param1 = %f, want %d", params[0], mavlink.MessageIDAutopilotVersion)
+	if params[0] != float32(mavcodec.MessageIDAutopilotVersion) {
+		t.Fatalf("param1 = %f, want %d", params[0], mavcodec.MessageIDAutopilotVersion)
 	}
 
 	if _, _, err := commandForAction("arm"); err == nil {
 		t.Fatal("expected unsupported action error")
 	}
+}
+
+func newRouteLearningDecoder(t *testing.T) *message.Decoder {
+	t.Helper()
+	registry := payloadregistry.New()
+	if err := mavcomponent.RegisterPayloads(registry); err != nil {
+		t.Fatalf("register MAVLink payloads: %v", err)
+	}
+	return message.NewDecoder(registry)
+}
+
+func mustHeartbeatFrame(t *testing.T, systemID, componentID uint8) []byte {
+	t.Helper()
+	frame, err := mavcodec.NewGenerator(systemID, componentID).GenerateHeartbeat(mavcodec.HeartbeatMessage{
+		VehicleType:    mavcodec.TypeQuadrotor,
+		Autopilot:      mavcodec.AutopilotPX4,
+		SystemStatus:   mavcodec.StateActive,
+		MavlinkVersion: 3,
+	})
+	if err != nil {
+		t.Fatalf("generate heartbeat: %v", err)
+	}
+	return frame
+}
+
+func mustRawFrameMessage(t *testing.T, remoteAddr string, frame []byte) []byte {
+	t.Helper()
+	now := time.Date(2026, 6, 27, 20, 0, 0, 0, time.UTC)
+	payload := mavcomponent.NewRawFramePayload("udp:test", remoteAddr, now, frame)
+	envelope := message.NewBaseMessage(
+		mavcomponent.RawFrameType,
+		payload,
+		"semops-input-mavlink-udp",
+		message.WithTime(now),
+	)
+	data, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatalf("marshal raw frame BaseMessage: %v", err)
+	}
+	return data
 }
 
 func TestNormalizeUDPRouteRejectsListenStyleRoute(t *testing.T) {

@@ -223,6 +223,8 @@
 - [x] 5.105 Harden the PX4/Gazebo headless telemetry route with a managed Compose-network simulator path and dual
       hosted MAVLink UDP listeners while keeping live command/control open until native command reply frames appear
       through the hosted component chain
+- [x] 5.106 Add MAVLink command route-learning diagnostics from raw telemetry and persist transmitter output while
+      keeping live command/control open after the learned-route PX4 attempt produced no command reply frames
 
 ## 6. Structural COP Stack
 

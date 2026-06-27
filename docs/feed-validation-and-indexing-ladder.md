@@ -302,6 +302,10 @@ Mock or harness:
 - 2026-06-27 `command-live-sim` stayed blocked after a real PX4/Gazebo command attempt. Baseline telemetry was live,
   but the helper forwarded zero simulator replies and no `COMMAND_LONG`, `COMMAND_ACK`, or `AUTOPILOT_VERSION` frames
   were observed entering the hosted MAVLink decoded stream, so task 5.97 remains open.
+- 2026-06-27 the command helper learned the PX4 simulator UDP destination from `semops.feed.mavlink.raw` and retried
+  from inside the Compose network. It learned `172.19.0.9:14580`, sent the read-side command there, still forwarded
+  zero replies, and the COP snapshot still had no `mavlink.command_ack` task. The blocker is no longer a guessed host
+  port; it is PX4 image/endpoint command reply behavior or a missing MAVSDK-style command driver path.
 - 2026-06-26T00:44:17Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
   the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. This is
   readiness-gap evidence only, not ArduPilot simulator interoperability.
