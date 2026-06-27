@@ -600,6 +600,8 @@ profile semantics.
   graph projection, or UI claims.
 - Expose provenance and trajectory for every semantic answer: each explanation carries task prompt/input reference,
   source evidence, output text, semantic trajectory reference, algorithm identity, and non-authoritative claim posture.
+- Keep SAPIENT, KLV/STANAG, semantic-service, CS API write-side, and standards-conformance demo language behind the
+  2026-06-27 demo-claim adversarial review and its stronger-claim unlock gates.
 
 ### Phase 4: Edge/Core Split
 

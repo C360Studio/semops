@@ -60,8 +60,8 @@ service reliability, or command/control readiness.
 
 ## Follow-Up Gates
 
-- Keep `8.6` open for the later demo-claim adversarial review before SAPIENT, KLV, semantic, or
-  standards-conformance claims are demoed.
+- Close `8.6` only through the later demo-claim adversarial review before SAPIENT, KLV, semantic, or
+  standards-conformance claims are demoed. [done: `2026-06-27-demo-claim-adversarial-review.md`]
 - Keep `9.7` open for adversarial ownership review before filing broad upstream SemStreams asks.
 - Do not close MAVLink PX4/SITL, SAPIENT Dstl harness, KLV/SemSource streaming-binary, CS API bridge, or association
   tasks from this rollup.

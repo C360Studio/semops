@@ -187,6 +187,10 @@ output text, semantic trajectory reference, algorithm identity, and non-authorit
 hosted LLM service, write graph state, mutate source or fusion entities, merge identities, expose dedicated UI, or
 claim standards conformance.
 
+The 2026-06-27 demo-claim adversarial review keeps demo language tied to exact evidence paths. SAPIENT, KLV,
+semantic, CS API bridge, and product e2e statements must use qualified engineering-evidence wording unless the
+matching harness, conformance, hosted-service, UI, command/status, or product-boundary gate has passed.
+
 The risky cases are mixed-shape entities:
 
 - A TAK event may be both a position signal and an operator message.

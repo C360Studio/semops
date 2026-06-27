@@ -25,6 +25,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-binary-descriptor-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-raw-replay-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-semstreams-component-boundary-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-27-demo-claim-adversarial-review.md
 
 scope:
   - Run adversarial reviews at framework modernization, COP model, feed-entry, Phase 1 signoff, high-risk claim,
@@ -38,7 +39,7 @@ acceptance:
   - The first review challenges the revival baseline before broad implementation starts. [done]
   - Feed-entry reviews exist before MAVLink, TAK/CoT, CAP, ADS-B, SAPIENT, or KLV enter the structural stack.
   - Orchestration, topology, tier UI, SAPIENT, KLV, and streaming-binary claims have dedicated adversarial review
-    records before demo promotion.
+    records before demo promotion. [done for the current SAPIENT/KLV/semantic/standards claim set]
   - Upstream SemStreams asks include review evidence separating product-local pressure from reusable framework need.
   - Hosted feed promotion reviews challenge whether SemOps is using SemStreams input/processor component lifecycle,
     flowgraph, payload registry, ports, config schema, health, and flow metrics before container/service claims.
@@ -46,3 +47,9 @@ acceptance:
 tdd:
   - Treat unresolved review objections as the red state for the next stage gate.
   - Add or update failing fixtures when objections expose missing evidence rather than accepting narrative claims.
+
+progress:
+  - Added the 2026-06-27 demo-claim adversarial review. Current demo language may cite exact SAPIENT developer
+    preflight, KLV deterministic subset, semantic read-only explanation, CS API read-side bridge, and hosted
+    product-boundary evidence paths, but SAPIENT compliance/product support, STANAG/KLV conformance, hosted semantic
+    service/UI, CS API write-side/tasking, and broad standards-conformance claims remain blocked.
