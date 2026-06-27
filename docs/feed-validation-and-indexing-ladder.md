@@ -156,6 +156,10 @@ The first scenario-control endpoint is intentionally fail-closed: `/scenario/con
 as blocked, and `POST` requests for start/reset/pause/resume return policy evidence instead of mutating scenario or
 graph state until an `operator_scenario_control` checkpoint, authenticated operator policy, conflict semantics, and a
 control executor exist.
+On 2026-06-26 at 20:56 America/Chicago, the full default read-side stack smoke passed after the operator audit-label
+and blocked-controls UI slices. The pass covered Caddy-routed snapshot/runtime/status/control paths, product
+feed-boundary scenario readback, component Prometheus/runtime evidence, fail-closed scenario controls, MAVLink/CoT/CAP
+born-first graph smokes, and SAPIENT decoded preflight. It does not change the MVP command/control posture.
 
 ## Indexing Pressure
 

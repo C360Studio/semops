@@ -160,6 +160,10 @@ progress:
     `X-SemOps-Operator-ID`, while keeping the readback display-only and unauthenticated.
   - Surfaced Caddy-routed `/scenario/controls` in the COP UI as blocked read-only policy state with inert
     start/reset/pause/resume labels, required claim scope, checkpoint state, and reason.
+  - Re-ran the full read-side stack smoke after the operator audit-label and blocked-controls UI slices. The
+    2026-06-26 20:56 America/Chicago run passed Caddy-routed COP snapshot/runtime/status/control checks, product
+    feed-boundary scenario readback, component Prometheus/runtime evidence, fail-closed scenario controls, MAVLink,
+    CoT, and CAP born-first graph smokes, and SAPIENT decoded preflight.
 
 current_evidence:
   - `go test ./internal/contracts`
@@ -184,7 +188,7 @@ current_evidence:
   - `go test ./pkg/adapters/mavlink`
   - `go test ./pkg/adapters/adsb`
   - `go test ./pkg/adapters/sapient`
-  - `bash scripts/cop-stack-smoke.sh`
+  - `2026-06-26 20:56 America/Chicago: bash scripts/cop-stack-smoke.sh`
   - `(cd ui && npm run check)`
   - `(cd ui && npm run test)`
   - `(cd ui && npm run test:e2e)`
@@ -192,7 +196,6 @@ current_evidence:
   - `go build ./cmd/semops`
   - `go build ./cmd/semops-scenario-runner`
   - `docker compose -f compose.cop.yml config`
-  - `bash scripts/cop-stack-smoke.sh`
 
 remaining:
   - Keep ADS-B receiver/readsb/dump1090/ASTERIX paths, live OpenSky reliability, and credentialed provider access

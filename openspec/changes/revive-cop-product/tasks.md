@@ -331,6 +331,7 @@
       controls
 - [x] 6.77 Add a Caddy-routed fail-closed scenario control guard before any executable start/reset/pause/resume
       action or UI control is exposed
+- [x] 6.78 Rerun the full read-side COP stack smoke after operator audit-label and blocked-control UI slices
 
 ## 7. COP UI
 

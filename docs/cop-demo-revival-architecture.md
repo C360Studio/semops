@@ -91,6 +91,10 @@ runtime feed, and Prometheus metric readback.
 Scenario controls now have a Caddy-routed fail-closed guard at `/scenario/controls`: it advertises
 start/reset/pause/resume as supported action names but rejects execution until an `operator_scenario_control`
 checkpoint, authenticated operator policy, authority-conflict semantics, and a real control executor exist.
+The 2026-06-26 20:56 America/Chicago read-side stack smoke passed after the operator audit-label and blocked-controls
+UI slices, covering Caddy-routed COP snapshot/runtime/status/control paths, product feed-boundary scenario readback,
+component Prometheus/runtime evidence, fail-closed scenario controls, MAVLink/CoT/CAP born-first graph smokes, and
+SAPIENT decoded preflight. This is read-side MVP evidence, not command/control readiness.
 Command-control, CS API, simulator-fidelity, provider-integration, standards, and operator-control claims require
 their own checkpoint boundary and feedback loop rather than inheriting the base HADR product smoke. The Compose smoke
 now proves the shared-airspace vignette by requiring one Caddy-routed COP snapshot to contain the HADR scenario's
