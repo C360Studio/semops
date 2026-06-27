@@ -37,6 +37,8 @@ operator-facing orchestration feature.
 - **WHEN** a semantic service generates a civilian advisory or anomaly explanation
 - **THEN** SemOps records the prompt/task, source evidence, output, and trajectory reference before deciding whether
   that transition deserves dedicated UI
+- **AND** the first implementation MAY be a deterministic read-only explanation builder over COP snapshots before any
+  hosted LLM service, graph projection, or operator-facing semantic UI is accepted
 
 ### Requirement: Orchestration candidates are evaluated as risks
 

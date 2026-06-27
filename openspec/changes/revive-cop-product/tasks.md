@@ -391,7 +391,7 @@
 - [x] 8.4.4 Add lightweight SemConnect service-mode launcher for SemOps bridge smokes without Team Engine
 - [x] 8.4.5 Align SemConnect entity-create caller handling with current SemStreams ADR-060 mutation responses before
       marking live SemOps fixture execution green
-- [ ] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory
+- [x] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory
 - [ ] 8.6 Run adversarial review before SAPIENT, KLV, semantic, or standards-conformance claims are demoed
 - [x] 8.7 Record CS API tasking impedance gate for TTL, priority, authority, local override, and async status edge
       cases before command/control implementation

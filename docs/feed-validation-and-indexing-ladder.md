@@ -181,6 +181,12 @@ SemOps should treat profile assignment as a contract per projected entity type:
   `content`.
 - Native packet references, replay steps, keyframe extraction logs, and raw decode events should usually be `trace`.
 
+The first semantic explanation slice keeps that boundary narrow. `internal/semantic` derives deterministic,
+read-only explanation artifacts from COP snapshots and records the task prompt, task input reference, source evidence,
+output text, semantic trajectory reference, algorithm identity, and non-authoritative claim posture. It does not run a
+hosted LLM service, write graph state, mutate source or fusion entities, merge identities, expose dedicated UI, or
+claim standards conformance.
+
 The risky cases are mixed-shape entities:
 
 - A TAK event may be both a position signal and an operator message.

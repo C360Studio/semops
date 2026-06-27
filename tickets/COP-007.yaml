@@ -56,6 +56,9 @@ evidence_records:
   - pkg/adapters/sapient/replay_test.go
   - pkg/adapters/sapient/protos/README.md
   - openspec/changes/revive-cop-product/feed-evidence/klv-stanag4609.md
+  - openspec/changes/revive-cop-product/feed-evidence/semantic-explanations.md
+  - internal/semantic/explanations.go
+  - internal/semantic/explanations_test.go
 
 review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-19-tak-cot-parser-gate-review.md
@@ -73,6 +76,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-raw-replay-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-cap-component-promotion-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-projection-ownership-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-27-semantic-explanation-core-review.md
 
 scope:
   - Maintain the feed validation and indexing ladder for MAVLink, TAK/CoT, CAP, CS API interop, ADS-B, SAPIENT,
@@ -215,6 +219,10 @@ progress:
   - Added opt-in one-command SAPIENT graph smoke coverage that points the fixture provider at absolute-location
     detections, verifies Caddy-routed SAPIENT track readback, and expects SAPIENT projector runtime metrics only when
     graph mode is enabled.
+  - Added the deterministic semantic explanation core in `internal/semantic`: COP snapshot track translations and
+    association anomaly explanations now preserve task prompt/input reference, output text, source evidence,
+    semantic trajectory reference, algorithm identity, and read-only claim posture without hosted LLM service, graph
+    projection, source mutation, identity merge, command authority, or UI claims.
 
 remaining:
   - Keep the baseline `message_type="unknown"` signal from becoming a global zero assertion as more feeds join.

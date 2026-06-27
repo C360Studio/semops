@@ -595,8 +595,11 @@ profile semantics.
 
 - Add KLV footprint extraction and CS API read-side interop through SemConnect; keep write-side ingress and tasking as
   stretch scope.
-- Add the semantic translation service for civilian advisories and anomaly explanation.
-- Expose provenance and trajectory for every semantic answer.
+- Add the semantic translation service for civilian advisories and anomaly explanation. The first accepted slice is a
+  deterministic `internal/semantic` builder that emits read-only COP explanation artifacts before hosted service, LLM,
+  graph projection, or UI claims.
+- Expose provenance and trajectory for every semantic answer: each explanation carries task prompt/input reference,
+  source evidence, output text, semantic trajectory reference, algorithm identity, and non-authoritative claim posture.
 
 ### Phase 4: Edge/Core Split
 
