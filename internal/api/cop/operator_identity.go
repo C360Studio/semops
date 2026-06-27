@@ -7,23 +7,28 @@ import (
 )
 
 const (
-	OperatorIDHeader             = "X-SemOps-Operator-ID"
-	OperatorRoleHeader           = "X-SemOps-Operator-Role"
-	OperatorAuthorityScopeHeader = "X-SemOps-Authority-Scope"
+	OperatorIDHeader              = "X-SemOps-Operator-ID"
+	OperatorRoleHeader            = "X-SemOps-Operator-Role"
+	OperatorAuthorityScopeHeader  = "X-SemOps-Authority-Scope"
+	OperatorAuthorityDomainHeader = "X-SemOps-Authority-Domain"
+	OperatorAuthenticatedHeader   = "X-SemOps-Operator-Authenticated"
 
 	OperatorIdentitySourceDefault = "local-default"
 	OperatorIdentitySourceBody    = "request-body"
 	OperatorIdentitySourceHeader  = "request-header"
+	OperatorIdentitySourceTrusted = "trusted-headers"
 
 	MaxOperatorIdentityLen = 128
 )
 
 type OperatorIdentity struct {
-	ID             string
-	ReviewerRole   string
-	AuthorityScope string
-	Authenticated  bool
-	Source         string
+	ID              string
+	ReviewerRole    string
+	AuthorityScope  string
+	AuthorityDomain string
+	ConflictPolicy  string
+	Authenticated   bool
+	Source          string
 }
 
 type OperatorIdentityResolver func(*http.Request, string) (OperatorIdentity, error)
@@ -57,11 +62,53 @@ func ResolveLocalOperatorIdentity(r *http.Request, requestedID string) (Operator
 		return OperatorIdentity{}, err
 	}
 	return OperatorIdentity{
-		ID:             id,
-		ReviewerRole:   DefaultAssociationReviewerRole,
-		AuthorityScope: DefaultAssociationReviewAuthorityScope,
-		Authenticated:  false,
-		Source:         source,
+		ID:              id,
+		ReviewerRole:    DefaultAssociationReviewerRole,
+		AuthorityScope:  DefaultAssociationReviewAuthorityScope,
+		AuthorityDomain: DefaultAssociationReviewAuthorityDomain,
+		ConflictPolicy:  DefaultAssociationReviewConflictPolicy,
+		Authenticated:   false,
+		Source:          source,
+	}, nil
+}
+
+func ResolveTrustedHeaderOperatorIdentity(r *http.Request, _ string) (OperatorIdentity, error) {
+	if r == nil {
+		return OperatorIdentity{}, fmt.Errorf("trusted operator identity requires request headers")
+	}
+	if !trustedAuthenticatedHeader(r.Header.Get(OperatorAuthenticatedHeader)) {
+		return OperatorIdentity{}, fmt.Errorf("%s must be true for trusted operator identity", OperatorAuthenticatedHeader)
+	}
+	id := strings.TrimSpace(r.Header.Get(OperatorIDHeader))
+	if err := validateOperatorIdentityID(id); err != nil {
+		return OperatorIdentity{}, err
+	}
+	role := strings.TrimSpace(r.Header.Get(OperatorRoleHeader))
+	if role == "" {
+		role = AuthenticatedAssociationReviewerRole
+	}
+	if role != AuthenticatedAssociationReviewerRole {
+		return OperatorIdentity{}, fmt.Errorf("authenticated operator role must be %q", AuthenticatedAssociationReviewerRole)
+	}
+	scope := strings.TrimSpace(r.Header.Get(OperatorAuthorityScopeHeader))
+	if scope == "" {
+		scope = AuthenticatedAssociationReviewScope
+	}
+	if scope != AuthenticatedAssociationReviewScope {
+		return OperatorIdentity{}, fmt.Errorf("authenticated operator authority_scope must be %q", AuthenticatedAssociationReviewScope)
+	}
+	domain := strings.TrimSpace(r.Header.Get(OperatorAuthorityDomainHeader))
+	if err := validateAuthorityDomain(domain); err != nil {
+		return OperatorIdentity{}, err
+	}
+	return OperatorIdentity{
+		ID:              id,
+		ReviewerRole:    role,
+		AuthorityScope:  scope,
+		AuthorityDomain: domain,
+		ConflictPolicy:  AuthenticatedAssociationReviewPolicy,
+		Authenticated:   true,
+		Source:          OperatorIdentitySourceTrusted,
 	}, nil
 }
 
@@ -78,4 +125,27 @@ func validateOperatorIdentityID(id string) error {
 		return fmt.Errorf("operator identity contains control characters")
 	}
 	return nil
+}
+
+func validateAuthorityDomain(domain string) error {
+	if strings.TrimSpace(domain) == "" {
+		return fmt.Errorf("operator authority domain is required")
+	}
+	if len(domain) > MaxOperatorIdentityLen {
+		return fmt.Errorf("operator authority domain exceeds %d characters", MaxOperatorIdentityLen)
+	}
+	if strings.Contains(domain, ",") {
+		return fmt.Errorf("operator authority domain must not contain commas")
+	}
+	if strings.ContainsFunc(domain, func(r rune) bool {
+		return r < ' ' || r == 0x7f
+	}) {
+		return fmt.Errorf("operator authority domain contains control characters")
+	}
+	return nil
+}
+
+func trustedAuthenticatedHeader(value string) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	return value == "true" || value == "1" || value == "yes"
 }

@@ -60,17 +60,30 @@ func (s *GraphAssociationReviewStore) PutAssociationReview(
 	if err := validateAssociationReview(review); err != nil {
 		return AssociationReview{}, err
 	}
+	effective := review
+	if previewer, ok := s.local.(interface {
+		PreviewAssociationReview(context.Context, AssociationReview) (AssociationReview, error)
+	}); ok {
+		var err error
+		effective, err = previewer.PreviewAssociationReview(ctx, review)
+		if err != nil {
+			return AssociationReview{}, err
+		}
+	}
 	evidence := fusionprojector.AssociationReviewEvidence{
-		Org:            s.cfg.Org,
-		Platform:       s.cfg.Platform,
-		AssociationID:  review.AssociationID,
-		Decision:       review.Decision,
-		ReviewedBy:     review.ReviewedBy,
-		ReviewedAt:     review.ReviewedAt,
-		ReviewerRole:   review.ReviewerRole,
-		AuthorityScope: review.AuthorityScope,
-		ConflictPolicy: review.ConflictPolicy,
-		Comment:        review.Comment,
+		Org:             s.cfg.Org,
+		Platform:        s.cfg.Platform,
+		AssociationID:   effective.AssociationID,
+		Decision:        effective.Decision,
+		ReviewedBy:      effective.ReviewedBy,
+		ReviewedAt:      effective.ReviewedAt,
+		ReviewerRole:    effective.ReviewerRole,
+		AuthorityScope:  effective.AuthorityScope,
+		AuthorityDomain: effective.AuthorityDomain,
+		ConflictPolicy:  effective.ConflictPolicy,
+		ConflictState:   effective.ConflictState,
+		Authenticated:   effective.Authenticated,
+		Comment:         effective.Comment,
 	}
 	if err := s.writeReview(ctx, evidence); err != nil {
 		return AssociationReview{}, err

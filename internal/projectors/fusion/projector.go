@@ -54,16 +54,19 @@ func NewProjector(cfg Config) *Projector {
 }
 
 type AssociationReviewEvidence struct {
-	Org            string
-	Platform       string
-	AssociationID  string
-	Decision       string
-	ReviewedBy     string
-	ReviewedAt     time.Time
-	ReviewerRole   string
-	AuthorityScope string
-	ConflictPolicy string
-	Comment        string
+	Org             string
+	Platform        string
+	AssociationID   string
+	Decision        string
+	ReviewedBy      string
+	ReviewedAt      time.Time
+	ReviewerRole    string
+	AuthorityScope  string
+	AuthorityDomain string
+	ConflictPolicy  string
+	ConflictState   string
+	Authenticated   bool
+	Comment         string
 }
 
 func (p *Projector) ProjectAssociation(evidence fusionassociation.Evidence) (Plan, error) {
@@ -250,7 +253,10 @@ func (p *Projector) associationReviewTriples(
 		p.reviewTriple(entityID, cop.AssociationReviewReviewedAt, when, evidence, when),
 		p.reviewTriple(entityID, cop.AssociationReviewReviewerRole, evidence.ReviewerRole, evidence, when),
 		p.reviewTriple(entityID, cop.AssociationReviewAuthorityScope, evidence.AuthorityScope, evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewAuthorityDomain, evidence.AuthorityDomain, evidence, when),
 		p.reviewTriple(entityID, cop.AssociationReviewConflictPolicy, evidence.ConflictPolicy, evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewConflictState, evidence.ConflictState, evidence, when),
+		p.reviewTriple(entityID, cop.AssociationReviewAuthenticated, evidence.Authenticated, evidence, when),
 		p.reviewTriple(entityID, cop.AssociationReviewComment, evidence.Comment, evidence, when),
 		p.reviewTriple(entityID, cop.ProvenanceSource, "operator.association_review", evidence, when),
 		p.reviewTriple(entityID, cop.ProvenanceConfidence, 1.0, evidence, when),
@@ -336,15 +342,53 @@ func validateAssociationReview(evidence AssociationReviewEvidence) error {
 		return fmt.Errorf("fusion association review reviewer is required")
 	case evidence.ReviewedAt.IsZero():
 		return fmt.Errorf("fusion association review reviewed_at is required")
+	default:
+		return validateAssociationReviewAuthority(evidence)
+	}
+}
+
+func validateAssociationReviewAuthority(evidence AssociationReviewEvidence) error {
+	if evidence.Authenticated {
+		switch {
+		case evidence.ReviewerRole != cop.AssociationReviewerRoleAuthenticated:
+			return fmt.Errorf("fusion association review reviewer role must be %q", cop.AssociationReviewerRoleAuthenticated)
+		case evidence.AuthorityScope != cop.AssociationReviewScopeAssociationReview:
+			return fmt.Errorf("fusion association review authority scope must be %q", cop.AssociationReviewScopeAssociationReview)
+		case strings.TrimSpace(evidence.AuthorityDomain) == "" || evidence.AuthorityDomain == "local-display":
+			return fmt.Errorf("fusion association review authenticated authority domain is required")
+		case evidence.ConflictPolicy != cop.AssociationReviewConflictMultiAuthority:
+			return fmt.Errorf("fusion association review conflict policy must be %q", cop.AssociationReviewConflictMultiAuthority)
+		}
+		return validateAssociationReviewConflictState(evidence)
+	}
+	switch {
 	case evidence.ReviewerRole != cop.AssociationReviewerRoleUnverified:
 		return fmt.Errorf("fusion association review reviewer role must be %q", cop.AssociationReviewerRoleUnverified)
 	case evidence.AuthorityScope != cop.AssociationReviewScopeDisplayOnly:
 		return fmt.Errorf("fusion association review authority scope must be %q", cop.AssociationReviewScopeDisplayOnly)
+	case evidence.AuthorityDomain != "local-display":
+		return fmt.Errorf("fusion association review authority domain must be %q", "local-display")
 	case evidence.ConflictPolicy != cop.AssociationReviewConflictLatestDisplayOnly:
 		return fmt.Errorf("fusion association review conflict policy must be %q", cop.AssociationReviewConflictLatestDisplayOnly)
 	default:
+		return validateAssociationReviewConflictState(evidence)
+	}
+}
+
+func validateAssociationReviewConflictState(evidence AssociationReviewEvidence) error {
+	if evidence.Decision == cop.AssociationReviewConflictStateBlocked {
+		if !evidence.Authenticated {
+			return fmt.Errorf("fusion association review blocked conflicts require authenticated authority review")
+		}
+		if evidence.ConflictState != cop.AssociationReviewConflictStateBlocked {
+			return fmt.Errorf("fusion association review conflict state must be %q", cop.AssociationReviewConflictStateBlocked)
+		}
 		return nil
 	}
+	if evidence.ConflictState != cop.AssociationReviewConflictStateNone {
+		return fmt.Errorf("fusion association review conflict state must be %q", cop.AssociationReviewConflictStateNone)
+	}
+	return nil
 }
 
 func (p *Projector) ownerToken(owner string) string {
@@ -369,6 +413,9 @@ func associationReviewSourceRef(evidence AssociationReviewEvidence) string {
 	parts := []string{"association=" + evidence.AssociationID}
 	if evidence.ReviewedBy != "" {
 		parts = append(parts, "reviewer="+evidence.ReviewedBy)
+	}
+	if evidence.AuthorityDomain != "" {
+		parts = append(parts, "authority_domain="+evidence.AuthorityDomain)
 	}
 	return strings.Join(parts, " ")
 }

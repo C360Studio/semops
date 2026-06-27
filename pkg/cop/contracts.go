@@ -56,14 +56,17 @@ const (
 	AssociationTimeDeltaSeconds = "cop.association.time_delta_seconds"
 	AssociationObservedAt       = "cop.association.observed_at"
 
-	AssociationReviewAssociation    = "cop.association_review.association"
-	AssociationReviewDecision       = "cop.association_review.decision"
-	AssociationReviewReviewedBy     = "cop.association_review.reviewed_by"
-	AssociationReviewReviewedAt     = "cop.association_review.reviewed_at"
-	AssociationReviewReviewerRole   = "cop.association_review.reviewer_role"
-	AssociationReviewAuthorityScope = "cop.association_review.authority_scope"
-	AssociationReviewConflictPolicy = "cop.association_review.conflict_policy"
-	AssociationReviewComment        = "cop.association_review.comment"
+	AssociationReviewAssociation     = "cop.association_review.association"
+	AssociationReviewDecision        = "cop.association_review.decision"
+	AssociationReviewReviewedBy      = "cop.association_review.reviewed_by"
+	AssociationReviewReviewedAt      = "cop.association_review.reviewed_at"
+	AssociationReviewReviewerRole    = "cop.association_review.reviewer_role"
+	AssociationReviewAuthorityScope  = "cop.association_review.authority_scope"
+	AssociationReviewAuthorityDomain = "cop.association_review.authority_domain"
+	AssociationReviewConflictPolicy  = "cop.association_review.conflict_policy"
+	AssociationReviewConflictState   = "cop.association_review.conflict_state"
+	AssociationReviewAuthenticated   = "cop.association_review.authenticated"
+	AssociationReviewComment         = "cop.association_review.comment"
 
 	AssetName     = "cop.asset.name"
 	AssetKind     = "cop.asset.kind"
@@ -138,8 +141,13 @@ const (
 
 const (
 	AssociationReviewerRoleUnverified          = "operator.unverified"
+	AssociationReviewerRoleAuthenticated       = "operator.authenticated"
 	AssociationReviewScopeDisplayOnly          = "local.display_only"
+	AssociationReviewScopeAssociationReview    = "association.review"
 	AssociationReviewConflictLatestDisplayOnly = "latest_review_wins_display_only"
+	AssociationReviewConflictMultiAuthority    = "multi_authority_blocks_conflicts"
+	AssociationReviewConflictStateNone         = "none"
+	AssociationReviewConflictStateBlocked      = "blocked_conflict"
 )
 
 var FirstCanonicalEntitySet = []string{
@@ -602,7 +610,10 @@ func FusionAssociationReviewContract() projection.Contract {
 				AssociationReviewReviewedAt,
 				AssociationReviewReviewerRole,
 				AssociationReviewAuthorityScope,
+				AssociationReviewAuthorityDomain,
 				AssociationReviewConflictPolicy,
+				AssociationReviewConflictState,
+				AssociationReviewAuthenticated,
 				AssociationReviewComment,
 				ProvenanceSource,
 				ProvenanceConfidence,

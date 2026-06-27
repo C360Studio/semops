@@ -432,7 +432,7 @@
       compliance authority
 - [x] 8.30 Define operator identity, role, and conflict semantics before review decisions become command, identity, or
       upstream CS API status authority
-- [ ] 8.31 Add authenticated operator identity and multi-authority conflict arbitration before review decisions can
+- [x] 8.31 Add authenticated operator identity and multi-authority conflict arbitration before review decisions can
       drive command execution, identity fusion, upstream CS API status, or compliance workflows
 - [x] 8.32 Add fail-closed MAVLink command-control preflight evidence before any native transmitter, CS API tasking
       ingress, or operator execute control is wired

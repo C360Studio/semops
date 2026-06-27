@@ -116,6 +116,12 @@ const (
 	EnvCOPMAVLinkSystemIDs           = "SEMOPS_COP_MAVLINK_SYSTEM_IDS"
 	EnvCOPCoTUIDs                    = "SEMOPS_COP_COT_UIDS"
 	EnvCOPCAPAlertIDs                = "SEMOPS_COP_CAP_ALERT_IDS"
+	EnvCOPOperatorIdentityMode       = "SEMOPS_COP_OPERATOR_IDENTITY_MODE"
+)
+
+const (
+	COPOperatorIdentityModeLocalDisplay   = "local_display"
+	COPOperatorIdentityModeTrustedHeaders = "trusted_headers"
 )
 
 const (
@@ -330,6 +336,7 @@ type COPConfig struct {
 	MAVLinkSystemIDs      []int
 	CoTUIDs               []string
 	CAPAlertIDs           []string
+	OperatorIdentityMode  string
 }
 
 func DefaultConfig() Config {
@@ -521,6 +528,7 @@ func DefaultConfig() Config {
 			GraphDiscoveryEnabled: true,
 			GraphDiscoveryLimit:   500,
 			MAVLinkSystemIDs:      []int{42},
+			OperatorIdentityMode:  COPOperatorIdentityModeLocalDisplay,
 		},
 	}
 }
@@ -550,6 +558,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvWeatherQueryShape, &cfg.Weather.QueryShape)
 	setString(getenv, EnvWeatherFixturePath, &cfg.Weather.FixturePath)
 	setString(getenv, EnvFusionCandidateSubject, &cfg.Fusion.CandidateSubject)
+	setString(getenv, EnvCOPOperatorIdentityMode, &cfg.COP.OperatorIdentityMode)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)
@@ -957,6 +966,10 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	cfg.COP.OperatorIdentityMode = strings.TrimSpace(cfg.COP.OperatorIdentityMode)
+	if err := validateCOPOperatorIdentityMode(cfg.COP.OperatorIdentityMode); err != nil {
+		return Config{}, err
+	}
 	if cfg.COP.MAVLinkSystemIDs, err = intListFromEnv(
 		getenv,
 		EnvCOPMAVLinkSystemIDs,
@@ -990,6 +1003,20 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	}
 
 	return cfg, cfg.Validate()
+}
+
+func validateCOPOperatorIdentityMode(mode string) error {
+	switch strings.TrimSpace(mode) {
+	case COPOperatorIdentityModeLocalDisplay, COPOperatorIdentityModeTrustedHeaders:
+		return nil
+	default:
+		return fmt.Errorf(
+			"%s must be %q or %q",
+			EnvCOPOperatorIdentityMode,
+			COPOperatorIdentityModeLocalDisplay,
+			COPOperatorIdentityModeTrustedHeaders,
+		)
+	}
 }
 
 func (c Config) Validate() error {

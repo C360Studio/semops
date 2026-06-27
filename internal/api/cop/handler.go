@@ -151,14 +151,17 @@ func (h *Handler) reviewAssociation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	review := AssociationReview{
-		AssociationID:  associationID,
-		Decision:       decision,
-		ReviewedBy:     identity.ID,
-		ReviewedAt:     h.now().UTC(),
-		ReviewerRole:   identity.ReviewerRole,
-		AuthorityScope: identity.AuthorityScope,
-		ConflictPolicy: DefaultAssociationReviewConflictPolicy,
-		Comment:        strings.TrimSpace(request.Comment),
+		AssociationID:   associationID,
+		Decision:        decision,
+		ReviewedBy:      identity.ID,
+		ReviewedAt:      h.now().UTC(),
+		ReviewerRole:    identity.ReviewerRole,
+		AuthorityScope:  identity.AuthorityScope,
+		AuthorityDomain: identity.AuthorityDomain,
+		ConflictPolicy:  identity.ConflictPolicy,
+		ConflictState:   DefaultAssociationReviewConflictState,
+		Authenticated:   identity.Authenticated,
+		Comment:         strings.TrimSpace(request.Comment),
 	}
 	review, err = h.reviewStore.PutAssociationReview(r.Context(), review)
 	if err != nil {

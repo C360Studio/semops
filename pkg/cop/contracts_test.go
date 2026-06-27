@@ -474,7 +474,10 @@ func TestFusionAssociationReviewContractOwnsNonAuthoritativeReviewSemantics(t *t
 	for _, predicate := range []string{
 		AssociationReviewReviewerRole,
 		AssociationReviewAuthorityScope,
+		AssociationReviewAuthorityDomain,
 		AssociationReviewConflictPolicy,
+		AssociationReviewConflictState,
+		AssociationReviewAuthenticated,
 	} {
 		if !seen[predicate] {
 			t.Fatalf("association review contract missing semantic predicate %q", predicate)

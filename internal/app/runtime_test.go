@@ -2041,6 +2041,7 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvCOPMAVLinkSystemIDs:           "42, 43",
 		EnvCOPCoTUIDs:                    "ANDROID-ALPHA, MARKER-NORTH-GATE",
 		EnvCOPCAPAlertIDs:                "nws-demo-flood-warning, nws-demo-flood-update",
+		EnvCOPOperatorIdentityMode:       COPOperatorIdentityModeTrustedHeaders,
 		EnvMAVLinkEnabled:                "false",
 		EnvMAVLinkSource:                 "udp:14550",
 		EnvOrg:                           "lab",
@@ -2167,6 +2168,9 @@ func TestConfigFromEnv(t *testing.T) {
 		cfg.COP.CAPAlertIDs[0] != "nws-demo-flood-warning" ||
 		cfg.COP.CAPAlertIDs[1] != "nws-demo-flood-update" {
 		t.Fatalf("COP CAP alert IDs = %+v", cfg.COP.CAPAlertIDs)
+	}
+	if cfg.COP.OperatorIdentityMode != COPOperatorIdentityModeTrustedHeaders {
+		t.Fatalf("COP operator identity mode = %q", cfg.COP.OperatorIdentityMode)
 	}
 	if cfg.MAVLink.Enabled {
 		t.Fatal("MAVLink enabled = true, want false")
@@ -2456,6 +2460,11 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 				EnvCOPCAPAlertIDs:           "",
 			},
 			want: EnvCOPCAPAlertIDs,
+		},
+		{
+			name: "bad operator identity mode",
+			env:  map[string]string{EnvCOPOperatorIdentityMode: "trust_me"},
+			want: EnvCOPOperatorIdentityMode,
 		},
 		{
 			name: "bad udp max datagram",

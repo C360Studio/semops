@@ -76,7 +76,15 @@ The MVP operator identity policy is intentionally low-friction. The COP API reso
 `X-SemOps-Operator-ID`, then the request body's `reviewed_by`, then `operator.local`. That value is only an audit label:
 the API still records `operator.unverified` and `local.display_only`, and optional `X-SemOps-Operator-Role` or
 `X-SemOps-Authority-Scope` headers may only repeat those display-only values. Non-display authority claims are rejected
-until authenticated operator identity and multi-authority conflict arbitration are implemented.
+during local-display mode.
+
+Authenticated association review is explicitly opt-in with
+`SEMOPS_COP_OPERATOR_IDENTITY_MODE=trusted_headers`. In that mode an upstream authentication boundary must own the
+trusted operator headers, including authenticated marker, operator ID, role, scope, and authority domain. Authenticated
+review records use `operator.authenticated`, `association.review`, an explicit authority domain, and
+`multi_authority_blocks_conflicts`. Matching decisions across domains converge into consensus; conflicting decisions
+produce `blocked_conflict` instead of allowing a latest-writer or display-only override. That conflict remains a hard
+stop for command execution, identity fusion, upstream CS API status, and compliance workflows.
 
 SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
 absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are
@@ -129,7 +137,7 @@ target-edge fields. Native feed ACK/readback evidence stays under feed-owned con
 | Weather evidence | `cop.weather.value`, `cop.weather.variable`, `cop.weather.query_shape`, `cop.weather.query_geometry` | Tactical weather signal |
 | Media evidence | `cop.media.ref`, `cop.media.kind`, `cop.media.hash`, `cop.media.time_range` | Candidate only until DJI/KLV media fixtures prove shared vocabulary |
 | Alert derived state | `cop.alert.severity`, `cop.alert.status`, `cop.alert.reason` | Fusion-owned derived facts |
-| Association review audit | `cop.association_review.reviewer_role`, `cop.association_review.authority_scope`, `cop.association_review.conflict_policy` | Display/audit-only local review semantics |
+| Association review audit | `cop.association_review.reviewer_role`, `cop.association_review.authority_scope`, `cop.association_review.conflict_policy` | Local display or trusted-header authority gate |
 | Provenance | source, confidence, observed-at, source-ref predicates | Candidate upstream convention |
 
 ## Upstream Candidates

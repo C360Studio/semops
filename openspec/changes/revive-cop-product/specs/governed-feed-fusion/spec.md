@@ -124,8 +124,19 @@ authoritative predicates.
   give feed adapters association authority
 - **AND** fixture-only API mode may use a local memory overlay, but hosted review state must use the graph-backed audit
   path before review decisions can become command, identity, upstream CS API status, or compliance authority
-- **AND** local MVP operator identity is not authentication and does not satisfy the later authenticated
-  multi-authority conflict-arbitration gate
+- **AND** local MVP operator identity is not authentication and does not satisfy authenticated authority semantics
+- **AND** SemOps may enable trusted-header operator identity only when an upstream authentication boundary owns
+  `X-SemOps-Operator-Authenticated`, `X-SemOps-Operator-ID`, `X-SemOps-Operator-Role`,
+  `X-SemOps-Authority-Scope`, and `X-SemOps-Authority-Domain`
+- **AND** authenticated association-review records use `reviewer_role = operator.authenticated`,
+  `authority_scope = association.review`, an explicit authority domain, and
+  `conflict_policy = multi_authority_blocks_conflicts`
+- **AND** matching authenticated decisions across authority domains may produce a consensus current review
+- **AND** conflicting authenticated decisions across authority domains SHALL produce `decision = blocked_conflict`
+  and `conflict_state = blocked_conflict` rather than letting latest-writer or local display review win
+- **AND** display-only reviews cannot overwrite an authenticated authority-domain review for the same association
+- **AND** `blocked_conflict` remains a hard stop for command execution, identity fusion, upstream CS API status, and
+  compliance workflows until those workflows have their own authority tests
 
 ### Requirement: Graph writes are born-first
 

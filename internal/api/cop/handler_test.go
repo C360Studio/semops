@@ -132,7 +132,10 @@ func TestHandlerReviewsAssociationAndOverlaysSnapshot(t *testing.T) {
 		review.ReviewedAt != now ||
 		review.ReviewerRole != DefaultAssociationReviewerRole ||
 		review.AuthorityScope != DefaultAssociationReviewAuthorityScope ||
+		review.AuthorityDomain != DefaultAssociationReviewAuthorityDomain ||
 		review.ConflictPolicy != DefaultAssociationReviewConflictPolicy ||
+		review.ConflictState != DefaultAssociationReviewConflictState ||
+		review.Authenticated ||
 		review.Comment != "TAK point is stale" {
 		t.Fatalf("review = %+v", review)
 	}
@@ -151,7 +154,8 @@ func TestHandlerReviewsAssociationAndOverlaysSnapshot(t *testing.T) {
 		t.Fatalf("snapshot association review missing: %+v", snapshot.Associations)
 	}
 	if snapshot.Associations[0].OperatorReview.Decision != AssociationReviewChallenged ||
-		snapshot.Associations[0].OperatorReview.AuthorityScope != DefaultAssociationReviewAuthorityScope {
+		snapshot.Associations[0].OperatorReview.AuthorityScope != DefaultAssociationReviewAuthorityScope ||
+		snapshot.Associations[0].OperatorReview.AuthorityDomain != DefaultAssociationReviewAuthorityDomain {
 		t.Fatalf("snapshot review = %+v", snapshot.Associations[0].OperatorReview)
 	}
 }
@@ -186,8 +190,78 @@ func TestHandlerReviewUsesOperatorIdentityHeader(t *testing.T) {
 	}
 	if review.ReviewedBy != "operator:incident-command" ||
 		review.ReviewerRole != DefaultAssociationReviewerRole ||
-		review.AuthorityScope != DefaultAssociationReviewAuthorityScope {
+		review.AuthorityScope != DefaultAssociationReviewAuthorityScope ||
+		review.AuthorityDomain != DefaultAssociationReviewAuthorityDomain {
 		t.Fatalf("review = %+v", review)
+	}
+}
+
+func TestHandlerTrustedIdentityArbitratesConflictingAuthorityReviews(t *testing.T) {
+	now := time.Date(2026, 6, 24, 1, 14, 0, 0, time.UTC)
+	handler, err := NewHandler(
+		associationReviewSnapshotProvider{snapshot: Snapshot{
+			Associations: []Association{{ID: "association-1"}},
+		}},
+		WithClock(func() time.Time { return now }),
+		WithOperatorIdentityResolver(ResolveTrustedHeaderOperatorIdentity),
+	)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	postReview := func(domain, decision string) AssociationReview {
+		t.Helper()
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"/api/cop/associations/association-1/review",
+			strings.NewReader(`{"decision":"`+decision+`"}`),
+		)
+		req.Header.Set(OperatorAuthenticatedHeader, "true")
+		req.Header.Set(OperatorIDHeader, "operator:"+domain)
+		req.Header.Set(OperatorRoleHeader, AuthenticatedAssociationReviewerRole)
+		req.Header.Set(OperatorAuthorityScopeHeader, AuthenticatedAssociationReviewScope)
+		req.Header.Set(OperatorAuthorityDomainHeader, domain)
+		rec := httptest.NewRecorder()
+		handler.Routes().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+		}
+		var review AssociationReview
+		if err := json.Unmarshal(rec.Body.Bytes(), &review); err != nil {
+			t.Fatalf("decode review: %v", err)
+		}
+		return review
+	}
+
+	first := postReview("incident-command", AssociationReviewAcknowledged)
+	if !first.Authenticated ||
+		first.Decision != AssociationReviewAcknowledged ||
+		first.AuthorityDomain != "incident-command" ||
+		first.ConflictState != DefaultAssociationReviewConflictState {
+		t.Fatalf("first review = %+v", first)
+	}
+	second := postReview("airspace-control", AssociationReviewChallenged)
+	if second.Decision != AssociationReviewConflictBlocked ||
+		second.ConflictState != AssociationReviewConflictBlocked ||
+		second.AuthorityDomain != "airspace-control,incident-command" ||
+		second.ConflictPolicy != AuthenticatedAssociationReviewPolicy ||
+		!second.Authenticated {
+		t.Fatalf("second review = %+v, want blocked conflict", second)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/cop/snapshot", nil)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("snapshot status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var snapshot Snapshot
+	if err := json.Unmarshal(rec.Body.Bytes(), &snapshot); err != nil {
+		t.Fatalf("decode snapshot: %v", err)
+	}
+	if snapshot.Associations[0].OperatorReview == nil ||
+		snapshot.Associations[0].OperatorReview.Decision != AssociationReviewConflictBlocked {
+		t.Fatalf("snapshot review = %+v", snapshot.Associations[0].OperatorReview)
 	}
 }
 

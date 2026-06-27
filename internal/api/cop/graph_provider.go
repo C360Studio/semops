@@ -1521,14 +1521,17 @@ func associationReviewFromEntity(entity graph.EntityState) (AssociationReview, b
 		return AssociationReview{}, false
 	}
 	return AssociationReview{
-		AssociationID:  associationID,
-		Decision:       normalizeAssociationReviewDecision(decision),
-		ReviewedBy:     reviewedBy,
-		ReviewedAt:     reviewedAt,
-		ReviewerRole:   latestStringProperty(entity, copmodel.AssociationReviewReviewerRole, DefaultAssociationReviewerRole),
-		AuthorityScope: latestStringProperty(entity, copmodel.AssociationReviewAuthorityScope, DefaultAssociationReviewAuthorityScope),
-		ConflictPolicy: latestStringProperty(entity, copmodel.AssociationReviewConflictPolicy, DefaultAssociationReviewConflictPolicy),
-		Comment:        latestStringProperty(entity, copmodel.AssociationReviewComment, ""),
+		AssociationID:   associationID,
+		Decision:        normalizeAssociationReviewDecision(decision),
+		ReviewedBy:      reviewedBy,
+		ReviewedAt:      reviewedAt,
+		ReviewerRole:    latestStringProperty(entity, copmodel.AssociationReviewReviewerRole, DefaultAssociationReviewerRole),
+		AuthorityScope:  latestStringProperty(entity, copmodel.AssociationReviewAuthorityScope, DefaultAssociationReviewAuthorityScope),
+		AuthorityDomain: latestStringProperty(entity, copmodel.AssociationReviewAuthorityDomain, DefaultAssociationReviewAuthorityDomain),
+		ConflictPolicy:  latestStringProperty(entity, copmodel.AssociationReviewConflictPolicy, DefaultAssociationReviewConflictPolicy),
+		ConflictState:   latestStringProperty(entity, copmodel.AssociationReviewConflictState, DefaultAssociationReviewConflictState),
+		Authenticated:   latestBoolProperty(entity, copmodel.AssociationReviewAuthenticated, false),
+		Comment:         latestStringProperty(entity, copmodel.AssociationReviewComment, ""),
 	}, true
 }
 
@@ -1783,6 +1786,18 @@ func latestTimeProperty(entity graph.EntityState, predicate string) (time.Time, 
 	return parsed.UTC(), true
 }
 
+func latestBoolProperty(entity graph.EntityState, predicate string, fallback bool) bool {
+	value, ok := latestPropertyValue(entity, predicate)
+	if !ok {
+		return fallback
+	}
+	parsed, ok := boolFromAny(value)
+	if !ok {
+		return fallback
+	}
+	return parsed
+}
+
 func freshnessStatus(status string, now time.Time, updatedAt time.Time, freshness time.Duration) string {
 	if status == "" {
 		status = "unknown"
@@ -2024,6 +2039,21 @@ func stringFromAny(value any) (string, bool) {
 		return typed.String(), true
 	default:
 		return "", false
+	}
+}
+
+func boolFromAny(value any) (bool, bool) {
+	switch typed := value.(type) {
+	case bool:
+		return typed, true
+	case string:
+		parsed, err := strconv.ParseBool(strings.TrimSpace(typed))
+		if err != nil {
+			return false, false
+		}
+		return parsed, true
+	default:
+		return false, false
 	}
 }
 

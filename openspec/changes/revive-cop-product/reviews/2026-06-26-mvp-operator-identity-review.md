@@ -27,7 +27,8 @@ Accept a deliberately low-friction MVP policy:
 
 ## Required Follow-Up
 
-- Keep task 8.31 open for authenticated identity and multi-authority conflict arbitration.
+- Close task 8.31 only when authenticated identity and multi-authority conflict arbitration are implemented.
+  [done: `2026-06-27-authenticated-association-review-arbitration.md`]
 - Keep `/scenario/controls` fail-closed until control checkpoints, authenticated operator policy, conflict semantics,
   and an executor exist.
 - Require another adversarial review before any operator review can drive command execution, identity fusion, CS API

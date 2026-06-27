@@ -9,6 +9,7 @@ import (
 	fusionprojector "github.com/c360studio/semops/internal/projectors/fusion"
 	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
+	"github.com/c360studio/semstreams/message"
 )
 
 func TestGraphAssociationReviewStoreWritesAuditBeforeLocalOverlay(t *testing.T) {
@@ -84,6 +85,51 @@ func TestGraphAssociationReviewStoreReconcilesExistingReviewBirth(t *testing.T) 
 	}
 }
 
+func TestGraphAssociationReviewStoreWritesEffectiveConflictState(t *testing.T) {
+	writer := &recordingAssociationReviewWriter{}
+	store, err := NewGraphAssociationReviewStore(NewMemoryAssociationReviewStore(), AssociationReviewGraphStoreConfig{
+		Org:       "c360",
+		Platform:  "edge",
+		Projector: fusionprojector.NewProjector(fusionprojector.Config{}),
+		Writer:    writer,
+	})
+	if err != nil {
+		t.Fatalf("new graph review store: %v", err)
+	}
+	first := authenticatedAssociationReview(
+		time.Date(2026, 6, 24, 2, 7, 0, 0, time.UTC),
+		"incident-command",
+		AssociationReviewAcknowledged,
+	)
+	second := authenticatedAssociationReview(
+		time.Date(2026, 6, 24, 2, 8, 0, 0, time.UTC),
+		"airspace-control",
+		AssociationReviewChallenged,
+	)
+
+	if _, err := store.PutAssociationReview(context.Background(), first); err != nil {
+		t.Fatalf("put first review: %v", err)
+	}
+	got, err := store.PutAssociationReview(context.Background(), second)
+	if err != nil {
+		t.Fatalf("put second review: %v", err)
+	}
+
+	if got.Decision != AssociationReviewConflictBlocked || got.ConflictState != AssociationReviewConflictBlocked {
+		t.Fatalf("effective review = %+v, want blocked conflict", got)
+	}
+	if len(writer.plans) != 2 {
+		t.Fatalf("plans = %d, want two writes", len(writer.plans))
+	}
+	update := writer.plans[1].Mutations[0].Update
+	if update.AddTriples == nil {
+		t.Fatalf("second write = %+v, want update triples", writer.plans[1].Mutations[0])
+	}
+	requireReviewTriple(t, update.AddTriples, copmodel.AssociationReviewDecision, AssociationReviewConflictBlocked)
+	requireReviewTriple(t, update.AddTriples, copmodel.AssociationReviewConflictState, AssociationReviewConflictBlocked)
+	requireReviewTriple(t, update.AddTriples, copmodel.AssociationReviewAuthenticated, true)
+}
+
 func TestGraphAssociationReviewStoreSkipsLocalOverlayWhenAuditWriteFails(t *testing.T) {
 	writer := &recordingAssociationReviewWriter{errs: []error{errors.New("graph down")}}
 	store, err := NewGraphAssociationReviewStore(NewMemoryAssociationReviewStore(), AssociationReviewGraphStoreConfig{
@@ -125,13 +171,41 @@ func (w *recordingAssociationReviewWriter) Apply(_ context.Context, plan fusionp
 
 func sampleAssociationReview(reviewedAt time.Time) AssociationReview {
 	return AssociationReview{
-		AssociationID:  "c360.edge.cop.fusion.association.mavlink-to-tak",
-		Decision:       AssociationReviewAcknowledged,
-		ReviewedBy:     "operator:lead",
-		ReviewedAt:     reviewedAt,
-		ReviewerRole:   DefaultAssociationReviewerRole,
-		AuthorityScope: DefaultAssociationReviewAuthorityScope,
-		ConflictPolicy: DefaultAssociationReviewConflictPolicy,
-		Comment:        "reviewed in COP",
+		AssociationID:   "c360.edge.cop.fusion.association.mavlink-to-tak",
+		Decision:        AssociationReviewAcknowledged,
+		ReviewedBy:      "operator:lead",
+		ReviewedAt:      reviewedAt,
+		ReviewerRole:    DefaultAssociationReviewerRole,
+		AuthorityScope:  DefaultAssociationReviewAuthorityScope,
+		AuthorityDomain: DefaultAssociationReviewAuthorityDomain,
+		ConflictPolicy:  DefaultAssociationReviewConflictPolicy,
+		ConflictState:   DefaultAssociationReviewConflictState,
+		Authenticated:   false,
+		Comment:         "reviewed in COP",
 	}
+}
+
+func authenticatedAssociationReview(reviewedAt time.Time, domain, decision string) AssociationReview {
+	review := sampleAssociationReview(reviewedAt)
+	review.Decision = decision
+	review.ReviewedBy = "operator:" + domain
+	review.ReviewerRole = AuthenticatedAssociationReviewerRole
+	review.AuthorityScope = AuthenticatedAssociationReviewScope
+	review.AuthorityDomain = domain
+	review.ConflictPolicy = AuthenticatedAssociationReviewPolicy
+	review.Authenticated = true
+	return review
+}
+
+func requireReviewTriple(t *testing.T, triples []message.Triple, predicate string, want any) {
+	t.Helper()
+	for _, triple := range triples {
+		if triple.Predicate == predicate {
+			if triple.Object != want {
+				t.Fatalf("%s = %#v, want %#v", predicate, triple.Object, want)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing triple %s in %+v", predicate, triples)
 }

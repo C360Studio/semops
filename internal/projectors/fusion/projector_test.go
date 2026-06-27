@@ -130,9 +130,35 @@ func TestProjectAssociationReviewCreatesBornFirstAudit(t *testing.T) {
 	requireTriple(t, create.Triples, cop.AssociationReviewReviewedAt, review.ReviewedAt)
 	requireTriple(t, create.Triples, cop.AssociationReviewReviewerRole, cop.AssociationReviewerRoleUnverified)
 	requireTriple(t, create.Triples, cop.AssociationReviewAuthorityScope, cop.AssociationReviewScopeDisplayOnly)
+	requireTriple(t, create.Triples, cop.AssociationReviewAuthorityDomain, "local-display")
 	requireTriple(t, create.Triples, cop.AssociationReviewConflictPolicy, cop.AssociationReviewConflictLatestDisplayOnly)
+	requireTriple(t, create.Triples, cop.AssociationReviewConflictState, cop.AssociationReviewConflictStateNone)
+	requireTriple(t, create.Triples, cop.AssociationReviewAuthenticated, false)
 	requireTriple(t, create.Triples, cop.AssociationReviewComment, "TAK point stale")
 	requireTriple(t, create.Triples, cop.ProvenanceSource, "operator.association_review")
+}
+
+func TestProjectAssociationReviewCarriesAuthenticatedAuthorityMetadata(t *testing.T) {
+	review := sampleReview(time.Date(2026, 6, 24, 1, 37, 0, 0, time.UTC))
+	review.ReviewerRole = cop.AssociationReviewerRoleAuthenticated
+	review.AuthorityScope = cop.AssociationReviewScopeAssociationReview
+	review.AuthorityDomain = "incident-command"
+	review.ConflictPolicy = cop.AssociationReviewConflictMultiAuthority
+	review.Authenticated = true
+	projector := NewProjector(Config{})
+
+	plan, err := projector.ProjectAssociationReview(review)
+	if err != nil {
+		t.Fatalf("project authenticated association review: %v", err)
+	}
+
+	create := requireCreate(t, plan.Mutations[0])
+	requireTriple(t, create.Triples, cop.AssociationReviewReviewerRole, cop.AssociationReviewerRoleAuthenticated)
+	requireTriple(t, create.Triples, cop.AssociationReviewAuthorityScope, cop.AssociationReviewScopeAssociationReview)
+	requireTriple(t, create.Triples, cop.AssociationReviewAuthorityDomain, "incident-command")
+	requireTriple(t, create.Triples, cop.AssociationReviewConflictPolicy, cop.AssociationReviewConflictMultiAuthority)
+	requireTriple(t, create.Triples, cop.AssociationReviewConflictState, cop.AssociationReviewConflictStateNone)
+	requireTriple(t, create.Triples, cop.AssociationReviewAuthenticated, true)
 }
 
 func TestProjectAssociationReviewUpdatesWithoutRepeatingStrictAssociationEdge(t *testing.T) {
@@ -157,6 +183,7 @@ func TestProjectAssociationReviewUpdatesWithoutRepeatingStrictAssociationEdge(t 
 	update := requireUpdate(t, updatePlan.Mutations[0])
 	requireTriple(t, update.AddTriples, cop.AssociationReviewDecision, "acknowledged")
 	requireTriple(t, update.AddTriples, cop.AssociationReviewAuthorityScope, cop.AssociationReviewScopeDisplayOnly)
+	requireTriple(t, update.AddTriples, cop.AssociationReviewAuthorityDomain, "local-display")
 	requireTriple(t, update.AddTriples, cop.AssociationReviewComment, "")
 	for _, triple := range update.AddTriples {
 		if triple.Predicate == cop.AssociationReviewAssociation {
@@ -194,16 +221,19 @@ func sampleEvidence(observed time.Time) fusionassociation.Evidence {
 
 func sampleReview(reviewedAt time.Time) AssociationReviewEvidence {
 	return AssociationReviewEvidence{
-		Org:            "c360",
-		Platform:       "edge",
-		AssociationID:  "c360.edge.cop.fusion.association.mavlink-to-tak",
-		Decision:       "challenged",
-		ReviewedBy:     "operator:lead",
-		ReviewedAt:     reviewedAt,
-		ReviewerRole:   cop.AssociationReviewerRoleUnverified,
-		AuthorityScope: cop.AssociationReviewScopeDisplayOnly,
-		ConflictPolicy: cop.AssociationReviewConflictLatestDisplayOnly,
-		Comment:        "TAK point stale",
+		Org:             "c360",
+		Platform:        "edge",
+		AssociationID:   "c360.edge.cop.fusion.association.mavlink-to-tak",
+		Decision:        "challenged",
+		ReviewedBy:      "operator:lead",
+		ReviewedAt:      reviewedAt,
+		ReviewerRole:    cop.AssociationReviewerRoleUnverified,
+		AuthorityScope:  cop.AssociationReviewScopeDisplayOnly,
+		AuthorityDomain: "local-display",
+		ConflictPolicy:  cop.AssociationReviewConflictLatestDisplayOnly,
+		ConflictState:   cop.AssociationReviewConflictStateNone,
+		Authenticated:   false,
+		Comment:         "TAK point stale",
 	}
 }
 

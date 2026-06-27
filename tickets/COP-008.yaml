@@ -25,6 +25,7 @@ review_records:
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-binary-descriptor-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-sapient-raw-replay-review.md
   - openspec/changes/revive-cop-product/reviews/2026-06-20-semstreams-component-boundary-review.md
+  - openspec/changes/revive-cop-product/reviews/2026-06-27-authenticated-association-review-arbitration.md
   - openspec/changes/revive-cop-product/reviews/2026-06-27-demo-claim-adversarial-review.md
 
 scope:

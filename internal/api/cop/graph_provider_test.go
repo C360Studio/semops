@@ -674,7 +674,10 @@ func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
 					testTriple(reviewID, copmodel.AssociationReviewReviewedAt, observed.Add(2*time.Second), observed.Add(2*time.Second)),
 					testTriple(reviewID, copmodel.AssociationReviewReviewerRole, copmodel.AssociationReviewerRoleUnverified, observed.Add(2*time.Second)),
 					testTriple(reviewID, copmodel.AssociationReviewAuthorityScope, copmodel.AssociationReviewScopeDisplayOnly, observed.Add(2*time.Second)),
+					testTriple(reviewID, copmodel.AssociationReviewAuthorityDomain, DefaultAssociationReviewAuthorityDomain, observed.Add(2*time.Second)),
 					testTriple(reviewID, copmodel.AssociationReviewConflictPolicy, copmodel.AssociationReviewConflictLatestDisplayOnly, observed.Add(2*time.Second)),
+					testTriple(reviewID, copmodel.AssociationReviewConflictState, copmodel.AssociationReviewConflictStateNone, observed.Add(2*time.Second)),
+					testTriple(reviewID, copmodel.AssociationReviewAuthenticated, false, observed.Add(2*time.Second)),
 					testTriple(reviewID, copmodel.AssociationReviewComment, "ADS-B altitude mismatch", observed.Add(2*time.Second)),
 					testTriple(reviewID, copmodel.ProvenanceSource, "operator.association_review", observed.Add(2*time.Second)),
 					testTriple(reviewID, copmodel.ProvenanceObservedAt, observed.Add(2*time.Second), observed.Add(2*time.Second)),
@@ -724,7 +727,10 @@ func TestGraphProviderMapsFusionTrackAssociations(t *testing.T) {
 		association.OperatorReview.ReviewedBy != "operator:lead" ||
 		association.OperatorReview.ReviewerRole != DefaultAssociationReviewerRole ||
 		association.OperatorReview.AuthorityScope != DefaultAssociationReviewAuthorityScope ||
+		association.OperatorReview.AuthorityDomain != DefaultAssociationReviewAuthorityDomain ||
 		association.OperatorReview.ConflictPolicy != DefaultAssociationReviewConflictPolicy ||
+		association.OperatorReview.ConflictState != DefaultAssociationReviewConflictState ||
+		association.OperatorReview.Authenticated ||
 		association.OperatorReview.Comment != "ADS-B altitude mismatch" {
 		t.Fatalf("association review = %+v", association.OperatorReview)
 	}

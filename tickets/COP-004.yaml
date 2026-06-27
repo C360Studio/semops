@@ -156,6 +156,10 @@ progress:
   - Added a low-friction MVP operator identity resolver for association review audit: local demos can run with no auth
     setup, optional `X-SemOps-Operator-ID` stamps the reviewer label, and role/scope escalation remains blocked until
     authenticated multi-authority arbitration exists.
+  - Added opt-in trusted-header operator identity and multi-authority conflict arbitration for association review:
+    authenticated authority-domain reviews can reach consensus, conflicting domains produce `blocked_conflict`, and
+    display-only review cannot overwrite authenticated authority state. Command execution, identity fusion, upstream
+    CS API status, and compliance workflows still require separate gates that treat blocked conflicts as hard stops.
   - Surfaced the local operator audit label in the COP topbar and sent it with association review as
     `X-SemOps-Operator-ID`, while keeping the readback display-only and unauthenticated.
   - Surfaced Caddy-routed `/scenario/controls` in the COP UI as blocked read-only policy state with inert

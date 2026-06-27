@@ -129,6 +129,9 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 	if runtime != nil {
 		handlerOptions = append(handlerOptions, copapi.WithRuntimeProvider(runtime))
 	}
+	if cfg.COP.OperatorIdentityMode == semopsapp.COPOperatorIdentityModeTrustedHeaders {
+		handlerOptions = append(handlerOptions, copapi.WithOperatorIdentityResolver(copapi.ResolveTrustedHeaderOperatorIdentity))
+	}
 	handler, err := copapi.NewHandler(provider, handlerOptions...)
 	if err != nil {
 		return nil, err

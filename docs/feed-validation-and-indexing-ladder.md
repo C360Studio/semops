@@ -932,10 +932,13 @@ First acceptance gate:
   association status, or grant feed adapters association authority.
 - The MVP identity path is an audit label, not authentication. `X-SemOps-Operator-ID` may stamp the local demo
   reviewer, otherwise the API falls back to request-body `reviewed_by` and then `operator.local`. Role/scope headers
-  cannot escalate beyond `operator.unverified` and `local.display_only` until the authenticated multi-authority gate is
-  built.
-- Remaining fusion authority gate: authenticated operator identity, multi-authority conflict arbitration, upstream CS
-  API status semantics, and identity/command authority semantics.
+  cannot escalate beyond `operator.unverified` and `local.display_only` during local-display mode.
+- The authenticated multi-authority gate is now explicit and opt-in: `SEMOPS_COP_OPERATOR_IDENTITY_MODE=trusted_headers`
+  requires trusted upstream headers for authenticated marker, operator ID, role, scope, and authority domain. Matching
+  authenticated domain decisions produce consensus; conflicting domain decisions produce `blocked_conflict`, and
+  display-only reviews cannot overwrite authenticated authority-domain review state.
+- Remaining fusion authority gate: upstream CS API status semantics and identity/command authority semantics. Those
+  workflows must treat `blocked_conflict` as a hard stop before they can consume association-review decisions.
 - Next gate: prioritize local receiver/readsb/dump1090 input components, authenticated OpenSky option handling, or
   ASTERIX only after rate, replay, and backpressure expectations are explicit.
 - Component gate: `internal/components/adsb` exists for OpenSky-compatible HTTP polling; receiver and ASTERIX ingress
