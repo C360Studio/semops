@@ -282,6 +282,8 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** the helper SHALL write blocked evidence and SHALL NOT transmit if baseline telemetry is stale or missing
 - **AND** the reviewed transmitter MAY learn the simulator UDP destination from hosted raw MAVLink telemetry rather
   than relying on fixed host-published ports
+- **AND** the reviewed transmitter MAY use bounded native MAVLink command-session retries, but SHALL NOT require
+  MAVSDK as a SemOps product dependency
 - **AND** transmitter stdout and stderr SHALL be captured to ignored local evidence when the gate runs a live simulator
   transmitter
 - **AND** the helper SHALL poll the COP snapshot for graph-visible MAVLink `COMMAND_ACK` task evidence owned by the
@@ -302,6 +304,8 @@ public conformance suite, or documented interoperability test backs the claim.
 - **THEN** the helper SHALL require simulator-only confirmation before sending any frame
 - **AND** the helper SHALL allow only `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION` unless a later review expands
   the command scope
+- **AND** bounded retries SHALL increment `COMMAND_LONG.confirmation` and SHALL report direct `COMMAND_ACK`,
+  `AUTOPILOT_VERSION`, and forwarded-reply counters when reply observation is enabled
 - **AND** the helper SHALL print command metadata and the expected ACK task suffix in dry-run mode
 - **AND** the helper SHALL NOT include mission upload, mode change, arm/disarm, offboard control, or hardware command
   authority in MVP

@@ -71,6 +71,18 @@ Learned-route command evidence:
 `semops-cop_default`, and still reported `forwarded_replies=0`. The COP snapshot after the run remained healthy but
 still contained no `mavlink.command_ack` task.
 
+A follow-up native command-session diagnostic kept the helper SDK-free while adding bounded retries, shared sender
+sequence, direct reply parsing, and `COMMAND_LONG.confirmation` increments. It used the same learned route, target
+component `0`, and three attempts.
+
+Native retry command evidence:
+`tmp/mavlink-sitl-evidence/2026-06-27T21-47-42Z-command-live-sim.env`, with
+`result=failed_command_control_smoke`, and transmitter log
+`tmp/mavlink-sitl-evidence/2026-06-27T21-47-42Z-command-live-sim-transmitter.log`. The transmitter output recorded
+`confirmation=0`, `confirmation=1`, `confirmation=2`, then `command_attempts=3`, `direct_command_acks=0`,
+`direct_autopilot_version_frames=0`, and `forwarded_replies=0`. A fresh snapshot after the failed smoke was healthy
+and still had no `mavlink.command_ack` task.
+
 ## Boundary
 
 This closes a route reliability gap for PX4 telemetry evidence. It does not close ArduPilot parity, MAVSDK/offboard

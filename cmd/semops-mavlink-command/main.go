@@ -30,6 +30,8 @@ const (
 	defaultTimeout                = 2 * time.Second
 	defaultReplyTimeout           = 2 * time.Second
 	defaultLearnRouteTimeout      = 5 * time.Second
+	defaultCommandAttempts        = 1
+	defaultCommandRetryInterval   = 500 * time.Millisecond
 	defaultHeartbeatSettle        = 250 * time.Millisecond
 	replyBufferBytes              = mavcodec.MaxPayloadLength + 64
 )
@@ -47,9 +49,11 @@ type config struct {
 	SendHeartbeat     bool
 	SimulatorOnly     bool
 	DryRun            bool
+	CommandAttempts   int
 	Timeout           time.Duration
 	ReplyTimeout      time.Duration
 	LearnRouteTimeout time.Duration
+	RetryInterval     time.Duration
 }
 
 func main() {
@@ -79,18 +83,24 @@ func run(args []string, stdout, stderr io.Writer) error {
 	fs.BoolVar(&cfg.SendHeartbeat, "send-heartbeat-first", cfg.SendHeartbeat, "send a GCS heartbeat before the command so simulators can learn the endpoint")
 	fs.BoolVar(&cfg.SimulatorOnly, "confirm-simulator-only", cfg.SimulatorOnly, "confirm this command is routed only to a simulator")
 	fs.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "print command metadata without sending the frame")
+	fs.IntVar(&cfg.CommandAttempts, "attempts", cfg.CommandAttempts, "number of bounded command send attempts; retries increment COMMAND_LONG confirmation")
 	fs.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, "UDP write timeout")
 	fs.DurationVar(&cfg.ReplyTimeout, "reply-timeout", cfg.ReplyTimeout, "how long to read simulator replies when forwarding is enabled")
 	fs.DurationVar(&cfg.LearnRouteTimeout, "learn-route-timeout", cfg.LearnRouteTimeout, "how long to wait for raw MAVLink telemetry when learning the command route")
+	fs.DurationVar(&cfg.RetryInterval, "retry-interval", cfg.RetryInterval, "reply wait between command retry attempts")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	frame, summary, err := buildCommandFrame(cfg)
+	builder, err := newCommandFrameBuilder(cfg)
 	if err != nil {
 		return err
 	}
 	if cfg.DryRun {
+		frame, summary, err := builder.CommandFrame(0)
+		if err != nil {
+			return err
+		}
 		fmt.Fprintln(stdout, summary)
 		fmt.Fprintf(stdout, "frame_hex=%s\n", hex.EncodeToString(frame))
 		return nil
@@ -119,28 +129,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	if err := conn.SetWriteDeadline(time.Now().Add(cfg.Timeout)); err != nil {
 		return fmt.Errorf("set write deadline: %w", err)
 	}
-	if cfg.SendHeartbeat {
-		heartbeat, err := buildGCSHeartbeatFrame(cfg)
-		if err != nil {
-			return err
-		}
-		if _, err := conn.Write(heartbeat); err != nil {
-			return fmt.Errorf("write MAVLink GCS heartbeat: %w", err)
-		}
-		fmt.Fprintf(stdout, "sent_heartbeat_bytes=%d route=%s\n", len(heartbeat), route)
-		time.Sleep(defaultHeartbeatSettle)
-	}
-	if _, err := conn.Write(frame); err != nil {
-		return fmt.Errorf("write MAVLink command: %w", err)
-	}
-	fmt.Fprintln(stdout, summary)
-	fmt.Fprintf(stdout, "sent_bytes=%d route=%s\n", len(frame), route)
-	if cfg.ForwardRepliesTo != "" {
-		if _, err := forwardReplies(conn, cfg.ForwardRepliesTo, cfg.ReplyTimeout, stdout); err != nil {
-			return err
-		}
-	}
-	return nil
+	return runCommandSession(conn, cfg, builder, route, stdout)
 }
 
 func defaultConfig() (config, error) {
@@ -168,6 +157,14 @@ func defaultConfig() (config, error) {
 		}
 		learnRouteTimeout = parsed
 	}
+	retryInterval := defaultCommandRetryInterval
+	if value := os.Getenv("SEMOPS_MAVLINK_COMMAND_RETRY_INTERVAL"); value != "" {
+		parsed, err := time.ParseDuration(value)
+		if err != nil {
+			return config{}, fmt.Errorf("SEMOPS_MAVLINK_COMMAND_RETRY_INTERVAL=%q is not a duration: %w", value, err)
+		}
+		retryInterval = parsed
+	}
 	sourceSystem, err := envInt("SEMOPS_MAVLINK_COMMAND_SOURCE_SYSTEM", defaultSourceSystem)
 	if err != nil {
 		return config{}, err
@@ -192,6 +189,10 @@ func defaultConfig() (config, error) {
 	if err != nil {
 		return config{}, err
 	}
+	commandAttempts, err := envInt("SEMOPS_MAVLINK_COMMAND_ATTEMPTS", defaultCommandAttempts)
+	if err != nil {
+		return config{}, err
+	}
 	return config{
 		Route:             firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_UDP_ROUTE"), defaultRoute),
 		Action:            firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_ACTION"), actionRequestAutopilotVersion),
@@ -204,9 +205,11 @@ func defaultConfig() (config, error) {
 		LearnRouteSubject: firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_SUBJECT"), mavcomponent.DefaultRawSubject),
 		SendHeartbeat:     sendHeartbeat,
 		SimulatorOnly:     simulatorOnly,
+		CommandAttempts:   commandAttempts,
 		Timeout:           timeout,
 		ReplyTimeout:      replyTimeout,
 		LearnRouteTimeout: learnRouteTimeout,
+		RetryInterval:     retryInterval,
 	}, nil
 }
 
@@ -309,48 +312,30 @@ func routeFromRawFrame(
 	return payload.RemoteAddr, true, nil
 }
 
-func forwardReplies(conn net.Conn, forwardRoute string, timeout time.Duration, stdout io.Writer) (int, error) {
-	if timeout <= 0 {
-		return 0, errors.New("reply timeout must be greater than zero when forwarding replies")
-	}
-	route, err := normalizeUDPRoute(forwardRoute)
-	if err != nil {
-		return 0, fmt.Errorf("normalize reply forward route: %w", err)
-	}
-	forwardConn, err := net.DialTimeout("udp", route, timeout)
-	if err != nil {
-		return 0, fmt.Errorf("dial reply forward route %s: %w", route, err)
-	}
-	defer forwardConn.Close()
-
-	deadline := time.Now().Add(timeout)
-	buffer := make([]byte, replyBufferBytes)
-	forwarded := 0
-	for {
-		if err := conn.SetReadDeadline(deadline); err != nil {
-			return forwarded, fmt.Errorf("set reply read deadline: %w", err)
-		}
-		n, err := conn.Read(buffer)
-		if err != nil {
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				break
-			}
-			return forwarded, fmt.Errorf("read simulator reply: %w", err)
-		}
-		if n == 0 {
-			continue
-		}
-		if _, err := forwardConn.Write(buffer[:n]); err != nil {
-			return forwarded, fmt.Errorf("forward simulator reply to %s: %w", route, err)
-		}
-		forwarded++
-		fmt.Fprintf(stdout, "forwarded_reply_bytes=%d route=%s\n", n, route)
-	}
-	fmt.Fprintf(stdout, "forwarded_replies=%d route=%s\n", forwarded, route)
-	return forwarded, nil
+type commandFrameBuilder struct {
+	generator       *mavcodec.Generator
+	action          string
+	command         uint16
+	params          [7]float32
+	sourceSystem    uint8
+	sourceComponent uint8
+	targetSystem    uint8
+	targetComponent uint8
 }
 
-func buildGCSHeartbeatFrame(cfg config) ([]byte, error) {
+func newCommandFrameBuilder(cfg config) (*commandFrameBuilder, error) {
+	if !cfg.SimulatorOnly {
+		return nil, errors.New("simulator-only confirmation is required; pass -confirm-simulator-only or set SEMOPS_MAVLINK_COMMAND_SIMULATOR_ONLY_CONFIRMED=true")
+	}
+	if cfg.CommandAttempts < 1 {
+		return nil, fmt.Errorf("attempts must be at least 1, got %d", cfg.CommandAttempts)
+	}
+	if cfg.CommandAttempts > 256 {
+		return nil, fmt.Errorf("attempts must be at most 256, got %d", cfg.CommandAttempts)
+	}
+	if cfg.CommandAttempts > 1 && cfg.RetryInterval <= 0 {
+		return nil, errors.New("retry interval must be greater than zero when attempts is greater than 1")
+	}
 	sourceSystem, err := uint8ID("source-system", cfg.SourceSystem, false)
 	if err != nil {
 		return nil, err
@@ -359,8 +344,32 @@ func buildGCSHeartbeatFrame(cfg config) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	generator := mavcodec.NewGenerator(sourceSystem, sourceComponent)
-	return generator.GenerateHeartbeat(mavcodec.HeartbeatMessage{
+	targetSystem, err := uint8ID("target-system", cfg.TargetSystem, false)
+	if err != nil {
+		return nil, err
+	}
+	targetComponent, err := uint8ID("target-component", cfg.TargetComponent, true)
+	if err != nil {
+		return nil, err
+	}
+	command, params, err := commandForAction(cfg.Action)
+	if err != nil {
+		return nil, err
+	}
+	return &commandFrameBuilder{
+		generator:       mavcodec.NewGenerator(sourceSystem, sourceComponent),
+		action:          cfg.Action,
+		command:         command,
+		params:          params,
+		sourceSystem:    sourceSystem,
+		sourceComponent: sourceComponent,
+		targetSystem:    targetSystem,
+		targetComponent: targetComponent,
+	}, nil
+}
+
+func (b *commandFrameBuilder) GCSHeartbeatFrame() ([]byte, error) {
+	return b.generator.GenerateHeartbeat(mavcodec.HeartbeatMessage{
 		VehicleType:    mavcodec.TypeGCS,
 		Autopilot:      mavcodec.AutopilotInvalid,
 		SystemStatus:   mavcodec.StateActive,
@@ -368,57 +377,270 @@ func buildGCSHeartbeatFrame(cfg config) ([]byte, error) {
 	})
 }
 
-func buildCommandFrame(cfg config) ([]byte, string, error) {
-	if !cfg.SimulatorOnly {
-		return nil, "", errors.New("simulator-only confirmation is required; pass -confirm-simulator-only or set SEMOPS_MAVLINK_COMMAND_SIMULATOR_ONLY_CONFIRMED=true")
-	}
-	sourceSystem, err := uint8ID("source-system", cfg.SourceSystem, false)
-	if err != nil {
-		return nil, "", err
-	}
-	sourceComponent, err := uint8ID("source-component", cfg.SourceComponent, false)
-	if err != nil {
-		return nil, "", err
-	}
-	targetSystem, err := uint8ID("target-system", cfg.TargetSystem, false)
-	if err != nil {
-		return nil, "", err
-	}
-	targetComponent, err := uint8ID("target-component", cfg.TargetComponent, true)
-	if err != nil {
-		return nil, "", err
-	}
-
-	command, params, err := commandForAction(cfg.Action)
-	if err != nil {
-		return nil, "", err
-	}
-	generator := mavcodec.NewGenerator(sourceSystem, sourceComponent)
-	frame, err := generator.GenerateCommandLong(mavcodec.CommandLongMessage{
-		Command:           command,
-		TargetSystemID:    targetSystem,
-		TargetComponentID: targetComponent,
-		Params:            params,
+func (b *commandFrameBuilder) CommandFrame(confirmation uint8) ([]byte, string, error) {
+	frame, err := b.generator.GenerateCommandLong(mavcodec.CommandLongMessage{
+		Command:           b.command,
+		TargetSystemID:    b.targetSystem,
+		TargetComponentID: b.targetComponent,
+		Confirmation:      confirmation,
+		Params:            b.params,
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("generate command frame: %w", err)
 	}
-
 	summary := fmt.Sprintf(
-		"action=%s command=%d request_message=%d source=%d/%d target=%d/%d expected_ack_task_suffix=system-%d-command-%d-target-%d-%d",
-		cfg.Action,
-		command,
+		"action=%s command=%d request_message=%d source=%d/%d target=%d/%d confirmation=%d expected_ack_task_suffix=system-%d-command-%d-target-%d-%d",
+		b.action,
+		b.command,
 		mavcodec.MessageIDAutopilotVersion,
-		sourceSystem,
-		sourceComponent,
-		targetSystem,
-		targetComponent,
-		targetSystem,
-		command,
-		sourceSystem,
-		sourceComponent,
+		b.sourceSystem,
+		b.sourceComponent,
+		b.targetSystem,
+		b.targetComponent,
+		confirmation,
+		b.targetSystem,
+		b.command,
+		b.sourceSystem,
+		b.sourceComponent,
 	)
 	return frame, summary, nil
+}
+
+type commandReplyStats struct {
+	ForwardedReplies        int
+	DirectCommandACKs       int
+	DirectAutopilotVersions int
+	LastACKResult           string
+}
+
+func (s *commandReplyStats) Add(other commandReplyStats) {
+	s.ForwardedReplies += other.ForwardedReplies
+	s.DirectCommandACKs += other.DirectCommandACKs
+	s.DirectAutopilotVersions += other.DirectAutopilotVersions
+	if other.LastACKResult != "" {
+		s.LastACKResult = other.LastACKResult
+	}
+}
+
+func runCommandSession(
+	conn net.Conn,
+	cfg config,
+	builder *commandFrameBuilder,
+	route string,
+	stdout io.Writer,
+) error {
+	total := commandReplyStats{}
+	attemptsUsed := 0
+	for attempt := 1; attempt <= cfg.CommandAttempts; attempt++ {
+		attemptsUsed = attempt
+		if err := conn.SetWriteDeadline(time.Now().Add(cfg.Timeout)); err != nil {
+			return fmt.Errorf("set write deadline: %w", err)
+		}
+		if cfg.SendHeartbeat {
+			heartbeat, err := builder.GCSHeartbeatFrame()
+			if err != nil {
+				return err
+			}
+			if _, err := conn.Write(heartbeat); err != nil {
+				return fmt.Errorf("write MAVLink GCS heartbeat: %w", err)
+			}
+			fmt.Fprintf(stdout, "sent_heartbeat_bytes=%d route=%s attempt=%d\n", len(heartbeat), route, attempt)
+			time.Sleep(defaultHeartbeatSettle)
+		}
+
+		confirmation := uint8(attempt - 1)
+		frame, summary, err := builder.CommandFrame(confirmation)
+		if err != nil {
+			return err
+		}
+		if _, err := conn.Write(frame); err != nil {
+			return fmt.Errorf("write MAVLink command attempt %d: %w", attempt, err)
+		}
+		fmt.Fprintln(stdout, summary)
+		fmt.Fprintf(stdout, "sent_bytes=%d route=%s attempt=%d\n", len(frame), route, attempt)
+
+		shouldReadReplies := cfg.ForwardRepliesTo != "" || cfg.CommandAttempts > 1
+		if !shouldReadReplies {
+			continue
+		}
+		window := cfg.ReplyTimeout
+		if attempt < cfg.CommandAttempts {
+			window = cfg.RetryInterval
+		}
+		stats, err := readSimulatorReplies(
+			conn,
+			cfg.ForwardRepliesTo,
+			window,
+			builder.command,
+			stdout,
+		)
+		if err != nil {
+			return err
+		}
+		total.Add(stats)
+		if stats.DirectCommandACKs > 0 {
+			break
+		}
+		if attempt < cfg.CommandAttempts {
+			fmt.Fprintf(stdout, "retrying_without_direct_command_ack attempt=%d next_attempt=%d retry_interval=%s\n",
+				attempt, attempt+1, cfg.RetryInterval)
+		}
+	}
+	fmt.Fprintf(stdout, "command_attempts=%d forwarded_replies=%d direct_command_acks=%d direct_autopilot_version_frames=%d",
+		attemptsUsed,
+		total.ForwardedReplies,
+		total.DirectCommandACKs,
+		total.DirectAutopilotVersions,
+	)
+	if total.LastACKResult != "" {
+		fmt.Fprintf(stdout, " last_ack_result=%s", total.LastACKResult)
+	}
+	fmt.Fprintln(stdout)
+	return nil
+}
+
+func readSimulatorReplies(
+	conn net.Conn,
+	forwardRoute string,
+	timeout time.Duration,
+	command uint16,
+	stdout io.Writer,
+) (commandReplyStats, error) {
+	if timeout <= 0 {
+		return commandReplyStats{}, errors.New("reply timeout must be greater than zero when reading simulator replies")
+	}
+	var forwardConn net.Conn
+	var route string
+	if forwardRoute != "" {
+		var err error
+		route, err = normalizeUDPRoute(forwardRoute)
+		if err != nil {
+			return commandReplyStats{}, fmt.Errorf("normalize reply forward route: %w", err)
+		}
+		forwardConn, err = net.DialTimeout("udp", route, timeout)
+		if err != nil {
+			return commandReplyStats{}, fmt.Errorf("dial reply forward route %s: %w", route, err)
+		}
+		defer forwardConn.Close()
+	}
+
+	deadline := time.Now().Add(timeout)
+	buffer := make([]byte, replyBufferBytes)
+	parser := mavcodec.NewParser()
+	stats := commandReplyStats{}
+	for {
+		if err := conn.SetReadDeadline(deadline); err != nil {
+			return stats, fmt.Errorf("set reply read deadline: %w", err)
+		}
+		n, err := conn.Read(buffer)
+		if err != nil {
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				break
+			}
+			return stats, fmt.Errorf("read simulator reply: %w", err)
+		}
+		if n == 0 {
+			continue
+		}
+		if forwardConn != nil {
+			if _, err := forwardConn.Write(buffer[:n]); err != nil {
+				return stats, fmt.Errorf("forward simulator reply to %s: %w", route, err)
+			}
+			stats.ForwardedReplies++
+			fmt.Fprintf(stdout, "forwarded_reply_bytes=%d route=%s\n", n, route)
+		}
+		packets, err := parser.Parse(buffer[:n])
+		if err != nil {
+			return stats, fmt.Errorf("parse simulator reply: %w", err)
+		}
+		stats.ObservePackets(packets, command, stdout)
+	}
+	fmt.Fprintf(stdout, "reply_window=%s forwarded_replies=%d direct_command_acks=%d direct_autopilot_version_frames=%d\n",
+		timeout, stats.ForwardedReplies, stats.DirectCommandACKs, stats.DirectAutopilotVersions)
+	return stats, nil
+}
+
+func (s *commandReplyStats) ObservePackets(packets []*mavcodec.Packet, command uint16, stdout io.Writer) {
+	for _, packet := range packets {
+		switch packet.MessageID {
+		case mavcodec.MessageIDCommandAck:
+			ackedCommand, ok := packetField[uint16](packet, "command")
+			if ok && ackedCommand != command {
+				continue
+			}
+			resultValue, resultOK := packetField[uint8](packet, "result")
+			result := "unknown"
+			if resultOK {
+				result = mavcodec.MAVResultString(resultValue)
+			}
+			s.DirectCommandACKs++
+			s.LastACKResult = result
+			fmt.Fprintf(stdout, "observed_command_ack command=%d result=%s source=%d/%d target=%s/%s\n",
+				command,
+				result,
+				packet.SystemID,
+				packet.ComponentID,
+				packetFieldString[uint8](packet, "target_system"),
+				packetFieldString[uint8](packet, "target_component"),
+			)
+		case mavcodec.MessageIDAutopilotVersion:
+			s.DirectAutopilotVersions++
+			fmt.Fprintf(stdout, "observed_autopilot_version source=%d/%d\n", packet.SystemID, packet.ComponentID)
+		}
+	}
+}
+
+func packetField[T any](packet *mavcodec.Packet, name string) (T, bool) {
+	var zero T
+	if packet == nil || packet.ParsedFields == nil {
+		return zero, false
+	}
+	value, ok := packet.ParsedFields[name].(T)
+	return value, ok
+}
+
+func packetFieldString[T any](packet *mavcodec.Packet, name string) string {
+	value, ok := packetField[T](packet, name)
+	if !ok {
+		return "unknown"
+	}
+	return fmt.Sprint(value)
+}
+
+func buildGCSHeartbeatFrame(cfg config) ([]byte, error) {
+	builder, err := newCommandFrameBuilder(config{
+		Action:            firstNonEmpty(cfg.Action, actionRequestAutopilotVersion),
+		SourceSystem:      cfg.SourceSystem,
+		SourceComponent:   cfg.SourceComponent,
+		TargetSystem:      firstNonZero(cfg.TargetSystem, defaultTargetSystem),
+		TargetComponent:   cfg.TargetComponent,
+		SimulatorOnly:     true,
+		CommandAttempts:   firstNonZero(cfg.CommandAttempts, defaultCommandAttempts),
+		RetryInterval:     firstNonZeroDuration(cfg.RetryInterval, defaultCommandRetryInterval),
+		LearnRouteSubject: cfg.LearnRouteSubject,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return builder.GCSHeartbeatFrame()
+}
+
+func buildCommandFrame(cfg config) ([]byte, string, error) {
+	builder, err := newCommandFrameBuilder(config{
+		Route:           cfg.Route,
+		Action:          firstNonEmpty(cfg.Action, actionRequestAutopilotVersion),
+		SourceSystem:    cfg.SourceSystem,
+		SourceComponent: cfg.SourceComponent,
+		TargetSystem:    cfg.TargetSystem,
+		TargetComponent: cfg.TargetComponent,
+		SimulatorOnly:   cfg.SimulatorOnly,
+		CommandAttempts: firstNonZero(cfg.CommandAttempts, defaultCommandAttempts),
+		RetryInterval:   firstNonZeroDuration(cfg.RetryInterval, defaultCommandRetryInterval),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return builder.CommandFrame(0)
 }
 
 func commandForAction(action string) (uint16, [7]float32, error) {
@@ -490,4 +712,22 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func firstNonZero(values ...int) int {
+	for _, value := range values {
+		if value != 0 {
+			return value
+		}
+	}
+	return 0
+}
+
+func firstNonZeroDuration(values ...time.Duration) time.Duration {
+	for _, value := range values {
+		if value != 0 {
+			return value
+		}
+	}
+	return 0
 }

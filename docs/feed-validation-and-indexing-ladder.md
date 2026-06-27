@@ -286,8 +286,10 @@ Mock or harness:
   post-command MAVLink track refresh before it can pass.
 - MVP command scope is intentionally one read-side command. `cmd/semops-mavlink-command` sends
   `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION` only, requires simulator-only confirmation, and prints the expected
-  ACK task suffix in dry-run mode. This is command ACK/readback evidence for the read-side feed story, not mission
-  execution or vehicle-control evidence.
+  ACK task suffix in dry-run mode. It is a native Go helper rather than a MAVSDK dependency; its command-session
+  behavior is deliberately limited to stable sender identity, optional heartbeat, bounded retries, incrementing
+  `COMMAND_LONG.confirmation`, and direct reply counters. This is command ACK/readback evidence for the read-side feed
+  story, not mission execution or vehicle-control evidence.
 - 2026-06-24 command-preflight verification exited with `result=blocked_no_native_command_transmitter` after all
   required safety-posture inputs were present.
 - 2026-06-26T01:23:17Z `command-live-sim` verification exited with `result=blocked_missing_command_transmitter`
@@ -305,7 +307,11 @@ Mock or harness:
 - 2026-06-27 the command helper learned the PX4 simulator UDP destination from `semops.feed.mavlink.raw` and retried
   from inside the Compose network. It learned `172.19.0.9:14580`, sent the read-side command there, still forwarded
   zero replies, and the COP snapshot still had no `mavlink.command_ack` task. The blocker is no longer a guessed host
-  port; it is PX4 image/endpoint command reply behavior or a missing MAVSDK-style command driver path.
+  port; it is PX4 image/endpoint command reply behavior or a missing native command-session path that PX4 answers.
+- 2026-06-27 a native retry run kept the helper SDK-free and used the learned route, target component `0`, three
+  bounded attempts, and `COMMAND_LONG.confirmation` values `0/1/2`. It still recorded `direct_command_acks=0`,
+  `direct_autopilot_version_frames=0`, and `forwarded_replies=0`; a fresh COP snapshot after the run was healthy and
+  still had no `mavlink.command_ack` task.
 - 2026-06-26T00:44:17Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
   the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. This is
   readiness-gap evidence only, not ArduPilot simulator interoperability.

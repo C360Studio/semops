@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net"
 	"strings"
 	"testing"
@@ -13,6 +14,8 @@ import (
 	"github.com/c360studio/semstreams/message"
 	"github.com/c360studio/semstreams/payloadregistry"
 )
+
+var errExpectedCommandLong = errors.New("expected COMMAND_LONG")
 
 func TestRunDryRunBuildsReadSideMVPCommand(t *testing.T) {
 	var stdout bytes.Buffer
@@ -174,6 +177,106 @@ func TestRunForwardsSimulatorReplies(t *testing.T) {
 	if !strings.Contains(output, "forwarded_reply_bytes=") ||
 		!strings.Contains(output, "forwarded_replies=1") {
 		t.Fatalf("forwarding output missing counters:\n%s", output)
+	}
+}
+
+func TestRunRetriesCommandUntilDirectCommandAck(t *testing.T) {
+	simulator, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen simulator UDP: %v", err)
+	}
+	defer simulator.Close()
+
+	seen := make(chan *mavcodec.Packet, 2)
+	simulatorDone := make(chan error, 1)
+	go func() {
+		parser := mavcodec.NewParser()
+		buffer := make([]byte, 512)
+		for attempt := 1; attempt <= 2; attempt++ {
+			if err := simulator.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+				simulatorDone <- err
+				return
+			}
+			n, addr, err := simulator.ReadFrom(buffer)
+			if err != nil {
+				simulatorDone <- err
+				return
+			}
+			packets, err := parser.Parse(buffer[:n])
+			if err != nil {
+				simulatorDone <- err
+				return
+			}
+			var command *mavcodec.Packet
+			for _, packet := range packets {
+				if packet.MessageID == mavcodec.MessageIDCommandLong {
+					command = packet
+					break
+				}
+			}
+			if command == nil {
+				simulatorDone <- errExpectedCommandLong
+				return
+			}
+			seen <- command
+			if attempt == 2 {
+				ack, err := mavcodec.NewGenerator(1, 1).GenerateCommandAck(mavcodec.CommandAckMessage{
+					Command:           mavcodec.CommandRequestMessage,
+					Result:            mavcodec.MAVResultAccepted,
+					TargetSystemID:    255,
+					TargetComponentID: 190,
+				})
+				if err != nil {
+					simulatorDone <- err
+					return
+				}
+				_, err = simulator.WriteTo(ack, addr)
+				simulatorDone <- err
+				return
+			}
+		}
+	}()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	err = run([]string{
+		"-confirm-simulator-only",
+		"-route", simulator.LocalAddr().String(),
+		"-attempts", "3",
+		"-retry-interval", "30ms",
+		"-reply-timeout", "200ms",
+		"-timeout", "200ms",
+	}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run command with direct ACK retry: %v\nstderr: %s", err, stderr.String())
+	}
+	if err := <-simulatorDone; err != nil {
+		t.Fatalf("simulator command ACK: %v", err)
+	}
+
+	first := <-seen
+	second := <-seen
+	if first.Sequence != 1 || second.Sequence != 2 {
+		t.Fatalf("command sequences = %d/%d, want 1/2", first.Sequence, second.Sequence)
+	}
+	if got, _ := packetField[uint8](first, "confirmation"); got != 0 {
+		t.Fatalf("first confirmation = %d, want 0", got)
+	}
+	if got, _ := packetField[uint8](second, "confirmation"); got != 1 {
+		t.Fatalf("second confirmation = %d, want 1", got)
+	}
+
+	output := stdout.String()
+	for _, want := range []string{
+		"retrying_without_direct_command_ack attempt=1 next_attempt=2",
+		"observed_command_ack command=512 result=accepted source=1/1 target=255/190",
+		"command_attempts=2",
+		"direct_command_acks=1",
+		"last_ack_result=accepted",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("retry output missing %q:\n%s", want, output)
+		}
 	}
 }
 

@@ -225,6 +225,8 @@
       through the hosted component chain
 - [x] 5.106 Add MAVLink command route-learning diagnostics from raw telemetry and persist transmitter output while
       keeping live command/control open after the learned-route PX4 attempt produced no command reply frames
+- [x] 5.107 Add native MAVLink command-session retries and direct reply counters without adding MAVSDK as a product
+      dependency
 
 ## 6. Structural COP Stack
 

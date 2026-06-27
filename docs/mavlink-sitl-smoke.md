@@ -290,7 +290,9 @@ the graph. Direct graph smokes remain valid for MAVLink projection-contract cove
 For MVP, keep the allowlist narrow. The provided `semops-mavlink-command` helper only sends
 `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`; it is a read-side command used to prove command ACK/readback through
 the COP graph, not mission execution or vehicle control. The helper can optionally send a GCS heartbeat first and can
-forward any simulator replies it receives to a SemOps UDP listener for diagnostics:
+forward any simulator replies it receives to a SemOps UDP listener for diagnostics. It remains a native Go helper; it
+does not embed MAVSDK. The useful pattern borrowed from mature MAVLink clients is command-session discipline: stable
+sender identity, heartbeat, bounded retries, incrementing `COMMAND_LONG.confirmation`, and explicit reply observation:
 
 ```bash
 go run ./cmd/semops-mavlink-command \
@@ -298,6 +300,8 @@ go run ./cmd/semops-mavlink-command \
   -send-heartbeat-first \
   -route 127.0.0.1:<simulator-command-port> \
   -forward-replies-to 127.0.0.1:14540 \
+  -attempts 3 \
+  -retry-interval 500ms \
   -reply-timeout 2s
 ```
 
@@ -308,7 +312,8 @@ go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route udp:
 ```
 
 Expected metadata includes `action=request_autopilot_version`, `command=512`, `request_message=148`, and
-`expected_ack_task_suffix=system-1-command-512-target-255-190`.
+`expected_ack_task_suffix=system-1-command-512-target-255-190`. Live attempts also print `command_attempts`,
+`direct_command_acks`, `direct_autopilot_version_frames`, and `forwarded_replies` counters.
 
 The helper can also learn a simulator command route from live raw telemetry before it sends. This is intended for
 Docker Compose-network PX4 runs where the correct UDP destination is the inbound `remote_addr` on
@@ -329,8 +334,10 @@ Current command-gate blocker, 2026-06-27: after the compose-network telemetry ro
 failed against the local PX4/Gazebo headless image. The helper first tried host-published PX4 ports and an in-network
 route. A follow-up route-learning run subscribed to raw MAVLink telemetry from inside `semops-cop_default`, learned
 `172.19.0.9:14580` for PX4 `system-1`, sent the heartbeat and read-side command there, and still saw
-`forwarded_replies=0`. The command-control snapshot smoke found no `mavlink.command_ack` task. This does not weaken
-the telemetry evidence, but it keeps live command/control open.
+`forwarded_replies=0`. A later native retry run used target component `0`, three bounded attempts, and
+`COMMAND_LONG.confirmation` values `0/1/2`; it still recorded `direct_command_acks=0`,
+`direct_autopilot_version_frames=0`, and `forwarded_replies=0`. The command-control snapshot smoke found no
+`mavlink.command_ack` task. This does not weaken the telemetry evidence, but it keeps live command/control open.
 
 ## Acceptance
 

@@ -168,8 +168,16 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   `tmp/mavlink-sitl-evidence/2026-06-27T21-21-20Z-command-live-sim.env` records
   `result=failed_command_control_smoke` and points at
   `tmp/mavlink-sitl-evidence/2026-06-27T21-21-20Z-command-live-sim-transmitter.log` for the learned-route output.
-  This narrows the blocker from guessed host ports to PX4 image/endpoint command reply behavior or a missing
-  MAVSDK-style command driver path.
+  This narrows the blocker from guessed host ports to PX4 image/endpoint command reply behavior or a missing native
+  command-session path that PX4 answers.
+- 2026-06-27: the helper gained native command-session retry diagnostics without adding MAVSDK as a product
+  dependency. A Compose-network rerun used the learned PX4 route `172.19.0.9:14580`, target component `0`, three
+  bounded attempts, and `COMMAND_LONG.confirmation` values `0/1/2`. The transmitter log recorded
+  `command_attempts=3`, `direct_command_acks=0`, `direct_autopilot_version_frames=0`, and `forwarded_replies=0`.
+  The evidence file `tmp/mavlink-sitl-evidence/2026-06-27T21-47-42Z-command-live-sim.env` records
+  `result=failed_command_control_smoke` and points at
+  `tmp/mavlink-sitl-evidence/2026-06-27T21-47-42Z-command-live-sim-transmitter.log`. A fresh COP snapshot after the
+  failed smoke was healthy and still had no `mavlink.command_ack` task.
 - 2026-06-23: `go test ./pkg/cop ./internal/projectors/mavlink ./internal/adapters/mavlink
   ./internal/components/mavlink ./internal/copownership` passed after adding the MAVLink command-task ownership
   contract and COMMAND_ACK readback projection. This is evidence of governed command lifecycle readback only; live
