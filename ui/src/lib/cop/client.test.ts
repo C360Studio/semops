@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { loadRuntime, loadScenarioStatus, loadSnapshot, freshnessLabel, formatRate, reviewAssociation } from './client';
+import {
+  freshnessLabel,
+  formatRate,
+  loadRuntime,
+  loadScenarioControls,
+  loadScenarioStatus,
+  loadSnapshot,
+  reviewAssociation
+} from './client';
 import { fixtureSnapshot } from './fixture';
 
 describe('loadSnapshot', () => {
@@ -102,6 +110,46 @@ describe('loadScenarioStatus', () => {
     });
 
     expect(result.status).toBeNull();
+    expect(result.error).toContain('offline');
+  });
+});
+
+describe('loadScenarioControls', () => {
+  it('uses same-origin scenario control policy when available', async () => {
+    let requestedURL = '';
+    const result = await loadScenarioControls(async (url) => {
+      requestedURL = url.toString();
+      return new Response(
+        JSON.stringify({
+          enabled: false,
+          state: 'blocked',
+          reason: 'scenario controls require a reviewed operator_scenario_control checkpoint',
+          supported_actions: ['start', 'reset', 'pause', 'resume'],
+          required_claim_scope: 'operator_scenario_control',
+          scenario_id: 'phase-1-hadr-flood-evacuation',
+          checkpoint_id: 'scenario_control_authority',
+          checkpoint_state: 'blocked'
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    });
+
+    expect(requestedURL).toBe('/scenario/controls');
+    expect(result.error).toBeUndefined();
+    expect(result.controls?.enabled).toBe(false);
+    expect(result.controls?.supported_actions).toEqual(['start', 'reset', 'pause', 'resume']);
+    expect(result.controls?.required_claim_scope).toBe('operator_scenario_control');
+  });
+
+  it('does not replace COP state when scenario control policy is unavailable', async () => {
+    const result = await loadScenarioControls(async () => {
+      throw new Error('offline');
+    });
+
+    expect(result.controls).toBeNull();
     expect(result.error).toContain('offline');
   });
 });

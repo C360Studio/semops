@@ -99,6 +99,8 @@ Phase 1.
 - **AND** product evidence is visually distinguishable only when status reports feed-boundary ingress, zero direct graph
   mutations, zero contract graph mutation attempts, and no failed steps or errors
 - **AND** the Caddy-routed scenario control guard may report start/reset/pause/resume as blocked policy state
+- **AND** the browser reads that guard and renders blocked action labels, required claim scope, checkpoint state, and
+  reason as read-only policy evidence
 - **AND** the UI does not expose executable scenario start, reset, pause, resume, command-control, or
   orchestration-shell controls until those controls have separate operator-value and adversarial failure-mode review,
   authenticated operator identity, authority conflict policy, and an `operator_scenario_control` checkpoint

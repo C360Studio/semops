@@ -1,7 +1,13 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { fixtureSnapshot } from '../src/lib/cop/fixture';
-import type { AssociationReview, RuntimeSnapshot, ScenarioStatus, Snapshot } from '../src/lib/cop/types';
+import type {
+  AssociationReview,
+  RuntimeSnapshot,
+  ScenarioControls,
+  ScenarioStatus,
+  Snapshot
+} from '../src/lib/cop/types';
 
 const adsbTrack = {
   id: 'c360.edge-compose.cop.adsb.track.a1b2c3',
@@ -202,6 +208,18 @@ const scenarioStatus: ScenarioStatus = {
   }
 };
 
+const scenarioControls: ScenarioControls = {
+  enabled: false,
+  state: 'blocked',
+  reason:
+    'scenario controls require a reviewed operator_scenario_control checkpoint and an implemented control executor',
+  supported_actions: ['start', 'reset', 'pause', 'resume'],
+  required_claim_scope: 'operator_scenario_control',
+  scenario_id: 'phase-1-hadr-flood-evacuation',
+  checkpoint_id: 'scenario_control_authority',
+  checkpoint_state: 'blocked'
+};
+
 async function routeCOPState(page: Page) {
   let snapshotRequests = 0;
   let associationReview: AssociationReview | undefined;
@@ -225,9 +243,14 @@ async function routeCOPState(page: Page) {
     });
   });
   await page.route(/\/api\/cop\/associations\/.+\/review$/, async (route) => {
-    const body = (await route.request().postDataJSON()) as { decision: AssociationReview['decision']; reviewed_by?: string };
+    const body = (await route.request().postDataJSON()) as {
+      decision: AssociationReview['decision'];
+      reviewed_by?: string;
+    };
     lastReviewOperatorHeader = route.request().headers()['x-semops-operator-id'] ?? null;
-    const associationID = decodeURIComponent(route.request().url().split('/api/cop/associations/')[1].replace('/review', ''));
+    const associationID = decodeURIComponent(
+      route.request().url().split('/api/cop/associations/')[1].replace('/review', '')
+    );
     associationReview = {
       association_id: associationID,
       decision: body.decision,
@@ -255,6 +278,13 @@ async function routeCOPState(page: Page) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(scenarioStatus)
+    });
+  });
+  await page.route('/scenario/controls', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(scenarioControls)
     });
   });
   return {
@@ -294,6 +324,13 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('Scenario evidence')).toContainText('feed-boundary');
   await expect(page.getByLabel('Scenario evidence')).toContainText('6');
   await expect(page.getByLabel('Scenario evidence')).toContainText('Graph');
+  await expect(page.getByLabel('Scenario control policy')).toContainText('blocked');
+  await expect(page.getByLabel('Scenario control policy')).toContainText('operator_scenario_control');
+  await expect(page.getByLabel('Blocked scenario actions')).toContainText('start');
+  await expect(page.getByLabel('Blocked scenario actions')).toContainText('reset');
+  await expect(page.getByLabel('Blocked scenario actions')).toContainText('pause');
+  await expect(page.getByLabel('Blocked scenario actions')).toContainText('resume');
+  await expect(page.getByLabel('Scenario control policy')).toContainText('scenario_control_authority');
   await expect(page.getByLabel('Command source state')).toBeVisible();
   await expect(page.getByLabel('Command discovery counts')).toContainText('task 1');
   const commandTaskRow = page.getByRole('button', { name: 'Route MAVLink system 42 to North Gate cancel_requested' });
@@ -376,6 +413,7 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await expect(page.getByLabel('Tactical map')).toBeVisible();
   await expect(page.getByLabel('Map entities')).toBeVisible();
   await expect(page.getByLabel('Scenario evidence')).toBeVisible();
+  await expect(page.getByLabel('Scenario control policy')).toContainText('blocked');
   await expect(page.getByLabel('ADS-B source state')).toBeVisible();
   await expect(page.getByLabel('KLV source state')).toBeVisible();
   await expect(page.getByLabel('Weather source state')).toBeVisible();

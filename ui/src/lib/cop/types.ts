@@ -100,6 +100,19 @@ export type ScenarioStatus = {
   summary: ScenarioSummary;
 };
 
+export type ScenarioControls = {
+  enabled: boolean;
+  state: 'blocked' | 'enabled' | string;
+  reason: string;
+  supported_actions: ScenarioControlAction[];
+  required_claim_scope: string;
+  scenario_id?: string;
+  checkpoint_id?: string;
+  checkpoint_state?: string;
+};
+
+export type ScenarioControlAction = 'start' | 'reset' | 'pause' | 'resume' | string;
+
 export type ScenarioSummary = {
   mavlink_frames: number;
   cot_events: number;

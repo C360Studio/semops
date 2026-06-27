@@ -209,6 +209,7 @@ h3 {
 .side-panel,
 .feed-strip,
 .scenario-strip,
+.scenario-control-strip,
 .task-strip,
 .association-strip,
 .alert-strip {
@@ -478,6 +479,7 @@ h3 {
 
 .feed-strip,
 .scenario-strip,
+.scenario-control-strip,
 .task-strip,
 .association-strip,
 .alert-strip {
@@ -610,11 +612,20 @@ h3 {
   border-left: 4px solid #217d67;
 }
 
+.scenario-control-strip {
+  align-content: start;
+  border-left: 4px solid #b34d35;
+}
+
 .scenario-title {
   display: flex;
   align-items: center;
   gap: 7px;
   color: #1f5d4f;
+}
+
+.scenario-title.blocked {
+  color: #833c27;
 }
 
 .scenario-strip > strong {
@@ -684,6 +695,24 @@ h3 {
   padding: 8px 10px;
   font-size: 0.82rem;
   line-height: 1.35;
+}
+
+.control-action-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.control-action-list span {
+  border: 1px solid #d3a193;
+  border-radius: 8px;
+  background: #fff4f1;
+  color: #833c27;
+  padding: 4px 7px;
+  font-size: 0.7rem;
+  font-weight: 850;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .task-strip,

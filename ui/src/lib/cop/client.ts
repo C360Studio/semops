@@ -1,5 +1,12 @@
 import { fixtureSnapshot } from './fixture';
-import type { AssociationReview, AssociationReviewDecision, RuntimeSnapshot, ScenarioStatus, Snapshot } from './types';
+import type {
+  AssociationReview,
+  AssociationReviewDecision,
+  RuntimeSnapshot,
+  ScenarioControls,
+  ScenarioStatus,
+  Snapshot
+} from './types';
 
 export type SnapshotLoadResult = {
   snapshot: Snapshot;
@@ -14,6 +21,11 @@ export type RuntimeLoadResult = {
 
 export type ScenarioStatusLoadResult = {
   status: ScenarioStatus | null;
+  error?: string;
+};
+
+export type ScenarioControlsLoadResult = {
+  controls: ScenarioControls | null;
   error?: string;
 };
 
@@ -79,6 +91,24 @@ export async function loadScenarioStatus(fetcher: typeof fetch = fetch): Promise
     return {
       status: null,
       error: error instanceof Error ? error.message : 'scenario status unavailable'
+    };
+  }
+}
+
+export async function loadScenarioControls(fetcher: typeof fetch = fetch): Promise<ScenarioControlsLoadResult> {
+  try {
+    const response = await fetcher('/scenario/controls', {
+      headers: { accept: 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`scenario controls request failed: ${response.status}`);
+    }
+    const controls = (await response.json()) as ScenarioControls;
+    return { controls };
+  } catch (error) {
+    return {
+      controls: null,
+      error: error instanceof Error ? error.message : 'scenario controls unavailable'
     };
   }
 }

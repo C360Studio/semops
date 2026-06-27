@@ -158,6 +158,8 @@ progress:
     authenticated multi-authority arbitration exists.
   - Surfaced the local operator audit label in the COP topbar and sent it with association review as
     `X-SemOps-Operator-ID`, while keeping the readback display-only and unauthenticated.
+  - Surfaced Caddy-routed `/scenario/controls` in the COP UI as blocked read-only policy state with inert
+    start/reset/pause/resume labels, required claim scope, checkpoint state, and reason.
 
 current_evidence:
   - `go test ./internal/contracts`

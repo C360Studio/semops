@@ -212,6 +212,7 @@ The first COP stack SHALL run locally with a single documented command after dep
 
 - **WHEN** the local COP stack exposes the operator UI
 - **THEN** Caddy routes browser traffic to the Svelte UI and proxies SemOps API paths on the same origin
+- **AND** Caddy-routed `/scenario/status` and `/scenario/controls` are the default browser scenario-evidence paths
 - **AND** the direct SemOps API port remains available for diagnostics and smoke checks
 
 #### Scenario: Health checks use active polling

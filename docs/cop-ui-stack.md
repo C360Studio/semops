@@ -120,7 +120,8 @@ is running through hosted feed/component boundaries. It does not start, reset, p
 those controls remain deferred until the operator value, failure modes, and product e2e boundaries survive adversarial
 review. The `/scenario/controls` endpoint is a fail-closed guardrail: it advertises supported action names but reports
 them blocked until an `operator_scenario_control` checkpoint, authenticated operator policy, conflict semantics, and
-an implemented control executor exist.
+an implemented control executor exist. The browser renders that guardrail as read-only policy state with inert
+start/reset/pause/resume labels, not executable buttons.
 
 The topbar exposes a local operator audit label. It defaults to `operator.local`, persists only in browser local
 storage, and is sent as `X-SemOps-Operator-ID` when association evidence is acknowledged or challenged. This is not a
@@ -130,11 +131,11 @@ remain gated behind authenticated multi-authority policy.
 The browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts `GET /api/cop/snapshot` and
 `GET /api/cop/runtime` plus same-origin `/scenario/status`, serves API-shaped ADS-B, KLV, and weather discovery plus
 runtime-flow and scenario evidence, and verifies the operator surface renders source cards, prefix-discovery counts,
-runtime flow, scenario ingress/delivery evidence, local operator stamping for association review, map selection
-controls, keyboard selection, selected-entity provenance, alert-to-map target highlighting, and a narrow viewport
-without horizontal overflow. This complements the Docker stack smoke: Playwright proves the browser contract and
-interaction path, while `scripts/cop-stack-smoke.sh` proves the live SemOps/SemStreams/Caddy plumbing and the blocked
-scenario-control guard.
+runtime flow, scenario ingress/delivery evidence, blocked scenario-control policy, local operator stamping for
+association review, map selection controls, keyboard selection, selected-entity provenance, alert-to-map target
+highlighting, and a narrow viewport without horizontal overflow. This complements the Docker stack smoke: Playwright
+proves the browser contract and interaction path, while `scripts/cop-stack-smoke.sh` proves the live
+SemOps/SemStreams/Caddy plumbing and the blocked scenario-control guard.
 
 ## KLV Sensor-Footprint UI Gate
 

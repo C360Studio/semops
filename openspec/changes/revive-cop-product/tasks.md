@@ -372,6 +372,7 @@
 - [x] 7.30 Surface Caddy-routed scenario evidence in the COP UI with ingress/delivery/graph counts while deferring
       scenario orchestration controls
 - [x] 7.31 Surface a local operator audit-label control for association review without adding an auth wall
+- [x] 7.32 Surface fail-closed scenario control policy as read-only UI evidence without executable control buttons
 
 ## 8. Tier Escalation And Egress
 

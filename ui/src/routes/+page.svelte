@@ -10,7 +10,14 @@
     RefreshCcw,
     UserRound
   } from '@lucide/svelte';
-  import { loadRuntime, loadScenarioStatus, loadSnapshot, freshnessLabel, reviewAssociation } from '$lib/cop/client';
+  import {
+    freshnessLabel,
+    loadRuntime,
+    loadScenarioControls,
+    loadScenarioStatus,
+    loadSnapshot,
+    reviewAssociation
+  } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, resolveMapSelection, type SelectableEntity } from '$lib/cop/selection';
   import SourceCard from '$lib/cop/SourceCard.svelte';
   import TacticalMap from '$lib/cop/TacticalMap.svelte';
@@ -25,6 +32,7 @@
     EntityRef,
     Hazard,
     RuntimeSnapshot,
+    ScenarioControls,
     ScenarioStatus,
     SensorFootprint,
     Snapshot,
@@ -36,6 +44,7 @@
   let snapshot = $state<Snapshot | null>(null);
   let runtime = $state<RuntimeSnapshot | null>(null);
   let scenarioStatus = $state<ScenarioStatus | null>(null);
+  let scenarioControls = $state<ScenarioControls | null>(null);
   let source = $state<'api' | 'fixture'>('fixture');
   let error = $state<string | undefined>();
   let selected = $state<EntityRef>({ kind: 'track', id: 'c360.edge.cop.mavlink.track.system-42' });
@@ -51,16 +60,23 @@
 
   async function refresh() {
     loading = true;
-    const [snapshotResult, runtimeResult, scenarioResult] = await Promise.all([
+    const [snapshotResult, runtimeResult, scenarioResult, controlsResult] = await Promise.all([
       loadSnapshot(),
       loadRuntime(),
-      loadScenarioStatus()
+      loadScenarioStatus(),
+      loadScenarioControls()
     ]);
     snapshot = snapshotResult.snapshot;
     runtime = runtimeResult.runtime;
     scenarioStatus = scenarioResult.status;
+    scenarioControls = controlsResult.controls;
     source = snapshotResult.source;
-    error = [snapshotResult.error, runtimeResult.error, scenarioResult.error].filter(Boolean).join('; ') || undefined;
+    error = [
+      snapshotResult.error,
+      runtimeResult.error,
+      scenarioResult.error,
+      controlsResult.error
+    ].filter(Boolean).join('; ') || undefined;
     selected = reconcileSelection(snapshot, selected);
     loading = false;
   }
@@ -118,6 +134,10 @@
 
   function scenarioIDLabel(id: string) {
     return id.replace(/-/g, ' ');
+  }
+
+  function scenarioControlLabel(action: string) {
+    return action.replace(/_/g, ' ');
   }
 
   function associationStatusLabel(status: string | undefined) {
@@ -227,7 +247,13 @@
       />
       <small id="operator-scope">local.display_only</small>
     </label>
-    <button class="icon-button" type="button" onclick={refresh} aria-label="Refresh COP snapshot" title="Refresh COP snapshot">
+    <button
+      class="icon-button"
+      type="button"
+      onclick={refresh}
+      aria-label="Refresh COP snapshot"
+      title="Refresh COP snapshot"
+    >
       <RefreshCcw size={18} />
     </button>
   </header>
@@ -310,6 +336,41 @@
           </section>
         {/if}
 
+        {#if scenarioControls}
+          <section class="scenario-control-strip" aria-label="Scenario control policy">
+            <div class="scenario-title blocked">
+              <CircleAlert size={17} />
+              <h2>Controls</h2>
+            </div>
+            <div class="scenario-state failed">
+              <span>{scenarioControls.state}</span>
+              <span>{scenarioControls.required_claim_scope}</span>
+            </div>
+            <div class="control-action-list" aria-label="Blocked scenario actions">
+              {#each scenarioControls.supported_actions as action}
+                <span>{scenarioControlLabel(action)}</span>
+              {/each}
+            </div>
+            {#if scenarioControls.checkpoint_id || scenarioControls.checkpoint_state}
+              <dl class="scenario-metrics">
+                <div>
+                  <dt>Checkpoint</dt>
+                  <dd>{scenarioControls.checkpoint_id ?? 'missing'}</dd>
+                </div>
+                <div>
+                  <dt>State</dt>
+                  <dd>{scenarioControls.checkpoint_state ?? 'missing'}</dd>
+                </div>
+                <div>
+                  <dt>Mode</dt>
+                  <dd>{scenarioControls.enabled ? 'open' : 'closed'}</dd>
+                </div>
+              </dl>
+            {/if}
+            <p class="scenario-error">{scenarioControls.reason}</p>
+          </section>
+        {/if}
+
         <section class="task-strip">
           <h2>Tasks</h2>
           {#each snapshot.tasks as task}
@@ -374,7 +435,9 @@
   {/if}
 </main>
 
-{#snippet entityInspector(entity: Track | Asset | Task | Advisory | Hazard | SensorFootprint | WeatherObservation | Association | Alert)}
+{#snippet entityInspector(
+  entity: Track | Asset | Task | Advisory | Hazard | SensorFootprint | WeatherObservation | Association | Alert
+)}
   <div class="inspector-grid">
     {#if 'source' in entity}
       <div>
