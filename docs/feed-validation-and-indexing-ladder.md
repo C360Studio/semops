@@ -294,24 +294,22 @@ Mock or harness:
   required safety-posture inputs were present.
 - 2026-06-26T01:23:17Z `command-live-sim` verification exited with `result=blocked_missing_command_transmitter`
   after simulator, safety, ACK, post-state, reviewed-transmitter, and transmit-enabled attestations were present.
-  This is readiness-gap evidence only; task 5.97 remains open until a real reviewed transmitter command runs and the
-  ACK/post-state COP snapshot smoke passes.
+  This is preserved as readiness-gap history only.
 - 2026-06-26 `go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route
   udp://127.0.0.1:14540` passed with `action=request_autopilot_version`, `command=512`, `request_message=148`, and
   `expected_ack_task_suffix=system-1-command-512-target-255-190`.
 - 2026-06-27 PX4/Gazebo headless telemetry passed through the managed Compose-network route with motion required, and
   a kept-stack diagnostic confirmed both hosted SemOps MAVLink UDP listeners were exposed.
-- 2026-06-27 `command-live-sim` stayed blocked after a real PX4/Gazebo command attempt. Baseline telemetry was live,
-  but the helper forwarded zero simulator replies and no `COMMAND_LONG`, `COMMAND_ACK`, or `AUTOPILOT_VERSION` frames
-  were observed entering the hosted MAVLink decoded stream, so task 5.97 remains open.
-- 2026-06-27 the command helper learned the PX4 simulator UDP destination from `semops.feed.mavlink.raw` and retried
-  from inside the Compose network. It learned `172.19.0.9:14580`, sent the read-side command there, still forwarded
-  zero replies, and the COP snapshot still had no `mavlink.command_ack` task. The blocker is no longer a guessed host
-  port; it is PX4 image/endpoint command reply behavior or a missing native command-session path that PX4 answers.
-- 2026-06-27 a native retry run kept the helper SDK-free and used the learned route, target component `0`, three
-  bounded attempts, and `COMMAND_LONG.confirmation` values `0/1/2`. It still recorded `direct_command_acks=0`,
-  `direct_autopilot_version_frames=0`, and `forwarded_replies=0`; a fresh COP snapshot after the run was healthy and
-  still had no `mavlink.command_ack` task.
+- 2026-06-27 earlier PX4/Gazebo command attempts stayed blocked while the helper learned the offboard telemetry route
+  `172.19.0.9:14580` and saw no direct replies. The fix was to learn the PX4 host from raw telemetry, override only
+  the destination to the PX4 GCS command port `18570`, and observe ACKs on SemOps' raw lane, because PX4 sends command
+  replies to its configured SemOps partner rather than the helper socket.
+- 2026-06-27 `command-live-sim` passed with the reviewed native transmitter and no MAVSDK dependency. The transmitter
+  ran from the SemOps network namespace, sent three bounded `MAV_CMD_REQUEST_MESSAGE` attempts for
+  `AUTOPILOT_VERSION`, and recorded `raw_command_acks=3`, `raw_last_ack_result=accepted`,
+  `direct_command_acks=0`, and `forwarded_replies=0`. The command-control COP snapshot smoke found
+  `c360.edge-compose.cop.mavlink.task.system-1-command-512-target-255-190` and a fresh post-command MAVLink track.
+  Evidence: `tmp/mavlink-sitl-evidence/2026-06-27T22-29-45Z-command-live-sim.env`.
 - 2026-06-26T00:44:17Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
   the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. This is
   readiness-gap evidence only, not ArduPilot simulator interoperability.

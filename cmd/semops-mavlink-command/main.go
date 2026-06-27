@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ const (
 	defaultTimeout                = 2 * time.Second
 	defaultReplyTimeout           = 2 * time.Second
 	defaultLearnRouteTimeout      = 5 * time.Second
+	defaultObserveRawTimeout      = 5 * time.Second
 	defaultCommandAttempts        = 1
 	defaultCommandRetryInterval   = 500 * time.Millisecond
 	defaultHeartbeatSettle        = 250 * time.Millisecond
@@ -46,6 +48,9 @@ type config struct {
 	ForwardRepliesTo  string
 	LearnRouteNATSURL string
 	LearnRouteSubject string
+	LearnRoutePort    int
+	ObserveRawNATSURL string
+	ObserveRawSubject string
 	SendHeartbeat     bool
 	SimulatorOnly     bool
 	DryRun            bool
@@ -53,6 +58,7 @@ type config struct {
 	Timeout           time.Duration
 	ReplyTimeout      time.Duration
 	LearnRouteTimeout time.Duration
+	ObserveRawTimeout time.Duration
 	RetryInterval     time.Duration
 }
 
@@ -80,6 +86,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 	fs.StringVar(&cfg.ForwardRepliesTo, "forward-replies-to", cfg.ForwardRepliesTo, "optional UDP route that receives simulator reply frames observed by this helper")
 	fs.StringVar(&cfg.LearnRouteNATSURL, "learn-route-nats-url", cfg.LearnRouteNATSURL, "optional NATS URL for learning the simulator UDP route from raw MAVLink telemetry")
 	fs.StringVar(&cfg.LearnRouteSubject, "learn-route-subject", cfg.LearnRouteSubject, "NATS subject carrying raw MAVLink frames used for route learning")
+	fs.IntVar(&cfg.LearnRoutePort, "learn-route-port", cfg.LearnRoutePort, "optional UDP destination port to combine with the learned simulator host")
+	fs.StringVar(&cfg.ObserveRawNATSURL, "observe-raw-nats-url", cfg.ObserveRawNATSURL, "optional NATS URL for counting command-related raw MAVLink frames observed by SemOps during this command session")
+	fs.StringVar(&cfg.ObserveRawSubject, "observe-raw-subject", cfg.ObserveRawSubject, "NATS subject carrying raw MAVLink frames used for command observation")
 	fs.BoolVar(&cfg.SendHeartbeat, "send-heartbeat-first", cfg.SendHeartbeat, "send a GCS heartbeat before the command so simulators can learn the endpoint")
 	fs.BoolVar(&cfg.SimulatorOnly, "confirm-simulator-only", cfg.SimulatorOnly, "confirm this command is routed only to a simulator")
 	fs.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "print command metadata without sending the frame")
@@ -87,6 +96,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	fs.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, "UDP write timeout")
 	fs.DurationVar(&cfg.ReplyTimeout, "reply-timeout", cfg.ReplyTimeout, "how long to read simulator replies when forwarding is enabled")
 	fs.DurationVar(&cfg.LearnRouteTimeout, "learn-route-timeout", cfg.LearnRouteTimeout, "how long to wait for raw MAVLink telemetry when learning the command route")
+	fs.DurationVar(&cfg.ObserveRawTimeout, "observe-raw-timeout", cfg.ObserveRawTimeout, "NATS connect and subscription timeout for raw MAVLink command observation")
 	fs.DurationVar(&cfg.RetryInterval, "retry-interval", cfg.RetryInterval, "reply wait between command retry attempts")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -112,6 +122,12 @@ func run(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
+		if cfg.LearnRoutePort != 0 {
+			learned, err = overrideUDPRoutePort(learned, cfg.LearnRoutePort)
+			if err != nil {
+				return err
+			}
+		}
 		route = learned
 		fmt.Fprintf(stdout, "learned_route=%s nats_url=%s subject=%s target_system=%d\n",
 			route, cfg.LearnRouteNATSURL, cfg.LearnRouteSubject, cfg.TargetSystem)
@@ -129,7 +145,25 @@ func run(args []string, stdout, stderr io.Writer) error {
 	if err := conn.SetWriteDeadline(time.Now().Add(cfg.Timeout)); err != nil {
 		return fmt.Errorf("set write deadline: %w", err)
 	}
-	return runCommandSession(conn, cfg, builder, route, stdout)
+	var observer *rawFrameObserver
+	if cfg.ObserveRawNATSURL != "" {
+		observer, err = startRawFrameObserver(cfg, builder.command)
+		if err != nil {
+			return err
+		}
+	}
+	sessionErr := runCommandSession(conn, cfg, builder, route, stdout)
+	if observer != nil {
+		stats, observeErr := observer.Stop()
+		fmt.Fprintln(stdout, stats.Summary())
+		if sessionErr != nil {
+			return sessionErr
+		}
+		if observeErr != nil {
+			return observeErr
+		}
+	}
+	return sessionErr
 }
 
 func defaultConfig() (config, error) {
@@ -157,6 +191,14 @@ func defaultConfig() (config, error) {
 		}
 		learnRouteTimeout = parsed
 	}
+	observeRawTimeout := defaultObserveRawTimeout
+	if value := os.Getenv("SEMOPS_MAVLINK_COMMAND_OBSERVE_RAW_TIMEOUT"); value != "" {
+		parsed, err := time.ParseDuration(value)
+		if err != nil {
+			return config{}, fmt.Errorf("SEMOPS_MAVLINK_COMMAND_OBSERVE_RAW_TIMEOUT=%q is not a duration: %w", value, err)
+		}
+		observeRawTimeout = parsed
+	}
 	retryInterval := defaultCommandRetryInterval
 	if value := os.Getenv("SEMOPS_MAVLINK_COMMAND_RETRY_INTERVAL"); value != "" {
 		parsed, err := time.ParseDuration(value)
@@ -178,6 +220,10 @@ func defaultConfig() (config, error) {
 		return config{}, err
 	}
 	targetComponent, err := envInt("SEMOPS_MAVLINK_COMMAND_TARGET_COMPONENT", defaultTargetComponent)
+	if err != nil {
+		return config{}, err
+	}
+	learnRoutePort, err := envInt("SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_PORT", 0)
 	if err != nil {
 		return config{}, err
 	}
@@ -203,12 +249,16 @@ func defaultConfig() (config, error) {
 		ForwardRepliesTo:  os.Getenv("SEMOPS_MAVLINK_COMMAND_FORWARD_REPLIES_TO"),
 		LearnRouteNATSURL: os.Getenv("SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_NATS_URL"),
 		LearnRouteSubject: firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_LEARN_ROUTE_SUBJECT"), mavcomponent.DefaultRawSubject),
+		LearnRoutePort:    learnRoutePort,
+		ObserveRawNATSURL: os.Getenv("SEMOPS_MAVLINK_COMMAND_OBSERVE_RAW_NATS_URL"),
+		ObserveRawSubject: firstNonEmpty(os.Getenv("SEMOPS_MAVLINK_COMMAND_OBSERVE_RAW_SUBJECT"), mavcomponent.DefaultRawSubject),
 		SendHeartbeat:     sendHeartbeat,
 		SimulatorOnly:     simulatorOnly,
 		CommandAttempts:   commandAttempts,
 		Timeout:           timeout,
 		ReplyTimeout:      replyTimeout,
 		LearnRouteTimeout: learnRouteTimeout,
+		ObserveRawTimeout: observeRawTimeout,
 		RetryInterval:     retryInterval,
 	}, nil
 }
@@ -310,6 +360,193 @@ func routeFromRawFrame(
 		return "", false, nil
 	}
 	return payload.RemoteAddr, true, nil
+}
+
+type rawFrameObserver struct {
+	cancel context.CancelFunc
+	done   chan rawObservationResult
+}
+
+type rawObservationResult struct {
+	Stats rawObservationStats
+	Err   error
+}
+
+type rawObservationStats struct {
+	StartedAt            time.Time
+	StoppedAt            time.Time
+	RawFrames            int
+	RawPackets           int
+	RawCommandLongs      int
+	RawMatchingCommands  int
+	RawCommandACKs       int
+	RawAutopilotVersions int
+	LastACKResult        string
+	RemoteAddrs          map[string]int
+	Sources              map[string]int
+}
+
+func startRawFrameObserver(cfg config, command uint16) (*rawFrameObserver, error) {
+	if cfg.ObserveRawTimeout <= 0 {
+		return nil, errors.New("observe raw timeout must be greater than zero")
+	}
+	if strings.TrimSpace(cfg.ObserveRawSubject) == "" {
+		return nil, errors.New("observe raw subject is required")
+	}
+	registry := payloadregistry.New()
+	if err := mavcomponent.RegisterPayloads(registry); err != nil {
+		return nil, fmt.Errorf("register MAVLink payloads for raw observation: %w", err)
+	}
+	decoder := message.NewDecoder(registry)
+	parser := mavcodec.NewParser()
+
+	nc, err := nats.Connect(
+		cfg.ObserveRawNATSURL,
+		nats.Name("semops-mavlink-command-raw-observer"),
+		nats.Timeout(cfg.ObserveRawTimeout),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("connect NATS for MAVLink raw observation: %w", err)
+	}
+	sub, err := nc.SubscribeSync(cfg.ObserveRawSubject)
+	if err != nil {
+		nc.Close()
+		return nil, fmt.Errorf("subscribe MAVLink raw observation subject %s: %w", cfg.ObserveRawSubject, err)
+	}
+	if err := nc.FlushTimeout(cfg.ObserveRawTimeout); err != nil {
+		_ = sub.Unsubscribe()
+		nc.Close()
+		return nil, fmt.Errorf("flush MAVLink raw observation subscription: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan rawObservationResult, 1)
+	go func() {
+		defer nc.Close()
+		defer sub.Unsubscribe()
+		stats := newRawObservationStats(time.Now().UTC())
+		var lastErr error
+		for {
+			msg, err := sub.NextMsgWithContext(ctx)
+			if err != nil {
+				if errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled) {
+					stats.StoppedAt = time.Now().UTC()
+					done <- rawObservationResult{Stats: stats}
+					return
+				}
+				stats.StoppedAt = time.Now().UTC()
+				if lastErr != nil {
+					err = fmt.Errorf("%w; last raw observation error: %v", err, lastErr)
+				}
+				done <- rawObservationResult{Stats: stats, Err: fmt.Errorf("observe MAVLink raw frame: %w", err)}
+				return
+			}
+			if err := stats.ObserveRawFrame(msg.Data, decoder, parser, command); err != nil {
+				lastErr = err
+			}
+		}
+	}()
+	return &rawFrameObserver{cancel: cancel, done: done}, nil
+}
+
+func (o *rawFrameObserver) Stop() (rawObservationStats, error) {
+	if o == nil {
+		return rawObservationStats{}, nil
+	}
+	o.cancel()
+	result := <-o.done
+	return result.Stats, result.Err
+}
+
+func newRawObservationStats(startedAt time.Time) rawObservationStats {
+	return rawObservationStats{
+		StartedAt:   startedAt,
+		RemoteAddrs: map[string]int{},
+		Sources:     map[string]int{},
+	}
+}
+
+func (s *rawObservationStats) ObserveRawFrame(
+	data []byte,
+	decoder *message.Decoder,
+	parser *mavcodec.Parser,
+	command uint16,
+) error {
+	if decoder == nil {
+		return errors.New("raw observation decoder is nil")
+	}
+	if parser == nil {
+		parser = mavcodec.NewParser()
+	}
+	envelope, err := decoder.Decode(data)
+	if err != nil {
+		return fmt.Errorf("decode raw MAVLink observation payload: %w", err)
+	}
+	payload, ok := envelope.Payload().(*mavcomponent.RawFramePayload)
+	if !ok {
+		return fmt.Errorf("raw observation payload = %T, want *mavlink.RawFramePayload", envelope.Payload())
+	}
+	packets, err := parser.Parse(payload.Frame)
+	if err != nil {
+		return fmt.Errorf("parse raw MAVLink observation frame: %w", err)
+	}
+	if len(packets) == 0 {
+		return nil
+	}
+	s.RawFrames++
+	s.RawPackets += len(packets)
+	if strings.TrimSpace(payload.RemoteAddr) != "" {
+		s.RemoteAddrs[payload.RemoteAddr]++
+	}
+	for _, packet := range packets {
+		source := fmt.Sprintf("%d/%d", packet.SystemID, packet.ComponentID)
+		s.Sources[source]++
+		switch packet.MessageID {
+		case mavcodec.MessageIDCommandLong:
+			s.RawCommandLongs++
+			observedCommand, ok := packetField[uint16](packet, "command")
+			if ok && observedCommand == command {
+				s.RawMatchingCommands++
+			}
+		case mavcodec.MessageIDCommandAck:
+			ackedCommand, ok := packetField[uint16](packet, "command")
+			if ok && ackedCommand != command {
+				continue
+			}
+			s.RawCommandACKs++
+			if resultValue, ok := packetField[uint8](packet, "result"); ok {
+				s.LastACKResult = mavcodec.MAVResultString(resultValue)
+			}
+		case mavcodec.MessageIDAutopilotVersion:
+			s.RawAutopilotVersions++
+		}
+	}
+	return nil
+}
+
+func (s rawObservationStats) Summary() string {
+	stoppedAt := s.StoppedAt
+	if stoppedAt.IsZero() {
+		stoppedAt = time.Now().UTC()
+	}
+	window := stoppedAt.Sub(s.StartedAt).Round(time.Millisecond)
+	parts := []string{
+		fmt.Sprintf("raw_observation_window=%s", window),
+		fmt.Sprintf("raw_frames=%d", s.RawFrames),
+		fmt.Sprintf("raw_packets=%d", s.RawPackets),
+		fmt.Sprintf("raw_command_longs=%d", s.RawCommandLongs),
+		fmt.Sprintf("raw_matching_command_longs=%d", s.RawMatchingCommands),
+		fmt.Sprintf("raw_command_acks=%d", s.RawCommandACKs),
+		fmt.Sprintf("raw_autopilot_version_frames=%d", s.RawAutopilotVersions),
+	}
+	if s.LastACKResult != "" {
+		parts = append(parts, fmt.Sprintf("raw_last_ack_result=%s", s.LastACKResult))
+	}
+	parts = append(parts,
+		fmt.Sprintf("raw_sources=%s", formatCounts(s.Sources)),
+		fmt.Sprintf("raw_remote_addrs=%s", formatCounts(s.RemoteAddrs)),
+	)
+	return strings.Join(parts, " ")
 }
 
 type commandFrameBuilder struct {
@@ -667,6 +904,21 @@ func normalizeUDPRoute(route string) (string, error) {
 	return route, nil
 }
 
+func overrideUDPRoutePort(route string, port int) (string, error) {
+	if port < 1 || port > 65535 {
+		return "", fmt.Errorf("learn route port must be between 1 and 65535, got %d", port)
+	}
+	normalized, err := normalizeUDPRoute(route)
+	if err != nil {
+		return "", err
+	}
+	host, _, err := net.SplitHostPort(normalized)
+	if err != nil {
+		return "", fmt.Errorf("split learned UDP route %q: %w", normalized, err)
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port)), nil
+}
+
 func uint8ID(name string, value int, allowZero bool) (uint8, error) {
 	min := 1
 	if allowZero {
@@ -730,4 +982,20 @@ func firstNonZeroDuration(values ...time.Duration) time.Duration {
 		}
 	}
 	return 0
+}
+
+func formatCounts(counts map[string]int) string {
+	if len(counts) == 0 {
+		return "none"
+	}
+	keys := make([]string, 0, len(counts))
+	for key := range counts {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s:%d", key, counts[key]))
+	}
+	return strings.Join(parts, ",")
 }

@@ -312,8 +312,11 @@ go run ./cmd/semops-mavlink-command -confirm-simulator-only -dry-run -route udp:
 ```
 
 Expected metadata includes `action=request_autopilot_version`, `command=512`, `request_message=148`, and
-`expected_ack_task_suffix=system-1-command-512-target-255-190`. Live attempts also print `command_attempts`,
-`direct_command_acks`, `direct_autopilot_version_frames`, and `forwarded_replies` counters.
+`expected_ack_task_suffix=system-1-command-512-target-255-190`. Live attempts print `command_attempts`,
+`direct_command_acks`, `direct_autopilot_version_frames`, and `forwarded_replies` counters. PX4's configured partner
+route may send ACKs to the SemOps UDP listener rather than the helper socket, so the helper also supports raw-lane
+observation counters with `-observe-raw-nats-url`. In that PX4 topology, `raw_command_acks` and the graph-visible
+`mavlink.command_ack` task are the acceptance signal; `direct_command_acks=0` is not by itself a failure.
 
 The helper can also learn a simulator command route from live raw telemetry before it sends. This is intended for
 Docker Compose-network PX4 runs where the correct UDP destination is the inbound `remote_addr` on
@@ -324,20 +327,22 @@ go run ./cmd/semops-mavlink-command \
   -confirm-simulator-only \
   -send-heartbeat-first \
   -learn-route-nats-url nats://127.0.0.1:4222 \
-  -learn-route-timeout 10s
+  -learn-route-timeout 10s \
+  -learn-route-port 18570 \
+  -observe-raw-nats-url nats://127.0.0.1:4222
 ```
 
 When `command-live-sim` runs a transmitter, it writes transmitter stdout/stderr to the ignored evidence log named by
 `command_transmitter_output_file` in the `.env` evidence file.
 
-Current command-gate blocker, 2026-06-27: after the compose-network telemetry route passed, `command-live-sim` still
-failed against the local PX4/Gazebo headless image. The helper first tried host-published PX4 ports and an in-network
-route. A follow-up route-learning run subscribed to raw MAVLink telemetry from inside `semops-cop_default`, learned
-`172.19.0.9:14580` for PX4 `system-1`, sent the heartbeat and read-side command there, and still saw
-`forwarded_replies=0`. A later native retry run used target component `0`, three bounded attempts, and
-`COMMAND_LONG.confirmation` values `0/1/2`; it still recorded `direct_command_acks=0`,
-`direct_autopilot_version_frames=0`, and `forwarded_replies=0`. The command-control snapshot smoke found no
-`mavlink.command_ack` task. This does not weaken the telemetry evidence, but it keeps live command/control open.
+Current command-gate result, 2026-06-27: after rebuilding SemOps with MAVLink task prefix discovery, `command-live-sim`
+passed against the local PX4/Gazebo headless image. The reviewed native transmitter ran from the SemOps network
+namespace, learned the PX4 host from raw telemetry, overrode the destination to the PX4 GCS port `18570`, and observed
+PX4 ACKs on the SemOps raw lane. The transmitter log recorded `command_attempts=3`, `direct_command_acks=0`,
+`forwarded_replies=0`, `raw_command_acks=3`, and `raw_last_ack_result=accepted`; the command-control COP snapshot
+smoke then found `c360.edge-compose.cop.mavlink.task.system-1-command-512-target-255-190` and a fresh post-command
+MAVLink track. Evidence:
+`tmp/mavlink-sitl-evidence/2026-06-27T22-29-45Z-command-live-sim.env`.
 
 ## Acceptance
 
@@ -354,9 +359,9 @@ The smoke requires:
 
 ## Claim Boundary
 
-Passing this smoke is simulator telemetry evidence only. Command authority and mission semantics need a separate
-passing `command-live-sim` run with a reviewed simulator transmitter, ACK handling, post-command state polling, and
-simulator-specific readiness checks.
+Passing the telemetry smoke is simulator telemetry evidence only. A passing `command-live-sim` run adds simulator
+command-readback evidence for the reviewed read-side command, but it is still not mission execution authority or
+hardware readiness.
 
 For a future pass, record the simulator name and version, launch command, system ID, UDP route, SemOps commit,
 simulator family, stack-smoke command, pass/fail result, whether motion was required, and any unresolved simulator

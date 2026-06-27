@@ -899,6 +899,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	platform := "edge-discover"
 	mavAssetID := "c360.edge-discover.cop.mavlink.asset.system-77"
 	mavTrackID := "c360.edge-discover.cop.mavlink.track.system-77"
+	mavTaskID := "c360.edge-discover.cop.mavlink.task.system-1-command-512-target-255-190"
 	takTaskID := cotprojector.EntityID("c360", platform, copmodel.EntityTask, "MARKER-EVAC")
 	takAdvisoryID := cotprojector.EntityID("c360", platform, copmodel.EntityAdvisory, "CHAT-EVAC")
 	commandTaskID := commandprojector.EntityID("c360", platform, "csapi-command-route-42")
@@ -940,6 +941,21 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 					testTriple(mavTrackID, copmodel.TrackObservedAt, observed, observed),
 					testTriple(mavTrackID, copmodel.ProvenanceSource, "mavlink", observed),
 					testTriple(mavTrackID, copmodel.ProvenanceObservedAt, observed, observed),
+				},
+			}},
+			graphEntityPrefix("c360", platform, "mavlink", copmodel.EntityTask): {{
+				ID:        mavTaskID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(mavTaskID, copmodel.TaskNativeID, "mavlink.system.1.component.1.command.512.target.255.190", observed),
+					testTriple(mavTaskID, copmodel.TaskName, "MAVLink command 512 ACK", observed),
+					testTriple(mavTaskID, copmodel.TaskKind, "mavlink.command_ack", observed),
+					testTriple(mavTaskID, copmodel.TaskTarget, mavAssetID, observed),
+					testTriple(mavTaskID, copmodel.TaskStatus, "accepted", observed),
+					testTriple(mavTaskID, copmodel.TaskDescription, "command=512 result=accepted progress=0 target=255/190 result_param2=0", observed),
+					testTriple(mavTaskID, copmodel.ProvenanceSource, "mavlink", observed),
+					testTriple(mavTaskID, copmodel.ProvenanceSourceRef, "mavlink://raw/mavlink-compose/00300001", observed),
+					testTriple(mavTaskID, copmodel.ProvenanceObservedAt, observed, observed),
 				},
 			}},
 			graphEntityPrefix("c360", platform, "tak", copmodel.EntityTask): {{
@@ -1028,7 +1044,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	}
 
 	if snapshot.Summary.ActiveTracks != 1 ||
-		snapshot.Summary.ActiveTasks != 2 ||
+		snapshot.Summary.ActiveTasks != 3 ||
 		snapshot.Summary.ActiveAdvisories != 1 ||
 		len(snapshot.Hazards) != 1 {
 		t.Fatalf("snapshot summary/entities = %+v hazards=%+v", snapshot.Summary, snapshot.Hazards)
@@ -1038,6 +1054,18 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	}
 	if _, ok := findTask(snapshot.Tasks, takTaskID); !ok {
 		t.Fatalf("missing TAK task in %+v", snapshot.Tasks)
+	}
+	mavTask, ok := findTask(snapshot.Tasks, mavTaskID)
+	if !ok {
+		t.Fatalf("missing MAVLink task in %+v", snapshot.Tasks)
+	}
+	if mavTask.Source != "mavlink" ||
+		mavTask.Kind != "mavlink.command_ack" ||
+		mavTask.Status != "accepted" ||
+		mavTask.TargetID != mavAssetID ||
+		mavTask.Provenance.Owner != copmodel.OwnerMAVLink ||
+		mavTask.Provenance.SourceRef != "mavlink://raw/mavlink-compose/00300001" {
+		t.Fatalf("MAVLink task = %+v", mavTask)
 	}
 	commandTask, ok := findTask(snapshot.Tasks, commandTaskID)
 	if !ok {
@@ -1068,7 +1096,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if snapshot.Hazards[0].ID != hazardID || snapshot.Hazards[0].Source != "cap" {
 		t.Fatalf("hazard = %+v", snapshot.Hazards[0])
 	}
-	if len(requester.prefixRequests) != 14 {
+	if len(requester.prefixRequests) != 15 {
 		t.Fatalf("prefix requests = %+v", requester.prefixRequests)
 	}
 	for _, subject := range requester.subjects {
@@ -1079,8 +1107,15 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if requester.prefixRequests[0].limit != 25 {
 		t.Fatalf("discovery limit = %d", requester.prefixRequests[0].limit)
 	}
-	if len(snapshot.Diagnostics.Discovery) != 14 {
+	if len(snapshot.Diagnostics.Discovery) != 15 {
 		t.Fatalf("discovery diagnostics = %+v", snapshot.Diagnostics.Discovery)
+	}
+	mavTaskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "mavlink", copmodel.EntityTask)
+	if !ok {
+		t.Fatalf("missing MAVLink task discovery diagnostic: %+v", snapshot.Diagnostics.Discovery)
+	}
+	if mavTaskDiagnostic.Family != "mavlink" || mavTaskDiagnostic.Count != 1 || mavTaskDiagnostic.AtLimit {
+		t.Fatalf("MAVLink task diagnostic = %+v", mavTaskDiagnostic)
 	}
 	taskDiagnostic, ok := findDiscoveryDiagnostic(snapshot.Diagnostics.Discovery, "tak", copmodel.EntityTask)
 	if !ok {

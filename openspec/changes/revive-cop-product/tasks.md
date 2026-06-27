@@ -204,7 +204,7 @@
       priority, TTL, and CS API reconciliation gates open
 - [ ] 5.95 Add explicit ArduPilot SITL telemetry parity evidence before claiming ArduPilot simulator interoperability
 - [ ] 5.96 Add MAVSDK/PX4 offboard parity evidence before claiming MAVSDK command/control or offboard interoperability
-- [ ] 5.97 Add a safe live MAVLink command/control simulator gate with ACK and post-command state polling before native
+- [x] 5.97 Add a safe live MAVLink command/control simulator gate with ACK and post-command state polling before native
       command authority claims
 - [x] 5.98 Add simulator-family evidence stamping so PX4 telemetry passes cannot satisfy ArduPilot, MAVSDK/offboard,
       hardware, or command-control parity gates
@@ -215,7 +215,7 @@
 - [x] 5.101 Add an explicit fail-closed MAVSDK/PX4 offboard parity mode while keeping MAVSDK/offboard parity open
       until a real offboard route passes the hosted COP stack smoke
 - [x] 5.102 Add a fail-closed MAVLink `command-live-sim` gate that requires a reviewed simulator transmitter and
-      ACK/post-command COP snapshot polling while keeping task 5.97 open until a real transmitter run passes
+      ACK/post-command COP snapshot polling before a real transmitter run can pass
 - [x] 5.103 Add the MVP MAVLink simulator transmitter helper as a single read-side `AUTOPILOT_VERSION` request command
       while keeping mission, mode, arm/disarm, and offboard command authority out of MVP
 - [x] 5.104 Record product e2e evidence-tier rules so direct graph smokes cannot satisfy product, simulator,

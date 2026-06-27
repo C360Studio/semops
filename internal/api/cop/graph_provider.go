@@ -441,6 +441,7 @@ func (p *GraphProvider) discoveryTargets() []graphDiscoveryTarget {
 		targets = append(targets,
 			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityAsset, "mavlink"),
 			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityTrack, "mavlink"),
+			newGraphDiscoveryTarget(scope, "mavlink", copmodel.EntityTask, "mavlink"),
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityAsset, "cot"),
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityTrack, "cot"),
 			newGraphDiscoveryTarget(scope, "tak", copmodel.EntityTask, "cot"),

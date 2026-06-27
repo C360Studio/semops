@@ -117,6 +117,30 @@ func TestRouteFromRawFrameIgnoresOtherSystem(t *testing.T) {
 	}
 }
 
+func TestOverrideUDPRoutePortUsesLearnedHost(t *testing.T) {
+	got, err := overrideUDPRoutePort("172.18.0.9:14580", 18570)
+	if err != nil {
+		t.Fatalf("override route port: %v", err)
+	}
+	if got != "172.18.0.9:18570" {
+		t.Fatalf("route = %q", got)
+	}
+
+	got, err = overrideUDPRoutePort("udp://[fd00::9]:14580", 18570)
+	if err != nil {
+		t.Fatalf("override IPv6 route port: %v", err)
+	}
+	if got != "[fd00::9]:18570" {
+		t.Fatalf("IPv6 route = %q", got)
+	}
+}
+
+func TestOverrideUDPRoutePortRejectsInvalidPort(t *testing.T) {
+	if _, err := overrideUDPRoutePort("172.18.0.9:14580", 70000); err == nil {
+		t.Fatal("expected invalid port error")
+	}
+}
+
 func TestRunForwardsSimulatorReplies(t *testing.T) {
 	simulator, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
@@ -276,6 +300,65 @@ func TestRunRetriesCommandUntilDirectCommandAck(t *testing.T) {
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("retry output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestRawObservationStatsCountsCommandEvidence(t *testing.T) {
+	decoder := newRouteLearningDecoder(t)
+	parser := mavcodec.NewParser()
+	commandFrame, _, err := buildCommandFrame(config{
+		Action:          actionRequestAutopilotVersion,
+		SourceSystem:    255,
+		SourceComponent: 190,
+		TargetSystem:    1,
+		TargetComponent: 1,
+		SimulatorOnly:   true,
+	})
+	if err != nil {
+		t.Fatalf("build command frame: %v", err)
+	}
+	ackFrame, err := mavcodec.NewGenerator(1, 1).GenerateCommandAck(mavcodec.CommandAckMessage{
+		Command:           mavcodec.CommandRequestMessage,
+		Result:            mavcodec.MAVResultAccepted,
+		TargetSystemID:    255,
+		TargetComponentID: 190,
+	})
+	if err != nil {
+		t.Fatalf("generate ACK frame: %v", err)
+	}
+
+	stats := newRawObservationStats(time.Date(2026, 6, 27, 22, 0, 0, 0, time.UTC))
+	for _, wire := range [][]byte{
+		mustRawFrameMessage(t, "172.18.0.9:18570", commandFrame),
+		mustRawFrameMessage(t, "172.18.0.9:18570", ackFrame),
+	} {
+		if err := stats.ObserveRawFrame(wire, decoder, parser, mavcodec.CommandRequestMessage); err != nil {
+			t.Fatalf("observe raw frame: %v", err)
+		}
+	}
+	stats.StoppedAt = stats.StartedAt.Add(2 * time.Second)
+
+	if stats.RawFrames != 2 ||
+		stats.RawPackets != 2 ||
+		stats.RawCommandLongs != 1 ||
+		stats.RawMatchingCommands != 1 ||
+		stats.RawCommandACKs != 1 ||
+		stats.LastACKResult != "accepted" {
+		t.Fatalf("raw observation stats = %+v", stats)
+	}
+	summary := stats.Summary()
+	for _, want := range []string{
+		"raw_observation_window=2s",
+		"raw_frames=2",
+		"raw_matching_command_longs=1",
+		"raw_command_acks=1",
+		"raw_last_ack_result=accepted",
+		"raw_sources=1/1:1,255/190:1",
+		"raw_remote_addrs=172.18.0.9:18570:2",
+	} {
+		if !strings.Contains(summary, want) {
+			t.Fatalf("summary missing %q:\n%s", want, summary)
 		}
 	}
 }
