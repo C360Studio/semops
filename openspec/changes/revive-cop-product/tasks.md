@@ -445,12 +445,14 @@
 
 - [ ] 9.1 File manifest/tier placement ask only if the scope gate proves it is useful
 - [ ] 9.2 File escalation event/status vocabulary ask only after inference evidence proves the need
-- [ ] 9.3 File provenance/confidence convention ask after feed contracts stabilize
+- [x] 9.3 File provenance/confidence convention ask after feed contracts stabilize:
+      SemStreams issue #367
 - [ ] 9.4 File spatial-temporal query helper asks from COP workflows
 - [x] 9.5 File raw-lane/current-state projection guidance after MAVLink and one non-MAVLink feed prove it:
       SemStreams issue #340, draft guide PR #344
 - [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need
-- [ ] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask
+- [x] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask:
+      `reviews/2026-06-27-semstreams-upstream-ask-ownership-review.md`
 - [x] 9.8 Feed back owner-token ergonomics and capture typed-token/evidence-declaration response
 - [x] 9.9 Reconcile SemStreams prefix-discovery issue #302 and adopt typed cursor pagination locally
 - [x] 9.10 File SemStreams component backpressure telemetry issue #309 from hosted feed migration pressure

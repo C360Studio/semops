@@ -524,7 +524,8 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
 
 - A reusable deployment metadata schema only if service placement becomes operator-relevant.
 - A reusable escalation event/status vocabulary only if inference transitions generalize.
-- Better first-class provenance and confidence conventions for projection contracts and graph triples.
+- Better first-class provenance and confidence conventions for projection contracts and graph triples:
+  [SemStreams issue #367](https://github.com/C360Studio/semstreams/issues/367).
 - Indexing profile and cardinality guard improvements only after mixed COP feeds prove current `signal`, `control`,
   `content`, and `trace` profiles are insufficient with clean entity boundaries.
 - Spatial and temporal query helpers tuned for COP workflows: polygon intersection, nearest track, stale track,

@@ -33,6 +33,10 @@ progress:
     `FlowMetrics`, `ProcessorMetrics`, `pkg/buffer`, NATS, and JetStream.
   - SemStreams issue #310 closed in `v1.0.0-beta.114` with `HTTPClientPort`, covering outbound HTTP method,
     URL/resource pattern, trigger port, auth reference, contact policy, and interface metadata.
+  - Ran the 2026-06-27 upstream-ask adversarial ownership review and filed SemStreams issue #367 for graph-visible
+    provenance/confidence/source-reference conventions. The same review deliberately deferred manifest/tier placement,
+    escalation vocabulary, spatial-temporal query helpers, and indexing/cardinality helpers until their evidence gates
+    produce sharper reusable framework pressure.
 
 remaining:
   - Comment back on issue #302 after the SemOps PR lands with adoption evidence and any remaining total-count caveat.
@@ -40,5 +44,6 @@ remaining:
     additional metrics needs found by MAVLink/CoT/CAP/ADS-B hosted smokes.
   - File a follow-up only if the first concrete CAP, ADS-B, or SAPIENT hosted polling/client component exposes a
     missing field or telemetry gap in `HTTPClientPort`.
+  - Track SemStreams issue #367 and adopt any accepted provenance/confidence convention after it lands upstream.
   - Keep future upstream asks evidence-led; total-count metadata is deferred until large mixed-feed demos prove cursor
     pagination is insufficient.
