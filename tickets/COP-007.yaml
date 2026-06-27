@@ -37,6 +37,13 @@ evidence_records:
   - internal/app/runtime.go
   - openspec/changes/revive-cop-product/feed-evidence/cap-edxl.md
   - openspec/changes/revive-cop-product/feed-evidence/semconnect-csapi-egress.md
+  - internal/egress/csapi/read_model.go
+  - internal/egress/csapi/read_model_test.go
+  - internal/egress/semconnect/client.go
+  - internal/egress/semconnect/client_test.go
+  - internal/egress/semconnect/plan.go
+  - internal/egress/semconnect/plan_test.go
+  - scripts/semconnect-service-stack.sh
   - openspec/changes/revive-cop-product/feed-evidence/adsb.md
   - openspec/changes/revive-cop-product/feed-evidence/sapient.md
   - pkg/adapters/sapient/sapient.go
@@ -124,8 +131,27 @@ progress:
     preserved boundary, and not-claimed-yet list; TAK Server is tracked as future SemOps/SemStreams-backed service
     scope, with external TAK interoperability as part of the migration path.
   - Recorded the native core plus standards bridge positioning for CS API: native adapters remain first-class, while
-    CS API ingress/egress is a bidirectional standards edge that preserves SemOps ownership, provenance, freshness,
-    command authority, and indexing decisions.
+    read-side CS API egress is the MVP standards edge and write-side ingress/tasking remains stretch scope that must
+    preserve SemOps ownership, provenance, freshness, command authority, and indexing decisions.
+  - Added `internal/egress/csapi` as the first deterministic read-side mapping artifact from COP snapshot state to
+    CS API-shaped Systems, Datastreams, Observations, Deployments, and System Events without Command, ControlStream,
+    native tasking, or write-side ingress behavior.
+  - Added `internal/egress/semconnect` as the first SemConnect-facing handoff contract: deterministic HTTP
+    method/path/content-type/body request plans for read-side Systems, Deployments, Datastreams, Observations, and
+    System Events using SemConnect-compatible resource prefixes, without direct graph/NATS injection.
+  - Added an HTTP executor for the SemConnect request plan so SemOps can drive a SemConnect-compatible gateway
+    boundary and retain partial error evidence before the live SemConnect fixture runner exists.
+  - Added `cmd/semops-semconnect-fixture` as the deterministic read-side bridge runner: it builds the HADR COP
+    snapshot fixture, projects through the CS API read model and SemConnect request plan, and emits dry-run, success,
+    or partial failure evidence without making ETS conformance, write-side ingress, or command/control claims.
+  - Added `scripts/semconnect-service-stack.sh` as a lightweight SemConnect service-mode launcher for bridge smokes:
+    it starts the SemStreams tiered backend plus `cs-api-server` on a host CS API port without Team Engine, so ETS
+    conformance remains a separate harness gate.
+  - Ran the service-mode stack on 2026-06-27 after updating SemConnect to the current SemStreams ADR-060
+    mutation/query response contract: the live fixture returned `status=passed`, posting one System, Deployment,
+    Datastream, Observation, and SystemEvent with `201` responses from SemConnect.
+  - Verified the pushed SemConnect fix (`15a6db6`) with the full OGC ETS harness against SemStreams
+    `v1.0.0-beta.116`: `total=137 passed=137 failed=0 skipped=0`; the foreign-edge bake passed.
   - Added a service-promotion matrix that keeps MAVLink, TAK/CoT, CAP, CS API, ADS-B, SAPIENT, and KLV adapters
     bounded until external protocol exposure, auth/session/federation, command/tasking, placement/scale, durable
     collaboration/replay, secrets, cost, or failure-domain forces justify a SemOps-owned service.

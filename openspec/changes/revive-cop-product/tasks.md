@@ -381,8 +381,16 @@
 - [x] 8.2 Add statistical track association core and fusion-owned association contract for ambiguous air tracks while
       deferring hosted projector and UI readback
 - [x] 8.3 Add KLV footprint polygon extraction beyond current sensor/frame-center projection
-- [ ] 8.4 Add SemConnect CS API bidirectional interop as a standards-facing bridge after the command-impedance gate is
-      reviewed
+- [x] 8.4 Add SemConnect CS API read-side egress mapping as a standards-facing bridge artifact while keeping
+      write-side ingress and tasking as stretch scope
+- [x] 8.4.1 Add deterministic SemConnect HTTP request-plan export for read-side Systems, Deployments, Datastreams,
+      Observations, and System Events without direct graph/NATS injection
+- [x] 8.4.2 Add SemConnect request-plan HTTP executor with partial failure evidence before live fixture-runner wiring
+- [x] 8.4.3 Add deterministic SemConnect read-side fixture runner and CLI evidence output before any ETS conformance
+      or write-side bridge claims
+- [x] 8.4.4 Add lightweight SemConnect service-mode launcher for SemOps bridge smokes without Team Engine
+- [x] 8.4.5 Align SemConnect entity-create caller handling with current SemStreams ADR-060 mutation responses before
+      marking live SemOps fixture execution green
 - [ ] 8.5 Add semantic translation and anomaly explanation with provenance and trajectory
 - [ ] 8.6 Run adversarial review before SAPIENT, KLV, semantic, or standards-conformance claims are demoed
 - [x] 8.7 Record CS API tasking impedance gate for TTL, priority, authority, local override, and async status edge
@@ -430,6 +438,8 @@
       ingress, or operator execute control is wired
 - [x] 8.33 Add a low-friction MVP operator identity resolver for display-only association review while keeping
       authenticated multi-authority arbitration open under task 8.31
+- [ ] 8.34 Add CS API write-side ingress and Command/ControlStream handling only after read-side egress, authenticated
+      authority, TTL, priority, local override, and native safety gates are deliberately reopened
 
 ## 9. Upstream SemStreams Asks
 

@@ -42,9 +42,10 @@ capability to be represented first as a standards driver.
 
 CS API is still important, but as an interface rather than the internal architecture. It buys decoupling for
 standards-aware clients, a possible vendor plug-and-play path when systems already expose CS API, and a unified
-standards-facing vocabulary for tasking/actuation. The bridge should be bidirectional: SemOps can consume CS API from
-systems that speak it and publish CS API for consumers that require it. The bridge must preserve SemOps ownership,
-provenance, freshness, command authority, and indexing decisions.
+standards-facing vocabulary for tasking/actuation. The MVP priority is read-side egress: SemOps publishes governed COP
+state for consumers that require CS API through SemConnect. Full bidirectional support remains a product goal, but
+write-side ingestion and tasking stay stretch scope until they can preserve SemOps ownership, provenance, freshness,
+command authority, and indexing decisions.
 
 The positioning statement is: SemOps moves fast natively, interoperates through standards, and isolates standards
 change at the bridge instead of coupling the COP core to an external schema lifecycle.
@@ -300,12 +301,13 @@ Not claimed yet:
 Default live weather service reliability, weather-routing authority, provider conformance, broader EDR query support,
 spatial weather runtime payloads, cache/stale policy, default-stack tactical weather runtime, or radar product hosting.
 
-### CS API Bidirectional Interop
+### CS API Read-Side Interop
 
 Demo/MVP lane:
 Curated SemOps graph state projected through SemConnect once structural graph state is stable and conformance harness
-inputs exist. CS API ingress remains a later adapter boundary for systems that already publish Systems, Datastreams,
-Observations, Deployments, or Events through CS API.
+inputs exist. The first executable SemOps artifact is a read-side COP snapshot to CS API-shaped read model for Systems,
+Datastreams, Observations, Deployments, and System Events. CS API ingress remains a later adapter boundary for systems
+that already publish Systems, Datastreams, Observations, Deployments, or Events through CS API.
 
 Full product lane:
 Production standards gateway with auth, pagination, feature-resource coverage for systems, procedures, deployments,
@@ -319,8 +321,8 @@ the demo look standards-shaped. CS API ingress is acceptable when a source alrea
 same governed projection path as native adapters.
 
 Not claimed yet:
-Full OGC Connected Systems API product inside SemOps, replacing SemConnect, or automatic support for every new sensor
-because a CS API schema exists.
+Full OGC Connected Systems API product inside SemOps, replacing SemConnect, write-side ingress, Command/ControlStream
+handling, native tasking, or automatic support for every new sensor because a CS API schema exists.
 
 ### ADS-B
 

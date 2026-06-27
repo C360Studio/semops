@@ -130,10 +130,11 @@ Each ask must cite a SemOps workflow, failing test, missing primitive, or demo c
 
 ### 8. Feeds enter one at a time through evidence gates
 
-Feed order is MAVLink, TAK/CoT, CAP, weather, DJI, CS API bidirectional interop, ADS-B, SAPIENT, then KLV/STANAG
-4609. The ordering is not a claim that DJI or weather block the current Phase 1 stack; it records that a credible
-HADR demo needs those layers before deep SAPIENT/KLV product claims. Broader EDXL variants remain out of Phase 1
-until a separate product force, fixture set, and projection contract justify them.
+Feed order is MAVLink, TAK/CoT, CAP, weather, DJI, CS API read-side interop, ADS-B, SAPIENT, then KLV/STANAG 4609.
+The ordering is not a claim that DJI or weather block the current Phase 1 stack; it records that a credible HADR demo
+needs those layers before deep SAPIENT/KLV product claims. CS API write-side ingress and tasking remain stretch gates
+until a separate product force, fixture set, and command-authority contract justify them. Broader EDXL variants remain
+out of Phase 1 until a separate product force, fixture set, and projection contract justify them.
 
 Every feed needs a parser gate, mock or simulator gate, projection gate, replay gate, and demo gate. Compliance gates
 are required where a public suite, official schema, or documented interoperability test exists. If no compliance

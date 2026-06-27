@@ -27,7 +27,7 @@ Recommended order:
 3. CAP, with broader EDXL held for later feed-validation gates.
 4. Weather as a layered feed: visual map context, CAP/public alerts, and tactical point/area/route weather telemetry.
 5. DJI sensor/telemetry and media references.
-6. CS API bidirectional interop.
+6. CS API read-side interop, with write-side ingress and tasking held as stretch gates.
 7. ADS-B.
 8. SAPIENT.
 9. KLV/STANAG 4609.
@@ -706,9 +706,9 @@ Known gaps:
 - No DJI graph projector, runtime wiring, ownership claim, or UI layer exists yet.
 - No DJI product support or compatibility claim is allowed yet.
 
-### CS API Bidirectional Interop
+### CS API Read-Side Interop
 
-Status: interop after structural graph is stable.
+Status: MVP read-side egress first; write-side ingress and tasking are stretch goals.
 
 Compliance evidence:
 
@@ -722,13 +722,32 @@ Compliance evidence:
 Local assets:
 
 - SemConnect provides the CS API gateway and ETS harness.
-- SemLink already demonstrates CS API bridge patterns.
+- SemLink already demonstrates SemConnect CS API bridge patterns.
 
 Mock or harness:
 
 - Use SemOps graph state as input and SemConnect as a standards-facing projection for egress.
+- Use the internal `internal/egress/csapi` read model as the first deterministic SemOps-to-CS-API-shaped mapping
+  artifact before runtime bridge work.
+- Use the internal `internal/egress/semconnect` request-plan export as the first SemConnect-facing handoff contract:
+  deterministic HTTP method/path/content-type/body specs for read-side Systems, Deployments, Datastreams,
+  Observations, and System Events.
+- Use the same package's HTTP executor as the first anti-cheat bridge seam: it posts to a SemConnect-compatible HTTP
+  server and stops with partial evidence on gateway errors, rather than publishing directly to graph or NATS subjects.
+- Use `cmd/semops-semconnect-fixture` as the deterministic bridge runner: dry-run emits the request-plan evidence, and
+  `-base-url` drives a SemConnect-compatible HTTP gateway while preserving partial failure evidence.
+- Use `scripts/semconnect-service-stack.sh up` when SemOps needs SemConnect as a service: it starts NATS,
+  a SemStreams tiered backend, and `cs-api-server` on `http://127.0.0.1:48080` without Team Engine. Pair it with
+  `go run ./cmd/semops-semconnect-fixture -base-url http://127.0.0.1:48080`, then tear it down with
+  `scripts/semconnect-service-stack.sh down`.
+- Current service-mode finding: after SemConnect was aligned with the current SemStreams ADR-060 mutation/query
+  response contract, the SemOps fixture passes against the lightweight service stack. The fixture posted one System,
+  Deployment, Datastream, Observation, and SystemEvent and received `201` for each request.
+- SemConnect commit `15a6db6` separately passed the full OGC ETS harness against SemStreams `v1.0.0-beta.116`:
+  `total=137 passed=137 failed=0 skipped=0`, with the foreign-edge bake passing too.
 - Use a later SemOps CS API ingress adapter only for systems that already speak CS API.
-- Run the SemConnect harness when SemOps exposes enough system, deployment, datastream, and observation state.
+- Run the SemConnect harness only for ETS conformance evidence when SemOps exposes enough system, deployment,
+  datastream, and observation state.
 
 Indexing profile pressure:
 
@@ -775,20 +794,22 @@ First acceptance gate:
 
 - Egress: a SemOps asset/platform, hosted sensor, datastream, observation, deployment, and system event can be
   projected through SemConnect and checked by the conformance harness without weakening SemOps ownership rules.
-- Ingress: a CS API source fixture can be mapped into SemOps canonical COP state without bypassing born-first writes,
-  provenance, freshness, or command authority.
-- Tasking: CS API command/control input routes through SemOps command authority and native safety controls rather
-  than directly mutating feed-owned state.
-- Tasking edge cases: desired-state records include source authority, priority, TTL/deadline, idempotency key,
+- Read model: a COP snapshot can map to CS API-shaped Systems, Datastreams, Observations, Deployments, and System
+  Events without producing Command, ControlStream, native tasking, or write-side ingress behavior.
+- Stretch ingress: a CS API source fixture can be mapped into SemOps canonical COP state without bypassing born-first
+  writes, provenance, freshness, or command authority.
+- Stretch tasking: CS API command/control input routes through SemOps command authority and native safety controls
+  rather than directly mutating feed-owned state.
+- Stretch tasking edge cases: desired-state records include source authority, priority, TTL/deadline, idempotency key,
   correlation ID, local-operator override policy, cancellation/supersession semantics, and status mapping before any
   live native driver is connected.
-- Tasking status: native acknowledgements, partial execution, timeout, stale-command rejection, duplicate-command
-  rejection, link loss, and upstream polling/subscription status are modeled as graph-backed state or evidence rather
-  than an open HTTP request.
-- Tasking replay: the synthetic command lifecycle fixture can exercise the CS API/UI/native-status plumbing before a
-  live transmitter exists, while keeping command authority and actuation claims blocked.
-- Replay: standards-edge and tasking fixtures can be replayed deterministically so bridge drift is visible before
-  conformance or actuation claims.
+- Stretch tasking status: native acknowledgements, partial execution, timeout, stale-command rejection,
+  duplicate-command rejection, link loss, and upstream polling/subscription status are modeled as graph-backed state or
+  evidence rather than an open HTTP request.
+- Stretch tasking replay: the synthetic command lifecycle fixture can exercise the CS API/UI/native-status plumbing
+  before a live transmitter exists, while keeping command authority and actuation claims blocked.
+- Replay: standards-edge fixtures can be replayed deterministically so bridge drift is visible before conformance or
+  actuation claims.
 
 ### ADS-B
 

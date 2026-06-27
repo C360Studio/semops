@@ -45,9 +45,10 @@ framework ownership, evidence quality, compliance language, index-profile decisi
 next implementation tranche begins.
 
 CS API gate: CS API is an interface, not the SemOps internal architecture. SemOps should ingest native feeds close to
-their source, project them into SemStreams governed graph state, and use a bidirectional CS API bridge for systems that
-already speak or need to consume CS API. That preserves product velocity, semantic graph flexibility, and standards
-risk isolation while still giving SemOps a standards-facing interoperability story.
+their source, project them into SemStreams governed graph state, and prioritize read-side CS API egress for consumers
+that need standards-facing COP state. Full read/write CS API stays a product goal, but write-side ingress and
+tasking remain stretch scope. That preserves product velocity, semantic graph flexibility, and standards risk
+isolation while still giving SemOps a standards-facing interoperability story.
 
 Breaking-tag gate: SemStreams issue #1 tracks the ADR-055/056 must-exist flip for SemOps. SemOps should prove
 generated or replay MAVLink frames against the live SemStreams graph path before PX4/SITL, UI, or second-feed
@@ -370,8 +371,12 @@ evidence, provenance, freshness, and confidence into SemStreams.
 
 CS API remains valuable at the ecosystem edge. It can decouple standards-aware clients, support systems that already
 publish CS API, expose SemOps state to federated consumers, and provide a unified vocabulary for standards-facing
-tasking. Those benefits do not require making CS API the COP's internal language. If CS API mappings evolve, the bridge
-should absorb that change; the native adapters and COP model should not be hostage to an external standards lifecycle.
+tasking. The MVP priority is read-side egress through SemConnect: project governed SemOps state into CS API-shaped
+Systems, Datastreams, Observations, Deployments, and System Events before any write-side bridge work. Those benefits
+do not require making CS API the COP's internal language. SemOps now carries a deterministic SemConnect HTTP request
+plan and fixture runner for those read-side resources, so bridge evidence can drive a SemConnect-compatible gateway
+without bypassing its HTTP boundary or claiming ETS conformance. If CS API mappings evolve, the bridge should absorb
+that change; the native adapters and COP model should not be hostage to an external standards lifecycle.
 
 Tasking through CS API needs a deliberate pause before implementation. The bridge should behave as an asynchronous
 command boundary: validate and accept or reject quickly, record governed desired state or command intent in the graph,
@@ -588,7 +593,8 @@ profile semantics.
 
 ### Phase 3: Semantic Translation And Standards Interop
 
-- Add KLV footprint extraction and CS API bidirectional interop through SemConnect.
+- Add KLV footprint extraction and CS API read-side interop through SemConnect; keep write-side ingress and tasking as
+  stretch scope.
 - Add the semantic translation service for civilian advisories and anomaly explanation.
 - Expose provenance and trajectory for every semantic answer.
 

@@ -220,19 +220,18 @@ requests before triples or foreign edges are added.
 - **AND** the result remains a parser/projection/readback gate, not a claim of hosted CAP polling, NWS integration,
   or full CAP consumer conformance
 
-#### Scenario: CS API interop remains bidirectional and standards-facing
+#### Scenario: CS API read-side egress stays standards-facing
 
-- **WHEN** an external system can publish or consume OGC Connected Systems API resources
-- **THEN** SemOps SHALL preserve a path to map that state into or out of the governed COP model through a CS API
-  gateway or projection boundary
+- **WHEN** an external system needs to consume governed SemOps COP state through OGC Connected Systems API resources
+- **THEN** SemOps SHALL prioritize read-side egress through a CS API gateway or projection boundary
 - **AND** feature resources such as Systems, Procedures, Deployments, Sampling Features, Subsystems/Components, and
   Property Definitions map through curated COP projections rather than raw feed payloads
-- **AND** dynamic resources such as Datastreams, Observations, ControlStreams, Commands, Command Status, System
-  Events, streaming, and snapshots map through ownership-aware state, evidence, and command-authority boundaries
-- **AND** command ingress is asynchronous: the CS API boundary records governed intent or desired state with TTL,
-  priority, authority, idempotency, and cancellation semantics before native drivers reconcile actual execution
-- **AND** native adapters for MAVLink, TAK/CoT, CAP, weather, DJI, ADS-B, SAPIENT, and KLV remain first-class paths when their
-  native protocols carry product-critical semantics
+- **AND** dynamic read-side resources such as Datastreams, Observations, System Events, streaming, and snapshots map
+  through ownership-aware state and evidence boundaries
+- **AND** write-side ingress, ControlStreams, Commands, and Command Status remain stretch scope until command authority,
+  TTL, priority, idempotency, local override, cancellation, and native safety gates are deliberately reopened
+- **AND** native adapters for MAVLink, TAK/CoT, CAP, weather, DJI, ADS-B, SAPIENT, and KLV remain first-class paths
+  when their native protocols carry product-critical semantics
 - **AND** CS API interop MUST preserve SemStreams ownership, provenance, freshness, and indexing-profile decisions
   rather than becoming a bypass around governed feed fusion
 

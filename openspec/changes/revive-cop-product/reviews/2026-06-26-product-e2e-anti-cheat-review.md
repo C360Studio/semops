@@ -59,8 +59,8 @@ hosted feed/component boundaries. Direct graph writes remain useful contract tes
   e2e path for CAP.
 - Resume the MAVLink `command-live-sim` gate only after PX4 telemetry and COMMAND_ACK evidence reach the COP snapshot
   through the hosted MAVLink input/decoder/projector chain without scenario-runner direct graph seeding.
-- Keep CS API bidirectional e2e blocked until desired-state ingress, native feed execution, async status readback, and
-  command-priority policy are tested through product boundaries rather than direct graph fixtures.
+- Keep CS API write-side/read-write e2e blocked until desired-state ingress, native feed execution, async status
+  readback, and command-priority policy are tested through product boundaries rather than direct graph fixtures.
 
 ## Resolution Update
 
@@ -76,5 +76,6 @@ The first follow-up slice is complete for default stack evidence:
   `contract_graph_mutation_attempts`, so product smoke can fail if scenario playback reports direct graph evidence.
 - The one-command stack smoke checks SemStreams owner-token mismatch metrics before direct graph contract smokes run.
 
-Remaining blocked claims are command-control, CS API bidirectional interop, simulator-fidelity, live provider
-integration, standards conformance, and operator scenario-control behavior.
+Remaining blocked claims are command-control, CS API write-side/read-write interop, simulator-fidelity, live
+provider integration, standards conformance, and operator scenario-control behavior. CS API read-side egress may be
+claimed only when a real read-side bridge or deterministic SemConnect fixture is in the evidence path.
