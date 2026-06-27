@@ -28,22 +28,23 @@ type Config struct {
 }
 
 type Intent struct {
-	NativeID       string
-	TargetAssetID  string
-	Name           string
-	Kind           string
-	Status         string
-	Description    string
-	DesiredState   string
-	Authority      string
-	Priority       int
-	ExpiresAt      time.Time
-	CorrelationID  string
-	IdempotencyKey string
-	RequestedBy    string
-	ObservedAt     time.Time
-	Source         string
-	SourceRef      string
+	NativeID            string
+	TargetAssetID       string
+	Name                string
+	Kind                string
+	Status              string
+	Description         string
+	DesiredState        string
+	Authority           string
+	Priority            int
+	ExpiresAt           time.Time
+	CorrelationID       string
+	IdempotencyKey      string
+	RequestedBy         string
+	LocalOverridePolicy string
+	ObservedAt          time.Time
+	Source              string
+	SourceRef           string
 }
 
 type Projector struct {
@@ -182,6 +183,7 @@ func (p *Projector) intentTriples(intentID string, intent Intent) []message.Trip
 		p.triple(intentID, cop.TaskCorrelation, strings.TrimSpace(intent.CorrelationID), intent),
 		p.triple(intentID, cop.TaskIdempotency, strings.TrimSpace(intent.IdempotencyKey), intent),
 		p.triple(intentID, cop.TaskRequestedBy, strings.TrimSpace(intent.RequestedBy), intent),
+		p.triple(intentID, cop.TaskLocalOverridePolicy, normalizeLocalOverridePolicy(intent.LocalOverridePolicy), intent),
 		p.triple(intentID, cop.ProvenanceSource, source(intent), intent),
 		p.triple(intentID, cop.ProvenanceConfidence, p.cfg.Confidence, intent),
 		p.triple(intentID, cop.ProvenanceObservedAt, observedAt(intent), intent),
@@ -264,6 +266,9 @@ func (i Intent) validate() error {
 	}
 	if strings.TrimSpace(i.RequestedBy) == "" {
 		return fmt.Errorf("command intent requested_by is required")
+	}
+	if err := validateLocalOverridePolicy(i.LocalOverridePolicy); err != nil {
+		return err
 	}
 	return nil
 }

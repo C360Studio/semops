@@ -307,7 +307,8 @@ Demo/MVP lane:
 Curated SemOps graph state projected through SemConnect once structural graph state is stable and conformance harness
 inputs exist. The first executable SemOps artifact is a read-side COP snapshot to CS API-shaped read model for Systems,
 Datastreams, Observations, Deployments, and System Events. CS API ingress remains a later adapter boundary for systems
-that already publish Systems, Datastreams, Observations, Deployments, or Events through CS API.
+that already publish Systems, Datastreams, Observations, Deployments, or Events through CS API. A first narrow
+write-side artifact now maps CS API Command and ControlStream command input into SemOps command intent only.
 
 Full product lane:
 Production standards gateway with auth, pagination, feature-resource coverage for systems, procedures, deployments,
@@ -321,8 +322,9 @@ the demo look standards-shaped. CS API ingress is acceptable when a source alrea
 same governed projection path as native adapters.
 
 Not claimed yet:
-Full OGC Connected Systems API product inside SemOps, replacing SemConnect, write-side ingress, Command/ControlStream
-handling, native tasking, or automatic support for every new sensor because a CS API schema exists.
+Full OGC Connected Systems API product inside SemOps, replacing SemConnect, hosted write-side CS API service behavior,
+non-command writes, native tasking, upstream command-status publication, or automatic support for every new sensor
+because a CS API schema exists.
 
 ### ADS-B
 

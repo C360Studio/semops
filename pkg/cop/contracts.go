@@ -86,20 +86,21 @@ const (
 	AlertAffectedEntity = "cop.alert.affected_entity"
 	AlertSource         = "cop.alert.source"
 
-	TaskName        = "cop.task.name"
-	TaskKind        = "cop.task.kind"
-	TaskStatus      = "cop.task.status"
-	TaskPosition    = "cop.task.position"
-	TaskDescription = "cop.task.description"
-	TaskNativeID    = "cop.task.native_id"
-	TaskTarget      = "cop.task.target"
-	TaskAuthority   = "cop.task.authority"
-	TaskPriority    = "cop.task.priority"
-	TaskExpiresAt   = "cop.task.expires_at"
-	TaskCorrelation = "cop.task.correlation_id"
-	TaskIdempotency = "cop.task.idempotency_key"
-	TaskDesired     = "cop.task.desired_state"
-	TaskRequestedBy = "cop.task.requested_by"
+	TaskName                = "cop.task.name"
+	TaskKind                = "cop.task.kind"
+	TaskStatus              = "cop.task.status"
+	TaskPosition            = "cop.task.position"
+	TaskDescription         = "cop.task.description"
+	TaskNativeID            = "cop.task.native_id"
+	TaskTarget              = "cop.task.target"
+	TaskAuthority           = "cop.task.authority"
+	TaskPriority            = "cop.task.priority"
+	TaskExpiresAt           = "cop.task.expires_at"
+	TaskCorrelation         = "cop.task.correlation_id"
+	TaskIdempotency         = "cop.task.idempotency_key"
+	TaskDesired             = "cop.task.desired_state"
+	TaskRequestedBy         = "cop.task.requested_by"
+	TaskLocalOverridePolicy = "cop.task.local_override_policy"
 
 	AdvisoryText     = "cop.advisory.text"
 	AdvisoryKind     = "cop.advisory.kind"
@@ -297,6 +298,7 @@ func CommandIntentContract() projection.Contract {
 				TaskCorrelation,
 				TaskIdempotency,
 				TaskRequestedBy,
+				TaskLocalOverridePolicy,
 				ProvenanceSource,
 				ProvenanceConfidence,
 				ProvenanceObservedAt,

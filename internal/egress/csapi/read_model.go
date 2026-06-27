@@ -351,7 +351,7 @@ func deferredSurfaces() []DeferredSurface {
 		},
 		{
 			Name:   "csapi.commands.controlstreams",
-			Reason: "Stretch goal: command/control input must remain behind command authority, TTL, priority, local override, and native safety gates.",
+			Reason: "Write-side input maps to command intent only; native tasking, scheduling, and upstream status remain behind safety gates.",
 		},
 	}
 }

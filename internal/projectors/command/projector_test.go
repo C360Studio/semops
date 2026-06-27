@@ -60,6 +60,7 @@ func TestProjectorCreatesCommandIntentWithoutBirthingTargetAsset(t *testing.T) {
 	requireTriple(t, create.Triples, cop.TaskCorrelation, "csapi:req-123")
 	requireTriple(t, create.Triples, cop.TaskIdempotency, "idem-123")
 	requireTriple(t, create.Triples, cop.TaskRequestedBy, "operator:coby")
+	requireTriple(t, create.Triples, cop.TaskLocalOverridePolicy, LocalOverrideAcknowledged)
 	requireTriple(t, create.Triples, cop.ProvenanceSource, "cs-api")
 	requireTriple(t, create.Triples, cop.ProvenanceConfidence, 1.0)
 	requireTriple(t, create.Triples, cop.ProvenanceObservedAt, intent.ObservedAt)
@@ -123,6 +124,8 @@ func TestProjectorRejectsMalformedCommandIntent(t *testing.T) {
 		{name: "missing correlation", edit: func(i *Intent) { i.CorrelationID = "" }, want: "correlation_id"},
 		{name: "missing idempotency", edit: func(i *Intent) { i.IdempotencyKey = "" }, want: "idempotency_key"},
 		{name: "missing requested by", edit: func(i *Intent) { i.RequestedBy = "" }, want: "requested_by"},
+		{name: "missing local override policy", edit: func(i *Intent) { i.LocalOverridePolicy = "" }, want: "local_override_policy"},
+		{name: "unsupported local override policy", edit: func(i *Intent) { i.LocalOverridePolicy = "required" }, want: "local_override_policy"},
 	}
 
 	for _, tt := range tests {
@@ -143,22 +146,23 @@ func TestProjectorRejectsMalformedCommandIntent(t *testing.T) {
 func sampleIntent() Intent {
 	observedAt := time.Date(2026, 6, 23, 20, 0, 0, 0, time.UTC)
 	return Intent{
-		NativeID:       "csapi-command-123",
-		TargetAssetID:  "c360.edge.cop.mavlink.asset.system-42",
-		Name:           "Route MAVLink system 42 to North Gate",
-		Kind:           "mavlink.goto",
-		Status:         "requested",
-		Description:    "operator-approved route change",
-		DesiredState:   `{"command":"goto","lat":38.9,"lon":-77.04}`,
-		Authority:      "local.operator",
-		Priority:       80,
-		ExpiresAt:      observedAt.Add(2 * time.Minute),
-		CorrelationID:  "csapi:req-123",
-		IdempotencyKey: "idem-123",
-		RequestedBy:    "operator:coby",
-		ObservedAt:     observedAt,
-		Source:         "cs-api",
-		SourceRef:      "csapi://commands/123",
+		NativeID:            "csapi-command-123",
+		TargetAssetID:       "c360.edge.cop.mavlink.asset.system-42",
+		Name:                "Route MAVLink system 42 to North Gate",
+		Kind:                "mavlink.goto",
+		Status:              "requested",
+		Description:         "operator-approved route change",
+		DesiredState:        `{"command":"goto","lat":38.9,"lon":-77.04}`,
+		Authority:           "local.operator",
+		Priority:            80,
+		ExpiresAt:           observedAt.Add(2 * time.Minute),
+		CorrelationID:       "csapi:req-123",
+		IdempotencyKey:      "idem-123",
+		RequestedBy:         "operator:coby",
+		LocalOverridePolicy: LocalOverrideAcknowledged,
+		ObservedAt:          observedAt,
+		Source:              "cs-api",
+		SourceRef:           "csapi://commands/123",
 	}
 }
 

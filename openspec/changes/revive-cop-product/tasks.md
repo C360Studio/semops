@@ -438,7 +438,7 @@
       ingress, or operator execute control is wired
 - [x] 8.33 Add a low-friction MVP operator identity resolver for display-only association review while keeping
       authenticated multi-authority arbitration open under task 8.31
-- [ ] 8.34 Add CS API write-side ingress and Command/ControlStream handling only after read-side egress, authenticated
+- [x] 8.34 Add CS API write-side ingress and Command/ControlStream handling only after read-side egress, authenticated
       authority, TTL, priority, local override, and native safety gates are deliberately reopened
 
 ## 9. Upstream SemStreams Asks

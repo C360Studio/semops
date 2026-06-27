@@ -514,6 +514,7 @@ func TestCommandIntentContractCarriesImpedanceFieldsWithoutNativeStatusAuthority
 		TaskCorrelation,
 		TaskIdempotency,
 		TaskRequestedBy,
+		TaskLocalOverridePolicy,
 		TaskStatus,
 	} {
 		if !seen[predicate] {

@@ -13,18 +13,19 @@ func TestBuildCancellationIntentProjectsCancelRequestedUpdate(t *testing.T) {
 	current.Status = StatusAccepted
 
 	cancelIntent, err := BuildCancellationIntent(current, CancellationRequest{
-		NativeID:       current.NativeID,
-		TargetAssetID:  current.TargetAssetID,
-		Authority:      "local.operator",
-		Priority:       95,
-		ExpiresAt:      current.ObservedAt.Add(30 * time.Second),
-		CorrelationID:  "cancel:req-123",
-		IdempotencyKey: "cancel-idem-123",
-		RequestedBy:    "operator:lead",
-		Reason:         "airspace conflict",
-		ObservedAt:     current.ObservedAt.Add(5 * time.Second),
-		Source:         "local-ui",
-		SourceRef:      "ui://commands/cancel/123",
+		NativeID:            current.NativeID,
+		TargetAssetID:       current.TargetAssetID,
+		Authority:           "local.operator",
+		Priority:            95,
+		ExpiresAt:           current.ObservedAt.Add(30 * time.Second),
+		CorrelationID:       "cancel:req-123",
+		IdempotencyKey:      "cancel-idem-123",
+		RequestedBy:         "operator:lead",
+		LocalOverridePolicy: LocalOverrideAcknowledged,
+		Reason:              "airspace conflict",
+		ObservedAt:          current.ObservedAt.Add(5 * time.Second),
+		Source:              "local-ui",
+		SourceRef:           "ui://commands/cancel/123",
 	})
 	if err != nil {
 		t.Fatalf("build cancellation: %v", err)
@@ -64,6 +65,7 @@ func TestBuildCancellationIntentProjectsCancelRequestedUpdate(t *testing.T) {
 	requireTriple(t, update.AddTriples, cop.TaskCorrelation, "cancel:req-123")
 	requireTriple(t, update.AddTriples, cop.TaskIdempotency, "cancel-idem-123")
 	requireTriple(t, update.AddTriples, cop.TaskRequestedBy, "operator:lead")
+	requireTriple(t, update.AddTriples, cop.TaskLocalOverridePolicy, LocalOverrideAcknowledged)
 	requireTriple(t, update.AddTriples, cop.ProvenanceSource, "local-ui")
 	requireTriple(t, update.AddTriples, cop.ProvenanceSourceRef, "ui://commands/cancel/123")
 }
@@ -117,17 +119,18 @@ func TestBuildCancellationIntentValidatesRequestFields(t *testing.T) {
 
 func validCancellationRequest(current Intent) CancellationRequest {
 	return CancellationRequest{
-		NativeID:       current.NativeID,
-		TargetAssetID:  current.TargetAssetID,
-		Authority:      "local.operator",
-		Priority:       90,
-		ExpiresAt:      current.ObservedAt.Add(time.Minute),
-		CorrelationID:  "cancel:req",
-		IdempotencyKey: "cancel:idem",
-		RequestedBy:    "operator:test",
-		Reason:         "test",
-		ObservedAt:     current.ObservedAt.Add(time.Second),
-		Source:         "local-ui",
-		SourceRef:      "ui://cancel/test",
+		NativeID:            current.NativeID,
+		TargetAssetID:       current.TargetAssetID,
+		Authority:           "local.operator",
+		Priority:            90,
+		ExpiresAt:           current.ObservedAt.Add(time.Minute),
+		CorrelationID:       "cancel:req",
+		IdempotencyKey:      "cancel:idem",
+		RequestedBy:         "operator:test",
+		LocalOverridePolicy: LocalOverrideAcknowledged,
+		Reason:              "test",
+		ObservedAt:          current.ObservedAt.Add(time.Second),
+		Source:              "local-ui",
+		SourceRef:           "ui://cancel/test",
 	}
 }

@@ -372,16 +372,17 @@ evidence, provenance, freshness, and confidence into SemStreams.
 CS API remains valuable at the ecosystem edge. It can decouple standards-aware clients, support systems that already
 publish CS API, expose SemOps state to federated consumers, and provide a unified vocabulary for standards-facing
 tasking. The MVP priority is read-side egress through SemConnect: project governed SemOps state into CS API-shaped
-Systems, Datastreams, Observations, Deployments, and System Events before any write-side bridge work. Those benefits
-do not require making CS API the COP's internal language. SemOps now carries a deterministic SemConnect HTTP request
-plan and fixture runner for those read-side resources, so bridge evidence can drive a SemConnect-compatible gateway
-without bypassing its HTTP boundary or claiming ETS conformance. If CS API mappings evolve, the bridge should absorb
-that change; the native adapters and COP model should not be hostage to an external standards lifecycle.
+Systems, Datastreams, Observations, Deployments, and System Events before broader write-side bridge work. Those
+benefits do not require making CS API the COP's internal language. SemOps now carries a deterministic SemConnect HTTP
+request plan and fixture runner for those read-side resources, plus a narrow CS API Command/ControlStream ingress
+mapper that writes only governed command intent. Bridge evidence can drive a SemConnect-compatible gateway without
+bypassing its HTTP boundary or claiming ETS conformance. If CS API mappings evolve, the bridge should absorb that
+change; the native adapters and COP model should not be hostage to an external standards lifecycle.
 
-Tasking through CS API needs a deliberate pause before implementation. The bridge should behave as an asynchronous
-command boundary: validate and accept or reject quickly, record governed desired state or command intent in the graph,
-and let native drivers reconcile actual tactical execution. Before live tasking, SemOps needs policies for
-TTL/deadline windows, priority and authority arbitration, local operator override, idempotency, cancellation,
+Tasking through CS API still needs a deliberate pause before live execution. The bridge should behave as an
+asynchronous command boundary: validate and accept or reject quickly, record governed desired state or command intent
+in the graph, and let native drivers reconcile actual tactical execution. Before live tasking, SemOps needs policies
+for TTL/deadline windows, priority and authority arbitration, local operator override, idempotency, cancellation,
 supersession, partial execution, stale commands after reconnect, and Command Status/System Event mapping.
 
 ## Adversarial Review Gates

@@ -105,7 +105,9 @@ func (a *Arbitrator) Arbitrate(intents []Intent) (ArbitrationResult, error) {
 func (r ArbitrationResult) NativeExecutionCandidates() []Intent {
 	out := make([]Intent, 0, len(r.Decisions))
 	for _, decision := range r.Decisions {
-		if decision.Outcome != ArbitrationAccepted || !nativeExecutionEligible(decision.Status) {
+		if decision.Outcome != ArbitrationAccepted ||
+			!nativeExecutionEligible(decision.Status) ||
+			!localOverrideCleared(decision.Intent.LocalOverridePolicy) {
 			continue
 		}
 		intent := decision.Intent
@@ -133,6 +135,12 @@ func (a *Arbitrator) better(candidate Intent, incumbent Intent) bool {
 	incumbentLocal := a.isLocalAuthority(incumbent.Authority)
 	if candidateLocal != incumbentLocal {
 		return candidateLocal
+	}
+
+	candidateOverride := localOverrideRank(candidate.LocalOverridePolicy)
+	incumbentOverride := localOverrideRank(incumbent.LocalOverridePolicy)
+	if candidateOverride != incumbentOverride {
+		return candidateOverride > incumbentOverride
 	}
 
 	candidateRank := a.authorityRank(candidate.Authority)

@@ -76,6 +76,8 @@ explicitly rechartered to own that gateway product.
   before any feed-owned state changes
 - **AND** command intent records carry source authority, priority, TTL/deadline, idempotency key, correlation ID,
   target entity, local override policy, and cancellation/supersession semantics
+- **AND** the first CS API write-side ingress layer may normalize Command and ControlStream input into command intent
+  only, without granting native execution or upstream command-status publication authority
 - **AND** native drivers reconcile actual execution asynchronously and publish command acknowledgements, progress,
   timeout, rejection, partial execution, or failure as graph-backed status evidence
 - **AND** stale, duplicate, conflicting, or superseded upstream commands cannot become native actions after reconnect

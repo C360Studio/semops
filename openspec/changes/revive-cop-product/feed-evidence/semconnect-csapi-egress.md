@@ -1,6 +1,8 @@
-# SemConnect CS API Read-Side Interop Evidence
+# SemConnect CS API Read-Side Interop and Command Intent Evidence
 
-Status: read-side standards egress candidate for MVP; write-side ingress and tasking remain stretch goals.
+Status: read-side standards egress candidate for MVP; narrow write-side Command/ControlStream ingress now maps to
+SemOps command intent only. Hosted CS API tasking, native execution, and upstream command-status publication remain
+blocked.
 
 ## Positioning
 
@@ -23,8 +25,10 @@ This "native core plus standards bridge" posture gives SemOps three advantages:
 CS API still matters. It buys decoupling for standards-aware clients, a possible plug-and-play ecosystem for vendors
 that already expose CS API, and a unified tasking/actuation vocabulary. For the MVP, SemOps should prioritize
 read-side egress: projecting governed COP state into CS API-shaped Systems, Datastreams, Observations, Deployments,
-and System Events through SemConnect. Write-side ingress, Command, and ControlStream handling remain stretch goals
-until command authority, TTL, priority, local override, and native safety gates are deliberately reopened.
+and System Events through SemConnect. SemOps now also has a narrow write-side Command/ControlStream mapper that admits
+only governed command intent. Hosted CS API command services, native tasking, upstream status publication, and broader
+write-side resources remain blocked until command authority, TTL, priority, local override, and native safety gates are
+deliberately reopened for execution.
 
 ## Decision
 
@@ -36,12 +40,17 @@ until command authority, TTL, priority, local override, and native safety gates 
   governance rather than bypassing native command safety.
 - CS API tasking must be asynchronous at the SemOps boundary: accept or reject the external request quickly, persist a
   governed desired-state or command-intent record, and let native drivers reconcile actual tactical execution.
+- The first write-side ingress artifact maps CS API Command and ControlStream command input into the existing guarded
+  command-intent projector only. Its result explicitly denies native execution and upstream status publication.
 - SemConnect remains the conformance anchor unless the organization explicitly recharters SemOps to own a CS API
   gateway product.
 
 ## Local Evidence
 
 - `internal/egress/csapi` maps SemOps COP snapshot state into CS API-shaped read resources.
+- `internal/ingress/csapi` maps CS API Command and ControlStream command input into governed SemOps command intent,
+  then admits it through the guarded command projector for authenticated authority, target, TTL/deadline, idempotency,
+  priority, and local-override checks without wiring native execution or upstream command-status publication.
 - `internal/egress/semconnect` maps that read model into deterministic SemConnect HTTP request specs for the
   read-side resource families SemOps can currently project, then executes those specs through an HTTP client boundary
   that can target SemConnect without direct graph or NATS writes.
@@ -199,9 +208,12 @@ Acceptance:
   fixture.
 - The lightweight service-mode stack starts successfully and the SemOps fixture passes against SemConnect, but this is
   bridge smoke evidence rather than OGC ETS conformance evidence.
-- SemOps does not yet expose a CS API ingress adapter.
+- SemOps now exposes a pure CS API write-side command ingress mapper/admission layer, but it is not a hosted HTTP CS
+  API service adapter and does not implement non-command writes, native tasking, scheduling, or upstream
+  command-status publication.
 - SemOps now defines a command-intent graph contract plus pure planner/admission/arbitration tests for required
-  fields, target resolution, expiry, duplicate idempotency, local override, authority ranking, and per-target priority
+  fields, target resolution, expiry, duplicate idempotency, local override policy, authority ranking, and per-target
+  priority
   selection. The guarded batch path projects accepted/superseded command-intent status before exposing accepted native
   execution candidates. SemOps also constrains command-intent lifecycle vocabulary and transition validation before
   any CS API/UI/native status handler exists, and can build pure `cancel_requested` updates for active command intents.
@@ -215,7 +227,7 @@ Acceptance:
   acknowledgement, or live actuation path. Hosted deadline scheduling, CS API request handling, native cancellation
   acknowledgement, and live actuation remain open.
 - CS API read-side egress should not block Phase 1 structural COP.
-- CS API write-side ingress and tasking are stretch goals, not MVP gates.
+- Full CS API write-side service behavior and native tasking are stretch goals, not MVP gates.
 - Native adapter support can be strong while CS API projection is still incomplete; keep those claims separate.
 - CS API conformance can be green while a native feed remains only fixture/replay-tested; keep those claims separate.
 

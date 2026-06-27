@@ -161,6 +161,10 @@ progress:
     collaboration/replay, secrets, cost, or failure-domain forces justify a SemOps-owned service.
   - Anchored the CS API bridge gates to current OGC Connected Systems resource families: Part 1 feature resources and
     Part 2 dynamic data, with command/control input explicitly routed through SemOps command authority.
+  - Added `internal/ingress/csapi` as the first write-side Command/ControlStream ingress artifact: it normalizes CS
+    API command input into SemOps command intent, admits it through the guarded command projector for authenticated
+    authority, target, TTL/deadline, idempotency, priority, and local-override checks, and explicitly avoids native
+    execution or upstream command-status publication.
   - Added the first `internal/scenario` runner core so generated MAVLink, deterministic TAK/CoT seed events, and CAP
     lifecycle XML records replay through real adapter/projector seams with pollable status and false-green guardrails.
   - Added index-backed COP snapshot discovery for MAVLink, TAK/CoT, and CAP prefixes, removed required CoT/CAP seed

@@ -982,6 +982,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 					testTriple(commandTaskID, copmodel.TaskExpiresAt, now.Add(5*time.Minute), requested),
 					testTriple(commandTaskID, copmodel.TaskCorrelation, "csapi:req-route-42", requested),
 					testTriple(commandTaskID, copmodel.TaskRequestedBy, "operator:coby", requested),
+					testTriple(commandTaskID, copmodel.TaskLocalOverridePolicy, commandprojector.LocalOverrideAcknowledged, requested),
 					testTriple(commandTaskID, copmodel.ProvenanceSource, "cs-api", requested),
 					testTriple(commandTaskID, copmodel.ProvenanceSourceRef, "csapi://commands/route-42", requested),
 					testTriple(commandTaskID, copmodel.ProvenanceObservedAt, requested, requested),
@@ -1054,6 +1055,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 		commandTask.RequestedBy != "operator:coby" ||
 		commandTask.CorrelationID != "csapi:req-route-42" ||
 		commandTask.DesiredState != `{"command":"cancel","target_native_id":"csapi-command-route-42","reason":"airspace conflict"}` ||
+		commandTask.LocalOverridePolicy != commandprojector.LocalOverrideAcknowledged ||
 		commandTask.Provenance.SourceRef != "command://fixture/hadr-command/0004-route-cancel-requested" {
 		t.Fatalf("command task = %+v", commandTask)
 	}

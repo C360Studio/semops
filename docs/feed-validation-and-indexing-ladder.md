@@ -766,8 +766,8 @@ Indexing profile pressure:
 - CS API tasking is an impedance-mismatch boundary. The bridge should accept or reject quickly, persist governed
   command intent or desired state, and let native drivers reconcile tactical execution asynchronously.
 - SemOps now has a `semops.command.intent` control-profile contract for desired tasking state. It carries source
-  authority, priority, expiry, idempotency, correlation, requested-by, and desired-state fields before any live native
-  transmitter is connected.
+  authority, priority, expiry, idempotency, correlation, requested-by, local override policy, and desired-state fields
+  before any live native transmitter is connected.
 - `internal/projectors/command` is the pure planner gate for desired tasking state. It validates impedance fields,
   writes only command-intent task mutations, and deliberately does not birth target assets or transmit native commands.
 - The command-intent lifecycle vocabulary is constrained to requested, accepted, executing, cancel_requested,
@@ -777,7 +777,11 @@ Indexing profile pressure:
   entity, preserving the target and original command kind while carrying the cancellation request authority,
   correlation, idempotency, provenance, and desired cancel state.
 - The guarded command-intent projector adds admission checks before planning: target asset resolution, wall-clock
-  expiry rejection, and duplicate idempotency collapse. It still has no live writer, UI, CS API handler, or transmitter.
+  expiry rejection, and duplicate idempotency collapse. It still has no live writer, UI, hosted CS API handler, or
+  transmitter.
+- `internal/ingress/csapi` maps authenticated CS API Command and ControlStream command input into the guarded
+  command-intent projector only. It records the posture as command-intent-only and does not authorize native execution
+  or upstream CS API command-status publication.
 - The command-intent arbitrator ranks active intents per target by local override, authority rank, priority,
   observation time, and native ID. It returns accepted/superseded/ignored decisions for later graph status updates and
   does not transmit native commands.

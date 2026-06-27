@@ -8,18 +8,19 @@ import (
 )
 
 type CancellationRequest struct {
-	NativeID       string
-	TargetAssetID  string
-	Authority      string
-	Priority       int
-	ExpiresAt      time.Time
-	CorrelationID  string
-	IdempotencyKey string
-	RequestedBy    string
-	Reason         string
-	ObservedAt     time.Time
-	Source         string
-	SourceRef      string
+	NativeID            string
+	TargetAssetID       string
+	Authority           string
+	Priority            int
+	ExpiresAt           time.Time
+	CorrelationID       string
+	IdempotencyKey      string
+	RequestedBy         string
+	LocalOverridePolicy string
+	Reason              string
+	ObservedAt          time.Time
+	Source              string
+	SourceRef           string
 }
 
 type cancellationDesiredState struct {
@@ -61,6 +62,7 @@ func BuildCancellationIntent(current Intent, request CancellationRequest) (Inten
 	intent.CorrelationID = strings.TrimSpace(request.CorrelationID)
 	intent.IdempotencyKey = strings.TrimSpace(request.IdempotencyKey)
 	intent.RequestedBy = strings.TrimSpace(request.RequestedBy)
+	intent.LocalOverridePolicy = normalizeLocalOverridePolicy(request.LocalOverridePolicy)
 	intent.ObservedAt = request.ObservedAt.UTC()
 	intent.Source = firstNonEmpty(request.Source, "command.cancel")
 	intent.SourceRef = strings.TrimSpace(request.SourceRef)
