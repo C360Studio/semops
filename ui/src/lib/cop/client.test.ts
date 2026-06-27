@@ -110,34 +110,70 @@ describe('reviewAssociation', () => {
   it('posts an operator association review', async () => {
     let requestedURL = '';
     let requestedBody = '';
+    let requestedHeaders = new Headers();
     const result = await reviewAssociation(
       'c360.edge.cop.fusion.association.mavlink-to-tak',
       { decision: 'acknowledged', reviewed_by: 'operator.local' },
-      async (url, init) => {
-        requestedURL = url.toString();
-        requestedBody = init?.body?.toString() ?? '';
-        return new Response(
-          JSON.stringify({
-            association_id: 'c360.edge.cop.fusion.association.mavlink-to-tak',
-            decision: 'acknowledged',
-            reviewed_by: 'operator.local',
-            reviewed_at: '2026-06-24T01:20:00Z',
-            reviewer_role: 'operator.unverified',
-            authority_scope: 'local.display_only',
-            conflict_policy: 'latest_review_wins_display_only'
-          }),
-          {
-            status: 200,
-            headers: { 'content-type': 'application/json' }
-          }
-        );
+      {
+        fetcher: async (url, init) => {
+          requestedURL = url.toString();
+          requestedBody = init?.body?.toString() ?? '';
+          requestedHeaders = new Headers(init?.headers);
+          return new Response(
+            JSON.stringify({
+              association_id: 'c360.edge.cop.fusion.association.mavlink-to-tak',
+              decision: 'acknowledged',
+              reviewed_by: 'operator.local',
+              reviewed_at: '2026-06-24T01:20:00Z',
+              reviewer_role: 'operator.unverified',
+              authority_scope: 'local.display_only',
+              conflict_policy: 'latest_review_wins_display_only'
+            }),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json' }
+            }
+          );
+        }
       }
     );
 
     expect(requestedURL).toContain('/api/cop/associations/c360.edge.cop.fusion.association.mavlink-to-tak/review');
     expect(JSON.parse(requestedBody)).toEqual({ decision: 'acknowledged', reviewed_by: 'operator.local' });
+    expect(requestedHeaders.get('X-SemOps-Operator-ID')).toBeNull();
     expect(result.decision).toBe('acknowledged');
     expect(result.authority_scope).toBe('local.display_only');
+  });
+
+  it('sends the local operator audit header when provided', async () => {
+    let requestedHeaders = new Headers();
+    await reviewAssociation(
+      'association-1',
+      { decision: 'challenged', reviewed_by: 'operator:field-lead' },
+      {
+        operatorID: 'operator:field-lead',
+        fetcher: async (_url, init) => {
+          requestedHeaders = new Headers(init?.headers);
+          return new Response(
+            JSON.stringify({
+              association_id: 'association-1',
+              decision: 'challenged',
+              reviewed_by: 'operator:field-lead',
+              reviewed_at: '2026-06-24T01:20:00Z',
+              reviewer_role: 'operator.unverified',
+              authority_scope: 'local.display_only',
+              conflict_policy: 'latest_review_wins_display_only'
+            }),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json' }
+            }
+          );
+        }
+      }
+    );
+
+    expect(requestedHeaders.get('X-SemOps-Operator-ID')).toBe('operator:field-lead');
   });
 });
 

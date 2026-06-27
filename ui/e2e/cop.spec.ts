@@ -205,6 +205,7 @@ const scenarioStatus: ScenarioStatus = {
 async function routeCOPState(page: Page) {
   let snapshotRequests = 0;
   let associationReview: AssociationReview | undefined;
+  let lastReviewOperatorHeader: string | null = null;
   await page.route('/api/cop/snapshot', async (route) => {
     snapshotRequests += 1;
     const snapshot = associationReview
@@ -225,11 +226,12 @@ async function routeCOPState(page: Page) {
   });
   await page.route(/\/api\/cop\/associations\/.+\/review$/, async (route) => {
     const body = (await route.request().postDataJSON()) as { decision: AssociationReview['decision']; reviewed_by?: string };
+    lastReviewOperatorHeader = route.request().headers()['x-semops-operator-id'] ?? null;
     const associationID = decodeURIComponent(route.request().url().split('/api/cop/associations/')[1].replace('/review', ''));
     associationReview = {
       association_id: associationID,
       decision: body.decision,
-      reviewed_by: body.reviewed_by ?? 'operator.local',
+      reviewed_by: lastReviewOperatorHeader ?? body.reviewed_by ?? 'operator.local',
       reviewed_at: '2026-06-21T16:21:10Z',
       reviewer_role: 'operator.unverified',
       authority_scope: 'local.display_only',
@@ -256,7 +258,8 @@ async function routeCOPState(page: Page) {
     });
   });
   return {
-    snapshotRequests: () => snapshotRequests
+    snapshotRequests: () => snapshotRequests,
+    lastReviewOperatorHeader: () => lastReviewOperatorHeader
   };
 }
 
@@ -277,6 +280,10 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'Common Operating Picture' })).toBeVisible();
+  const operatorInput = page.getByRole('textbox', { name: 'Operator' });
+  await expect(operatorInput).toHaveValue('operator.local');
+  await operatorInput.fill('operator:field-lead');
+  await expect(operatorInput).toHaveValue('operator:field-lead');
   await expect(page.getByText(/api\s+\d+[smhd]\s+snapshot/)).toBeVisible();
   await expect(page.getByLabel('ADS-B source state')).toBeVisible();
   await expect(page.getByText('OpenSky-compatible fixture via SemStreams component flow')).toBeVisible();
@@ -346,9 +353,10 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('Entity inspector')).toContainText('unreviewed');
   await page.getByRole('button', { name: 'Acknowledge association evidence' }).click();
   await expect(page.getByLabel('Entity inspector')).toContainText('acknowledged');
-  await expect(page.getByText('operator.local')).toBeVisible();
+  await expect.poll(routes.lastReviewOperatorHeader).toBe('operator:field-lead');
+  await expect(page.getByText('operator:field-lead')).toBeVisible();
   await expect(page.getByText('operator.unverified')).toBeVisible();
-  await expect(page.getByText('local.display_only')).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('local.display_only');
   await page.getByRole('button', { name: 'Challenge association evidence' }).click();
   await expect(page.getByLabel('Entity inspector')).toContainText('challenged');
   await expect(page.getByText('latest_review_wins_display_only')).toBeVisible();

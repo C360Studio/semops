@@ -371,6 +371,7 @@
 - [x] 7.29 Add read-only command lifecycle task readback in the COP API/UI while deferring command controls
 - [x] 7.30 Surface Caddy-routed scenario evidence in the COP UI with ingress/delivery/graph counts while deferring
       scenario orchestration controls
+- [x] 7.31 Surface a local operator audit-label control for association review without adding an auth wall
 
 ## 8. Tier Escalation And Egress
 

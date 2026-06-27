@@ -109,6 +109,7 @@ authoritative predicates.
 - **AND** the COP UI exposes acknowledge/challenge controls from the association inspector
 - **AND** the API resolves the reviewer's audit label from `X-SemOps-Operator-ID`, then request-body `reviewed_by`,
   then `operator.local`
+- **AND** the COP UI lets the operator set that local audit label without requiring an authentication provider
 - **AND** operator review records expose `reviewer_role = operator.unverified`,
   `authority_scope = local.display_only`, and `conflict_policy = latest_review_wins_display_only`
 - **AND** `X-SemOps-Operator-Role` and `X-SemOps-Authority-Scope` cannot escalate review records beyond those

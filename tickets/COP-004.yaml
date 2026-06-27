@@ -156,6 +156,8 @@ progress:
   - Added a low-friction MVP operator identity resolver for association review audit: local demos can run with no auth
     setup, optional `X-SemOps-Operator-ID` stamps the reviewer label, and role/scope escalation remains blocked until
     authenticated multi-authority arbitration exists.
+  - Surfaced the local operator audit label in the COP topbar and sent it with association review as
+    `X-SemOps-Operator-ID`, while keeping the readback display-only and unauthenticated.
 
 current_evidence:
   - `go test ./internal/contracts`

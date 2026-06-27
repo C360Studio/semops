@@ -1,6 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Activity, AlertTriangle, CheckCircle2, CircleAlert, Database, Link2, RefreshCcw } from '@lucide/svelte';
+  import {
+    Activity,
+    AlertTriangle,
+    CheckCircle2,
+    CircleAlert,
+    Database,
+    Link2,
+    RefreshCcw,
+    UserRound
+  } from '@lucide/svelte';
   import { loadRuntime, loadScenarioStatus, loadSnapshot, freshnessLabel, reviewAssociation } from '$lib/cop/client';
   import { reconcileSelection, resolveEntity, resolveMapSelection, type SelectableEntity } from '$lib/cop/selection';
   import SourceCard from '$lib/cop/SourceCard.svelte';
@@ -32,10 +41,13 @@
   let selected = $state<EntityRef>({ kind: 'track', id: 'c360.edge.cop.mavlink.track.system-42' });
   let loading = $state(true);
   let associationReviews = $state<Record<string, AssociationReview>>({});
+  let operatorID = $state('operator.local');
 
   const selectedEntity = $derived(resolveEntity(snapshot, selected));
   const mapSelected = $derived(resolveMapSelection(snapshot, selected) ?? selected);
   const feedRows = $derived(buildFeedRows(snapshot, runtime));
+  const effectiveOperatorID = $derived(operatorID.trim() || 'operator.local');
+  const operatorStorageKey = 'semops.operator.id';
 
   async function refresh() {
     loading = true;
@@ -54,8 +66,22 @@
   }
 
   onMount(() => {
+    const storedOperatorID = localStorage.getItem(operatorStorageKey)?.trim();
+    if (storedOperatorID) {
+      operatorID = storedOperatorID;
+    }
     void refresh();
   });
+
+  function setOperatorID(value: string) {
+    operatorID = value;
+    const next = effectiveOperatorID;
+    if (next) {
+      localStorage.setItem(operatorStorageKey, next);
+    } else {
+      localStorage.removeItem(operatorStorageKey);
+    }
+  }
 
   function selectEntity(kind: EntityRef['kind'], id: string) {
     selected = { kind, id } as EntityRef;
@@ -126,7 +152,7 @@
     const optimisticReview: AssociationReview = {
       association_id: association.id,
       decision,
-      reviewed_by: 'operator.local',
+      reviewed_by: effectiveOperatorID,
       reviewed_at: new Date().toISOString(),
       reviewer_role: 'operator.unverified',
       authority_scope: 'local.display_only',
@@ -137,6 +163,8 @@
       const review = await reviewAssociation(association.id, {
         decision,
         reviewed_by: optimisticReview.reviewed_by
+      }, {
+        operatorID: effectiveOperatorID
       });
       associationReviews = { ...associationReviews, [association.id]: review };
       error = undefined;
@@ -184,6 +212,21 @@
         </div>
       </dl>
     {/if}
+    <label class="operator-control">
+      <span>
+        <UserRound size={14} />
+        Operator
+      </span>
+      <input
+        aria-describedby="operator-scope"
+        autocomplete="off"
+        maxlength="128"
+        spellcheck="false"
+        bind:value={operatorID}
+        oninput={(event) => setOperatorID((event.target as HTMLInputElement).value)}
+      />
+      <small id="operator-scope">local.display_only</small>
+    </label>
     <button class="icon-button" type="button" onclick={refresh} aria-label="Refresh COP snapshot" title="Refresh COP snapshot">
       <RefreshCcw size={18} />
     </button>

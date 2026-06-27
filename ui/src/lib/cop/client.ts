@@ -23,6 +23,11 @@ export type AssociationReviewRequest = {
   comment?: string;
 };
 
+export type AssociationReviewOptions = {
+  operatorID?: string;
+  fetcher?: typeof fetch;
+};
+
 export async function loadSnapshot(fetcher: typeof fetch = fetch): Promise<SnapshotLoadResult> {
   try {
     const response = await fetcher('/api/cop/snapshot', {
@@ -81,14 +86,20 @@ export async function loadScenarioStatus(fetcher: typeof fetch = fetch): Promise
 export async function reviewAssociation(
   associationID: string,
   request: AssociationReviewRequest,
-  fetcher: typeof fetch = fetch
+  options: AssociationReviewOptions = {}
 ): Promise<AssociationReview> {
+  const fetcher = options.fetcher ?? fetch;
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'content-type': 'application/json'
+  };
+  const operatorID = options.operatorID?.trim();
+  if (operatorID) {
+    headers['X-SemOps-Operator-ID'] = operatorID;
+  }
   const response = await fetcher(`/api/cop/associations/${encodeURIComponent(associationID)}/review`, {
     method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json'
-    },
+    headers,
     body: JSON.stringify(request)
   });
   if (!response.ok) {

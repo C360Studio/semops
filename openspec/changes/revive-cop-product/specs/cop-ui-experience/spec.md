@@ -45,6 +45,8 @@ SemOps SHALL keep the first COP operator loop covered by focused component/helpe
 - **WHEN** Playwright exercises the first COP screen
 - **THEN** it verifies named source cards, scenario evidence, map entity controls, alert controls, selected-entity
   provenance, keyboard activation, alert-to-map target highlighting, and a narrow viewport without horizontal overflow
+- **AND** it verifies local operator audit-label entry and association-review stamping without treating the label as
+  authenticated authority
 
 ### Requirement: Browser state comes through SemOps API
 
@@ -157,6 +159,8 @@ Phase 1.
   and the explicit no-merge/no-identity-authority posture
 - **AND** row-level copy and badges use candidate/possible association language when the evidence has not been
   operator-reviewed or promoted by an explicit identity policy
+- **AND** the association review controls send the current local operator audit label through the SemOps API header and
+  render the resulting `reviewed_by`, `reviewer_role`, and `authority_scope` readback
 - **AND** the UI does not expose merge, split, override, source-track mutation, or identity-authority controls until
   identity policy, mission thresholds, ambiguity policy, and adversarial operator review prove those workflows are safe
 
