@@ -2,6 +2,7 @@ package cap
 
 import (
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,9 @@ func TestProjectorCreatesAppendEvidenceHazard(t *testing.T) {
 		t.Fatalf("trace id = %q", create.TraceID)
 	}
 	requireTriple(t, create.Triples, cop.HazardSource, "cap")
+	requireTriple(t, create.Triples, cop.TimeObservationRecorded, testTime().Add(4*time.Minute+5*time.Second))
+	requireFloatTripleNear(t, create.Triples, cop.GeoLocationLatitude, 38.9014007026, 0.0000001)
+	requireFloatTripleNear(t, create.Triples, cop.GeoLocationLongitude, -77.0014861273, 0.0000001)
 	requireTriple(t, create.Triples, cop.ProvenanceSource, "cap")
 	requireTriple(t, create.Triples, cop.ProvenanceSourceRef, "cap://fixture/nws-demo-flood-warning")
 	if hasPredicate(create.Triples, cop.HazardGeometry) ||
@@ -73,6 +77,27 @@ func TestProjectorCreatesAppendEvidenceHazard(t *testing.T) {
 	if evidence.Polygons[0][0] != (cop.HazardEvidencePoint{Lat: 38.895, Lon: -77.012}) {
 		t.Fatalf("first evidence point = %+v", evidence.Polygons[0][0])
 	}
+}
+
+func TestProjectorDoesNotEmitSpatialIndexPredicatesWithoutCAPAreaGeometry(t *testing.T) {
+	alert := testAlert(t)
+	alert.Identifier = "nws-demo-flood-no-geometry"
+	alert.Infos[0].Areas = nil
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
+
+	plan, err := projector.ProjectAlert(alert, "cap://fixture/no-geometry")
+	if err != nil {
+		t.Fatalf("project alert without area geometry: %v", err)
+	}
+	if len(plan.Mutations) != 1 {
+		t.Fatalf("mutations = %d, want hazard evidence birth", len(plan.Mutations))
+	}
+	create := requireCreate(t, plan.Mutations[0])
+	if hasPredicate(create.Triples, cop.GeoLocationLatitude) ||
+		hasPredicate(create.Triples, cop.GeoLocationLongitude) {
+		t.Fatalf("geometry-free CAP alert emitted spatial predicates: %+v", create.Triples)
+	}
+	requireTriple(t, create.Triples, cop.TimeObservationRecorded, testTime().Add(4*time.Minute+5*time.Second))
 }
 
 func TestProjectorAppendsForKnownHazard(t *testing.T) {
@@ -214,6 +239,24 @@ func requireTriple(t *testing.T, triples []message.Triple, predicate string, wan
 			}
 			return
 		}
+	}
+	t.Fatalf("missing predicate %q in %+v", predicate, triples)
+}
+
+func requireFloatTripleNear(t *testing.T, triples []message.Triple, predicate string, want float64, tolerance float64) {
+	t.Helper()
+	for _, triple := range triples {
+		if triple.Predicate != predicate {
+			continue
+		}
+		value, ok := triple.Object.(float64)
+		if !ok {
+			t.Fatalf("%s object = %#v, want float64", predicate, triple.Object)
+		}
+		if math.Abs(value-want) > tolerance {
+			t.Fatalf("%s object = %.12f, want %.12f +/- %.12f", predicate, value, want, tolerance)
+		}
+		return
 	}
 	t.Fatalf("missing predicate %q in %+v", predicate, triples)
 }

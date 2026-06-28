@@ -325,6 +325,38 @@ func TestSignalGeometryContractsCarryCanonicalSpatialTemporalIndexPredicates(t *
 	}
 }
 
+func TestTAKControlContentContractsCarryCanonicalSpatialTemporalIndexPredicates(t *testing.T) {
+	contracts := []projection.Contract{
+		TAKTaskContract(),
+		TAKAdvisoryContract(),
+	}
+
+	for _, contract := range contracts {
+		for _, predicate := range []string{
+			GeoLocationLatitude,
+			GeoLocationLongitude,
+			TimeObservationRecorded,
+		} {
+			if !contractHasPredicate(contract, predicate) {
+				t.Fatalf("%s missing canonical index predicate %q", contract.Name, predicate)
+			}
+		}
+	}
+}
+
+func TestCAPHazardEvidenceContractCarriesCanonicalSpatialTemporalIndexPredicates(t *testing.T) {
+	contract := CAPHazardEvidenceContract()
+	for _, predicate := range []string{
+		GeoLocationLatitude,
+		GeoLocationLongitude,
+		TimeObservationRecorded,
+	} {
+		if !contractHasPredicate(contract, predicate) {
+			t.Fatalf("%s missing canonical index predicate %q", contract.Name, predicate)
+		}
+	}
+}
+
 func TestFusionOwnerBindsAlertAssociationAndReviewContracts(t *testing.T) {
 	owners := make([]string, 0)
 	for _, owned := range FirstPhaseOwnedContracts() {

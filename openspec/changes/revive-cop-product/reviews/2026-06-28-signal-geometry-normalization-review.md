@@ -31,7 +31,8 @@ KLV sensor-footprint and weather observation contracts now claim canonical numer
 
 ## Residual Risk
 
-- TAK task markers and GeoChat advisories still use product WKT predicates only. Normalize them separately if COP map
-  discovery needs SemStreams spatial/temporal query support for control/content entities.
-- Rich shape indexing for weather corridors, weather areas, and KLV polygons remains out of scope until SemStreams has
-  a product-neutral shape-indexing recipe beyond point queries.
+- TAK task markers and GeoChat advisories are covered by
+  `2026-06-28-tak-control-content-normalization-review.md`; native command/control remains a separate lane.
+- CAP hazard evidence is covered by `2026-06-28-cap-hazard-geometry-normalization-review.md`.
+- Rich shape indexing for CAP polygons/circles, weather corridors, weather areas, and KLV polygons remains out of
+  scope until SemStreams has a product-neutral shape-indexing recipe beyond point queries.

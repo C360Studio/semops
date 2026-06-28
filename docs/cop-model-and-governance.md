@@ -56,7 +56,8 @@ durable markers and task-like map control state stay in `control`; GeoChat text 
 state declares the strict `cop.track.source` edge to a born source asset.
 
 Loose CAP evidence does not own authoritative hazard geometry, severity, or status. It appends advisory text, source
-references, evidence, observed time, and confidence until a deterministic hazard projector earns stricter ownership.
+references, evidence, observed time, confidence, and representative spatial/temporal index aliases until a
+deterministic hazard projector earns stricter ownership.
 
 Weather observation evidence is source-partitioned and signal-profiled. It owns localized variable samples with query
 shape, geometry, valid time, model time, freshness, unit, provenance, and confidence. It does not own CAP-style hazard
@@ -147,9 +148,9 @@ implementation pressure proves they are broader than this product:
 
 - Provenance, confidence, observed-at, and source-reference conventions: filed as SemStreams issue #367.
 - Raw-lane plus current-state projection guidance for high-rate telemetry: filed as SemStreams issue #340.
-- Spatial-temporal query helper guidance for WKT/GeoJSON position, footprint, weather, and current-state track
-  workflows: filed as SemStreams issue #368, answered by recipe PR #369, with event-time temporal indexing tracked by
-  SemStreams issue #370.
+- Spatial-temporal query helper guidance for WKT/GeoJSON position, footprint, weather, TAK task/advisory points, CAP
+  representative hazard points, and current-state track workflows: filed as SemStreams issue #368, answered by recipe
+  PR #369, with event-time temporal indexing tracked by SemStreams issue #370.
 
 ## Test Gates
 

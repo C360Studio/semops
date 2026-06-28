@@ -531,10 +531,12 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
 - Spatial and temporal query composition tuned for COP workflows. SemStreams issue #368 closed with recipe PR #369:
   normalize indexed location into `geo.location.latitude` / `geo.location.longitude`, keep WKT/`cop.*` geometry for
   rendering, compose prefix/spatial/temporal queries with batch hydration, and defer a server-side intersection helper
-  until measured cross-product need. SemOps track, KLV sensor-footprint, and point-weather projections now emit the
-  normalized geo/time predicates; see
+  until measured cross-product need. SemOps track, KLV sensor-footprint, point-weather, TAK task marker, GeoChat
+  advisory, and CAP hazard representative-point projections now emit the normalized geo/time predicates; see
   `openspec/changes/revive-cop-product/reviews/2026-06-28-track-normalization-predicate-review.md` and
-  `openspec/changes/revive-cop-product/reviews/2026-06-28-signal-geometry-normalization-review.md`.
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-signal-geometry-normalization-review.md`, plus
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-tak-control-content-normalization-review.md` and
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-cap-hazard-geometry-normalization-review.md`.
 - A documented raw-lane plus current-state projection pattern for high-rate telemetry:
   [SemStreams issue #340](https://github.com/C360Studio/semstreams/issues/340).
 - Component backpressure telemetry for hosted feed flows:

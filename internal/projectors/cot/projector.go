@@ -401,9 +401,14 @@ func (p *Projector) taskTriples(event cotcodec.Event, sourceRef string) []messag
 		p.triple(taskID, cop.TaskName, firstNonEmpty(event.Callsign, event.UID), event),
 		p.triple(taskID, cop.TaskKind, "marker", event),
 		p.triple(taskID, cop.TaskStatus, statusForEvent(event, "marker"), event),
+		p.triple(taskID, cop.TimeObservationRecorded, observedAt(event), event),
 	)
 	if event.Point != nil {
-		triples = append(triples, p.triple(taskID, cop.TaskPosition, wktPoint(event.Point), event))
+		triples = append(triples,
+			p.triple(taskID, cop.TaskPosition, wktPoint(event.Point), event),
+			p.triple(taskID, cop.GeoLocationLatitude, event.Point.Lat, event),
+			p.triple(taskID, cop.GeoLocationLongitude, event.Point.Lon, event),
+		)
 	}
 	if strings.TrimSpace(event.Remarks) != "" {
 		triples = append(triples, p.triple(taskID, cop.TaskDescription, strings.TrimSpace(event.Remarks), event))
@@ -423,12 +428,17 @@ func (p *Projector) advisoryTriples(event cotcodec.Event, sourceRef string) []me
 		p.triple(advisoryID, cop.AdvisoryText, text, event),
 		p.triple(advisoryID, cop.AdvisoryKind, "geochat", event),
 		p.triple(advisoryID, cop.AdvisoryStatus, statusForEvent(event, "geochat"), event),
+		p.triple(advisoryID, cop.TimeObservationRecorded, observedAt(event), event),
 	)
 	if sender := firstNonEmpty(event.SenderUID, event.Callsign); sender != "" {
 		triples = append(triples, p.triple(advisoryID, cop.AdvisorySender, sender, event))
 	}
 	if event.Point != nil {
-		triples = append(triples, p.triple(advisoryID, cop.AdvisoryPosition, wktPoint(event.Point), event))
+		triples = append(triples,
+			p.triple(advisoryID, cop.AdvisoryPosition, wktPoint(event.Point), event),
+			p.triple(advisoryID, cop.GeoLocationLatitude, event.Point.Lat, event),
+			p.triple(advisoryID, cop.GeoLocationLongitude, event.Point.Lon, event),
+		)
 	}
 	return triples
 }

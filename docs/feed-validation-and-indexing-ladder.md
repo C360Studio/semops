@@ -505,6 +505,9 @@ Mock or harness:
 Indexing profile pressure:
 
 - The current CAP slice uses `content` because it contributes append-only advisory and geometry evidence.
+- CAP hazard evidence emits `time.observation.recorded` and a representative `geo.location.*` area point for
+  SemStreams spatial/temporal discovery. The full polygon or circle remains inside `cop.hazard.evidence`; CAP still
+  does not own authoritative `cop.hazard.geometry`.
 - Future authoritative alert lifecycle state is `control`.
 - Advisory text, instructions, and multilingual descriptions remain `content`.
 - Poll history and raw alert fetch traces are `trace`.
@@ -1296,8 +1299,12 @@ Do not file all of these immediately. Use SemOps evidence first.
   Source-owned track projections adopted the normalized geo/time predicates in
   `openspec/changes/revive-cop-product/reviews/2026-06-28-track-normalization-predicate-review.md`. KLV
   sensor-footprint and weather signal evidence adopted the same point/time normalization in
-  `openspec/changes/revive-cop-product/reviews/2026-06-28-signal-geometry-normalization-review.md`; task and advisory
-  geometry remain separate future slices.
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-signal-geometry-normalization-review.md`. TAK task marker
+  and GeoChat advisory point evidence adopted the same indexed lat/lon/event-time aliases in
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-tak-control-content-normalization-review.md`, without
+  changing native command authority. CAP hazard evidence adopted representative area-point aliases in
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-cap-hazard-geometry-normalization-review.md`, without
+  claiming authoritative hazard geometry or rich shape indexing.
 - Indexing profile/cardinality helper asks remain deferred by
   `openspec/changes/revive-cop-product/reviews/2026-06-28-semstreams-indexing-cardinality-review.md` until clean
   entity boundaries prove insufficient.

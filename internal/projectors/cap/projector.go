@@ -3,6 +3,7 @@ package cap
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 	"unicode"
@@ -174,9 +175,16 @@ func (p *Projector) hazardEvidenceTriples(
 		p.triple(hazardID, cop.HazardAdvisoryText, text, alert),
 		p.triple(hazardID, cop.HazardEvidence, string(evidence), alert),
 		p.triple(hazardID, cop.HazardSource, "cap", alert),
+		p.triple(hazardID, cop.TimeObservationRecorded, observedAt(alert), alert),
 		p.triple(hazardID, cop.ProvenanceSource, "cap", alert),
 		p.triple(hazardID, cop.ProvenanceConfidence, confidenceForAlert(alert, p.cfg.Confidence), alert),
 		p.triple(hazardID, cop.ProvenanceObservedAt, observedAt(alert), alert),
+	}
+	if point, ok := hazardIndexPoint(alert); ok {
+		triples = append(triples,
+			p.triple(hazardID, cop.GeoLocationLatitude, point.Lat, alert),
+			p.triple(hazardID, cop.GeoLocationLongitude, point.Lon, alert),
+		)
 	}
 	if sourceRef != "" {
 		triples = append(triples, p.triple(hazardID, cop.ProvenanceSourceRef, sourceRef, alert))
@@ -210,6 +218,57 @@ func evidenceDocument(alert capcodec.Alert) cop.HazardEvidenceDocument {
 		doc.Geocodes = evidenceNameValues(area.Geocodes)
 	}
 	return doc
+}
+
+func hazardIndexPoint(alert capcodec.Alert) (capcodec.Point, bool) {
+	info, ok := alert.PrimaryInfo()
+	if !ok {
+		return capcodec.Point{}, false
+	}
+	for _, area := range info.Areas {
+		for _, polygon := range area.Polygons {
+			if point, ok := polygonCentroid(polygon); ok {
+				return point, true
+			}
+		}
+		for _, circle := range area.Circles {
+			return circle.Center, true
+		}
+	}
+	return capcodec.Point{}, false
+}
+
+func polygonCentroid(points []capcodec.Point) (capcodec.Point, bool) {
+	if len(points) < 3 {
+		return capcodec.Point{}, false
+	}
+	var twiceArea, lonWeighted, latWeighted float64
+	for i := range points {
+		next := points[(i+1)%len(points)]
+		cross := points[i].Lon*next.Lat - next.Lon*points[i].Lat
+		twiceArea += cross
+		lonWeighted += (points[i].Lon + next.Lon) * cross
+		latWeighted += (points[i].Lat + next.Lat) * cross
+	}
+	if math.Abs(twiceArea) > 1e-12 {
+		return capcodec.Point{
+			Lat: latWeighted / (3 * twiceArea),
+			Lon: lonWeighted / (3 * twiceArea),
+		}, true
+	}
+	return averagePoint(points)
+}
+
+func averagePoint(points []capcodec.Point) (capcodec.Point, bool) {
+	if len(points) == 0 {
+		return capcodec.Point{}, false
+	}
+	var lat, lon float64
+	for _, point := range points {
+		lat += point.Lat
+		lon += point.Lon
+	}
+	return capcodec.Point{Lat: lat / float64(len(points)), Lon: lon / float64(len(points))}, true
 }
 
 func advisoryText(alert capcodec.Alert) string {

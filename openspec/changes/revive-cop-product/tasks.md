@@ -243,6 +243,10 @@
       product WKT predicates
 - [x] 5.117 Add canonical spatial-temporal index predicates to KLV sensor-footprint and weather signal evidence
       while preserving product WKT predicates
+- [x] 5.118 Add canonical spatial-temporal index predicates to TAK task marker and GeoChat advisory point evidence
+      without changing command/control authority
+- [x] 5.119 Add canonical spatial-temporal index predicates to CAP hazard evidence through representative area points
+      without claiming authoritative hazard geometry
 
 ## 6. Structural COP Stack
 

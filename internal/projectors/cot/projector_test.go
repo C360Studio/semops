@@ -188,6 +188,9 @@ func TestProjectorProjectsMarkersToControlAndGeoChatToContent(t *testing.T) {
 	requireTriple(t, taskCreate.Triples, cop.TaskKind, "marker")
 	requireTriple(t, taskCreate.Triples, cop.TaskDescription, "checkpoint")
 	requireTriple(t, taskCreate.Triples, cop.TaskPosition, "POINT(-77.0380000 38.8940000)")
+	requireTriple(t, taskCreate.Triples, cop.GeoLocationLatitude, 38.894)
+	requireTriple(t, taskCreate.Triples, cop.GeoLocationLongitude, -77.038)
+	requireTriple(t, taskCreate.Triples, cop.TimeObservationRecorded, seedTime())
 	requireTriple(t, taskCreate.Triples, cop.ProvenanceSourceRef, "cot://raw/tak-unit/00000003")
 	if hasPredicate(taskCreate.Triples, cop.TrackSource) {
 		t.Fatal("TAK task projection must not emit track-source edges")
@@ -210,10 +213,49 @@ func TestProjectorProjectsMarkersToControlAndGeoChatToContent(t *testing.T) {
 	requireTriple(t, advisoryCreate.Triples, cop.AdvisoryKind, "geochat")
 	requireTriple(t, advisoryCreate.Triples, cop.AdvisorySender, "ANDROID-ALPHA")
 	requireTriple(t, advisoryCreate.Triples, cop.AdvisoryPosition, "POINT(-77.0350000 38.8920000)")
+	requireTriple(t, advisoryCreate.Triples, cop.GeoLocationLatitude, 38.892)
+	requireTriple(t, advisoryCreate.Triples, cop.GeoLocationLongitude, -77.035)
+	requireTriple(t, advisoryCreate.Triples, cop.TimeObservationRecorded, seedTime())
 	requireTriple(t, advisoryCreate.Triples, cop.ProvenanceSourceRef, "cot://raw/tak-unit/00000004")
 	if hasPredicate(advisoryCreate.Triples, cop.TrackSource) {
 		t.Fatal("TAK advisory projection must not emit track-source edges")
 	}
+}
+
+func TestProjectorDoesNotEmitSpatialIndexPredicatesForPointlessTaskOrAdvisory(t *testing.T) {
+	events := cotcodec.SeedEvents(seedTime())
+	marker := events[2]
+	marker.Point = nil
+	chat := events[3]
+	chat.Point = nil
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
+
+	plan, err := projector.ProjectEvents([]SourceEvent{
+		{Event: marker, SourceRef: "cot://raw/tak-unit/00000003"},
+		{Event: chat, SourceRef: "cot://raw/tak-unit/00000004"},
+	})
+	if err != nil {
+		t.Fatalf("project marker/chat without points: %v", err)
+	}
+	if len(plan.Mutations) != 2 {
+		t.Fatalf("mutations = %d, want task create + advisory create", len(plan.Mutations))
+	}
+
+	taskCreate := requireCreate(t, plan.Mutations[0])
+	if hasPredicate(taskCreate.Triples, cop.TaskPosition) ||
+		hasPredicate(taskCreate.Triples, cop.GeoLocationLatitude) ||
+		hasPredicate(taskCreate.Triples, cop.GeoLocationLongitude) {
+		t.Fatalf("pointless TAK task emitted spatial predicates: %+v", taskCreate.Triples)
+	}
+	requireTriple(t, taskCreate.Triples, cop.TimeObservationRecorded, seedTime())
+
+	advisoryCreate := requireCreate(t, plan.Mutations[1])
+	if hasPredicate(advisoryCreate.Triples, cop.AdvisoryPosition) ||
+		hasPredicate(advisoryCreate.Triples, cop.GeoLocationLatitude) ||
+		hasPredicate(advisoryCreate.Triples, cop.GeoLocationLongitude) {
+		t.Fatalf("pointless TAK advisory emitted spatial predicates: %+v", advisoryCreate.Triples)
+	}
+	requireTriple(t, advisoryCreate.Triples, cop.TimeObservationRecorded, seedTime())
 }
 
 func TestProjectorDoesNotCommitBirthStateUntilMarked(t *testing.T) {

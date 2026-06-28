@@ -26,7 +26,7 @@ shared vocabulary they expect.
 ## Residual Risk
 
 - KLV sensor footprints and weather query geometry are covered by the follow-on
-  `2026-06-28-signal-geometry-normalization-review.md`; tasks and advisories still use product WKT predicates only.
-  Normalize them separately after their query pressure is concrete.
+  `2026-06-28-signal-geometry-normalization-review.md`; TAK task markers and GeoChat advisories are covered by
+  `2026-06-28-tak-control-content-normalization-review.md`.
 - Server-side `graph.query.spatialTemporal` remains deferred until the existing prefix, spatial, temporal, and batch
   hydration composition proves insufficient.
