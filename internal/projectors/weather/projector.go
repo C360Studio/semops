@@ -177,11 +177,18 @@ func (p *Projector) observationTriples(observationID string, observation Observa
 		p.triple(observationID, cop.WeatherQueryShape, observation.QueryShape, when),
 		p.triple(observationID, cop.WeatherQueryGeometry, observation.QueryGeometryWKT, when),
 		p.triple(observationID, cop.WeatherValidTime, observation.ValidTime.UTC(), when),
+		p.triple(observationID, cop.TimeObservationRecorded, observation.ValidTime.UTC(), when),
 		p.triple(observationID, cop.WeatherVariable, observation.Variable, when),
 		p.triple(observationID, cop.WeatherValue, observation.Value, when),
 		p.triple(observationID, cop.ProvenanceSource, "weather", when),
 		p.triple(observationID, cop.ProvenanceConfidence, p.cfg.Confidence, when),
 		p.triple(observationID, cop.ProvenanceObservedAt, when, when),
+	}
+	if lat, lon, ok := pointFromWKT(observation.QueryGeometryWKT); ok {
+		triples = append(triples,
+			p.triple(observationID, cop.GeoLocationLatitude, lat, when),
+			p.triple(observationID, cop.GeoLocationLongitude, lon, when),
+		)
 	}
 	if !observation.ModelTime.IsZero() {
 		triples = append(triples, p.triple(observationID, cop.WeatherModelTime, observation.ModelTime.UTC(), when))
@@ -406,6 +413,27 @@ func shortHash(value string) string {
 
 func wktPoint(lat, lon float64) string {
 	return "POINT(" + coord(lon) + " " + coord(lat) + ")"
+}
+
+func pointFromWKT(value string) (float64, float64, bool) {
+	trimmed := strings.TrimSpace(value)
+	if !strings.HasPrefix(strings.ToUpper(trimmed), "POINT(") || !strings.HasSuffix(trimmed, ")") {
+		return 0, 0, false
+	}
+	inner := strings.TrimSpace(trimmed[len("POINT(") : len(trimmed)-1])
+	fields := strings.Fields(inner)
+	if len(fields) != 2 {
+		return 0, 0, false
+	}
+	lon, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return 0, 0, false
+	}
+	lat, err := strconv.ParseFloat(fields[1], 64)
+	if err != nil {
+		return 0, 0, false
+	}
+	return lat, lon, true
 }
 
 func coord(v float64) string {

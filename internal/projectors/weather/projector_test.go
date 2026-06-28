@@ -79,6 +79,9 @@ func TestProjectorCreatesPointWeatherObservationsWithoutHazardAuthority(t *testi
 	requireTriple(t, create.Triples, cop.WeatherValue, 29.4)
 	requireTriple(t, create.Triples, cop.WeatherUnit, "degC")
 	requireTriple(t, create.Triples, cop.WeatherValidTime, observation.ValidTime)
+	requireTriple(t, create.Triples, cop.TimeObservationRecorded, observation.ValidTime)
+	requireTriple(t, create.Triples, cop.GeoLocationLatitude, 38.9)
+	requireTriple(t, create.Triples, cop.GeoLocationLongitude, -77.04)
 	requireTriple(t, create.Triples, cop.WeatherModelTime, modelTime)
 	requireTriple(t, create.Triples, cop.WeatherFreshUntil, modelTime.Add(45*time.Minute))
 	requireTriple(t, create.Triples, cop.ProvenanceSource, "weather")
@@ -137,6 +140,9 @@ func TestProjectorUpdatesKnownWeatherObservationWithoutRebirth(t *testing.T) {
 		t.Fatalf("indexing profile = %q", update.IndexingProfile)
 	}
 	requireTriple(t, update.AddTriples, cop.WeatherValue, 29.8)
+	requireTriple(t, update.AddTriples, cop.TimeObservationRecorded, observations[0].ValidTime)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLatitude, 38.9)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLongitude, -77.04)
 }
 
 func TestSpatialForecastProducesWeatherObservationsWithoutRuntimePromotion(t *testing.T) {
@@ -173,8 +179,12 @@ func TestSpatialForecastProducesWeatherObservationsWithoutRuntimePromotion(t *te
 	for _, mutation := range plan.Mutations {
 		create := requireCreate(t, mutation)
 		requireTriple(t, create.Triples, cop.WeatherQueryShape, weathercodec.QueryShapeCorridor)
+		requireTriple(t, create.Triples, cop.TimeObservationRecorded, first.ValidTime)
 		if hasPredicate(create.Triples, cop.HazardGeometry) {
 			t.Fatalf("spatial weather observation emitted hazard geometry: %+v", create.Triples)
+		}
+		if hasPredicate(create.Triples, cop.GeoLocationLatitude) || hasPredicate(create.Triples, cop.GeoLocationLongitude) {
+			t.Fatalf("corridor weather observation emitted point spatial index predicates: %+v", create.Triples)
 		}
 	}
 }

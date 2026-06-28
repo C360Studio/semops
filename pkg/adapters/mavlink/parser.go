@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,7 @@ type Packet struct {
 
 // Parser incrementally decodes MAVLink v1 and v2 frames from byte streams.
 type Parser struct {
+	mu           sync.Mutex
 	buffer       []byte
 	messageSpecs map[uint32]*MessageSpec
 	stats        ParsingStats
@@ -78,6 +80,9 @@ func NewParser() *Parser {
 
 // Parse appends data to the stream buffer and returns every complete valid packet.
 func (p *Parser) Parse(data []byte) ([]*Packet, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if len(data) > 0 {
 		p.buffer = append(p.buffer, data...)
 	}
@@ -456,11 +461,17 @@ func (p *Parser) registerStandardMessages() {
 
 // Stats returns a copy of the parser counters.
 func (p *Parser) Stats() ParsingStats {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	return p.stats
 }
 
 // ResetStats resets parser counters without removing registered message specs.
 func (p *Parser) ResetStats() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.stats = ParsingStats{LastReset: time.Now()}
 }
 
@@ -469,6 +480,9 @@ func (p *Parser) RegisterMessageSpec(spec *MessageSpec) {
 	if spec == nil {
 		return
 	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.messageSpecs[spec.ID] = spec
 }
 
@@ -481,6 +495,9 @@ func (p *Parser) calculateChecksum(dataWithoutSTX []byte, messageID uint32) uint
 }
 
 func (p *Parser) String() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	return fmt.Sprintf("Parser[specs=%d valid=%d invalid=%d unknown=%d]",
 		len(p.messageSpecs), p.stats.ValidPackets, p.stats.InvalidPackets, p.stats.UnknownMessages)
 }

@@ -232,6 +232,44 @@ func TestParserRejectsBadChecksum(t *testing.T) {
 	}
 }
 
+func TestParserSerializesConcurrentParseCalls(t *testing.T) {
+	generator := NewGenerator(1, 1)
+	frame, err := generator.GenerateHeartbeat(HeartbeatMessage{MavlinkVersion: Version2})
+	if err != nil {
+		t.Fatalf("generate heartbeat: %v", err)
+	}
+
+	parser := NewParser()
+	const workers = 8
+	const perWorker = 16
+	var wg sync.WaitGroup
+	errs := make(chan string, workers*perWorker)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < perWorker; j++ {
+				packets, err := parser.Parse(frame)
+				if err != nil {
+					errs <- err.Error()
+					continue
+				}
+				if len(packets) != 1 || packets[0].MessageID != MessageIDHeartbeat {
+					errs <- "unexpected parse result"
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	if parser.Stats().ValidPackets != workers*perWorker {
+		t.Fatalf("valid packets = %d, want %d", parser.Stats().ValidPackets, workers*perWorker)
+	}
+}
+
 func TestGeneratorSequenceIsConcurrentSafe(t *testing.T) {
 	generator := NewGenerator(1, 1)
 	const workers = 8

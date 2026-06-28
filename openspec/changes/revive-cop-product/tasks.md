@@ -241,6 +241,8 @@
 - [x] 5.115 Record the MAVSDK/offboard scope correction so it no longer blocks read-side MAVLink telemetry parity
 - [x] 5.116 Add canonical spatial-temporal index predicates to source-owned track projections while preserving
       product WKT predicates
+- [x] 5.117 Add canonical spatial-temporal index predicates to KLV sensor-footprint and weather signal evidence
+      while preserving product WKT predicates
 
 ## 6. Structural COP Stack
 

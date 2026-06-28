@@ -166,6 +166,7 @@ func (p *Projector) footprintTriples(footprintID string, frame Frame) []message.
 		p.triple(footprintID, cop.SensorFootprintMediaRef, frame.MediaRef, when),
 		p.triple(footprintID, cop.SensorFootprintPacketRef, frame.PacketRef, when),
 		p.triple(footprintID, cop.SensorFootprintObservedAt, when, when),
+		p.triple(footprintID, cop.TimeObservationRecorded, when, when),
 		p.triple(footprintID, cop.ProvenanceSource, "klv", when),
 		p.triple(footprintID, cop.ProvenanceConfidence, p.cfg.Confidence, when),
 		p.triple(footprintID, cop.ProvenanceObservedAt, when, when),
@@ -198,6 +199,10 @@ func (p *Projector) footprintTriples(footprintID string, frame Frame) []message.
 			wktPoint(*frame.FrameCenterLatitude, *frame.FrameCenterLongitude),
 			when,
 		))
+		triples = append(triples,
+			p.triple(footprintID, cop.GeoLocationLatitude, *frame.FrameCenterLatitude, when),
+			p.triple(footprintID, cop.GeoLocationLongitude, *frame.FrameCenterLongitude, when),
+		)
 	}
 	if frame.FrameCenterElevationMeters != nil {
 		triples = append(triples, p.triple(footprintID, cop.SensorFootprintFrameCenterElevation, *frame.FrameCenterElevationMeters, when))

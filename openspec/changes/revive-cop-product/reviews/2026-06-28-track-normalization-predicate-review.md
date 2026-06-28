@@ -25,7 +25,8 @@ shared vocabulary they expect.
 
 ## Residual Risk
 
-- KLV sensor footprints, weather query geometry, tasks, and advisories still use product WKT predicates only. Normalize
-  them in separate slices after their query pressure is concrete.
+- KLV sensor footprints and weather query geometry are covered by the follow-on
+  `2026-06-28-signal-geometry-normalization-review.md`; tasks and advisories still use product WKT predicates only.
+  Normalize them separately after their query pressure is concrete.
 - Server-side `graph.query.spatialTemporal` remains deferred until the existing prefix, spatial, temporal, and batch
   hydration composition proves insufficient.

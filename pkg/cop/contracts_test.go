@@ -306,6 +306,25 @@ func TestTrackContractsCarryCanonicalSpatialTemporalIndexPredicates(t *testing.T
 	}
 }
 
+func TestSignalGeometryContractsCarryCanonicalSpatialTemporalIndexPredicates(t *testing.T) {
+	contracts := []projection.Contract{
+		KLVSensorFootprintContract(),
+		WeatherObservationContract(),
+	}
+
+	for _, contract := range contracts {
+		for _, predicate := range []string{
+			GeoLocationLatitude,
+			GeoLocationLongitude,
+			TimeObservationRecorded,
+		} {
+			if !contractHasPredicate(contract, predicate) {
+				t.Fatalf("%s missing canonical index predicate %q", contract.Name, predicate)
+			}
+		}
+	}
+}
+
 func TestFusionOwnerBindsAlertAssociationAndReviewContracts(t *testing.T) {
 	owners := make([]string, 0)
 	for _, owned := range FirstPhaseOwnedContracts() {

@@ -49,6 +49,9 @@ func TestProjectorCreatesKLVSensorFootprintWithoutForeignEdges(t *testing.T) {
 	requireTriple(t, create.Triples, cop.SensorFootprintPacketRef, "klv://packet/deterministic/00000001")
 	requireTriple(t, create.Triples, cop.SensorFootprintSensorPosition, "POINT(-117.1234560 34.1234560)")
 	requireTriple(t, create.Triples, cop.SensorFootprintFrameCenter, "POINT(-117.1202220 34.1250010)")
+	requireTriple(t, create.Triples, cop.GeoLocationLatitude, 34.125001)
+	requireTriple(t, create.Triples, cop.GeoLocationLongitude, -117.120222)
+	requireTriple(t, create.Triples, cop.TimeObservationRecorded, sampleFrameTime())
 	requireTriple(t, create.Triples, cop.SensorFootprintSensorAzimuth, 87.5)
 	requireTriple(t, create.Triples, cop.SensorFootprintSensorElevation, -12.25)
 	requireTriple(t, create.Triples, cop.SensorFootprintGeometry, "POLYGON((-117.1219000 34.1262000, -117.1185500 34.1264000, -117.1184000 34.1238500, -117.1218000 34.1236000, -117.1219000 34.1262000))")
@@ -88,6 +91,29 @@ func TestProjectorUpdatesKnownKLVSensorFootprint(t *testing.T) {
 	}
 	requireTriple(t, update.AddTriples, cop.SensorFootprintPacketRef, "klv://packet/deterministic/00000002")
 	requireTriple(t, update.AddTriples, cop.SensorFootprintFrameCenter, "POINT(-117.1210000 34.1260000)")
+	requireTriple(t, update.AddTriples, cop.GeoLocationLatitude, 34.126)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLongitude, -117.121)
+	requireTriple(t, update.AddTriples, cop.TimeObservationRecorded, sampleFrameTime().Add(time.Second))
+}
+
+func TestProjectorDoesNotIndexKLVSensorPositionAsFootprintLocation(t *testing.T) {
+	frame := sampleFrame()
+	frame.FrameCenterLatitude = nil
+	frame.FrameCenterLongitude = nil
+
+	plan, err := NewProjector(Config{OwnerTokens: testOwnerTokens("test")}).ProjectFrame(frame)
+	if err != nil {
+		t.Fatalf("project sensor-position-only frame: %v", err)
+	}
+	if len(plan.Mutations) != 1 {
+		t.Fatalf("mutations = %d, want sensor-footprint birth", len(plan.Mutations))
+	}
+	create := requireCreate(t, plan.Mutations[0])
+	requireTriple(t, create.Triples, cop.SensorFootprintSensorPosition, "POINT(-117.1234560 34.1234560)")
+	requireTriple(t, create.Triples, cop.TimeObservationRecorded, sampleFrameTime())
+	if hasPredicate(create.Triples, cop.GeoLocationLatitude) || hasPredicate(create.Triples, cop.GeoLocationLongitude) {
+		t.Fatalf("sensor-position-only frame emitted footprint spatial index predicates: %+v", create.Triples)
+	}
 }
 
 func TestProjectorCanSeedBornStateForRestartReconciliation(t *testing.T) {
@@ -157,6 +183,15 @@ func requireTriple(t *testing.T, triples []message.Triple, predicate string, obj
 		}
 	}
 	t.Fatalf("missing triple %s=%v in %#v", predicate, object, triples)
+}
+
+func hasPredicate(triples []message.Triple, predicate string) bool {
+	for _, triple := range triples {
+		if triple.Predicate == predicate {
+			return true
+		}
+	}
+	return false
 }
 
 func testOwnerTokens(incarnation string) map[string]ownership.OwnerToken {

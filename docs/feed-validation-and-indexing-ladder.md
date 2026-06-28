@@ -1294,8 +1294,10 @@ Do not file all of these immediately. Use SemOps evidence first.
   [#370](https://github.com/C360Studio/semstreams/issues/370): `time.observation.recorded` is primary and `UpdatedAt`
   is fallback.
   Source-owned track projections adopted the normalized geo/time predicates in
-  `openspec/changes/revive-cop-product/reviews/2026-06-28-track-normalization-predicate-review.md`; KLV footprints,
-  weather geometry, tasks, and advisories remain separate future slices.
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-track-normalization-predicate-review.md`. KLV
+  sensor-footprint and weather signal evidence adopted the same point/time normalization in
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-signal-geometry-normalization-review.md`; task and advisory
+  geometry remain separate future slices.
 - Indexing profile/cardinality helper asks remain deferred by
   `openspec/changes/revive-cop-product/reviews/2026-06-28-semstreams-indexing-cardinality-review.md` until clean
   entity boundaries prove insufficient.
