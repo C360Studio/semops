@@ -464,10 +464,13 @@
 - [ ] 9.2 File escalation event/status vocabulary ask only after inference evidence proves the need
 - [x] 9.3 File provenance/confidence convention ask after feed contracts stabilize:
       SemStreams issue #367
-- [ ] 9.4 File spatial-temporal query helper asks from COP workflows
+- [x] 9.4 File spatial-temporal query helper asks from COP workflows:
+      SemStreams issue #368, answered by recipe PR #369; temporal event-time gap tracked by SemStreams issue #370
 - [x] 9.5 File raw-lane/current-state projection guidance after MAVLink and one non-MAVLink feed prove it:
       SemStreams issue #340, draft guide PR #344
 - [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need
+      Deferred by `reviews/2026-06-28-semstreams-indexing-cardinality-review.md`; current evidence says clean entity
+      boundaries plus ADR-054 profiles remain sufficient.
 - [x] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask:
       `reviews/2026-06-27-semstreams-upstream-ask-ownership-review.md`
 - [x] 9.8 Feed back owner-token ergonomics and capture typed-token/evidence-declaration response

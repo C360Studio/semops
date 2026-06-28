@@ -528,8 +528,10 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
   [SemStreams issue #367](https://github.com/C360Studio/semstreams/issues/367).
 - Indexing profile and cardinality guard improvements only after mixed COP feeds prove current `signal`, `control`,
   `content`, and `trace` profiles are insufficient with clean entity boundaries.
-- Spatial and temporal query helpers tuned for COP workflows: polygon intersection, nearest track, stale track,
-  and moving object windows.
+- Spatial and temporal query composition tuned for COP workflows. SemStreams issue #368 closed with recipe PR #369:
+  normalize indexed location into `geo.location.latitude` / `geo.location.longitude`, keep WKT/`cop.*` geometry for
+  rendering, compose prefix/spatial/temporal queries with batch hydration, and defer a server-side intersection helper
+  until measured cross-product need.
 - A documented raw-lane plus current-state projection pattern for high-rate telemetry:
   [SemStreams issue #340](https://github.com/C360Studio/semstreams/issues/340).
 - Component backpressure telemetry for hosted feed flows:

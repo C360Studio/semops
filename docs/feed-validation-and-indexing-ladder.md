@@ -1286,7 +1286,15 @@ Do not file all of these immediately. Use SemOps evidence first.
   [SemStreams issue #340](https://github.com/C360Studio/semstreams/issues/340).
 - Do provenance and confidence need standard predicates for source confidence versus fusion confidence?
 - Should object-store references and media-derived graph evidence have a canonical vocabulary?
-- Do spatial-temporal query helpers belong in SemStreams once MAVLink, TAK, CAP, and ADS-B all need them?
+- Spatial-temporal query helper guidance has enough repeated feed pressure for a non-blocking upstream ask:
+  [SemStreams issue #368](https://github.com/C360Studio/semstreams/issues/368), answered by recipe PR
+  [#369](https://github.com/C360Studio/semstreams/pull/369). SemOps should follow the normalization path:
+  publish canonical numeric `geo.location.latitude` / `geo.location.longitude` for spatial indexing while keeping WKT
+  product predicates for rendering. Event-time temporal indexing is tracked by SemStreams issue
+  [#370](https://github.com/C360Studio/semstreams/issues/370).
+- Indexing profile/cardinality helper asks remain deferred by
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-semstreams-indexing-cardinality-review.md` until clean
+  entity boundaries prove insufficient.
 
 ## Source Links
 

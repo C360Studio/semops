@@ -9,14 +9,21 @@ File one non-blocking SemStreams issue for provenance, confidence, observed-at, 
 projection contracts and graph-visible readback: SemStreams issue
 [#367](https://github.com/C360Studio/semstreams/issues/367).
 
+Update, 2026-06-28: task `9.4` was revisited after hosted fusion, weather, KLV, and COP prefix-discovery evidence
+sharpened the spatial-temporal query-helper need. It was filed as SemStreams issue
+[#368](https://github.com/C360Studio/semstreams/issues/368), closed as answered by recipe PR
+[#369](https://github.com/C360Studio/semstreams/pull/369), with event-time temporal indexing tracked by
+[#370](https://github.com/C360Studio/semstreams/issues/370). Task `9.6` remains deferred by
+`reviews/2026-06-28-semstreams-indexing-cardinality-review.md`.
+
 Defer the other remaining upstream candidates until they have sharper evidence:
 
 - Manifest/tier placement remains deferred until placement answers a concrete operator decision beyond health/source
   state.
 - Escalation event/status vocabulary remains deferred until semantic or statistical tier transitions generalize across
   more than one workflow.
-- Spatial-temporal query helpers remain deferred until SemOps has a query-bound failure rather than local parsing,
-  scoring, and readback code.
+- Spatial-temporal query helpers were deferred in this review, then superseded by the 2026-06-28 review and filed as
+  SemStreams issue `#368`; SemStreams answered with the normalization recipe in PR `#369`.
 - Indexing profile/cardinality helpers remain deferred until a mixed-feed fixture proves clean entity boundaries are
   insufficient.
 
@@ -84,4 +91,6 @@ graph-visible provenance, triple metadata, ObjectStore/raw references, and owner
 
 - Track SemStreams issue `#367` as a docs/pattern or optional helper ask.
 - Task `9.3` is complete with issue `#367`.
-- Keep tasks `9.1`, `9.2`, `9.4`, and `9.6` open until their defer conditions produce concrete evidence.
+- Keep tasks `9.1`, `9.2`, and `9.6` open until their defer conditions produce concrete evidence.
+- Task `9.4` is now closed by SemStreams issue `#368`, recipe PR `#369`, temporal follow-up `#370`, and the
+  `2026-06-28-semstreams-spatial-temporal-query-helper-review.md` superseding review.

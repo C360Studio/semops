@@ -140,17 +140,16 @@ target-edge fields. Native feed ACK/readback evidence stays under feed-owned con
 | Association review audit | `cop.association_review.reviewer_role`, `cop.association_review.authority_scope`, `cop.association_review.conflict_policy` | Local display or trusted-header authority gate |
 | Provenance | source, confidence, observed-at, source-ref predicates | Candidate upstream convention |
 
-## Upstream Candidates
+## Upstream SemStreams Asks
 
-Do not file upstream SemStreams vocabulary issues yet. Keep these as candidates until implementation pressure produces
-failing SemOps tests or awkward duplicated code:
+Keep SemOps-specific `cop.*` predicates local, but track reusable framework-shaped patterns as SemStreams asks once
+implementation pressure proves they are broader than this product:
 
-- A generic provenance source predicate.
-- A generic confidence predicate and confidence range convention.
-- A generic observed-at or source-time predicate.
-- A generic source-reference predicate for bounded raw lanes and replay artifacts.
-- Raw-lane plus current-state projection guidance for high-rate telemetry.
-- Spatial helper conventions for WKT/GeoJSON position, footprint, and hazard geometry predicates.
+- Provenance, confidence, observed-at, and source-reference conventions: filed as SemStreams issue #367.
+- Raw-lane plus current-state projection guidance for high-rate telemetry: filed as SemStreams issue #340.
+- Spatial-temporal query helper guidance for WKT/GeoJSON position, footprint, weather, and current-state track
+  workflows: filed as SemStreams issue #368, answered by recipe PR #369, with event-time temporal indexing tracked by
+  SemStreams issue #370.
 
 ## Test Gates
 
