@@ -363,10 +363,15 @@ func (p *Projector) trackTriples(event cotcodec.Event, sourceRef string) []messa
 	base = append(base,
 		p.triple(trackID, cop.TrackNativeID, nativeID(event.UID), event),
 		p.triple(trackID, cop.TrackObservedAt, observedAt(event), event),
+		p.triple(trackID, cop.TimeObservationRecorded, observedAt(event), event),
 		p.triple(trackID, cop.TrackStatus, statusForEvent(event, trackKind(event)), event),
 	)
 	if event.Point != nil {
-		base = append(base, p.triple(trackID, cop.TrackPosition, wktPoint(event.Point), event))
+		base = append(base,
+			p.triple(trackID, cop.TrackPosition, wktPoint(event.Point), event),
+			p.triple(trackID, cop.GeoLocationLatitude, event.Point.Lat, event),
+			p.triple(trackID, cop.GeoLocationLongitude, event.Point.Lon, event),
+		)
 	}
 	if event.HasTrack {
 		base = append(base, p.triple(trackID, cop.TrackVelocity, courseSpeed(event), event))

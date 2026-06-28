@@ -65,7 +65,11 @@ func TestProjectorBirthsSourceAssetBeforeTAKTrack(t *testing.T) {
 	requireTriple(t, trackCreate.Triples, cop.TrackSource, assetCreate.Entity.ID)
 	requireTriple(t, trackCreate.Triples, cop.TrackNativeID, "cot.uid.ANDROID-ALPHA")
 	requireTriple(t, trackCreate.Triples, cop.TrackStatus, "active.operator")
+	requireTriple(t, trackCreate.Triples, cop.TrackObservedAt, seedTime())
+	requireTriple(t, trackCreate.Triples, cop.TimeObservationRecorded, seedTime())
 	requireTriple(t, trackCreate.Triples, cop.TrackPosition, "POINT(-77.0350000 38.8920000)")
+	requireTriple(t, trackCreate.Triples, cop.GeoLocationLatitude, 38.892)
+	requireTriple(t, trackCreate.Triples, cop.GeoLocationLongitude, -77.035)
 	requireTriple(t, trackCreate.Triples, cop.ProvenanceSourceRef, "cot://raw/tak-unit/00000001")
 }
 
@@ -115,8 +119,41 @@ func TestProjectorUpdatesKnownTrackWithoutRebirth(t *testing.T) {
 		t.Fatal("track updates must not re-emit source foreign edge after born-first create")
 	}
 	requireTriple(t, update.AddTriples, cop.TrackStatus, "active.air-track")
+	requireTriple(t, update.AddTriples, cop.TimeObservationRecorded, seedTime())
 	requireTriple(t, update.AddTriples, cop.TrackPosition, "POINT(-77.0300000 38.9200000)")
+	requireTriple(t, update.AddTriples, cop.GeoLocationLatitude, 38.92)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLongitude, -77.03)
 	requireTriple(t, update.AddTriples, cop.TrackVelocity, "COURSE_SPEED_MPS(90.00 12.50)")
+}
+
+func TestProjectorDoesNotEmitSpatialIndexPredicatesWithoutCoTPoint(t *testing.T) {
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
+	event := cotcodec.Event{
+		UID:       "AIRCRAFT-1",
+		Type:      cotcodec.TypeAirTrack,
+		Time:      seedTime(),
+		Stale:     seedTime().Add(2 * time.Minute),
+		Callsign:  "EAGLE-1",
+		HasTrack:  true,
+		CourseDeg: 271.456,
+		SpeedMPS:  17.234,
+	}
+
+	plan, err := projector.ProjectEvent(event, "cot://raw/tak-unit/00000010")
+	if err != nil {
+		t.Fatalf("project air track without point: %v", err)
+	}
+	if len(plan.Mutations) != 2 {
+		t.Fatalf("mutations = %d, want asset birth + track birth", len(plan.Mutations))
+	}
+	trackCreate := requireCreate(t, plan.Mutations[1])
+	if hasPredicate(trackCreate.Triples, cop.TrackPosition) ||
+		hasPredicate(trackCreate.Triples, cop.GeoLocationLatitude) ||
+		hasPredicate(trackCreate.Triples, cop.GeoLocationLongitude) {
+		t.Fatalf("pointless CoT track emitted spatial predicates: %+v", trackCreate.Triples)
+	}
+	requireTriple(t, trackCreate.Triples, cop.TrackVelocity, "COURSE_SPEED_MPS(271.46 17.23)")
+	requireTriple(t, trackCreate.Triples, cop.TimeObservationRecorded, seedTime())
 }
 
 func TestProjectorProjectsMarkersToControlAndGeoChatToContent(t *testing.T) {

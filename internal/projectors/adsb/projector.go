@@ -164,12 +164,17 @@ func (p *Projector) trackTriples(trackID string, state adsbcodec.StateVector, so
 		p.triple(trackID, cop.TrackNativeID, nativeID(state), state),
 		p.triple(trackID, cop.TrackStatus, statusForState(state), state),
 		p.triple(trackID, cop.TrackObservedAt, observedAt(state), state),
+		p.triple(trackID, cop.TimeObservationRecorded, observedAt(state), state),
 		p.triple(trackID, cop.ProvenanceSource, "adsb", state),
 		p.triple(trackID, cop.ProvenanceConfidence, p.confidenceForState(state), state),
 		p.triple(trackID, cop.ProvenanceObservedAt, observedAt(state), state),
 	}
 	if state.HasPosition() {
-		triples = append(triples, p.triple(trackID, cop.TrackPosition, wktPoint(*state.Latitude, *state.Longitude), state))
+		triples = append(triples,
+			p.triple(trackID, cop.TrackPosition, wktPoint(*state.Latitude, *state.Longitude), state),
+			p.triple(trackID, cop.GeoLocationLatitude, *state.Latitude, state),
+			p.triple(trackID, cop.GeoLocationLongitude, *state.Longitude, state),
+		)
 	}
 	if velocity := velocityForState(state); velocity != "" {
 		triples = append(triples, p.triple(trackID, cop.TrackVelocity, velocity, state))

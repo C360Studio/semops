@@ -52,6 +52,8 @@
       returns with no legacy text-body conflict parsing
 - [x] 2.26 Rerun the one-command COP stack smoke on `v1.0.0-beta.115`, including hosted snapshot, component metrics,
       direct MAVLink/CoT/CAP born-first graph smokes, and SAPIENT preflight
+- [x] 2.27 Bump SemOps to SemStreams `v1.0.0-beta.119` to adopt event-time temporal indexing for
+      `time.observation.recorded`
 
 ## 3. COP Model And Governance
 
@@ -237,6 +239,8 @@
       ArduPilot/Gazebo as later physics-rich evidence
 - [x] 5.114 Record the SemOps-owned ArduPilot SITL image passing the motion-required hosted `ardupilot-stack` smoke
 - [x] 5.115 Record the MAVSDK/offboard scope correction so it no longer blocks read-side MAVLink telemetry parity
+- [x] 5.116 Add canonical spatial-temporal index predicates to source-owned track projections while preserving
+      product WKT predicates
 
 ## 6. Structural COP Stack
 
@@ -465,7 +469,8 @@
 - [x] 9.3 File provenance/confidence convention ask after feed contracts stabilize:
       SemStreams issue #367
 - [x] 9.4 File spatial-temporal query helper asks from COP workflows:
-      SemStreams issue #368, answered by recipe PR #369; temporal event-time gap tracked by SemStreams issue #370
+      SemStreams issue #368, answered by recipe PR #369; temporal event-time gap #370 landed in
+      SemStreams `v1.0.0-beta.119`
 - [x] 9.5 File raw-lane/current-state projection guidance after MAVLink and one non-MAVLink feed prove it:
       SemStreams issue #340, draft guide PR #344
 - [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need

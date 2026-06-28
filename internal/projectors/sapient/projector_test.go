@@ -53,7 +53,10 @@ func TestProjectorCreatesSAPIENTTrackForAbsoluteLocationDetection(t *testing.T) 
 	requireTriple(t, create.Triples, cop.TrackNativeID, "sapient.object.01ggyfbaxh4vyrqyex7s3xgk3h.node.a8654cdf-4328-47de-81fa-c495589e30c8.report.01ggyfbaxgdg7agahrz6xsny12")
 	requireTriple(t, create.Triples, cop.TrackStatus, "active.detection.teststate")
 	requireTriple(t, create.Triples, cop.TrackObservedAt, sampleObservedAt())
+	requireTriple(t, create.Triples, cop.TimeObservationRecorded, sampleObservedAt())
 	requireTriple(t, create.Triples, cop.TrackPosition, "POINT(-1.8223767 51.1739726)")
+	requireTriple(t, create.Triples, cop.GeoLocationLatitude, 51.1739726374)
+	requireTriple(t, create.Triples, cop.GeoLocationLongitude, -1.82237671048)
 	requireTriple(t, create.Triples, cop.ProvenanceSource, "sapient")
 	requireTriple(t, create.Triples, cop.ProvenanceConfidence, 0.91)
 	requireTriple(t, create.Triples, cop.ProvenanceSourceRef, "sapient://raw/fixture/detection-001")
@@ -87,6 +90,9 @@ func TestProjectorUpdatesKnownSAPIENTDetectionWithoutRebirth(t *testing.T) {
 		t.Fatalf("update indexing profile = %q", update.IndexingProfile)
 	}
 	requireTriple(t, update.AddTriples, cop.TrackPosition, "POINT(-1.8123767 51.1739726)")
+	requireTriple(t, update.AddTriples, cop.GeoLocationLatitude, 51.1739726374)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLongitude, -1.81237671048)
+	requireTriple(t, update.AddTriples, cop.TimeObservationRecorded, sampleObservedAt())
 }
 
 func TestProjectorRejectsAmbiguousSAPIENTCoordinateSystems(t *testing.T) {

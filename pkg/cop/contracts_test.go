@@ -285,6 +285,27 @@ func TestStrictTolerantAndFusionOwnershipModes(t *testing.T) {
 	}
 }
 
+func TestTrackContractsCarryCanonicalSpatialTemporalIndexPredicates(t *testing.T) {
+	contracts := []projection.Contract{
+		MAVLinkTrackContract(),
+		TAKTrackContract(),
+		ADSBTrackContract(),
+		SAPIENTTrackContract(),
+	}
+
+	for _, contract := range contracts {
+		for _, predicate := range []string{
+			GeoLocationLatitude,
+			GeoLocationLongitude,
+			TimeObservationRecorded,
+		} {
+			if !contractHasPredicate(contract, predicate) {
+				t.Fatalf("%s missing canonical index predicate %q", contract.Name, predicate)
+			}
+		}
+	}
+}
+
 func TestFusionOwnerBindsAlertAssociationAndReviewContracts(t *testing.T) {
 	owners := make([]string, 0)
 	for _, owned := range FirstPhaseOwnedContracts() {

@@ -15,9 +15,8 @@ per-product/per-source predicate extraction. Spatial indexing stays on canonical
 `geo.location.longitude`; product WKT and `cop.*` geometry predicates remain for rendering and inspection.
 
 The triage also produced SemStreams issue
-[#370](https://github.com/C360Studio/semstreams/issues/370), which tracks changing the temporal index to key on
-`time.observation.recorded` first, with framework-managed `UpdatedAt` as fallback. Until that lands, temporal queries
-are write-time/freshness keyed because graph-ingest stamps `UpdatedAt` during ingest.
+[#370](https://github.com/C360Studio/semstreams/issues/370), which landed in SemStreams `v1.0.0-beta.119`. The
+temporal index now keys on `time.observation.recorded` first, with framework-managed `UpdatedAt` as fallback.
 
 SemStreams already ships useful primitives:
 

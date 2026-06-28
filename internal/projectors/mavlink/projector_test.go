@@ -71,6 +71,10 @@ func TestProjectorBirthsSourceAssetBeforeTrackWithStrictForeignEdge(t *testing.T
 	requireTriple(t, trackCreate.Triples, cop.TrackSource, assetCreate.Entity.ID)
 	requireTriple(t, trackCreate.Triples, cop.TrackNativeID, "mavlink.system.42.component.7")
 	requireTriple(t, trackCreate.Triples, cop.TrackStatus, "active.armed")
+	requireTriple(t, trackCreate.Triples, cop.TimeObservationRecorded, time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
+	if hasPredicate(trackCreate.Triples, cop.GeoLocationLatitude) || hasPredicate(trackCreate.Triples, cop.GeoLocationLongitude) {
+		t.Fatalf("heartbeat track birth emitted spatial index predicates: %+v", trackCreate.Triples)
+	}
 }
 
 func TestProjectorUpdatesKnownTrackWithoutRebirth(t *testing.T) {
@@ -127,7 +131,41 @@ func TestProjectorUpdatesKnownTrackWithoutRebirth(t *testing.T) {
 		t.Fatal("track updates must not re-emit source foreign edge after born-first create")
 	}
 	requireTriple(t, update.AddTriples, cop.TrackPosition, "POINT(-77.0000002 38.9000001)")
+	requireTriple(t, update.AddTriples, cop.GeoLocationLatitude, 38.9000001)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLongitude, -77.0000002)
+	requireTriple(t, update.AddTriples, cop.TimeObservationRecorded, time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
 	requireTriple(t, update.AddTriples, cop.TrackVelocity, "NED_CMPS(321 -12 7)")
+}
+
+func TestProjectorDoesNotEmitSpatialIndexPredicatesWithoutMAVLinkPosition(t *testing.T) {
+	projector := NewProjector(Config{OwnerTokens: testOwnerTokens("test")})
+	packet := &mavcodec.Packet{
+		MessageID:   mavcodec.MessageIDGlobalPositionInt,
+		SystemID:    42,
+		ComponentID: 7,
+		Timestamp:   time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC),
+		ParsedFields: map[string]any{
+			"vx": int16(321),
+			"vy": int16(-12),
+			"vz": int16(7),
+		},
+	}
+
+	plan, err := projector.ProjectPacket(packet)
+	if err != nil {
+		t.Fatalf("project velocity-only position packet: %v", err)
+	}
+	if len(plan.Mutations) != 2 {
+		t.Fatalf("mutations = %d, want asset birth + track birth", len(plan.Mutations))
+	}
+	trackCreate := requireCreate(t, plan.Mutations[1])
+	if hasPredicate(trackCreate.Triples, cop.TrackPosition) ||
+		hasPredicate(trackCreate.Triples, cop.GeoLocationLatitude) ||
+		hasPredicate(trackCreate.Triples, cop.GeoLocationLongitude) {
+		t.Fatalf("velocity-only packet emitted spatial predicates: %+v", trackCreate.Triples)
+	}
+	requireTriple(t, trackCreate.Triples, cop.TrackVelocity, "NED_CMPS(321 -12 7)")
+	requireTriple(t, trackCreate.Triples, cop.TimeObservationRecorded, time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
 }
 
 func TestProjectorCanSeedBornStateForRestartReconciliation(t *testing.T) {
@@ -171,6 +209,9 @@ func TestProjectorCanSeedBornStateForRestartReconciliation(t *testing.T) {
 		t.Fatal("update after seeded birth must not repeat strict source edge")
 	}
 	requireTriple(t, update.AddTriples, cop.TrackPosition, "POINT(-77.0000002 38.9000001)")
+	requireTriple(t, update.AddTriples, cop.GeoLocationLatitude, 38.9000001)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLongitude, -77.0000002)
+	requireTriple(t, update.AddTriples, cop.TimeObservationRecorded, time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC))
 }
 
 func TestProjectorDoesNotCommitBirthStateUntilMarked(t *testing.T) {

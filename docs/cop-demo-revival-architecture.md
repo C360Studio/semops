@@ -333,9 +333,9 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - SemOps now exposes product-runtime component health and flow metrics at `/metrics` via Caddy. The one-command smoke
   asserts `semops_component_*` Prometheus samples for the hosted MAVLink, TAK/CoT, ADS-B, and SAPIENT component flow
   when those feeds are enabled, and includes the SAPIENT projector only when graph smoke is explicitly enabled.
-- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.115`, retaining
-  the beta.113 prefix-discovery contract, the beta.114 `HTTPClientPort` component boundary, and the beta.115 ADR-060
-  graph-mutation error contract.
+- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.119`, retaining
+  the beta.113 prefix-discovery contract, beta.114 `HTTPClientPort` component boundary, beta.115 ADR-060
+  graph-mutation error contract, and beta.119 event-time temporal index behavior.
 - The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,
   `go test ./...`, `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
 - The 2026-06-20 beta.114 adoption added a SemOps contract test for `component.HTTPClientPort`, confirming outbound
@@ -531,7 +531,8 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
 - Spatial and temporal query composition tuned for COP workflows. SemStreams issue #368 closed with recipe PR #369:
   normalize indexed location into `geo.location.latitude` / `geo.location.longitude`, keep WKT/`cop.*` geometry for
   rendering, compose prefix/spatial/temporal queries with batch hydration, and defer a server-side intersection helper
-  until measured cross-product need.
+  until measured cross-product need. SemOps track projections now emit the normalized geo/time predicates; see
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-track-normalization-predicate-review.md`.
 - A documented raw-lane plus current-state projection pattern for high-rate telemetry:
   [SemStreams issue #340](https://github.com/C360Studio/semstreams/issues/340).
 - Component backpressure telemetry for hosted feed flows:
@@ -544,6 +545,8 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
 - Unified graph mutation error signaling is now a shipped SemStreams contract in `v1.0.0-beta.115`: mutation failures
   return classified Go errors with stable graph error codes and optional detail, while `MutationResponse` is success
   only.
+- Temporal indexing now keys on `time.observation.recorded` first, with `UpdatedAt` fallback, in SemStreams
+  `v1.0.0-beta.119`.
 - Edge/core sync guidance for structural edge nodes and inference-heavy core nodes.
 - Governance helpers for tolerant-reader adapters that append evidence without replacing owned predicates.
 

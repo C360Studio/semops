@@ -45,6 +45,10 @@ const (
 	TrackYaw        = "cop.track.yaw"
 	TrackBattery    = "cop.track.battery_remaining"
 
+	GeoLocationLatitude     = "geo.location.latitude"
+	GeoLocationLongitude    = "geo.location.longitude"
+	TimeObservationRecorded = "time.observation.recorded"
+
 	AssociationKind             = "cop.association.kind"
 	AssociationStatus           = "cop.association.status"
 	AssociationPrimaryTrack     = "cop.association.primary_track"
@@ -222,6 +226,9 @@ func MAVLinkTrackContract() projection.Contract {
 				TrackVelocity,
 				TrackStatus,
 				TrackObservedAt,
+				GeoLocationLatitude,
+				GeoLocationLongitude,
+				TimeObservationRecorded,
 				TrackNativeID,
 				TrackRoll,
 				TrackPitch,
@@ -327,6 +334,9 @@ func TAKTrackContract() projection.Contract {
 				TrackVelocity,
 				TrackStatus,
 				TrackObservedAt,
+				GeoLocationLatitude,
+				GeoLocationLongitude,
+				TimeObservationRecorded,
 				TrackNativeID,
 				ProvenanceSource,
 				ProvenanceConfidence,
@@ -358,6 +368,9 @@ func ADSBTrackContract() projection.Contract {
 				TrackVelocity,
 				TrackStatus,
 				TrackObservedAt,
+				GeoLocationLatitude,
+				GeoLocationLongitude,
+				TimeObservationRecorded,
 				TrackNativeID,
 				ProvenanceSource,
 				ProvenanceConfidence,
@@ -383,6 +396,9 @@ func SAPIENTTrackContract() projection.Contract {
 				TrackPosition,
 				TrackStatus,
 				TrackObservedAt,
+				GeoLocationLatitude,
+				GeoLocationLongitude,
+				TimeObservationRecorded,
 				TrackNativeID,
 				ProvenanceSource,
 				ProvenanceConfidence,

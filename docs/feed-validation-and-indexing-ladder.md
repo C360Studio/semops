@@ -1290,8 +1290,12 @@ Do not file all of these immediately. Use SemOps evidence first.
   [SemStreams issue #368](https://github.com/C360Studio/semstreams/issues/368), answered by recipe PR
   [#369](https://github.com/C360Studio/semstreams/pull/369). SemOps should follow the normalization path:
   publish canonical numeric `geo.location.latitude` / `geo.location.longitude` for spatial indexing while keeping WKT
-  product predicates for rendering. Event-time temporal indexing is tracked by SemStreams issue
-  [#370](https://github.com/C360Studio/semstreams/issues/370).
+  product predicates for rendering. Event-time temporal indexing landed in SemStreams `v1.0.0-beta.119` from issue
+  [#370](https://github.com/C360Studio/semstreams/issues/370): `time.observation.recorded` is primary and `UpdatedAt`
+  is fallback.
+  Source-owned track projections adopted the normalized geo/time predicates in
+  `openspec/changes/revive-cop-product/reviews/2026-06-28-track-normalization-predicate-review.md`; KLV footprints,
+  weather geometry, tasks, and advisories remain separate future slices.
 - Indexing profile/cardinality helper asks remain deferred by
   `openspec/changes/revive-cop-product/reviews/2026-06-28-semstreams-indexing-cardinality-review.md` until clean
   entity boundaries prove insufficient.

@@ -11,7 +11,7 @@ they have source-scoped current-state entities with location and observed-time e
 Filed upstream as [SemStreams issue #368](https://github.com/C360Studio/semstreams/issues/368). SemStreams closed the
 issue as answered by the spatial-temporal recipe PR
 [#369](https://github.com/C360Studio/semstreams/pull/369) and opened temporal-index follow-up
-[#370](https://github.com/C360Studio/semstreams/issues/370).
+[#370](https://github.com/C360Studio/semstreams/issues/370), which landed in SemStreams `v1.0.0-beta.119`.
 
 ## Upstream Outcome
 
@@ -25,9 +25,8 @@ SemStreams chose the normalization path rather than configurable per-product pre
 - A future `graph.query.spatialTemporal` helper is gated behind measured cross-product need, not built up front.
 
 The review also identified a real temporal-index gap. SemStreams issue
-[#370](https://github.com/C360Studio/semstreams/issues/370) tracks making `time.observation.recorded` the primary
-temporal index key, with framework-managed `UpdatedAt` as fallback. Until that lands, the temporal index is
-write-time/freshness keyed because graph-ingest stamps `UpdatedAt` on every write.
+[#370](https://github.com/C360Studio/semstreams/issues/370) landed in `v1.0.0-beta.119`: the temporal index now uses
+`time.observation.recorded` as the primary event-time key, with framework-managed `UpdatedAt` as fallback.
 
 ## Downstream Evidence
 

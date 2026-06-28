@@ -301,6 +301,7 @@ func (p *Projector) trackTriples(packet *mavcodec.Packet) []message.Triple {
 	base := []message.Triple{
 		triple(trackID, cop.TrackNativeID, nativeID(packet), packet, p.cfg.Confidence),
 		triple(trackID, cop.TrackObservedAt, observedAt(packet), packet, p.cfg.Confidence),
+		triple(trackID, cop.TimeObservationRecorded, observedAt(packet), packet, p.cfg.Confidence),
 		triple(trackID, cop.ProvenanceSource, "mavlink", packet, p.cfg.Confidence),
 		triple(trackID, cop.ProvenanceConfidence, p.cfg.Confidence, packet, p.cfg.Confidence),
 		triple(trackID, cop.ProvenanceObservedAt, observedAt(packet), packet, p.cfg.Confidence),
@@ -322,7 +323,11 @@ func (p *Projector) trackTriples(packet *mavcodec.Packet) []message.Triple {
 		vz, vzOK := field[int16](packet, "vz")
 		hasSpecificField := false
 		if latOK && lonOK {
-			base = append(base, triple(trackID, cop.TrackPosition, wktPoint(lat, lon), packet, p.cfg.Confidence))
+			base = append(base,
+				triple(trackID, cop.TrackPosition, wktPoint(lat, lon), packet, p.cfg.Confidence),
+				triple(trackID, cop.GeoLocationLatitude, geoCoordinate(lat), packet, p.cfg.Confidence),
+				triple(trackID, cop.GeoLocationLongitude, geoCoordinate(lon), packet, p.cfg.Confidence),
+			)
 			hasSpecificField = true
 		}
 		if vxOK && vyOK && vzOK {
@@ -549,7 +554,11 @@ func triple(subject, predicate string, object any, packet *mavcodec.Packet, conf
 }
 
 func wktPoint(latE7, lonE7 int32) string {
-	return "POINT(" + coord(float64(lonE7)/1e7) + " " + coord(float64(latE7)/1e7) + ")"
+	return "POINT(" + coord(geoCoordinate(lonE7)) + " " + coord(geoCoordinate(latE7)) + ")"
+}
+
+func geoCoordinate(valueE7 int32) float64 {
+	return float64(valueE7) / 1e7
 }
 
 func coord(v float64) string {

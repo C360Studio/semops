@@ -52,7 +52,10 @@ func TestProjectorCreatesADSBTrackWithoutAssociationEdges(t *testing.T) {
 	requireTriple(t, create.Triples, cop.TrackNativeID, "adsb.icao24.a1b2c3.callsign.n123ab.source.ads-b")
 	requireTriple(t, create.Triples, cop.TrackStatus, "active.aircraft")
 	requireTriple(t, create.Triples, cop.TrackObservedAt, sampleObservedAt())
+	requireTriple(t, create.Triples, cop.TimeObservationRecorded, sampleObservedAt())
 	requireTriple(t, create.Triples, cop.TrackPosition, "POINT(-77.0400000 38.9000000)")
+	requireTriple(t, create.Triples, cop.GeoLocationLatitude, 38.9)
+	requireTriple(t, create.Triples, cop.GeoLocationLongitude, -77.04)
 	requireTriple(t, create.Triples, cop.TrackVelocity, "AIR_MOTION_MPS(71.50 180.25 -1.20)")
 	requireTriple(t, create.Triples, cop.ProvenanceSource, "adsb")
 	requireTriple(t, create.Triples, cop.ProvenanceConfidence, 0.85)
@@ -99,6 +102,9 @@ func TestProjectorUpdatesKnownTrackWithoutRebirth(t *testing.T) {
 		t.Fatal("ADS-B updates must not emit association/source foreign edges")
 	}
 	requireTriple(t, update.AddTriples, cop.TrackPosition, "POINT(-77.0410000 38.9010000)")
+	requireTriple(t, update.AddTriples, cop.GeoLocationLatitude, 38.901)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLongitude, -77.041)
+	requireTriple(t, update.AddTriples, cop.TimeObservationRecorded, sampleObservedAt().Add(10*time.Second))
 	requireTriple(t, update.AddTriples, cop.TrackVelocity, "AIR_MOTION_MPS(75.00 180.25 -1.20)")
 }
 
@@ -122,7 +128,11 @@ func TestProjectorPreservesMissingPositionWithoutFakeCoordinates(t *testing.T) {
 	if hasPredicate(create.Triples, cop.TrackPosition) {
 		t.Fatalf("missing-position state emitted fake position: %+v", create.Triples)
 	}
+	if hasPredicate(create.Triples, cop.GeoLocationLatitude) || hasPredicate(create.Triples, cop.GeoLocationLongitude) {
+		t.Fatalf("missing-position state emitted spatial index predicates: %+v", create.Triples)
+	}
 	requireTriple(t, create.Triples, cop.TrackNativeID, "adsb.icao24.a1b2c3.callsign.n123ab.source.unknown")
+	requireTriple(t, create.Triples, cop.TimeObservationRecorded, sampleObservedAt().Add(7*time.Second))
 	requireTriple(t, create.Triples, cop.ProvenanceConfidence, 0.5)
 	requireTriple(t, create.Triples, cop.ProvenanceSourceRef, "opensky://states/a1b2c3/no-position")
 }
@@ -149,6 +159,9 @@ func TestProjectorCanSeedBornStateForRestartReconciliation(t *testing.T) {
 		t.Fatal("seeded ADS-B update must not emit association/source foreign edges")
 	}
 	requireTriple(t, update.AddTriples, cop.TrackPosition, "POINT(-77.0400000 38.9000000)")
+	requireTriple(t, update.AddTriples, cop.GeoLocationLatitude, 38.9)
+	requireTriple(t, update.AddTriples, cop.GeoLocationLongitude, -77.04)
+	requireTriple(t, update.AddTriples, cop.TimeObservationRecorded, sampleObservedAt())
 }
 
 func sampleState() adsbcodec.StateVector {
