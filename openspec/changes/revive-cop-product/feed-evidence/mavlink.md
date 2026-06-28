@@ -384,6 +384,10 @@ Acceptance:
 - Dedicated `ardupilot-stack` mode stamps the ArduPilot simulator family, defaults to `ArduCopter`, defaults to
   motion-required telemetry, and blocks unless a real ArduPilot source is available locally or explicitly routed in.
   [done as fail-closed readiness evidence only]
+- The ArduPilot lane has an opt-in managed Docker path for reviewed ArduPilot-family images. It has no default image,
+  can pull only when `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL=true`, can run a custom
+  `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND`, and otherwise starts `sim_vehicle.py` on the SemOps Compose network
+  with telemetry routed to `semops:14550`. [done as setup support; 5.95 remains open until a real pass]
 - Dedicated `mavsdk-offboard-stack` mode stamps the MAVSDK simulator family, defaults to `mavsdk_server udp://:14540`,
   defaults to motion-required telemetry, and blocks unless a real MAVSDK/offboard source is available locally or
   explicitly routed in. [done as fail-closed readiness evidence only]

@@ -165,8 +165,27 @@ Useful ArduPilot knobs:
 - `SEMOPS_MAVLINK_SITL_SIMULATOR_NAME`: optional explicit simulator/version label.
 - `SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND`: optional explicit launch command; default is
   `sim_vehicle.py -v <vehicle> --out=udp:127.0.0.1:14550`.
+- `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE`: optional reviewed ArduPilot-family image to start as a managed
+  Compose-network source. There is no default image.
+- `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND`: optional command to run inside that image; default is
+  `sim_vehicle.py -v <vehicle> --out=udp:semops:14550`.
+- `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL=true`: opt in only after reviewing the image. Without this, a missing
+  configured image blocks before the stack smoke.
+- `SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT`: default `20`.
 - `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true`: allowed only when an ArduPilot source is already routing MAVLink to
   SemOps from outside the local PATH/Docker environment.
+
+For a reviewed ArduPilot image that already contains `sim_vehicle.py`, the managed path is:
+
+```bash
+SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack \
+SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE=<reviewed-ardupilot-image> \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+The helper starts that container on the SemOps Compose network before the external MAVLink SITL smoke, routes the
+default `sim_vehicle.py` output to `semops:14550`, and stops the container during cleanup unless
+`SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR=true`.
 
 Current local result: on 2026-06-28T00:15:11Z UTC, `ardupilot-stack` blocked with
 `result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `sim_vehicle.py` and no

@@ -32,10 +32,22 @@ PX4_HEADLESS_NETWORK_TARGET="${SEMOPS_MAVLINK_SITL_PX4_NETWORK_TARGET:-semops}"
 PX4_HEADLESS_BOOT_WAIT="${SEMOPS_MAVLINK_SITL_PX4_BOOT_WAIT:-20}"
 PX4_HEADLESS_PULL="${SEMOPS_MAVLINK_SITL_DOCKER_PULL:-false}"
 PX4_HEADLESS_REPLACE="${SEMOPS_MAVLINK_SITL_DOCKER_REPLACE:-false}"
-PX4_HEADLESS_KEEP="${SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR:-false}"
+KEEP_SIMULATOR="${SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR:-false}"
+PX4_HEADLESS_KEEP="$KEEP_SIMULATOR"
 PX4_HEADLESS_STARTED=false
 
 ARDUPILOT_VEHICLE="${SEMOPS_MAVLINK_SITL_ARDUPILOT_VEHICLE:-ArduCopter}"
+ARDUPILOT_DOCKER_IMAGE="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE:-}"
+ARDUPILOT_DOCKER_CONTAINER="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_CONTAINER:-semops-ardupilot-sitl}"
+ARDUPILOT_DOCKER_NETWORK="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_NETWORK:-${SEMOPS_COP_PROJECT:-semops-cop}_default}"
+ARDUPILOT_DOCKER_NETWORK_TARGET="${SEMOPS_MAVLINK_SITL_ARDUPILOT_NETWORK_TARGET:-semops}"
+ARDUPILOT_DOCKER_ROUTE="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_ROUTE:-$ARDUPILOT_DOCKER_NETWORK_TARGET:${SEMOPS_MAVLINK_UDP_CONTAINER_PORT:-14550}}"
+ARDUPILOT_DOCKER_COMMAND="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND:-}"
+ARDUPILOT_DOCKER_SHELL="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_SHELL:-/bin/bash}"
+ARDUPILOT_DOCKER_BOOT_WAIT="${SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT:-20}"
+ARDUPILOT_DOCKER_PULL="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL:-false}"
+ARDUPILOT_DOCKER_REPLACE="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_REPLACE:-false}"
+ARDUPILOT_STARTED=false
 MAVSDK_OFFBOARD_ROUTE="${SEMOPS_MAVLINK_SITL_MAVSDK_OFFBOARD_ROUTE:-udp://:14540}"
 
 DEFAULT_SNAPSHOT_URL="http://127.0.0.1:${SEMOPS_CADDY_HOST_PORT:-8080}/api/cop/snapshot"
@@ -84,6 +96,11 @@ have_px4_headless_image() {
   have_command docker && docker image inspect "$PX4_HEADLESS_IMAGE" >/dev/null 2>&1
 }
 
+have_ardupilot_docker_image() {
+  [[ -n "$ARDUPILOT_DOCKER_IMAGE" ]] && have_command docker &&
+    docker image inspect "$ARDUPILOT_DOCKER_IMAGE" >/dev/null 2>&1
+}
+
 docker_image_matches() {
   local pattern="$1"
   have_command docker && docker image ls --format '{{.Repository}}:{{.Tag}}' 2>/dev/null |
@@ -107,7 +124,9 @@ have_family_simulator_tooling() {
       have_command px4 || have_px4_headless_image || docker_image_matches 'px4'
       ;;
     ardupilot)
-      have_command sim_vehicle.py || docker_image_matches 'ardupilot|arducopter'
+      have_command sim_vehicle.py || have_ardupilot_docker_image ||
+        { [[ -n "$ARDUPILOT_DOCKER_IMAGE" ]] && bool_is_true "$ARDUPILOT_DOCKER_PULL"; } ||
+        docker_image_matches 'ardupilot|arducopter'
       ;;
     mavsdk)
       have_command mavsdk_server || docker_image_matches 'mavsdk'
@@ -150,6 +169,14 @@ write_evidence() {
     echo "px4_headless_boot_wait=$PX4_HEADLESS_BOOT_WAIT"
     echo "px4_headless_pull_allowed=$PX4_HEADLESS_PULL"
     echo "ardupilot_vehicle=$ARDUPILOT_VEHICLE"
+    echo "ardupilot_docker_image=$ARDUPILOT_DOCKER_IMAGE"
+    echo "ardupilot_docker_image_present=$(if have_ardupilot_docker_image; then echo true; else echo false; fi)"
+    echo "ardupilot_docker_container=$ARDUPILOT_DOCKER_CONTAINER"
+    echo "ardupilot_docker_network=$ARDUPILOT_DOCKER_NETWORK"
+    echo "ardupilot_docker_network_target=$ARDUPILOT_DOCKER_NETWORK_TARGET"
+    echo "ardupilot_docker_route=$ARDUPILOT_DOCKER_ROUTE"
+    echo "ardupilot_docker_boot_wait=$ARDUPILOT_DOCKER_BOOT_WAIT"
+    echo "ardupilot_docker_pull_allowed=$ARDUPILOT_DOCKER_PULL"
     echo "mavsdk_offboard_route=$MAVSDK_OFFBOARD_ROUTE"
     echo "expected_track_id=$EXPECTED_TRACK_ID"
     echo "snapshot_url=$SNAPSHOT_URL"
@@ -229,11 +256,16 @@ print_preflight() {
     docker image ls --format '  {{.Repository}}:{{.Tag}}' 2>/dev/null |
       grep -Ei 'px4|mavsdk|ardupilot|arducopter' || echo "  none"
   fi
-  if [[ "$MODE" == "ardupilot-stack" ]]; then
+  if [[ "$MODE" == "ardupilot-stack" || "$MODE" == "ardupilot-start" ]]; then
     echo
     echo "ArduPilot parity lane:"
     echo "  vehicle: $ARDUPILOT_VEHICLE"
     echo "  default command: $(ardupilot_command_string)"
+    if [[ -n "$ARDUPILOT_DOCKER_IMAGE" ]]; then
+      echo "  managed Docker image: $ARDUPILOT_DOCKER_IMAGE"
+      echo "  managed Docker command: $(ardupilot_docker_command_string)"
+      echo "  docker network: $ARDUPILOT_DOCKER_NETWORK"
+    fi
     echo "  motion required by default: true"
   fi
   if [[ "$MODE" == "mavsdk-offboard-stack" ]]; then
@@ -346,8 +378,69 @@ ardupilot_command_string() {
   printf 'sim_vehicle.py -v %q --out=udp:%q\n' "$ARDUPILOT_VEHICLE" "$SIMULATOR_ROUTE"
 }
 
+ardupilot_inner_command_string() {
+  if [[ -n "$ARDUPILOT_DOCKER_COMMAND" ]]; then
+    printf '%s\n' "$ARDUPILOT_DOCKER_COMMAND"
+    return
+  fi
+  printf 'sim_vehicle.py -v %q --out=udp:%q\n' "$ARDUPILOT_VEHICLE" "$ARDUPILOT_DOCKER_ROUTE"
+}
+
+ardupilot_docker_command_string() {
+  printf 'docker run -d --rm --name %q --network %q %q %q -lc %q\n' \
+    "$ARDUPILOT_DOCKER_CONTAINER" \
+    "$ARDUPILOT_DOCKER_NETWORK" \
+    "$ARDUPILOT_DOCKER_IMAGE" \
+    "$ARDUPILOT_DOCKER_SHELL" \
+    "$(ardupilot_inner_command_string)"
+}
+
 mavsdk_offboard_command_string() {
   printf 'mavsdk_server %q\n' "$MAVSDK_OFFBOARD_ROUTE"
+}
+
+ensure_ardupilot_docker_image() {
+  if [[ -z "$ARDUPILOT_DOCKER_IMAGE" ]]; then
+    return
+  fi
+  if have_ardupilot_docker_image; then
+    return
+  fi
+  if bool_is_true "$ARDUPILOT_DOCKER_PULL"; then
+    docker pull "$ARDUPILOT_DOCKER_IMAGE"
+    return
+  fi
+  cat >&2 <<EOF
+ArduPilot Docker image is not local: $ARDUPILOT_DOCKER_IMAGE
+
+Pull it explicitly, or let this helper pull it after you have reviewed the image:
+  docker pull $ARDUPILOT_DOCKER_IMAGE
+EOF
+  cat >&2 <<'EOF'
+  SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL=true \
+    SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE=<reviewed-ardupilot-image> \
+    SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack \
+    bash scripts/mavlink-sitl-gate.sh
+
+There is intentionally no default ArduPilot image. Pick a reviewed ArduPilot-family image that includes sim_vehicle.py
+or provide SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND.
+EOF
+  write_evidence "blocked_missing_ardupilot_docker_image" 2
+  exit 2
+}
+
+ardupilot_container_exists() {
+  docker ps -a --format '{{.Names}}' | grep -Fxq "$ARDUPILOT_DOCKER_CONTAINER"
+}
+
+ardupilot_container_running() {
+  docker ps --format '{{.Names}}' | grep -Fxq "$ARDUPILOT_DOCKER_CONTAINER"
+}
+
+ardupilot_container_on_network() {
+  docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' \
+    "$ARDUPILOT_DOCKER_CONTAINER" 2>/dev/null |
+    grep -Fxq "$ARDUPILOT_DOCKER_NETWORK"
 }
 
 ensure_px4_headless_image() {
@@ -470,6 +563,101 @@ cleanup_px4_headless_container() {
     return
   fi
   docker stop "$PX4_HEADLESS_CONTAINER" >/dev/null 2>&1 || true
+}
+
+start_ardupilot_container() {
+  if [[ -z "$ARDUPILOT_DOCKER_IMAGE" ]]; then
+    echo "SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE is required for ardupilot-start mode." >&2
+    write_evidence "blocked_missing_ardupilot_docker_image" 2
+    exit 2
+  fi
+  if ! have_command docker; then
+    echo "Docker is required for managed ArduPilot Docker mode." >&2
+    write_evidence "blocked_missing_docker" 2
+    exit 2
+  fi
+  ensure_ardupilot_docker_image
+  if ! docker network inspect "$ARDUPILOT_DOCKER_NETWORK" >/dev/null 2>&1; then
+    cat >&2 <<EOF
+Managed ArduPilot Docker mode requires an existing Docker network: $ARDUPILOT_DOCKER_NETWORK
+
+The ardupilot-stack mode creates this by starting the COP stack first. For a standalone ArduPilot source, start it
+outside this helper and use SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true only after it is already routing MAVLink to
+SemOps.
+EOF
+    write_evidence "blocked_missing_ardupilot_docker_network" 2
+    exit 2
+  fi
+  if ardupilot_container_running; then
+    if ! ardupilot_container_on_network; then
+      if bool_is_true "$ARDUPILOT_DOCKER_REPLACE"; then
+        docker rm -f "$ARDUPILOT_DOCKER_CONTAINER" >/dev/null
+      else
+        cat >&2 <<EOF
+ArduPilot container is already running but is not attached to $ARDUPILOT_DOCKER_NETWORK: $ARDUPILOT_DOCKER_CONTAINER
+
+Stop it yourself or set:
+  SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_REPLACE=true
+EOF
+        write_evidence "blocked_ardupilot_container_wrong_network" 2
+        exit 2
+      fi
+    else
+      echo "Reusing running ArduPilot container: $ARDUPILOT_DOCKER_CONTAINER"
+      return
+    fi
+  fi
+  if ardupilot_container_exists; then
+    if bool_is_true "$ARDUPILOT_DOCKER_REPLACE"; then
+      docker rm "$ARDUPILOT_DOCKER_CONTAINER" >/dev/null
+    else
+      cat >&2 <<EOF
+ArduPilot container name already exists but is not running: $ARDUPILOT_DOCKER_CONTAINER
+
+Remove it yourself or set:
+  SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_REPLACE=true
+EOF
+      write_evidence "blocked_existing_ardupilot_container" 2
+      exit 2
+    fi
+  fi
+  docker run -d --rm \
+    --name "$ARDUPILOT_DOCKER_CONTAINER" \
+    --network "$ARDUPILOT_DOCKER_NETWORK" \
+    "$ARDUPILOT_DOCKER_IMAGE" \
+    "$ARDUPILOT_DOCKER_SHELL" -lc "$(ardupilot_inner_command_string)" >/dev/null
+  ARDUPILOT_STARTED=true
+  echo "Started ArduPilot container: $ARDUPILOT_DOCKER_CONTAINER"
+  echo "Waiting $ARDUPILOT_DOCKER_BOOT_WAIT for ArduPilot SITL boot..."
+  sleep "$ARDUPILOT_DOCKER_BOOT_WAIT"
+}
+
+cleanup_ardupilot_container() {
+  if [[ "$ARDUPILOT_STARTED" != "true" ]] || bool_is_true "$KEEP_SIMULATOR"; then
+    return
+  fi
+  docker stop "$ARDUPILOT_DOCKER_CONTAINER" >/dev/null 2>&1 || true
+}
+
+ardupilot_start_hook_command_string() {
+  printf 'cd %q && ' "$ROOT"
+  printf 'SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-start'
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_VEHICLE=%q' "$ARDUPILOT_VEHICLE"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE=%q' "$ARDUPILOT_DOCKER_IMAGE"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_CONTAINER=%q' "$ARDUPILOT_DOCKER_CONTAINER"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_NETWORK=%q' "$ARDUPILOT_DOCKER_NETWORK"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_NETWORK_TARGET=%q' "$ARDUPILOT_DOCKER_NETWORK_TARGET"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_ROUTE=%q' "$ARDUPILOT_DOCKER_ROUTE"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND=%q' "$ARDUPILOT_DOCKER_COMMAND"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_SHELL=%q' "$ARDUPILOT_DOCKER_SHELL"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT=%q' "$ARDUPILOT_DOCKER_BOOT_WAIT"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL=%q' "$ARDUPILOT_DOCKER_PULL"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_REPLACE=%q' "$ARDUPILOT_DOCKER_REPLACE"
+  printf ' bash scripts/mavlink-sitl-gate.sh'
+}
+
+ardupilot_stop_hook_command_string() {
+  printf 'docker stop %q' "$ARDUPILOT_DOCKER_CONTAINER"
 }
 
 require_simulator_attestation() {
@@ -854,6 +1042,18 @@ EOF
   fi
 }
 
+run_ardupilot_start_only() {
+  if [[ -n "$SIMULATOR_FAMILY" && "$SIMULATOR_FAMILY" != "ardupilot" ]]; then
+    cat >&2 <<EOF
+ardupilot-start mode requires SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY=ardupilot, got $SIMULATOR_FAMILY
+EOF
+    write_evidence "blocked_bad_ardupilot_family" 2
+    exit 2
+  fi
+  SIMULATOR_FAMILY="ardupilot"
+  start_ardupilot_container
+}
+
 run_ardupilot_stack_smoke() {
   if [[ -n "$SIMULATOR_FAMILY" && "$SIMULATOR_FAMILY" != "ardupilot" ]]; then
     cat >&2 <<EOF
@@ -867,10 +1067,35 @@ EOF
     SIMULATOR_NAME="ArduPilot SITL $ARDUPILOT_VEHICLE"
   fi
   if [[ -z "$SIMULATOR_COMMAND" ]]; then
-    SIMULATOR_COMMAND="$(ardupilot_command_string)"
+    if [[ -n "$ARDUPILOT_DOCKER_IMAGE" ]]; then
+      SIMULATOR_COMMAND="$(ardupilot_docker_command_string)"
+    else
+      SIMULATOR_COMMAND="$(ardupilot_command_string)"
+    fi
+  fi
+  if [[ -n "$ARDUPILOT_DOCKER_IMAGE" && -z "$SIMULATOR_VERSION" ]]; then
+    SIMULATOR_VERSION="${ARDUPILOT_DOCKER_IMAGE##*:}"
   fi
   if [[ -z "${SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION:-}" ]]; then
     REQUIRE_MOTION=true
+  fi
+  if [[ -n "$ARDUPILOT_DOCKER_IMAGE" ]]; then
+    trap cleanup_ardupilot_container EXIT
+    ensure_ardupilot_docker_image
+    ARDUPILOT_STARTED=true
+    local keep_stack="${SEMOPS_COP_KEEP_STACK:-}"
+    if bool_is_true "$KEEP_SIMULATOR"; then
+      keep_stack="true"
+    fi
+    require_simulator_attestation
+    if run_stack_smoke "" "$(ardupilot_start_hook_command_string)" "$(ardupilot_stop_hook_command_string)" "$keep_stack"; then
+      write_evidence "passed" 0
+    else
+      status=$?
+      write_evidence "failed" "$status"
+      exit "$status"
+    fi
+    return
   fi
   require_simulator_attestation
   if run_stack_smoke; then
@@ -916,7 +1141,7 @@ case "$MODE" in
       SIMULATOR_FAMILY="px4"
     fi
     ;;
-  ardupilot-stack)
+  ardupilot-stack|ardupilot-start)
     if [[ -z "$SIMULATOR_FAMILY" ]]; then
       SIMULATOR_FAMILY="ardupilot"
     fi
@@ -924,7 +1149,14 @@ case "$MODE" in
       SIMULATOR_NAME="ArduPilot SITL $ARDUPILOT_VEHICLE"
     fi
     if [[ -z "$SIMULATOR_COMMAND" ]]; then
-      SIMULATOR_COMMAND="$(ardupilot_command_string)"
+      if [[ -n "$ARDUPILOT_DOCKER_IMAGE" ]]; then
+        SIMULATOR_COMMAND="$(ardupilot_docker_command_string)"
+      else
+        SIMULATOR_COMMAND="$(ardupilot_command_string)"
+      fi
+    fi
+    if [[ -n "$ARDUPILOT_DOCKER_IMAGE" && -z "$SIMULATOR_VERSION" ]]; then
+      SIMULATOR_VERSION="${ARDUPILOT_DOCKER_IMAGE##*:}"
     fi
     if [[ -z "${SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION:-}" ]]; then
       REQUIRE_MOTION=true
@@ -982,6 +1214,9 @@ case "$MODE" in
   ardupilot-stack)
     run_ardupilot_stack_smoke
     ;;
+  ardupilot-start)
+    run_ardupilot_start_only
+    ;;
   mavsdk-offboard-stack)
     run_mavsdk_offboard_stack_smoke
     ;;
@@ -993,7 +1228,7 @@ case "$MODE" in
     ;;
   *)
     echo "Unsupported SEMOPS_MAVLINK_SITL_GATE_MODE=$MODE" >&2
-    echo "Expected preflight, focused, stack, px4-headless-stack, px4-headless-start, ardupilot-stack, mavsdk-offboard-stack, command-preflight, or command-live-sim." >&2
+    echo "Expected preflight, focused, stack, px4-headless-stack, px4-headless-start, ardupilot-stack, ardupilot-start, mavsdk-offboard-stack, command-preflight, or command-live-sim." >&2
     write_evidence "blocked_bad_mode" 2
     exit 2
     ;;

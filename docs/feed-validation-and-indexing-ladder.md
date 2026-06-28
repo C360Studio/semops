@@ -271,6 +271,10 @@ Mock or harness:
 - The helper also has an explicit `ardupilot-stack` mode. It stamps `simulator_family=ardupilot`, defaults to
   `ArduCopter`, defaults to motion-required telemetry, and blocks unless `sim_vehicle.py`, an ArduPilot/ArduCopter
   Docker image, or an explicit remote-source override is present.
+- The ArduPilot lane now has an opt-in managed Docker path. It requires an explicit reviewed
+  `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE`, has no default image, can run a custom
+  `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND`, and otherwise routes the default `sim_vehicle.py` command to the
+  hosted SemOps Compose-network alias `semops:14550`.
 - The helper also has an explicit `mavsdk-offboard-stack` mode. It stamps `simulator_family=mavsdk`, defaults to
   `mavsdk_server udp://:14540`, defaults to motion-required telemetry, and blocks unless `mavsdk_server`, a
   MAVSDK-family Docker image, or an explicit remote-source override is present.

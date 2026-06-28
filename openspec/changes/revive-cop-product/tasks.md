@@ -228,6 +228,8 @@
       dependency
 - [x] 5.108 Refresh ArduPilot and MAVSDK/offboard fail-closed parity evidence after the PX4 simulator command-readback
       pass while keeping 5.95 and 5.96 open
+- [x] 5.109 Add an opt-in managed ArduPilot Docker startup path for reviewed images while keeping 5.95 open until a
+      real ArduPilot stack smoke passes
 
 ## 6. Structural COP Stack
 

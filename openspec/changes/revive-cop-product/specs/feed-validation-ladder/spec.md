@@ -333,6 +333,10 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** any ArduPilot-specific helper mode SHALL stamp `simulator_family=ardupilot`, default to motion-required
   telemetry, and block unless `sim_vehicle.py`, an ArduPilot-family Docker image, or an explicit remote-source override
   is present
+- **AND** any managed ArduPilot Docker helper SHALL require an explicit reviewed ArduPilot-family image and SHALL NOT
+  choose or pull a default public image
+- **AND** any managed ArduPilot Docker helper MAY attach that image to the SemOps Compose network and route the default
+  `sim_vehicle.py` telemetry output to the hosted `semops` service alias
 - **AND** any MAVSDK/offboard-specific helper mode SHALL stamp `simulator_family=mavsdk`, default to motion-required
   telemetry, and block unless `mavsdk_server`, a MAVSDK-family Docker image, or an explicit remote-source override is
   present
