@@ -162,6 +162,7 @@ write_evidence() {
     echo "px4_headless_vehicle=$PX4_HEADLESS_VEHICLE"
     echo "px4_headless_world=$PX4_HEADLESS_WORLD"
     echo "px4_headless_host_qgc=$PX4_HEADLESS_HOST_QGC"
+    echo "px4_headless_host_primary_peer=$PX4_HEADLESS_HOST_QGC"
     echo "px4_headless_host_api=$PX4_HEADLESS_HOST_API"
     echo "px4_headless_route_mode=$PX4_HEADLESS_ROUTE_MODE"
     echo "px4_headless_docker_network=$PX4_HEADLESS_DOCKER_NETWORK"
@@ -326,9 +327,12 @@ px4_headless_args() {
     cat >&2 <<'EOF'
 SEMOPS_MAVLINK_SITL_PX4_HOST_QGC requires SEMOPS_MAVLINK_SITL_PX4_HOST_API.
 
+SEMOPS_MAVLINK_SITL_PX4_HOST_QGC is the legacy helper name for PX4's primary MAVLink peer target. SemOps still uses
+this as a COP feed route, not as a product boundary change.
+
 The headless PX4 entrypoint accepts either:
   [HOST_API]
-  [HOST_QGC HOST_API]
+  [HOST_PRIMARY_PEER HOST_API]
 EOF
     write_evidence "blocked_bad_px4_headless_hosts" 2
     exit 2

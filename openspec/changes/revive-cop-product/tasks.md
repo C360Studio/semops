@@ -230,6 +230,8 @@
       pass while keeping 5.95 and 5.96 open
 - [x] 5.109 Add an opt-in managed ArduPilot Docker startup path for reviewed images while keeping 5.95 open until a
       real ArduPilot stack smoke passes
+- [x] 5.110 Clarify MAVLink peer-route language so PX4/Gazebo command evidence cannot be mistaken for a product
+      boundary change
 
 ## 6. Structural COP Stack
 

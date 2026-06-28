@@ -149,8 +149,8 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
 - 2026-06-27: SemOps hosted runtime and Compose stack gained dual MAVLink UDP listener coverage. `compose.cop.yml`
   defaults to primary `:14550` plus extra `:14540`, and `go test ./cmd/semops-mavlink-command ./internal/app
   ./internal/smoke/mavlink` passed after adding the extra-listener config/runtime tests.
-- 2026-06-27: command-gate diagnostics improved the MVP transmitter helper with optional GCS heartbeat-first and reply
-  forwarding knobs, and focused command codec tests passed:
+- 2026-06-27: command-gate diagnostics improved the MVP transmitter helper with optional MAVLink peer heartbeat-first
+  and reply forwarding knobs, and focused command codec tests passed:
   `go test ./pkg/adapters/mavlink -run
   'TestGeneratedCommandLongUsesCanonicalWireOrderAndParses|TestGeneratedRequestMessageCommandIsReadSideMVPShape|TestGeneratedCommandAckParsesResult'
   -count=1 -v`.
@@ -160,9 +160,10 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   produced no direct helper replies and no graph-visible command task.
 - 2026-06-27: the helper gained raw-lane command observation diagnostics and a learned-route port override without
   adding MAVSDK as a product dependency. This made the PX4 route shape explicit: learn the PX4 host from raw telemetry,
-  send the reviewed read-side command to the GCS UDP port `18570`, and observe ACKs on SemOps' raw lane because PX4
-  sends command replies to its configured SemOps partner rather than the helper socket. The transmitter therefore
-  reports `direct_command_acks=0` while raw-lane counters report `raw_command_acks` and `raw_last_ack_result`.
+  send the reviewed read-side command to the command peer UDP port `18570`, and observe ACKs on SemOps' raw lane
+  because PX4 sends command replies to its configured SemOps partner rather than the helper socket. The transmitter
+  therefore reports `direct_command_acks=0` while raw-lane counters report `raw_command_acks` and
+  `raw_last_ack_result`.
 - 2026-06-27: `command-live-sim` passed against the local PX4/Gazebo headless image after adding MAVLink task prefix
   discovery to the COP graph provider. The reviewed native transmitter ran from the SemOps network namespace, sent
   three bounded `MAV_CMD_REQUEST_MESSAGE` attempts for `AUTOPILOT_VERSION` using `-learn-route-port 18570`, and

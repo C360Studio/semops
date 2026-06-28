@@ -8,10 +8,10 @@ Scope: `px4-headless-stack` route reliability for the hosted COP external SITL t
 
 Accept the managed Compose-network route as the default PX4/Gazebo headless Docker path for the SemOps stack gate.
 
-The earlier host-targeted run used `host.docker.internal` for both PX4 QGC and API targets, but the hosted COP snapshot
-continued to show only the deterministic system `42` fixture track. Starting the PX4 container on `semops-cop_default`
-and targeting the Compose service alias `semops` delivered the external PX4 system `1` telemetry through the hosted
-SemOps MAVLink UDP component.
+The earlier host-targeted run used `host.docker.internal` for both PX4 primary-peer and API targets, but the hosted COP
+snapshot continued to show only the deterministic system `42` fixture track. Starting the PX4 container on
+`semops-cop_default` and targeting the Compose service alias `semops` delivered the external PX4 system `1` telemetry
+through the hosted SemOps MAVLink UDP component.
 
 Keep live command/control open. The same route hardening is sufficient for telemetry, but a follow-up
 `command-live-sim` attempt did not produce native command readback evidence through the hosted MAVLink chain.
@@ -45,8 +45,8 @@ Keep live command/control open. The same route hardening is sufficient for telem
 ## Command Follow-Up
 
 After the telemetry pass, `command-live-sim` was rerun against the same local PX4/Gazebo headless image. The command
-helper was expanded with two diagnostic options: send a GCS heartbeat before the read-side `AUTOPILOT_VERSION` request,
-and forward any simulator replies observed by the helper to a SemOps UDP listener.
+helper was expanded with two diagnostic options: send a MAVLink peer heartbeat before the read-side
+`AUTOPILOT_VERSION` request, and forward any simulator replies observed by the helper to a SemOps UDP listener.
 
 Attempts covered host-published PX4 endpoints and an in-network helper route from the Compose network. Baseline PX4
 telemetry stayed visible in the COP snapshot, but the helper reported `forwarded_replies=0`, the command-control

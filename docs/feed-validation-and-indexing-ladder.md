@@ -258,7 +258,7 @@ Mock or harness:
   `SEMOPS_COP_MAVLINK_SYSTEM_IDS`, defaulting to systems `1,42` for PX4-style system ID 1 plus the deterministic
   generated-frame system 42.
 - The hosted MAVLink runtime can bind multiple UDP listeners. The COP Compose stack defaults to primary listener
-  `:14550` and extra/offboard listener `:14540`, so PX4 QGroundControl-style and offboard/MAVSDK-style return paths
+  `:14550` and extra/offboard listener `:14540`, so PX4 primary-peer and offboard/MAVSDK-style return paths
   can feed the same MAVLink input -> decoder -> projector chain.
 - 2026-06-23 local readiness preflight found no `px4`, `mavsdk_server`, or `sim_vehicle.py` on PATH and no local
   PX4/MAVSDK/ArduPilot simulator Docker image. The external SITL smoke skip behavior passed, and focused
@@ -306,7 +306,7 @@ Mock or harness:
   a kept-stack diagnostic confirmed both hosted SemOps MAVLink UDP listeners were exposed.
 - 2026-06-27 earlier PX4/Gazebo command attempts stayed blocked while the helper learned the offboard telemetry route
   `172.19.0.9:14580` and saw no direct replies. The fix was to learn the PX4 host from raw telemetry, override only
-  the destination to the PX4 GCS command port `18570`, and observe ACKs on SemOps' raw lane, because PX4 sends command
+  the destination to the PX4 command peer port `18570`, and observe ACKs on SemOps' raw lane, because PX4 sends command
   replies to its configured SemOps partner rather than the helper socket.
 - 2026-06-27 `command-live-sim` passed with the reviewed native transmitter and no MAVSDK dependency. The transmitter
   ran from the SemOps network namespace, sent three bounded `MAV_CMD_REQUEST_MESSAGE` attempts for

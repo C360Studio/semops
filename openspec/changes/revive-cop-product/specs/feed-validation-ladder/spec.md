@@ -343,7 +343,7 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** any managed PX4 Docker stack helper MAY attach the simulator to the SemOps Compose network and route
   simulator telemetry to the hosted `semops` service alias when host UDP routing is unreliable
 - **AND** the hosted SemOps runtime MAY expose multiple MAVLink UDP listeners when the simulator has separate
-  QGroundControl-style and offboard/MAVSDK-style return paths, provided those listeners feed the same governed
+  primary-peer and offboard/MAVSDK-style return paths, provided those listeners feed the same governed
   MAVLink component chain
 - **AND** such a managed Compose-network helper SHALL stop the simulator before tearing down the Compose network unless
   the operator explicitly requests keeping the stack or simulator alive

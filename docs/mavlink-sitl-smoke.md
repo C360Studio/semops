@@ -20,7 +20,7 @@ conformance.
 For the dev/demo lane, use `jonasvautherin/px4-gazebo-headless:1.17.0`. It is an Apache-2.0, unofficial
 PX4/Gazebo headless image that packages a runnable simulator instead of only a PX4 build toolchain. The upstream
 README says the current supported PX4 release is `v1.17.0`, the default vehicle is `gz_x500`, and the container can
-send MAVLink to a named peer on UDP `14550` for QGroundControl and `14540` for offboard/MAVSDK-style clients.
+send MAVLink to named peers on UDP `14550` for the primary peer route and `14540` for the offboard/API peer route.
 
 The SemOps managed stack path defaults to `SEMOPS_MAVLINK_SITL_PX4_ROUTE_MODE=compose-network`. In that mode the
 helper starts the COP stack first, starts PX4 on the Compose network `semops-cop_default`, points both PX4 target
@@ -29,7 +29,7 @@ UDP host-port hairpin behavior for the simulator-to-SemOps path.
 
 The hosted SemOps runtime can bind multiple MAVLink UDP listeners. The COP Compose stack defaults to
 `SEMOPS_MAVLINK_UDP_LISTEN_ADDR=:14550` and `SEMOPS_MAVLINK_UDP_EXTRA_LISTEN_ADDRS=:14540`, publishing both UDP ports
-to the host. That lets PX4's QGroundControl-style and offboard/MAVSDK-style telemetry return paths enter the same
+to the host. That lets PX4's primary-peer and offboard/MAVSDK-style telemetry return paths enter the same
 MAVLink input -> decoder -> projector component chain.
 
 The SemOps helper keeps the pull opt-in because the image is large:
@@ -68,8 +68,9 @@ Useful optional knobs:
   `compose-network` mode this also keeps the COP stack alive so the Docker network remains available.
 - `SEMOPS_MAVLINK_SITL_DOCKER_REPLACE`: set `true` to remove a stopped container with the configured name.
 - `SEMOPS_MAVLINK_SITL_PX4_HOST_API`: optional explicit target IP for PX4 UDP `14540`.
-- `SEMOPS_MAVLINK_SITL_PX4_HOST_QGC`: optional explicit target IP for PX4 UDP `14550`; requires
-  `SEMOPS_MAVLINK_SITL_PX4_HOST_API`.
+- `SEMOPS_MAVLINK_SITL_PX4_HOST_QGC`: legacy helper name for the optional explicit target IP for PX4's primary
+  MAVLink peer route on UDP `14550`; requires `SEMOPS_MAVLINK_SITL_PX4_HOST_API`. This is still a SemOps COP feed
+  route, not a product boundary change.
 - `SEMOPS_MAVLINK_UDP_EXTRA_LISTEN_ADDRS`: extra hosted SemOps MAVLink UDP listeners; Compose defaults to `:14540`.
 - `SEMOPS_MAVLINK_UDP_OFFBOARD_HOST_PORT`: host UDP port published for the default extra listener; default `14540`.
 
@@ -271,7 +272,10 @@ explicitly reviewed simulator transmitter command only after that preflight pass
 until both the MAVLink `COMMAND_ACK` task and the post-command MAVLink track refresh are visible:
 
 ```bash
-COMMAND_TX="go run ./cmd/semops-mavlink-command -confirm-simulator-only -send-heartbeat-first -route 127.0.0.1:<simulator-command-port>"
+COMMAND_TX="go run ./cmd/semops-mavlink-command \
+  -confirm-simulator-only \
+  -send-heartbeat-first \
+  -route 127.0.0.1:<simulator-command-port>"
 
 SEMOPS_MAVLINK_SITL_GATE_MODE=command-live-sim \
 SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL command smoke" \
@@ -312,10 +316,11 @@ the graph. Direct graph smokes remain valid for MAVLink projection-contract cove
 
 For MVP, keep the allowlist narrow. The provided `semops-mavlink-command` helper only sends
 `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`; it is a read-side command used to prove command ACK/readback through
-the COP graph, not mission execution or vehicle control. The helper can optionally send a GCS heartbeat first and can
-forward any simulator replies it receives to a SemOps UDP listener for diagnostics. It remains a native Go helper; it
-does not embed MAVSDK. The useful pattern borrowed from mature MAVLink clients is command-session discipline: stable
-sender identity, heartbeat, bounded retries, incrementing `COMMAND_LONG.confirmation`, and explicit reply observation:
+the COP graph, not mission execution or vehicle control. The helper can optionally send a MAVLink peer heartbeat first
+and can forward any simulator replies it receives to a SemOps UDP listener for diagnostics. It remains a native Go
+helper; it does not embed MAVSDK. The useful pattern borrowed from mature MAVLink clients is command-session
+discipline: stable sender identity, heartbeat, bounded retries, incrementing `COMMAND_LONG.confirmation`, and explicit
+reply observation:
 
 ```bash
 go run ./cmd/semops-mavlink-command \
@@ -360,8 +365,8 @@ When `command-live-sim` runs a transmitter, it writes transmitter stdout/stderr 
 
 Current command-gate result, 2026-06-27: after rebuilding SemOps with MAVLink task prefix discovery, `command-live-sim`
 passed against the local PX4/Gazebo headless image. The reviewed native transmitter ran from the SemOps network
-namespace, learned the PX4 host from raw telemetry, overrode the destination to the PX4 GCS port `18570`, and observed
-PX4 ACKs on the SemOps raw lane. The transmitter log recorded `command_attempts=3`, `direct_command_acks=0`,
+namespace, learned the PX4 host from raw telemetry, overrode the destination to the PX4 command peer port `18570`, and
+observed PX4 ACKs on the SemOps raw lane. The transmitter log recorded `command_attempts=3`, `direct_command_acks=0`,
 `forwarded_replies=0`, `raw_command_acks=3`, and `raw_last_ack_result=accepted`; the command-control COP snapshot
 smoke then found `c360.edge-compose.cop.mavlink.task.system-1-command-512-target-255-190` and a fresh post-command
 MAVLink track. Evidence:

@@ -191,7 +191,7 @@ MVP into mission upload, mode control, arm/disarm, or offboard command authority
 priority.
 
 Not claimed yet:
-Full GCS/autopilot management, hardware certification, or complete mission-command product.
+Full autopilot or fleet-management control, hardware certification, or complete mission-command product.
 
 ### DJI
 
