@@ -70,7 +70,7 @@
 - [x] 4.4 Replace old message/processor wiring with SemStreams projection writes
 - [x] 4.5 Project decoded MAVLink current vehicle state into signal-profiled SemStreams mutation plans
 - [x] 4.6 Add real-frame codec tests that do not mock away MAVLink decoding
-- [x] 4.7 Add PX4 SITL or MAVSDK smoke evidence after the current module/toolchain migration is stable
+- [x] 4.7 Add PX4 SITL smoke evidence after the current module/toolchain migration is stable
 - [x] 4.8 Keep raw frames on a bounded lane and wire projection plans to live SemStreams graph writes
 - [x] 4.9 Add a tested SemStreams graph request/reply writer boundary for MAVLink projection plans
 - [x] 4.10 Add a bounded MAVLink raw frame lane with current-state source references
@@ -78,7 +78,7 @@
 - [x] 4.12 Add skipped-by-default MAVLink live graph smoke harness target
 - [x] 4.13 Add MAVLink restart create-conflict reconciliation for existing asset/track births
 - [x] 4.14 Add opt-in MAVLink UDP datagram transport reader for hosted runtime
-- [x] 4.15 Add skipped-by-default external PX4/MAVSDK/SITL telemetry smoke harness against the hosted COP snapshot
+- [x] 4.15 Add skipped-by-default external PX4/ArduPilot/SITL telemetry smoke harness against the hosted COP snapshot
 - [x] 4.16 Add a guarded MAVLink external SITL gate helper with preflight, simulator attestation, and ignored local
       evidence output
 - [x] 4.17 Add a preferred PX4/Gazebo headless Docker stack gate path while keeping the simulator evidence task open
@@ -203,7 +203,8 @@
 - [x] 5.94 Record COMMAND_ACK readback as governed control-task evidence while keeping live command transmit,
       priority, TTL, and CS API reconciliation gates open
 - [x] 5.95 Add explicit ArduPilot SITL telemetry parity evidence before claiming ArduPilot simulator interoperability
-- [ ] 5.96 Add MAVSDK/PX4 offboard parity evidence before claiming MAVSDK command/control or offboard interoperability
+- [x] 5.96 Defer MAVSDK/PX4 offboard parity to the full command/control lane before claiming MAVSDK command/control or
+      offboard interoperability
 - [x] 5.97 Add a safe live MAVLink command/control simulator gate with ACK and post-command state polling before native
       command authority claims
 - [x] 5.98 Add simulator-family evidence stamping so PX4 telemetry passes cannot satisfy ArduPilot, MAVSDK/offboard,
@@ -211,8 +212,7 @@
 - [x] 5.99 Add a fail-closed MAVLink command-control preflight that records safety posture while keeping native
       transmit blocked
 - [x] 5.100 Add an explicit fail-closed ArduPilot SITL parity mode so non-ArduPilot sources cannot satisfy the gate
-- [x] 5.101 Add an explicit fail-closed MAVSDK/PX4 offboard parity mode while keeping MAVSDK/offboard parity open
-      until a real offboard route passes the hosted COP stack smoke
+- [x] 5.101 Add an explicit fail-closed MAVSDK/PX4 offboard command-control mode for the future authority lane
 - [x] 5.102 Add a fail-closed MAVLink `command-live-sim` gate that requires a reviewed simulator transmitter and
       ACK/post-command COP snapshot polling before a real transmitter run can pass
 - [x] 5.103 Add the MVP MAVLink simulator transmitter helper as a single read-side `AUTOPILOT_VERSION` request command
@@ -236,6 +236,7 @@
 - [x] 5.113 Pivot first ArduPilot parity evidence to a SemOps-owned SITL-only Linux image while keeping
       ArduPilot/Gazebo as later physics-rich evidence
 - [x] 5.114 Record the SemOps-owned ArduPilot SITL image passing the motion-required hosted `ardupilot-stack` smoke
+- [x] 5.115 Record the MAVSDK/offboard scope correction so it no longer blocks read-side MAVLink telemetry parity
 
 ## 6. Structural COP Stack
 

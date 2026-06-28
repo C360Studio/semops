@@ -274,10 +274,10 @@ print_preflight() {
   fi
   if [[ "$MODE" == "mavsdk-offboard-stack" ]]; then
     echo
-    echo "MAVSDK/offboard parity lane:"
+    echo "MAVSDK/offboard command-control lane:"
     echo "  route: $MAVSDK_OFFBOARD_ROUTE"
     echo "  default command: $(mavsdk_offboard_command_string)"
-    echo "  motion required by default: true"
+    echo "  saved for full command/control parity"
   fi
 }
 
@@ -703,7 +703,7 @@ Name the external simulator source explicitly, for example:
   SEMOPS_MAVLINK_SITL_SIMULATOR_NAME="PX4 SITL 1.15"
   SEMOPS_MAVLINK_SITL_SIMULATOR_COMMAND="make px4_sitl gz_x500"
 
-This guard prevents generated-frame evidence from being mistaken for PX4/MAVSDK/SITL fidelity.
+This guard prevents generated-frame evidence from being mistaken for PX4/ArduPilot/SITL telemetry fidelity.
 EOF
     write_evidence "blocked_missing_simulator_name" 2
     exit 2

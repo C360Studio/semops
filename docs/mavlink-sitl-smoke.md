@@ -1,16 +1,15 @@
 # MAVLink External SITL Smoke
 
-This smoke is the first SemOps simulator-fidelity gate for MAVLink telemetry. It proves an external PX4, MAVSDK,
-ArduPilot SITL, or equivalent MAVLink source can feed the hosted SemOps UDP component and appear in the COP snapshot.
+This smoke is the first SemOps simulator-fidelity gate for MAVLink telemetry. It proves an external PX4, ArduPilot
+SITL, or equivalent MAVLink source can feed the hosted SemOps UDP component and appear in the COP snapshot.
 
 It does not prove command/control, mission handling, serial/TCP transport, signed links, hardware behavior, or PX4
 conformance.
 
 ## Prerequisites
 
-- A simulator or MAVSDK route that emits MAVLink heartbeat and `GLOBAL_POSITION_INT` telemetry to the hosted SemOps
-  UDP component. The Compose default listens on `:14550` and also on `:14540` for PX4 offboard/MAVSDK-style return
-  traffic.
+- A simulator route that emits MAVLink heartbeat and `GLOBAL_POSITION_INT` telemetry to the hosted SemOps UDP
+  component. The Compose default listens on `:14550` and also on `:14540` for PX4 API/offboard-style return traffic.
 - The simulator's first vehicle should use MAVLink system ID `1`, or `SEMOPS_MAVLINK_SITL_SMOKE_EXPECTED_TRACK_ID`
   should be set to the expected graph track ID.
 - Docker resources sufficient to run the COP stack.
@@ -29,7 +28,7 @@ UDP host-port hairpin behavior for the simulator-to-SemOps path.
 
 The hosted SemOps runtime can bind multiple MAVLink UDP listeners. The COP Compose stack defaults to
 `SEMOPS_MAVLINK_UDP_LISTEN_ADDR=:14550` and `SEMOPS_MAVLINK_UDP_EXTRA_LISTEN_ADDRS=:14540`, publishing both UDP ports
-to the host. That lets PX4's primary-peer and offboard/MAVSDK-style telemetry return paths enter the same
+to the host. That lets PX4's primary-peer and API/offboard-style telemetry return paths enter the same
 MAVLink input -> decoder -> projector component chain.
 
 The SemOps helper keeps the pull opt-in because the image is large:
@@ -115,8 +114,8 @@ bash scripts/mavlink-sitl-gate.sh
 ```
 
 The smoke should skip when `SEMOPS_MAVLINK_SITL_SMOKE_SNAPSHOT_URL` is unset. That skip proves the test is guarded; it
-does not prove simulator fidelity. If no PX4, MAVSDK, ArduPilot, or equivalent simulator runtime is available on the
-host or in local Docker images, do not run the stack gate and do not close the PX4/MAVSDK evidence task.
+does not prove simulator fidelity. If no PX4, ArduPilot, or equivalent simulator runtime is available on the host or
+in local Docker images, do not run the stack gate and do not close the MAVLink telemetry evidence task.
 
 The helper writes a local ignored evidence file under `tmp/mavlink-sitl-evidence/`.
 
@@ -253,16 +252,16 @@ ArduPilot/ArduCopter Docker image. Evidence:
 `tmp/mavlink-sitl-evidence/2026-06-28T00-15-11Z-ardupilot-stack.env`. That is readiness-gap evidence only; it does not
 close ArduPilot parity; the later SITL-only Docker pass above does.
 
-MAVSDK/offboard parity is also separate from raw PX4 telemetry. Use the dedicated offboard lane so the evidence is
-stamped as `mavsdk`, defaults to motion-required telemetry, and stays separate from the raw PX4/Gazebo telemetry
-helper:
+MAVSDK/offboard is intentionally saved for the full command/control lane. PX4 and ArduPilot already prove the
+read-side MAVLink telemetry wire path; MAVSDK does not create a third telemetry protocol. Keep the dedicated offboard
+lane for a future proof that actually exercises MAVSDK/PX4 offboard behavior:
 
 ```bash
 SEMOPS_MAVLINK_SITL_GATE_MODE=mavsdk-offboard-stack \
 bash scripts/mavlink-sitl-gate.sh
 ```
 
-Useful MAVSDK/offboard knobs:
+Useful future MAVSDK/offboard knobs:
 
 - `SEMOPS_MAVLINK_SITL_MAVSDK_OFFBOARD_ROUTE`: default `udp://:14540`.
 - `SEMOPS_MAVLINK_SITL_SIMULATOR_NAME`: optional explicit MAVSDK/offboard route label.
@@ -275,7 +274,7 @@ Current local result: on 2026-06-28T00:15:13Z UTC, `mavsdk-offboard-stack` block
 `result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `mavsdk_server` and no
 MAVSDK Docker image. Evidence:
 `tmp/mavlink-sitl-evidence/2026-06-28T00-15-13Z-mavsdk-offboard-stack.env`. That is readiness-gap evidence only; it
-does not close MAVSDK/offboard parity.
+does not close MAVSDK/offboard command/control parity, and it no longer blocks read-side MAVLink telemetry parity.
 
 ## Focused Smoke Against A Running Stack
 

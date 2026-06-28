@@ -2,13 +2,14 @@
 
 Status: candidate Phase 1 feed with codec, bounded raw lane, projection planner, SemStreams graph writer boundary,
 structural wiring, typed owner-token wiring, restart create-conflict reconciliation, opt-in UDP transport hosting,
-multi-listener hosted UDP input, COP owner-registration smoke evidence, generated-frame live graph smoke evidence, a
-skipped-by-default external PX4/MAVSDK/SITL telemetry smoke harness, passed PX4/Gazebo headless Docker telemetry smoke
-through a managed Compose-network route, passed ArduPilot SITL telemetry parity through a SemOps-owned Linux image,
-COMMAND_ACK control-task readback projection, and PX4 simulator read-side command readback evidence. SemOps also has a
-product-owned command-intent graph contract for future desired tasking state before native execution. Live feed
-integration remains blocked by durable replay playback, TCP/serial transport work, MAVSDK/offboard parity, and broader
-command authority/fidelity work in `COP-004`.
+multi-listener hosted UDP input, COP owner-registration smoke evidence, generated-frame live graph smoke evidence,
+a skipped-by-default external PX4/ArduPilot/SITL telemetry smoke harness, passed PX4/Gazebo headless Docker telemetry
+smoke through a managed Compose-network route, passed ArduPilot SITL telemetry parity through a SemOps-owned Linux
+image, COMMAND_ACK control-task readback projection, and PX4 simulator read-side command readback evidence. SemOps
+also has a product-owned command-intent graph contract for future desired tasking state before native execution. Live
+feed
+integration remains blocked by durable replay playback, TCP/serial transport work, and broader command
+authority/fidelity work in `COP-004`; MAVSDK/offboard is deferred to that full command/control lane.
 
 ## Decision
 
@@ -18,8 +19,8 @@ coverage, current-state projection planner, COMMAND_ACK control-task readback pr
 writer boundary, retry-aware SemStreams NATS requester boundary, a product-owned command-intent graph contract,
 in-process adapter harness, hosted runtime wiring, opt-in UDP datagram ingestion, a one-command graph scaffold, a
 PX4 simulator read-side command readback pass, and ArduPilot SITL telemetry parity evidence. Live feed work still
-needs scenario-runner replay wiring, TCP/serial transport, MAVSDK/offboard evidence, command authority/fidelity beyond
-the reviewed read-side request, and full product-stack expansion.
+needs scenario-runner replay wiring, TCP/serial transport, command authority/fidelity beyond the reviewed read-side
+request, and full product-stack expansion.
 
 SemOps GitHub issue #1 added a near-term breaking-tag gate: generated or replay MAVLink must prove the born-first
 graph path against live SemStreams before PX4/SITL becomes the blocking milestone. The generated-frame smoke passed
@@ -109,11 +110,10 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   editing the Compose file.
 - See `openspec/changes/revive-cop-product/reviews/2026-06-23-mavlink-external-sitl-smoke-review.md` for the
   simulator-fidelity harness review.
-- 2026-06-23 local readiness preflight found no `px4`, `mavsdk_server`, or `sim_vehicle.py` on PATH and no local
-  PX4/MAVSDK/ArduPilot simulator Docker image. `go test ./internal/smoke/mavlink -run
-  TestExternalSITLTelemetryCOPSnapshot -count=1 -v` skipped as designed without a snapshot URL, and focused MAVLink
-  parser/projector/component tests passed. This is readiness-gap evidence only; it does not close the simulator
-  fidelity gate.
+- 2026-06-23 local readiness preflight found no `px4` or `sim_vehicle.py` on PATH and no local PX4/ArduPilot simulator
+  Docker image. `go test ./internal/smoke/mavlink -run TestExternalSITLTelemetryCOPSnapshot -count=1 -v` skipped as
+  designed without a snapshot URL, and focused MAVLink parser/projector/component tests passed. This is readiness-gap
+  evidence only; it does not close the simulator fidelity gate.
 - `scripts/mavlink-sitl-gate.sh` now wraps the external SITL gate in `preflight`, `focused`, and `stack` modes. The
   focused and stack modes require a named simulator source and refuse to run without local simulator tooling or an
   explicit remote-source override.
@@ -145,8 +145,8 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   scripts/mavlink-sitl-gate.sh` passed with `px4_headless_route_mode=compose-network`,
   `px4_headless_docker_network=semops-cop_default`, and `px4_headless_network_target=semops`. The external SITL smoke
   passed in 0.52s after the PX4 boot wait, and the before-cleanup hook stopped `semops-px4-gazebo-headless` before
-  Compose removed the network. This is still PX4 telemetry evidence only; ArduPilot parity and MAVSDK/offboard parity
-  remain separate gates, while PX4 command readback is covered by the later `command-live-sim` evidence.
+  Compose removed the network. This is still PX4 telemetry evidence only; ArduPilot parity remained separate until the
+  later SITL pass, and PX4 command readback is covered by the later `command-live-sim` evidence.
 - 2026-06-27: SemOps hosted runtime and Compose stack gained dual MAVLink UDP listener coverage. `compose.cop.yml`
   defaults to primary `:14550` plus extra `:14540`, and `go test ./cmd/semops-mavlink-command ./internal/app
   ./internal/smoke/mavlink` passed after adding the extra-listener config/runtime tests.
@@ -228,7 +228,11 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   `mavsdk_server udp://:14540`, defaulted to motion-required telemetry, found no `mavsdk_server`, and found no MAVSDK
   Docker image even though the local PX4/Gazebo headless image was present. Evidence file:
   `tmp/mavlink-sitl-evidence/2026-06-28T00-15-13Z-mavsdk-offboard-stack.env`. This is readiness-gap evidence only; it
-  does not close MAVSDK/offboard parity.
+  does not close MAVSDK/offboard command/control parity.
+- 2026-06-28: MAVSDK/offboard was re-scoped out of the read-side MAVLink telemetry parity blocker set. MAVSDK emits
+  MAVLink rather than defining another telemetry wire protocol, so PX4 and ArduPilot pass evidence cover the read-side
+  ingest path. Keep MAVSDK/offboard for the full command/control lane where mode, setpoint, local override, ACK/task,
+  and post-state semantics matter.
 - 2026-06-26T01:23:17Z: `SEMOPS_MAVLINK_SITL_GATE_MODE=command-live-sim bash scripts/mavlink-sitl-gate.sh`
   exited with `result=blocked_missing_command_transmitter`. The gate got through explicit PX4 simulator family,
   simulator-only safety profile, local override, abort readiness, ACK requirement, post-state requirement,
@@ -391,8 +395,8 @@ Acceptance:
   velocity evidence, and appears while `feed.mavlink` is live. [done against PX4/Gazebo headless Docker on 2026-06-23]
 - The smoke observes repeated simulator updates and can require actual position motion with
   `SEMOPS_MAVLINK_SITL_SMOKE_REQUIRE_MOTION=true`. [done against PX4/Gazebo headless Docker on 2026-06-23]
-- Local readiness preflight records whether PX4, MAVSDK, ArduPilot, or equivalent simulator tooling is actually
-  available before attempting the stack gate. [done: 2026-06-23 no simulator runtime found]
+- Local readiness preflight records whether PX4, ArduPilot, or equivalent simulator tooling is actually available
+  before attempting the stack gate. [done: 2026-06-23 no simulator runtime found]
 - Focused and stack helpers require a named simulator source before running the evidence gate. [done]
 - Focused and stack helpers require an explicit simulator family before running the evidence gate, and helper evidence
   records `simulator_family` so PX4, ArduPilot, MAVSDK, hardware, and other MAVLink evidence cannot be collapsed into
@@ -423,14 +427,13 @@ Acceptance:
   parity proof before Gazebo physics evidence. It builds and passes `ardupilot-stack` through the hosted UDP/COP
   snapshot path with motion required. [done via
   `tmp/mavlink-sitl-evidence/2026-06-28T12-48-33Z-ardupilot-stack.env`]
-- Dedicated `mavsdk-offboard-stack` mode stamps the MAVSDK simulator family, defaults to `mavsdk_server udp://:14540`,
-  defaults to motion-required telemetry, and blocks unless a real MAVSDK/offboard source is available locally or
-  explicitly routed in. [done as fail-closed readiness evidence only]
+- Dedicated `mavsdk-offboard-stack` mode stamps the MAVSDK simulator family and blocks unless a real MAVSDK/offboard
+  source is available locally or explicitly routed in. [done as future command/control-lane guard]
 - Against explicit ArduPilot SITL, the controller connects, reads status, and performs telemetry parity checks before
   any ArduPilot interoperability claim. Live command smoke remains a separate reviewed gate.
   [done for telemetry parity via `tmp/mavlink-sitl-evidence/2026-06-28T12-48-33Z-ardupilot-stack.env`]
-- PX4 SITL or MAVSDK smoke evidence is recorded before calling MAVLink Phase 1 complete. [done for PX4/Gazebo
-  telemetry smoke and PX4 simulator command readback; MAVSDK/offboard parity remains open]
+- PX4 and ArduPilot SITL smoke evidence is recorded before calling MAVLink telemetry parity complete. [done for
+  PX4/Gazebo telemetry smoke, ArduPilot SITL telemetry smoke, and PX4 simulator command readback]
 
 ### Replay Gate
 
@@ -465,7 +468,7 @@ Acceptance:
 - The external SITL telemetry smoke harness has passed against PX4/Gazebo headless Docker with and without
   motion-required assertions and against the SemOps-owned ArduPilot SITL image with motion required. The old bundled
   `5.4` gate is closed only for parser/generator and PX4 telemetry evidence; ArduPilot SITL telemetry parity now has
-  separate pass evidence, while MAVSDK/offboard parity remains open.
+  separate pass evidence, and MAVSDK/offboard is deferred to the command/control lane.
 - The helper now fail-closes focused/stack evidence unless the run declares `SEMOPS_MAVLINK_SITL_SIMULATOR_FAMILY`.
   PX4 headless mode stamps `px4` automatically and refuses contradictory family values.
 - The helper now has `command-preflight` mode for safety-posture evidence, but it always exits with blocked evidence
@@ -476,7 +479,8 @@ Acceptance:
   but command reconciliation, priority, TTL, mission/offboard authority, hardware authority, and safety interlocks are
   not.
 - PX4/Gazebo headless telemetry, motion-required evidence, and simulator read-side command readback evidence are in
-  SemOps; ArduPilot SITL telemetry parity is in SemOps, while MAVSDK/offboard parity remains open.
+  SemOps; ArduPilot SITL telemetry parity is in SemOps, while MAVSDK/offboard belongs to the full command/control
+  lane.
 
 ## Adversarial Feed-Entry Questions
 

@@ -183,7 +183,7 @@ public conformance suite, or documented interoperability test backs the claim.
 
 #### Scenario: MAVLink simulator telemetry is opt-in evidence
 
-- **WHEN** SemOps adds PX4, MAVSDK, ArduPilot SITL, or hardware-adjacent MAVLink evidence
+- **WHEN** SemOps adds PX4, ArduPilot SITL, or hardware-adjacent MAVLink telemetry evidence
 - **THEN** the simulator or hardware source must be explicit and must feed the hosted SemOps MAVLink component path
   rather than a test-only projector shortcut
 - **AND** the smoke may observe simulator telemetry through the Caddy-routed COP snapshot without injecting generated
@@ -193,8 +193,8 @@ public conformance suite, or documented interoperability test backs the claim.
   evidence
 - **AND** focused or stack evidence must record an explicit simulator family (`px4`, `ardupilot`, `mavsdk`,
   `hardware`, or `other`) before it is cited as parity evidence
-- **AND** passing telemetry evidence for one simulator family SHALL NOT imply ArduPilot parity, MAVSDK/offboard parity,
-  live command transmit, or broader command/control authority
+- **AND** passing telemetry evidence for one simulator family SHALL NOT imply ArduPilot parity, live command transmit,
+  offboard control, or broader command/control authority
 - **AND** ArduPilot simulator parity MAY be proven first by a reviewed SITL-only Linux container before
   ArduPilot/Gazebo physics evidence, provided the source still runs ArduPilot SITL, routes MAVLink through the hosted
   SemOps UDP component, and passes the family-stamped COP snapshot smoke
@@ -317,10 +317,10 @@ public conformance suite, or documented interoperability test backs the claim.
 
 #### Scenario: MAVLink simulator readiness is not simulator evidence
 
-- **WHEN** the external SITL smoke skips because no COP snapshot URL is configured or local PX4/MAVSDK/ArduPilot
+- **WHEN** the external SITL smoke skips because no COP snapshot URL is configured or local PX4/ArduPilot
   tooling is unavailable
 - **THEN** SemOps records that as readiness-gap evidence only
-- **AND** SemOps SHALL NOT close PX4/MAVSDK/SITL evidence gates or claim simulator fidelity until the observer-only
+- **AND** SemOps SHALL NOT close PX4/ArduPilot/SITL evidence gates or claim simulator fidelity until the observer-only
   smoke passes against an explicit simulator source feeding the hosted UDP component path
 - **AND** the future pass records simulator name, version, launch command, system ID, UDP route, SemOps commit,
   pass/fail result, and any motion requirement
@@ -345,14 +345,14 @@ public conformance suite, or documented interoperability test backs the claim.
   passes the ArduPilot stack smoke through the hosted UDP component path
 - **AND** any managed ArduPilot Docker helper MAY attach that image to the SemOps Compose network and route the default
   `sim_vehicle.py` telemetry output to the hosted `semops` service alias
-- **AND** any MAVSDK/offboard-specific helper mode SHALL stamp `simulator_family=mavsdk`, default to motion-required
-  telemetry, and block unless `mavsdk_server`, a MAVSDK-family Docker image, or an explicit remote-source override is
-  present
+- **AND** any MAVSDK/offboard-specific helper mode SHALL belong to the full command/control lane, stamp
+  `simulator_family=mavsdk`, and block unless `mavsdk_server`, a MAVSDK-family Docker image, or an explicit
+  remote-source override is present
 - **AND** any managed PX4 Docker stack helper MAY attach the simulator to the SemOps Compose network and route
   simulator telemetry to the hosted `semops` service alias when host UDP routing is unreliable
 - **AND** the hosted SemOps runtime MAY expose multiple MAVLink UDP listeners when the simulator has separate
-  primary-peer and offboard/MAVSDK-style return paths, provided those listeners feed the same governed
-  MAVLink component chain
+  primary-peer and API/offboard-style return paths, provided those listeners feed the same governed MAVLink component
+  chain
 - **AND** such a managed Compose-network helper SHALL stop the simulator before tearing down the Compose network unless
   the operator explicitly requests keeping the stack or simulator alive
 - **AND** helper evidence SHALL be written to ignored local paths rather than committed as portable demo evidence

@@ -167,13 +167,15 @@ born-first source asset and track graph writes. COMMAND_ACK readback now project
 born-first target edge, but this is command lifecycle evidence only. SemOps also has a product-owned command-intent
 contract for desired tasking state with authority, priority, expiry, idempotency, and correlation fields. PX4/Gazebo
 telemetry has hosted COP snapshot smoke pass evidence through a managed Compose-network route, and the hosted MAVLink
-runtime can listen on both `14550` and `14540` for PX4 return paths. ArduPilot and MAVSDK/offboard have fail-closed
-family-specific modes. Simulator command-control now has a `command-live-sim` gate that can run a reviewed external
-transmitter and requires graph-visible `COMMAND_ACK` task evidence plus post-command track refresh before passing. For
-MVP, that transmitter should stay to a single read-side command: `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`.
+runtime can listen on both `14550` and `14540` for PX4 return paths. ArduPilot SITL now has separate hosted telemetry
+pass evidence, while MAVSDK/offboard is deferred to the full command/control lane. Simulator command-control now has a
+`command-live-sim` gate that can run a reviewed external transmitter and requires graph-visible `COMMAND_ACK` task
+evidence plus post-command track refresh before passing. For MVP, that transmitter should stay to a single read-side
+command: `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`.
 
 Full product lane:
-PX4/ArduPilot SITL and hardware profiles, MAVSDK smoke, UDP/TCP/serial transports, signed or authenticated links
+PX4/ArduPilot SITL and hardware profiles, MAVSDK/offboard command-control smoke, UDP/TCP/serial transports, signed or
+authenticated links
 where applicable, multi-vehicle lifecycle, command authority, command priority, TTL windows, mission state, reconnect,
 and staleness behavior.
 
@@ -181,7 +183,8 @@ Boundary to preserve now:
 Keep codec, raw lane, transport listener, projector, and command authority separate so simulator and hardware support
 can grow without changing graph ownership. Simulator evidence must also name its family (`px4`, `ardupilot`,
 `mavsdk`, `hardware`, or `other`) so one telemetry pass cannot be reused as another simulator or command-control
-claim. Dedicated ArduPilot and MAVSDK/offboard lanes now fail closed until real family-specific sources are present.
+claim. Dedicated ArduPilot telemetry now has pass evidence; MAVSDK/offboard still fails closed until the future
+command/control lane has a real source.
 Command-control preflight can record intended target, action, safety profile, local override, ACK, and post-state
 polling posture. The live simulator gate now has a 2026-06-27 PX4/Gazebo pass for the reviewed read-side
 `MAV_CMD_REQUEST_MESSAGE` / `AUTOPILOT_VERSION` command: the helper learned the PX4 route, observed accepted
