@@ -234,6 +234,8 @@
       boundary change
 - [x] 5.111 Review ArduPilot/Gazebo Docker image candidates and keep 5.95 blocked until a reviewed image or
       SemOps-owned headless image passes the ArduPilot stack smoke
+- [x] 5.112 Add a SemOps-owned ArduPilot/Gazebo headless image recipe while keeping 5.95 open until the image builds
+      and passes the ArduPilot stack smoke
 
 ## 6. Structural COP Stack
 

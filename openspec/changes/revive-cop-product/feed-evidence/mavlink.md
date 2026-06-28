@@ -199,6 +199,12 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   very large image sizes, empty descriptions, or unclear launch contracts. Keep
   `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE` explicit until a SemOps-owned headless image or reviewed external
   image passes `ardupilot-stack`.
+- 2026-06-28: `docker/ardupilot-gazebo-headless/` added a SemOps-owned image recipe for the ArduPilot parity lane.
+  It pins ArduPilot `918718f6b063cca9a60de3921c3dcee2e8ca3524` and `ardupilot_gazebo`
+  `082a0fe231f6e63bc8d1598f1cba461d9e2ea7f5`, installs Gazebo Harmonic, and provides a launcher for headless
+  `iris_runway.sdf` plus `sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --out=udp:semops:14550`.
+  This is build/run setup only; it does not close ArduPilot telemetry parity until a built image passes
+  `ardupilot-stack`.
 - 2026-06-28T00:15:13Z: `SEMOPS_MAVLINK_SITL_GATE_MODE=mavsdk-offboard-stack bash scripts/mavlink-sitl-gate.sh`
   exited with `result=blocked_no_local_simulator`. The gate stamped `simulator_family=mavsdk`, defaulted to
   `mavsdk_server udp://:14540`, defaulted to motion-required telemetry, found no `mavsdk_server`, and found no MAVSDK

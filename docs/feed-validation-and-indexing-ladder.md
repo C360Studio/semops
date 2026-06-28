@@ -279,6 +279,10 @@ Mock or harness:
   ArduPilot namespace images are CI/build bases, while the combined ArduPilot/Gazebo registry hits are third-party,
   low-signal, stale, very large, or unclear about their launch contracts. Keep the ArduPilot Docker image explicit
   until a SemOps-owned headless image or a reviewed external image passes `ardupilot-stack`.
+- SemOps now has an opt-in `docker/ardupilot-gazebo-headless/` image recipe that pins ArduPilot and the official
+  `ardupilot_gazebo` plugin, installs Gazebo Harmonic, and launches headless Gazebo plus `sim_vehicle.py` with a
+  default route to `semops:14550`. This is setup infrastructure only; 5.95 remains open until the image builds and the
+  hosted `ardupilot-stack` smoke passes.
 - The helper also has an explicit `mavsdk-offboard-stack` mode. It stamps `simulator_family=mavsdk`, defaults to
   `mavsdk_server udp://:14540`, defaults to motion-required telemetry, and blocks unless `mavsdk_server`, a
   MAVSDK-family Docker image, or an explicit remote-source override is present.

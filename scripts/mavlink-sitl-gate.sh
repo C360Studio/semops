@@ -421,6 +421,17 @@ Pull it explicitly, or let this helper pull it after you have reviewed the image
   docker pull $ARDUPILOT_DOCKER_IMAGE
 EOF
   cat >&2 <<'EOF'
+Or build and run the SemOps-owned ArduPilot/Gazebo headless recipe:
+  docker build \
+    -f docker/ardupilot-gazebo-headless/Dockerfile \
+    -t c360studio/semops-ardupilot-gazebo-headless:local \
+    docker/ardupilot-gazebo-headless
+
+  SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE=c360studio/semops-ardupilot-gazebo-headless:local \
+  SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND=/usr/local/bin/semops-ardupilot-gazebo-headless \
+  SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack \
+  bash scripts/mavlink-sitl-gate.sh
+
   SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL=true \
     SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE=<reviewed-ardupilot-image> \
     SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack \

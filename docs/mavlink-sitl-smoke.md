@@ -195,6 +195,26 @@ SemOps-owned headless image recipe based on the official ArduPilot SITL-with-Gaz
 `ArduPilot/ardupilot_gazebo`, or run an explicitly reviewed external image by setting
 `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE` and opting into pulls deliberately.
 
+The SemOps-owned recipe lives in `docker/ardupilot-gazebo-headless/`. It pins current upstream ArduPilot and
+`ardupilot_gazebo` refs, installs Gazebo Harmonic, starts `gz sim -s -r iris_runway.sdf`, and then starts
+`sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --out=udp:semops:14550`. Build and run it explicitly:
+
+```bash
+docker build \
+  -f docker/ardupilot-gazebo-headless/Dockerfile \
+  -t c360studio/semops-ardupilot-gazebo-headless:local \
+  docker/ardupilot-gazebo-headless
+
+SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack \
+SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE=c360studio/semops-ardupilot-gazebo-headless:local \
+SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND=/usr/local/bin/semops-ardupilot-gazebo-headless \
+SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT=45 \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+This recipe does not close ArduPilot parity by existing. The claim closes only after a built image passes
+`ardupilot-stack` and records image tag or digest, launch command, UDP route, and evidence file.
+
 Current local result: on 2026-06-28T00:15:11Z UTC, `ardupilot-stack` blocked with
 `result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `sim_vehicle.py` and no
 ArduPilot/ArduCopter Docker image. Evidence:
