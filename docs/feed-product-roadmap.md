@@ -183,11 +183,12 @@ can grow without changing graph ownership. Simulator evidence must also name its
 `mavsdk`, `hardware`, or `other`) so one telemetry pass cannot be reused as another simulator or command-control
 claim. Dedicated ArduPilot and MAVSDK/offboard lanes now fail closed until real family-specific sources are present.
 Command-control preflight can record intended target, action, safety profile, local override, ACK, and post-state
-polling posture. The live simulator gate exists, but command authority remains unclaimed until a reviewed transmitter
-command passes the ACK/post-state snapshot smoke against a named simulator source. A 2026-06-27 PX4/Gazebo attempt
-kept telemetry live but produced no decoded `COMMAND_ACK`, `COMMAND_LONG`, or `AUTOPILOT_VERSION` reply frames through
-the hosted component chain. Do not expand the MVP into mission upload, mode control, arm/disarm, or offboard command
-authority; read-side feed validation remains the priority.
+polling posture. The live simulator gate now has a 2026-06-27 PX4/Gazebo pass for the reviewed read-side
+`MAV_CMD_REQUEST_MESSAGE` / `AUTOPILOT_VERSION` command: the helper learned the PX4 route, observed accepted
+`COMMAND_ACK` frames on the SemOps raw lane, and the COP snapshot exposed the expected command task plus a fresh
+post-command track. That closes simulator readback for the narrow MVP command, not command authority. Do not expand the
+MVP into mission upload, mode control, arm/disarm, or offboard command authority; read-side feed validation remains the
+priority.
 
 Not claimed yet:
 Full GCS/autopilot management, hardware certification, or complete mission-command product.

@@ -310,15 +310,17 @@ Mock or harness:
   `direct_command_acks=0`, and `forwarded_replies=0`. The command-control COP snapshot smoke found
   `c360.edge-compose.cop.mavlink.task.system-1-command-512-target-255-190` and a fresh post-command MAVLink track.
   Evidence: `tmp/mavlink-sitl-evidence/2026-06-27T22-29-45Z-command-live-sim.env`.
-- 2026-06-26T00:44:17Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
-  the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. This is
-  readiness-gap evidence only, not ArduPilot simulator interoperability.
-- 2026-06-26T01:08:56Z `mavsdk-offboard-stack` verification exited with `result=blocked_no_local_simulator`: the
-  laptop had the PX4/Gazebo headless image, but no `mavsdk_server` and no MAVSDK Docker image. This is readiness-gap
-  evidence only, not MAVSDK/offboard interoperability or command/control.
+- 2026-06-28T00:15:11Z `ardupilot-stack` verification exited with `result=blocked_no_local_simulator`: the laptop had
+  the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. Evidence:
+  `tmp/mavlink-sitl-evidence/2026-06-28T00-15-11Z-ardupilot-stack.env`. This is readiness-gap evidence only, not
+  ArduPilot simulator interoperability.
+- 2026-06-28T00:15:13Z `mavsdk-offboard-stack` verification exited with `result=blocked_no_local_simulator`: the
+  laptop had the PX4/Gazebo headless image, but no `mavsdk_server` and no MAVSDK Docker image. Evidence:
+  `tmp/mavlink-sitl-evidence/2026-06-28T00-15-13Z-mavsdk-offboard-stack.env`. This is readiness-gap evidence only, not
+  MAVSDK/offboard interoperability.
 - PX4/Gazebo headless telemetry smoke now has local pass evidence with and without motion required. Treat that as
-  PX4 telemetry evidence only; ArduPilot parity, MAVSDK/offboard parity, and live command/control remain separate
-  open gates.
+  PX4 telemetry evidence only; ArduPilot parity and MAVSDK/offboard parity remain separate open gates. PX4 simulator
+  command readback is covered by the separate `command-live-sim` pass.
 
 Indexing profile pressure:
 
@@ -356,7 +358,8 @@ Current codec gate:
 - `go test ./internal/smoke/mavlink` proves the external SITL smoke skips unless an explicit COP snapshot URL is set.
   The observer-only smoke has passed against PX4/Gazebo headless Docker, including motion-required evidence.
 - Host/tooling absence must not be upgraded into simulator qualification, and one simulator pass must not be upgraded
-  into all-family MAVLink parity. ArduPilot SITL, MAVSDK/offboard parity, and live command/control remain open gates.
+  into all-family MAVLink parity. ArduPilot SITL and MAVSDK/offboard parity remain open gates; mission/offboard and
+  hardware command authority remain outside the PX4 read-side command evidence.
 
 ### TAK/CoT
 

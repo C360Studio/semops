@@ -77,7 +77,7 @@ This is the fastest path to simulator-fidelity telemetry evidence. It is not off
 be used for command authority claims without a separate reviewed command/ACK/state gate.
 
 The PX4 helper stamps evidence with `simulator_family=px4`. That PX4 evidence must not be used to close ArduPilot,
-MAVSDK/offboard, hardware, or command-control parity gates.
+MAVSDK/offboard, hardware, mission/offboard command authority, or broader command-control parity gates.
 
 The official PX4 Docker docs remain useful as the upstream build/reference path. As of the 2026-06-23 check, PX4
 documents `px4io/px4-dev:<version>` as the recommended build container and says a dedicated `px4-sim` image is planned.
@@ -168,9 +168,11 @@ Useful ArduPilot knobs:
 - `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true`: allowed only when an ArduPilot source is already routing MAVLink to
   SemOps from outside the local PATH/Docker environment.
 
-Current local result: on 2026-06-26T00:44:17Z UTC, `ardupilot-stack` blocked with
+Current local result: on 2026-06-28T00:15:11Z UTC, `ardupilot-stack` blocked with
 `result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `sim_vehicle.py` and no
-ArduPilot/ArduCopter Docker image. That is readiness-gap evidence only; it does not close ArduPilot parity.
+ArduPilot/ArduCopter Docker image. Evidence:
+`tmp/mavlink-sitl-evidence/2026-06-28T00-15-11Z-ardupilot-stack.env`. That is readiness-gap evidence only; it does not
+close ArduPilot parity.
 
 MAVSDK/offboard parity is also separate from raw PX4 telemetry. Use the dedicated offboard lane so the evidence is
 stamped as `mavsdk`, defaults to motion-required telemetry, and stays separate from the raw PX4/Gazebo telemetry
@@ -190,9 +192,11 @@ Useful MAVSDK/offboard knobs:
 - `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true`: allowed only when a MAVSDK/offboard route is already active and the
   associated MAVLink telemetry is already routing to SemOps.
 
-Current local result: on 2026-06-26T01:08:56Z UTC, `mavsdk-offboard-stack` blocked with
+Current local result: on 2026-06-28T00:15:13Z UTC, `mavsdk-offboard-stack` blocked with
 `result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `mavsdk_server` and no
-MAVSDK Docker image. That is readiness-gap evidence only; it does not close MAVSDK/offboard parity or command/control.
+MAVSDK Docker image. Evidence:
+`tmp/mavlink-sitl-evidence/2026-06-28T00-15-13Z-mavsdk-offboard-stack.env`. That is readiness-gap evidence only; it
+does not close MAVSDK/offboard parity.
 
 ## Focused Smoke Against A Running Stack
 

@@ -91,7 +91,7 @@
 - [x] 5.2 Record mock, simulator, replay, compliance, and sample-data evidence for each feed
 - [x] 5.3 Define expected `indexing_profile` and cardinality risk for each projected entity type
 - [x] 5.4 Prove MAVLink parser, generator, and PX4/Gazebo telemetry evidence gates while splitting ArduPilot,
-      MAVSDK parity, and live command/control into separate follow-up gates
+      MAVSDK parity, and command-authority fidelity into separate follow-up gates
 - [x] 5.5 Prove TAK/CoT UDP/TCP seed and replay gates before expanding CoT coverage
 - [x] 5.6 Prove CAP XML schema, NWS sample, and lifecycle gates before CAP conformance or service claims; bounded MVP
       gate is closed, but CAP conformance, NWS/IPAWS integration, default service support, and captured lifecycle
@@ -221,12 +221,13 @@
 - [x] 5.104 Record product e2e evidence-tier rules so direct graph smokes cannot satisfy product, simulator,
       command-control, CS API, provider, or standards claims
 - [x] 5.105 Harden the PX4/Gazebo headless telemetry route with a managed Compose-network simulator path and dual
-      hosted MAVLink UDP listeners while keeping live command/control open until native command reply frames appear
-      through the hosted component chain
+      hosted MAVLink UDP listeners
 - [x] 5.106 Add MAVLink command route-learning diagnostics from raw telemetry and persist transmitter output while
-      keeping live command/control open after the learned-route PX4 attempt produced no command reply frames
+      preserving the failed learned-route PX4 attempt as blocker evidence
 - [x] 5.107 Add native MAVLink command-session retries and direct reply counters without adding MAVSDK as a product
       dependency
+- [x] 5.108 Refresh ArduPilot and MAVSDK/offboard fail-closed parity evidence after the PX4 simulator command-readback
+      pass while keeping 5.95 and 5.96 open
 
 ## 6. Structural COP Stack
 
