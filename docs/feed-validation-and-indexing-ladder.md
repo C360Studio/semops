@@ -281,8 +281,17 @@ Mock or harness:
   until a SemOps-owned headless image or a reviewed external image passes `ardupilot-stack`.
 - SemOps now has an opt-in `docker/ardupilot-gazebo-headless/` image recipe that pins ArduPilot and the official
   `ardupilot_gazebo` plugin, installs Gazebo Harmonic, and launches headless Gazebo plus `sim_vehicle.py` with a
-  default route to `semops:14550`. This is setup infrastructure only; 5.95 remains open until the image builds and the
-  hosted `ardupilot-stack` smoke passes.
+  default route to `semops:14550`. This remains optional physics-rich evidence; the first ArduPilot telemetry parity
+  proof uses the lighter SITL-only image below.
+- SemOps now has a preferred `docker/ardupilot-sitl/` Linux image recipe for the first ArduPilot parity proof. It
+  packages the official ArduCopter `V4.8.0-dev` Linux SITL binary for ArduPilot
+  `918718f6b063cca9a60de3921c3dcee2e8ca3524`, verifies SHA-256
+  `1646845efcf96b196ad2f39f186a5b9dd325877b938245e7374d2dbc8a29c9bd`, runs MAVProxy for the SITL input/clock path,
+  routes MAVLink to `semops:14550`, and keeps the first 5.95 evidence focused on the hosted UDP/COP snapshot path. On
+  2026-06-28T12:48:33Z it passed `ardupilot-stack` with `result=passed`, `simulator_family=ardupilot`,
+  `ardupilot_docker_platform=linux/amd64`, and `require_motion=true`. A 2026-06-28 Gazebo build attempt was canceled
+  after its dependency install plan reached 830 packages, about 439 MB of archives, and about 2 GB installed, so the
+  Gazebo recipe remains later physics-rich evidence rather than the first ArduPilot telemetry lane.
 - The helper also has an explicit `mavsdk-offboard-stack` mode. It stamps `simulator_family=mavsdk`, defaults to
   `mavsdk_server udp://:14540`, defaults to motion-required telemetry, and blocks unless `mavsdk_server`, a
   MAVSDK-family Docker image, or an explicit remote-source override is present.
@@ -326,13 +335,17 @@ Mock or harness:
   the PX4/Gazebo headless image, but no `sim_vehicle.py` and no ArduPilot/ArduCopter Docker image. Evidence:
   `tmp/mavlink-sitl-evidence/2026-06-28T00-15-11Z-ardupilot-stack.env`. This is readiness-gap evidence only, not
   ArduPilot simulator interoperability.
+- 2026-06-28T12:48:33Z `ardupilot-stack` passed with the SemOps-owned
+  `c360studio/semops-ardupilot-sitl:local` image, the wrapper command `/usr/local/bin/semops-ardupilot-sitl`,
+  Compose-network route `semops:14550`, Docker platform `linux/amd64`, and motion-required hosted COP snapshot
+  evidence. Evidence: `tmp/mavlink-sitl-evidence/2026-06-28T12-48-33Z-ardupilot-stack.env`.
 - 2026-06-28T00:15:13Z `mavsdk-offboard-stack` verification exited with `result=blocked_no_local_simulator`: the
   laptop had the PX4/Gazebo headless image, but no `mavsdk_server` and no MAVSDK Docker image. Evidence:
   `tmp/mavlink-sitl-evidence/2026-06-28T00-15-13Z-mavsdk-offboard-stack.env`. This is readiness-gap evidence only, not
   MAVSDK/offboard interoperability.
 - PX4/Gazebo headless telemetry smoke now has local pass evidence with and without motion required. Treat that as
-  PX4 telemetry evidence only; ArduPilot parity and MAVSDK/offboard parity remain separate open gates. PX4 simulator
-  command readback is covered by the separate `command-live-sim` pass.
+  PX4 telemetry evidence only. ArduPilot SITL telemetry now has separate pass evidence, MAVSDK/offboard parity remains
+  open, and PX4 simulator command readback is covered by the separate `command-live-sim` pass.
 
 Indexing profile pressure:
 
@@ -368,10 +381,11 @@ Current codec gate:
 - `pkg/adapters/mavlink/replay_test.go` proves durable fixture append/load and parser replay.
 - `go test ./internal/adapters/mavlink` proves parse, raw capture, projection, graph-plan write, and health ordering.
 - `go test ./internal/smoke/mavlink` proves the external SITL smoke skips unless an explicit COP snapshot URL is set.
-  The observer-only smoke has passed against PX4/Gazebo headless Docker, including motion-required evidence.
+  The observer-only smoke has passed against PX4/Gazebo headless Docker and the SemOps-owned ArduPilot SITL image,
+  including motion-required evidence.
 - Host/tooling absence must not be upgraded into simulator qualification, and one simulator pass must not be upgraded
-  into all-family MAVLink parity. ArduPilot SITL and MAVSDK/offboard parity remain open gates; mission/offboard and
-  hardware command authority remain outside the PX4 read-side command evidence.
+  into all-family MAVLink parity. ArduPilot SITL has explicit pass evidence, MAVSDK/offboard parity remains open, and
+  mission/offboard and hardware command authority remain outside the PX4 read-side command evidence.
 
 ### TAK/CoT
 

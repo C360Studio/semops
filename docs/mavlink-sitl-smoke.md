@@ -170,11 +170,37 @@ Useful ArduPilot knobs:
   Compose-network source. There is no default image.
 - `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND`: optional command to run inside that image; default is
   `sim_vehicle.py -v <vehicle> --out=udp:semops:14550`.
+- `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PLATFORM`: default `linux/amd64`, needed for the SemOps-owned ArduPilot
+  images on arm64 Docker hosts.
 - `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL=true`: opt in only after reviewing the image. Without this, a missing
   configured image blocks before the stack smoke.
 - `SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT`: default `20`.
 - `SEMOPS_MAVLINK_SITL_ALLOW_REMOTE_SOURCE=true`: allowed only when an ArduPilot source is already routing MAVLink to
   SemOps from outside the local PATH/Docker environment.
+
+For the first ArduPilot parity proof, prefer the SemOps-owned SITL-only Linux image. It packages the official
+ArduCopter Linux SITL binary plus MAVProxy and runs them without Gazebo, so the evidence stays focused on ArduPilot
+MAVLink telemetry through the hosted SemOps UDP component. The wrapper starts `arducopter --model quad`, then starts
+MAVProxy with `--master tcp:127.0.0.1:5760 --sitl 127.0.0.1:5501 --out semops:14550`:
+
+```bash
+docker build \
+  --platform linux/amd64 \
+  -f docker/ardupilot-sitl/Dockerfile \
+  -t c360studio/semops-ardupilot-sitl:local \
+  docker/ardupilot-sitl
+
+SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack \
+SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE=c360studio/semops-ardupilot-sitl:local \
+SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND=/usr/local/bin/semops-ardupilot-sitl \
+SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT=45 \
+bash scripts/mavlink-sitl-gate.sh
+```
+
+Local pass evidence: on 2026-06-28T12:48:33Z UTC, that image passed `ardupilot-stack` with `result=passed`,
+`simulator_family=ardupilot`, `require_motion=true`, Docker platform `linux/amd64`, route `semops:14550`, and
+snapshot URL `http://127.0.0.1:8080/api/cop/snapshot`. Evidence:
+`tmp/mavlink-sitl-evidence/2026-06-28T12-48-33Z-ardupilot-stack.env`.
 
 For a reviewed ArduPilot image that already contains `sim_vehicle.py`, the managed path is:
 
@@ -191,16 +217,17 @@ default `sim_vehicle.py` output to `semops:14550`, and stops the container durin
 ArduPilot/Gazebo image review result: as of the 2026-06-28 Docker Hub check, SemOps should not pin a default public
 ArduPilot/Gazebo image. The active ArduPilot namespace images are CI/build bases, while public combined
 ArduPilot/Gazebo images are third-party, low-signal, stale, very large, or unclear about launch contracts. Prefer a
-SemOps-owned headless image recipe based on the official ArduPilot SITL-with-Gazebo docs and
-`ArduPilot/ardupilot_gazebo`, or run an explicitly reviewed external image by setting
+SemOps-owned image recipe, or run an explicitly reviewed external image by setting
 `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE` and opting into pulls deliberately.
 
-The SemOps-owned recipe lives in `docker/ardupilot-gazebo-headless/`. It pins current upstream ArduPilot and
+The optional Gazebo recipe lives in `docker/ardupilot-gazebo-headless/`. It pins current upstream ArduPilot and
 `ardupilot_gazebo` refs, installs Gazebo Harmonic, starts `gz sim -s -r iris_runway.sdf`, and then starts
-`sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --out=udp:semops:14550`. Build and run it explicitly:
+`sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --out=udp:semops:14550`. Use it after the SITL-only lane
+when the claim needs Gazebo physics:
 
 ```bash
 docker build \
+  --platform linux/amd64 \
   -f docker/ardupilot-gazebo-headless/Dockerfile \
   -t c360studio/semops-ardupilot-gazebo-headless:local \
   docker/ardupilot-gazebo-headless
@@ -212,14 +239,19 @@ SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT=45 \
 bash scripts/mavlink-sitl-gate.sh
 ```
 
-This recipe does not close ArduPilot parity by existing. The claim closes only after a built image passes
-`ardupilot-stack` and records image tag or digest, launch command, UDP route, and evidence file.
+This Gazebo recipe does not add physics-backed ArduPilot/Gazebo evidence by existing. That later claim closes only
+after a built image passes `ardupilot-stack` and records image tag or digest, launch command, UDP route, and evidence
+file.
 
-Current local result: on 2026-06-28T00:15:11Z UTC, `ardupilot-stack` blocked with
+Local Gazebo build note: a 2026-06-28 full build attempt reached the Gazebo dependency install plan of 830 packages
+with about 439 MB of archives and about 2 GB installed before the run was canceled in favor of the SITL-only lane.
+That is useful later, but too much weight for the first ArduPilot telemetry parity proof.
+
+Earlier local readiness-gap result: on 2026-06-28T00:15:11Z UTC, `ardupilot-stack` blocked with
 `result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `sim_vehicle.py` and no
 ArduPilot/ArduCopter Docker image. Evidence:
 `tmp/mavlink-sitl-evidence/2026-06-28T00-15-11Z-ardupilot-stack.env`. That is readiness-gap evidence only; it does not
-close ArduPilot parity.
+close ArduPilot parity; the later SITL-only Docker pass above does.
 
 MAVSDK/offboard parity is also separate from raw PX4 telemetry. Use the dedicated offboard lane so the evidence is
 stamped as `mavsdk`, defaults to motion-required telemetry, and stays separate from the raw PX4/Gazebo telemetry

@@ -1,8 +1,10 @@
 # SemOps ArduPilot/Gazebo Headless Image
 
-This directory contains the SemOps-owned image recipe for the ArduPilot parity lane. It is intentionally opt-in: the
-MAVLink SITL gate still requires `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE`, and task 5.95 stays open until this
-image or another reviewed image passes `ardupilot-stack`.
+This directory contains the optional SemOps-owned ArduPilot/Gazebo image recipe. Use `docker/ardupilot-sitl/` for the
+first ArduPilot telemetry parity proof; use this recipe when the evidence needs Gazebo physics or the official
+`ardupilot_gazebo` plugin. It is intentionally opt-in: the MAVLink SITL gate still requires
+`SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE`. The lighter `docker/ardupilot-sitl/` image closed the first ArduPilot
+telemetry parity gate; this recipe is for later physics-backed ArduPilot/Gazebo evidence.
 
 The recipe follows the official `ArduPilot/ardupilot_gazebo` shape:
 
@@ -17,12 +19,14 @@ Current default refs:
 - ArduPilot: `918718f6b063cca9a60de3921c3dcee2e8ca3524`
 - `ardupilot_gazebo`: `082a0fe231f6e63bc8d1598f1cba461d9e2ea7f5`
 - Base image: `ardupilot/ardupilot-dev-base:v0.2.0`
+- Base image platform: `linux/amd64`
 - Gazebo package set: `gz-harmonic`
 
 Build the image explicitly:
 
 ```bash
 docker build \
+  --platform linux/amd64 \
   -f docker/ardupilot-gazebo-headless/Dockerfile \
   -t c360studio/semops-ardupilot-gazebo-headless:local \
   docker/ardupilot-gazebo-headless

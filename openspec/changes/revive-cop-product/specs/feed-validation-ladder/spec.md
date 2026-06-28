@@ -195,6 +195,9 @@ public conformance suite, or documented interoperability test backs the claim.
   `hardware`, or `other`) before it is cited as parity evidence
 - **AND** passing telemetry evidence for one simulator family SHALL NOT imply ArduPilot parity, MAVSDK/offboard parity,
   live command transmit, or broader command/control authority
+- **AND** ArduPilot simulator parity MAY be proven first by a reviewed SITL-only Linux container before
+  ArduPilot/Gazebo physics evidence, provided the source still runs ArduPilot SITL, routes MAVLink through the hosted
+  SemOps UDP component, and passes the family-stamped COP snapshot smoke
 - **AND** live command transmit, mission state, command ACK reconciliation, serial/TCP transports, signed links, and
   hardware behavior remain separate gates until reviewed
 

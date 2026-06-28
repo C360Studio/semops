@@ -196,13 +196,13 @@
 - [x] 5.89 Add committed SAPIENT preflight and absolute-detection fixtures to the manifest without compliance claims
 - [x] 5.90 Run adversarial review on ADS-B and SAPIENT portable fixture claim boundaries
 - [x] 5.91 Record synthetic MPEG-TS generation lineage for KLV fixtures and guard it with a generator test
-- [x] 5.92 Record PX4/Gazebo headless Docker stack-smoke evidence while keeping broader ArduPilot and command/control
-      gates open
+- [x] 5.92 Record PX4/Gazebo headless Docker stack-smoke evidence without collapsing non-PX4 family or command-control
+      gates
 - [x] 5.93 Record PX4/Gazebo headless Docker motion-required stack-smoke evidence while keeping command/control gates
       open
 - [x] 5.94 Record COMMAND_ACK readback as governed control-task evidence while keeping live command transmit,
       priority, TTL, and CS API reconciliation gates open
-- [ ] 5.95 Add explicit ArduPilot SITL telemetry parity evidence before claiming ArduPilot simulator interoperability
+- [x] 5.95 Add explicit ArduPilot SITL telemetry parity evidence before claiming ArduPilot simulator interoperability
 - [ ] 5.96 Add MAVSDK/PX4 offboard parity evidence before claiming MAVSDK command/control or offboard interoperability
 - [x] 5.97 Add a safe live MAVLink command/control simulator gate with ACK and post-command state polling before native
       command authority claims
@@ -210,8 +210,7 @@
       hardware, or command-control parity gates
 - [x] 5.99 Add a fail-closed MAVLink command-control preflight that records safety posture while keeping native
       transmit blocked
-- [x] 5.100 Add an explicit fail-closed ArduPilot SITL parity mode while keeping ArduPilot telemetry parity open until
-      a real ArduPilot source passes the hosted COP stack smoke
+- [x] 5.100 Add an explicit fail-closed ArduPilot SITL parity mode so non-ArduPilot sources cannot satisfy the gate
 - [x] 5.101 Add an explicit fail-closed MAVSDK/PX4 offboard parity mode while keeping MAVSDK/offboard parity open
       until a real offboard route passes the hosted COP stack smoke
 - [x] 5.102 Add a fail-closed MAVLink `command-live-sim` gate that requires a reviewed simulator transmitter and
@@ -227,15 +226,16 @@
 - [x] 5.107 Add native MAVLink command-session retries and direct reply counters without adding MAVSDK as a product
       dependency
 - [x] 5.108 Refresh ArduPilot and MAVSDK/offboard fail-closed parity evidence after the PX4 simulator command-readback
-      pass while keeping 5.95 and 5.96 open
-- [x] 5.109 Add an opt-in managed ArduPilot Docker startup path for reviewed images while keeping 5.95 open until a
-      real ArduPilot stack smoke passes
+      pass while keeping family-specific evidence gates separate
+- [x] 5.109 Add an opt-in managed ArduPilot Docker startup path for reviewed images without choosing a default image
 - [x] 5.110 Clarify MAVLink peer-route language so PX4/Gazebo command evidence cannot be mistaken for a product
       boundary change
-- [x] 5.111 Review ArduPilot/Gazebo Docker image candidates and keep 5.95 blocked until a reviewed image or
-      SemOps-owned headless image passes the ArduPilot stack smoke
-- [x] 5.112 Add a SemOps-owned ArduPilot/Gazebo headless image recipe while keeping 5.95 open until the image builds
-      and passes the ArduPilot stack smoke
+- [x] 5.111 Review ArduPilot/Gazebo Docker image candidates and require a reviewed or SemOps-owned image before
+      telemetry parity closure
+- [x] 5.112 Add a SemOps-owned ArduPilot/Gazebo headless image recipe for later physics-rich evidence
+- [x] 5.113 Pivot first ArduPilot parity evidence to a SemOps-owned SITL-only Linux image while keeping
+      ArduPilot/Gazebo as later physics-rich evidence
+- [x] 5.114 Record the SemOps-owned ArduPilot SITL image passing the motion-required hosted `ardupilot-stack` smoke
 
 ## 6. Structural COP Stack
 

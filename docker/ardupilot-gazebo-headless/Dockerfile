@@ -3,16 +3,19 @@
 # Build:
 #
 #   docker build \
+#     --platform linux/amd64 \
 #     -f docker/ardupilot-gazebo-headless/Dockerfile \
 #     -t c360studio/semops-ardupilot-gazebo-headless:local \
 #     docker/ardupilot-gazebo-headless
 #
-# This image is an opt-in ArduPilot/Gazebo source for the SemOps MAVLink
-# ardupilot-stack gate. It is not a default pull path.
+# This image is an opt-in ArduPilot/Gazebo source for physics-rich SemOps
+# ardupilot-stack evidence. Use docker/ardupilot-sitl for the first ArduPilot
+# telemetry parity proof. This is not a default pull path.
 
 ARG ARDUPILOT_DEV_BASE=ardupilot/ardupilot-dev-base:v0.2.0
+ARG ARDUPILOT_DEV_BASE_PLATFORM=linux/amd64
 
-FROM ${ARDUPILOT_DEV_BASE} AS runtime
+FROM --platform=${ARDUPILOT_DEV_BASE_PLATFORM} ${ARDUPILOT_DEV_BASE} AS runtime
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -62,17 +65,21 @@ RUN apt-get update \
 
 WORKDIR /opt
 
-RUN git clone https://github.com/ArduPilot/ardupilot.git ardupilot \
+RUN git init ardupilot \
     && cd ardupilot \
-    && git checkout "${ARDUPILOT_REF}" \
-    && git submodule update --init --recursive \
+    && git remote add origin https://github.com/ArduPilot/ardupilot.git \
+    && git fetch --depth 1 origin "${ARDUPILOT_REF}" \
+    && git -c advice.detachedHead=false checkout --detach FETCH_HEAD \
+    && git submodule update --init --recursive --depth 1 --jobs "$(nproc)" \
     && ./waf configure --board sitl \
     && ./waf copter \
     && ln -sf /opt/ardupilot/Tools/autotest/sim_vehicle.py /usr/local/bin/sim_vehicle.py
 
-RUN git clone https://github.com/ArduPilot/ardupilot_gazebo.git ardupilot_gazebo \
+RUN git init ardupilot_gazebo \
     && cd ardupilot_gazebo \
-    && git checkout "${ARDUPILOT_GAZEBO_REF}" \
+    && git remote add origin https://github.com/ArduPilot/ardupilot_gazebo.git \
+    && git fetch --depth 1 origin "${ARDUPILOT_GAZEBO_REF}" \
+    && git -c advice.detachedHead=false checkout --detach FETCH_HEAD \
     && cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     && cmake --build build -j"$(nproc)"
 

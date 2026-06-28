@@ -44,6 +44,7 @@ ARDUPILOT_DOCKER_NETWORK_TARGET="${SEMOPS_MAVLINK_SITL_ARDUPILOT_NETWORK_TARGET:
 ARDUPILOT_DOCKER_ROUTE="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_ROUTE:-$ARDUPILOT_DOCKER_NETWORK_TARGET:${SEMOPS_MAVLINK_UDP_CONTAINER_PORT:-14550}}"
 ARDUPILOT_DOCKER_COMMAND="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND:-}"
 ARDUPILOT_DOCKER_SHELL="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_SHELL:-/bin/bash}"
+ARDUPILOT_DOCKER_PLATFORM="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PLATFORM:-linux/amd64}"
 ARDUPILOT_DOCKER_BOOT_WAIT="${SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT:-20}"
 ARDUPILOT_DOCKER_PULL="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL:-false}"
 ARDUPILOT_DOCKER_REPLACE="${SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_REPLACE:-false}"
@@ -176,6 +177,7 @@ write_evidence() {
     echo "ardupilot_docker_network=$ARDUPILOT_DOCKER_NETWORK"
     echo "ardupilot_docker_network_target=$ARDUPILOT_DOCKER_NETWORK_TARGET"
     echo "ardupilot_docker_route=$ARDUPILOT_DOCKER_ROUTE"
+    echo "ardupilot_docker_platform=$ARDUPILOT_DOCKER_PLATFORM"
     echo "ardupilot_docker_boot_wait=$ARDUPILOT_DOCKER_BOOT_WAIT"
     echo "ardupilot_docker_pull_allowed=$ARDUPILOT_DOCKER_PULL"
     echo "mavsdk_offboard_route=$MAVSDK_OFFBOARD_ROUTE"
@@ -265,6 +267,7 @@ print_preflight() {
     if [[ -n "$ARDUPILOT_DOCKER_IMAGE" ]]; then
       echo "  managed Docker image: $ARDUPILOT_DOCKER_IMAGE"
       echo "  managed Docker command: $(ardupilot_docker_command_string)"
+      echo "  managed Docker platform: $ARDUPILOT_DOCKER_PLATFORM"
       echo "  docker network: $ARDUPILOT_DOCKER_NETWORK"
     fi
     echo "  motion required by default: true"
@@ -391,9 +394,10 @@ ardupilot_inner_command_string() {
 }
 
 ardupilot_docker_command_string() {
-  printf 'docker run -d --rm --name %q --network %q %q %q -lc %q\n' \
+  printf 'docker run -d --rm --name %q --network %q --platform %q %q %q -lc %q\n' \
     "$ARDUPILOT_DOCKER_CONTAINER" \
     "$ARDUPILOT_DOCKER_NETWORK" \
+    "$ARDUPILOT_DOCKER_PLATFORM" \
     "$ARDUPILOT_DOCKER_IMAGE" \
     "$ARDUPILOT_DOCKER_SHELL" \
     "$(ardupilot_inner_command_string)"
@@ -421,8 +425,21 @@ Pull it explicitly, or let this helper pull it after you have reviewed the image
   docker pull $ARDUPILOT_DOCKER_IMAGE
 EOF
   cat >&2 <<'EOF'
-Or build and run the SemOps-owned ArduPilot/Gazebo headless recipe:
+Or build and run the preferred SemOps-owned ArduPilot SITL recipe:
   docker build \
+    --platform linux/amd64 \
+    -f docker/ardupilot-sitl/Dockerfile \
+    -t c360studio/semops-ardupilot-sitl:local \
+    docker/ardupilot-sitl
+
+  SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE=c360studio/semops-ardupilot-sitl:local \
+  SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND=/usr/local/bin/semops-ardupilot-sitl \
+  SEMOPS_MAVLINK_SITL_GATE_MODE=ardupilot-stack \
+  bash scripts/mavlink-sitl-gate.sh
+
+Use the SemOps-owned ArduPilot/Gazebo headless recipe only when the evidence needs Gazebo physics:
+  docker build \
+    --platform linux/amd64 \
     -f docker/ardupilot-gazebo-headless/Dockerfile \
     -t c360studio/semops-ardupilot-gazebo-headless:local \
     docker/ardupilot-gazebo-headless
@@ -639,6 +656,7 @@ EOF
   docker run -d --rm \
     --name "$ARDUPILOT_DOCKER_CONTAINER" \
     --network "$ARDUPILOT_DOCKER_NETWORK" \
+    --platform "$ARDUPILOT_DOCKER_PLATFORM" \
     "$ARDUPILOT_DOCKER_IMAGE" \
     "$ARDUPILOT_DOCKER_SHELL" -lc "$(ardupilot_inner_command_string)" >/dev/null
   ARDUPILOT_STARTED=true
@@ -665,6 +683,7 @@ ardupilot_start_hook_command_string() {
   printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_ROUTE=%q' "$ARDUPILOT_DOCKER_ROUTE"
   printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND=%q' "$ARDUPILOT_DOCKER_COMMAND"
   printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_SHELL=%q' "$ARDUPILOT_DOCKER_SHELL"
+  printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PLATFORM=%q' "$ARDUPILOT_DOCKER_PLATFORM"
   printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_BOOT_WAIT=%q' "$ARDUPILOT_DOCKER_BOOT_WAIT"
   printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_PULL=%q' "$ARDUPILOT_DOCKER_PULL"
   printf ' SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_REPLACE=%q' "$ARDUPILOT_DOCKER_REPLACE"
