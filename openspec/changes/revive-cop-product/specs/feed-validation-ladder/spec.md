@@ -335,6 +335,9 @@ public conformance suite, or documented interoperability test backs the claim.
   is present
 - **AND** any managed ArduPilot Docker helper SHALL require an explicit reviewed ArduPilot-family image and SHALL NOT
   choose or pull a default public image
+- **AND** SemOps SHALL NOT pin a default ArduPilot/Gazebo image until a reviewed external image or SemOps-owned
+  headless image passes the ArduPilot stack smoke with image tag or digest, launch command, UDP route, and evidence
+  file recorded
 - **AND** any managed ArduPilot Docker helper MAY attach that image to the SemOps Compose network and route the default
   `sim_vehicle.py` telemetry output to the hosted `semops` service alias
 - **AND** any MAVSDK/offboard-specific helper mode SHALL stamp `simulator_family=mavsdk`, default to motion-required

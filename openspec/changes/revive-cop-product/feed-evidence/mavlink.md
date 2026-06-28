@@ -193,6 +193,12 @@ locally on 2026-06-17. Clean-stack owner-registry smokes also passed on 2026-06-
   Docker image even though the local PX4/Gazebo headless image was present. Evidence file:
   `tmp/mavlink-sitl-evidence/2026-06-28T00-15-11Z-ardupilot-stack.env`. This is readiness-gap evidence only; it does
   not close ArduPilot telemetry parity.
+- 2026-06-28: ArduPilot/Gazebo Docker image review found no public image strong enough to pin as the default for
+  task 5.95. Official ArduPilot namespace images are active CI/build bases, not ready-made SemOps headless Gazebo
+  sources. Third-party ArduPilot/Gazebo images exist, but their Docker Hub metadata showed stale tags, low pull counts,
+  very large image sizes, empty descriptions, or unclear launch contracts. Keep
+  `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE` explicit until a SemOps-owned headless image or reviewed external
+  image passes `ardupilot-stack`.
 - 2026-06-28T00:15:13Z: `SEMOPS_MAVLINK_SITL_GATE_MODE=mavsdk-offboard-stack bash scripts/mavlink-sitl-gate.sh`
   exited with `result=blocked_no_local_simulator`. The gate stamped `simulator_family=mavsdk`, defaulted to
   `mavsdk_server udp://:14540`, defaulted to motion-required telemetry, found no `mavsdk_server`, and found no MAVSDK

@@ -188,6 +188,13 @@ The helper starts that container on the SemOps Compose network before the extern
 default `sim_vehicle.py` output to `semops:14550`, and stops the container during cleanup unless
 `SEMOPS_MAVLINK_SITL_KEEP_SIMULATOR=true`.
 
+ArduPilot/Gazebo image review result: as of the 2026-06-28 Docker Hub check, SemOps should not pin a default public
+ArduPilot/Gazebo image. The active ArduPilot namespace images are CI/build bases, while public combined
+ArduPilot/Gazebo images are third-party, low-signal, stale, very large, or unclear about launch contracts. Prefer a
+SemOps-owned headless image recipe based on the official ArduPilot SITL-with-Gazebo docs and
+`ArduPilot/ardupilot_gazebo`, or run an explicitly reviewed external image by setting
+`SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE` and opting into pulls deliberately.
+
 Current local result: on 2026-06-28T00:15:11Z UTC, `ardupilot-stack` blocked with
 `result=blocked_no_local_simulator`. The laptop had the PX4/Gazebo headless image, but no `sim_vehicle.py` and no
 ArduPilot/ArduCopter Docker image. Evidence:

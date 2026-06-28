@@ -275,6 +275,10 @@ Mock or harness:
   `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_IMAGE`, has no default image, can run a custom
   `SEMOPS_MAVLINK_SITL_ARDUPILOT_DOCKER_COMMAND`, and otherwise routes the default `sim_vehicle.py` command to the
   hosted SemOps Compose-network alias `semops:14550`.
+- 2026-06-28 ArduPilot/Gazebo image review found no public image strong enough to pin as the default. The active
+  ArduPilot namespace images are CI/build bases, while the combined ArduPilot/Gazebo registry hits are third-party,
+  low-signal, stale, very large, or unclear about their launch contracts. Keep the ArduPilot Docker image explicit
+  until a SemOps-owned headless image or a reviewed external image passes `ardupilot-stack`.
 - The helper also has an explicit `mavsdk-offboard-stack` mode. It stamps `simulator_family=mavsdk`, defaults to
   `mavsdk_server udp://:14540`, defaults to motion-required telemetry, and blocks unless `mavsdk_server`, a
   MAVSDK-family Docker image, or an explicit remote-source override is present.

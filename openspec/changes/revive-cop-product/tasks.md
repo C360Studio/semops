@@ -232,6 +232,8 @@
       real ArduPilot stack smoke passes
 - [x] 5.110 Clarify MAVLink peer-route language so PX4/Gazebo command evidence cannot be mistaken for a product
       boundary change
+- [x] 5.111 Review ArduPilot/Gazebo Docker image candidates and keep 5.95 blocked until a reviewed image or
+      SemOps-owned headless image passes the ArduPilot stack smoke
 
 ## 6. Structural COP Stack
 
