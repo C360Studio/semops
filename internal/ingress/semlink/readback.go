@@ -12,18 +12,24 @@ import (
 
 const ClaimScopeCompanionIntentOnly = "semlink-companion-command-intent-only"
 
+const (
+	mavlinkCommandRequestMessage   = 512
+	mavlinkMessageAutopilotVersion = 148
+)
+
 type ArduPilotReadbackRequest struct {
-	MeshNodeID       string
-	ID               string
-	TargetAssetID    string
-	VehicleSystemID  int
-	VehicleComponent int
-	Action           string
-	CorrelationID    string
-	IdempotencyKey   string
-	SourceRef        string
-	ObservedAt       time.Time
-	TTL              time.Duration
+	CompanionNodeID    string
+	ID                 string
+	TargetAssetID      string
+	TargetSystemID     int
+	TargetComponentID  int
+	CommandID          int
+	RequestedMessageID int
+	CorrelationID      string
+	IdempotencyKey     string
+	SourceRef          string
+	RequestedAt        time.Time
+	TTL                time.Duration
 }
 
 type Ingress struct {
@@ -48,21 +54,23 @@ func (i Ingress) AdmitArduPilotReadback(
 	if i.Projector == nil {
 		return Result{}, commandprojector.Plan{}, fmt.Errorf("semlink companion ingress requires guarded command projector")
 	}
+	if err := validateMAVLinkReadback(req); err != nil {
+		return Result{}, commandprojector.Plan{}, err
+	}
 	targetAssetID, err := i.targetAssetID(req)
 	if err != nil {
 		return Result{}, commandprojector.Plan{}, err
 	}
 	intent, err := commandprojector.NewSemLinkArduPilotReadbackIntent(commandprojector.SemLinkCompanionRequest{
-		MeshNodeID:       req.MeshNodeID,
+		MeshNodeID:       req.CompanionNodeID,
 		NativeID:         nativeID(req),
 		TargetAssetID:    targetAssetID,
-		VehicleSystemID:  req.VehicleSystemID,
-		VehicleComponent: req.VehicleComponent,
-		Action:           req.Action,
+		VehicleSystemID:  req.TargetSystemID,
+		VehicleComponent: req.TargetComponentID,
 		CorrelationID:    req.CorrelationID,
 		IdempotencyKey:   req.IdempotencyKey,
 		SourceRef:        sourceRef(req),
-		ObservedAt:       normalizeTime(req.ObservedAt, i.now()),
+		ObservedAt:       normalizeTime(req.RequestedAt, i.now()),
 		TTL:              req.TTL,
 	})
 	if err != nil {
@@ -85,10 +93,10 @@ func (i Ingress) targetAssetID(req ArduPilotReadbackRequest) (string, error) {
 	if trimmed := strings.TrimSpace(req.TargetAssetID); trimmed != "" {
 		return trimmed, nil
 	}
-	if req.VehicleSystemID < 1 || req.VehicleSystemID > 255 {
-		return "", fmt.Errorf("SemLink companion vehicle_system_id must be between 1 and 255, got %d", req.VehicleSystemID)
+	if req.TargetSystemID < 1 || req.TargetSystemID > 255 {
+		return "", fmt.Errorf("SemLink companion target_system_id must be between 1 and 255, got %d", req.TargetSystemID)
 	}
-	return mavlinkprojector.SourceAssetID(i.MAVLinkOrg, i.MAVLinkPlatform, req.VehicleSystemID), nil
+	return mavlinkprojector.SourceAssetID(i.MAVLinkOrg, i.MAVLinkPlatform, req.TargetSystemID), nil
 }
 
 func (i Ingress) now() time.Time {
@@ -102,14 +110,32 @@ func nativeID(req ArduPilotReadbackRequest) string {
 	if trimmed := strings.TrimSpace(req.ID); trimmed != "" {
 		return "semlink-" + safeToken(trimmed)
 	}
-	return "semlink-" + safeToken(req.MeshNodeID) + "-autopilot-version"
+	return "semlink-" + safeToken(req.CompanionNodeID) + "-autopilot-version"
 }
 
 func sourceRef(req ArduPilotReadbackRequest) string {
 	if trimmed := strings.TrimSpace(req.SourceRef); trimmed != "" {
 		return trimmed
 	}
-	return "semlink://" + safeToken(req.MeshNodeID) + "/ardupilot/system-" + safeToken(fmt.Sprint(req.VehicleSystemID)) + "/request-autopilot-version"
+	return "semlink://" + safeToken(req.CompanionNodeID) + "/ardupilot/system-" + safeToken(fmt.Sprint(req.TargetSystemID)) + "/request-autopilot-version"
+}
+
+func validateMAVLinkReadback(req ArduPilotReadbackRequest) error {
+	commandID := req.CommandID
+	if commandID == 0 {
+		commandID = mavlinkCommandRequestMessage
+	}
+	if commandID != mavlinkCommandRequestMessage {
+		return fmt.Errorf("unsupported command_id %d; MVP allowlist: MAV_CMD_REQUEST_MESSAGE %d", commandID, mavlinkCommandRequestMessage)
+	}
+	requestedMessageID := req.RequestedMessageID
+	if requestedMessageID == 0 {
+		requestedMessageID = mavlinkMessageAutopilotVersion
+	}
+	if requestedMessageID != mavlinkMessageAutopilotVersion {
+		return fmt.Errorf("unsupported requested_message_id %d; MVP allowlist: AUTOPILOT_VERSION %d", requestedMessageID, mavlinkMessageAutopilotVersion)
+	}
+	return nil
 }
 
 func normalizeTime(value time.Time, fallback time.Time) time.Time {

@@ -32,8 +32,8 @@ POST /api/cop/semlink/ardupilot/readback
 Content-Type: application/json
 ```
 
-Current implementation note: the live handler still uses the earlier `mesh_node_id` and `vehicle_system_id` shape.
-The contract below is the v0 target shape for the next handler migration.
+Compatibility note: the live handler accepts the canonical v0 fields below and retains staged aliases for the earlier
+`mesh_node_id`, `vehicle_system_id`, `vehicle_component_id`, `action`, and `observed_at` shape.
 
 ## Authentication Boundary
 
@@ -53,8 +53,8 @@ The trusted boundary must provide:
 | `X-SemOps-Authority-Domain` | Authority domain used for audit | SemOps deployment boundary |
 | `X-SemOps-SemLink-Companion-Node-ID` | Authenticated companion node ID | SemOps deployment boundary |
 
-`X-SemOps-SemLink-Mesh-Node-ID` is a compatibility alias while the current route is migrated. The body field
-`companion_node_id` is canonical in v0.
+`X-SemOps-SemLink-Mesh-Node-ID` is a compatibility alias during staged rollout. The body field `companion_node_id` is
+canonical in v0.
 
 ## Request
 
@@ -227,8 +227,6 @@ the hot path.
 
 ## Implementation Follow-Ups
 
-- Migrate the SemOps handler request body from `mesh_node_id` / `vehicle_system_id` / `action` to the v0 contract
-  shape, preserving compatibility aliases where needed.
-- Move trusted-header companion node binding from mesh wording to companion-node wording.
+- Retire compatibility aliases after SemLink has reviewed and adopted the v0 fixture set.
 - Keep `target_asset_id` as a SemOps response/readback field, not a SemLink request requirement.
 - Add structured `AUTOPILOT_VERSION` payload decoding and observation evidence in a later slice.

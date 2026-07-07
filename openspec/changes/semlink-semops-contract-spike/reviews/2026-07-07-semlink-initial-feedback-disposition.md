@@ -52,8 +52,8 @@ SemLink hot path stays native for MVP.
 
 ## Required Follow-Ups
 
-- Migrate SemOps handler DTOs from the current `mesh_node_id` / `vehicle_system_id` / `action` shape to the v0
-  `companion_node_id` / `target_system_id` / `command_id` / `requested_message_id` shape.
-- Preserve compatibility aliases only where needed for staged rollout.
-- Add tests that load the v0 fixtures and prove SemOps command-intent admission behavior.
+- SemOps handler DTOs now accept the v0 `companion_node_id` / `target_system_id` / `command_id` /
+  `requested_message_id` shape.
+- Preserve compatibility aliases only where needed for staged rollout, then retire them after SemLink adoption.
+- Route tests now load the v0 fixtures and prove SemOps command-intent admission behavior.
 - Send the v0 contract and fixtures back to SemLink for final hold-out review before SemLink resumes implementation.

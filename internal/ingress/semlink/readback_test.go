@@ -17,14 +17,16 @@ func TestIngressAdmitsSemLinkArduPilotReadbackAsIntentOnly(t *testing.T) {
 	ingress := testIngress(now, targetID)
 
 	result, plan, err := ingress.AdmitArduPilotReadback(context.Background(), ArduPilotReadbackRequest{
-		MeshNodeID:       "blueboat-01",
-		ID:               "autopilot-version",
-		TargetAssetID:    targetID,
-		VehicleSystemID:  1,
-		VehicleComponent: 1,
-		CorrelationID:    "semlink:blueboat-01:req-1",
-		IdempotencyKey:   "semlink-blueboat-01-autopilot-version",
-		TTL:              30 * time.Second,
+		CompanionNodeID:    "blueboat-01",
+		ID:                 "autopilot-version",
+		TargetAssetID:      targetID,
+		TargetSystemID:     1,
+		TargetComponentID:  1,
+		CommandID:          512,
+		RequestedMessageID: 148,
+		CorrelationID:      "semlink:blueboat-01:req-1",
+		IdempotencyKey:     "semlink-blueboat-01-autopilot-version",
+		TTL:                30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("admit SemLink readback: %v", err)
@@ -61,12 +63,14 @@ func TestIngressDerivesCanonicalMAVLinkTargetFromSemLinkRoute(t *testing.T) {
 	ingress := testIngress(now, targetID)
 
 	result, plan, err := ingress.AdmitArduPilotReadback(context.Background(), ArduPilotReadbackRequest{
-		MeshNodeID:      "blueboat-01",
-		ID:              "autopilot-version",
-		VehicleSystemID: 42,
-		CorrelationID:   "semlink:blueboat-01:req-42",
-		IdempotencyKey:  "semlink-blueboat-01-autopilot-version-42",
-		TTL:             30 * time.Second,
+		CompanionNodeID:    "blueboat-01",
+		ID:                 "autopilot-version",
+		TargetSystemID:     42,
+		CommandID:          512,
+		RequestedMessageID: 148,
+		CorrelationID:      "semlink:blueboat-01:req-42",
+		IdempotencyKey:     "semlink-blueboat-01-autopilot-version-42",
+		TTL:                30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("admit SemLink readback: %v", err)
@@ -81,23 +85,24 @@ func TestIngressDerivesCanonicalMAVLinkTargetFromSemLinkRoute(t *testing.T) {
 	requireTriple(t, triples, cop.TaskTarget, targetID)
 }
 
-func TestIngressRejectsUnsafeSemLinkCompanionActionBeforeProjection(t *testing.T) {
+func TestIngressRejectsUnsupportedSemLinkMAVLinkMessageBeforeProjection(t *testing.T) {
 	now := time.Date(2026, 7, 7, 16, 30, 0, 0, time.UTC)
 	_, plan, err := testIngress(now, "c360.edge.cop.mavlink.asset.system-1").AdmitArduPilotReadback(
 		context.Background(),
 		ArduPilotReadbackRequest{
-			MeshNodeID:      "blueboat-01",
-			ID:              "arm",
-			TargetAssetID:   "c360.edge.cop.mavlink.asset.system-1",
-			VehicleSystemID: 1,
-			Action:          "arm",
-			CorrelationID:   "semlink:arm",
-			IdempotencyKey:  "semlink-arm",
-			TTL:             time.Minute,
+			CompanionNodeID:    "blueboat-01",
+			ID:                 "status-text",
+			TargetAssetID:      "c360.edge.cop.mavlink.asset.system-1",
+			TargetSystemID:     1,
+			CommandID:          512,
+			RequestedMessageID: 76,
+			CorrelationID:      "semlink:status-text",
+			IdempotencyKey:     "semlink-status-text",
+			TTL:                time.Minute,
 		},
 	)
-	if err == nil || !strings.Contains(err.Error(), commandprojector.SemLinkActionRequestAutopilotVersion) {
-		t.Fatalf("error = %v, want MVP allowlist rejection", err)
+	if err == nil || !strings.Contains(err.Error(), "AUTOPILOT_VERSION") {
+		t.Fatalf("error = %v, want requested_message_id allowlist rejection", err)
 	}
 	if len(plan.Mutations) != 0 {
 		t.Fatalf("mutations = %d, want no projection", len(plan.Mutations))
@@ -107,13 +112,15 @@ func TestIngressRejectsUnsafeSemLinkCompanionActionBeforeProjection(t *testing.T
 func TestIngressRejectsUnbornSemLinkTargetBeforeProjection(t *testing.T) {
 	now := time.Date(2026, 7, 7, 17, 0, 0, 0, time.UTC)
 	result, plan, err := testIngress(now).AdmitArduPilotReadback(context.Background(), ArduPilotReadbackRequest{
-		MeshNodeID:      "blueboat-01",
-		ID:              "autopilot-version",
-		TargetAssetID:   "c360.edge.cop.mavlink.asset.system-1",
-		VehicleSystemID: 1,
-		CorrelationID:   "semlink:req",
-		IdempotencyKey:  "semlink-req",
-		TTL:             time.Minute,
+		CompanionNodeID:    "blueboat-01",
+		ID:                 "autopilot-version",
+		TargetAssetID:      "c360.edge.cop.mavlink.asset.system-1",
+		TargetSystemID:     1,
+		CommandID:          512,
+		RequestedMessageID: 148,
+		CorrelationID:      "semlink:req",
+		IdempotencyKey:     "semlink-req",
+		TTL:                time.Minute,
 	})
 	if err != nil {
 		t.Fatalf("admit missing target: %v", err)

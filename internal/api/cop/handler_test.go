@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -391,11 +392,11 @@ func TestHandlerAdmitsSemLinkReadbackIntentAndWritesPlan(t *testing.T) {
 		t.Fatalf("ingress requests = %d, want 1", len(ingress.requests))
 	}
 	gotRequest := ingress.requests[0]
-	if gotRequest.MeshNodeID != "blue-boat" ||
+	if gotRequest.CompanionNodeID != "blue-boat" ||
 		gotRequest.ID != "autopilot-version" ||
 		gotRequest.TargetAssetID != "c360.edge.cop.mavlink.asset.system-42" ||
-		gotRequest.VehicleSystemID != 42 ||
-		gotRequest.VehicleComponent != 1 ||
+		gotRequest.TargetSystemID != 42 ||
+		gotRequest.TargetComponentID != 1 ||
 		gotRequest.TTL != 45*time.Second {
 		t.Fatalf("ingress request = %+v", gotRequest)
 	}
@@ -414,6 +415,219 @@ func TestHandlerAdmitsSemLinkReadbackIntentAndWritesPlan(t *testing.T) {
 		response.NativeExecutionAllowed ||
 		response.CompanionTransmitAllowed {
 		t.Fatalf("response = %+v", response)
+	}
+}
+
+func TestHandlerAdmitsSemLinkReadbackV0FixtureThroughIngress(t *testing.T) {
+	now := time.Date(2026, 7, 7, 18, 30, 1, 0, time.UTC)
+	writer := &recordingCommandPlanWriter{}
+	handler := newSemLinkReadbackV0Handler(t, now, writer, "c360.edge.cop.mavlink.asset.system-42")
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(readSemLinkContractFixture(t, "request.accepted.json")),
+	)
+	setTrustedSemLinkReadbackHeadersForNode(req, "blue-boat-01")
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if len(writer.plans) != 1 || len(writer.plans[0].Mutations) != 1 {
+		t.Fatalf("writer plans = %+v, want one command-intent write", writer.plans)
+	}
+	var response semLinkReadbackResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Contract != semLinkReadbackContractV0 ||
+		!response.Accepted ||
+		response.Status != "accepted" ||
+		response.Duplicate ||
+		response.CorrelationID != "corr-blue-boat-01-autopilot-version-001" ||
+		response.IdempotencyKey != "idem-blue-boat-01-autopilot-version-001" ||
+		response.CompanionNodeID != "blue-boat-01" ||
+		response.AuthorizedCompanionNodeID != "blue-boat-01" ||
+		response.AuthorityScope != SemLinkReadbackAuthorityScope ||
+		response.TargetAssetID != "c360.edge.cop.mavlink.asset.system-42" ||
+		response.EntityID != "c360.edge.cop.command.task.semlink-blue-boat-01-autopilot-version" ||
+		response.NativeID != "semlink-blue-boat-01-autopilot-version" ||
+		response.ClaimScope != semlinkingress.ClaimScopeCompanionIntentOnly ||
+		response.RequestedAt != time.Date(2026, 7, 7, 18, 30, 0, 0, time.UTC) ||
+		response.ExpiresAt != time.Date(2026, 7, 7, 18, 30, 30, 0, time.UTC) ||
+		response.Mutations != 1 ||
+		response.NativeExecutionAllowed ||
+		response.CompanionTransmitAllowed {
+		t.Fatalf("response = %+v", response)
+	}
+}
+
+func TestHandlerCollapsesDuplicateSemLinkReadbackV0FixtureBeforeSecondWrite(t *testing.T) {
+	now := time.Date(2026, 7, 7, 18, 30, 1, 0, time.UTC)
+	writer := &recordingCommandPlanWriter{}
+	handler := newSemLinkReadbackV0Handler(t, now, writer, "c360.edge.cop.mavlink.asset.system-42")
+
+	for attempt := 0; attempt < 2; attempt++ {
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"/api/cop/semlink/ardupilot/readback",
+			strings.NewReader(readSemLinkContractFixture(t, "request.accepted.json")),
+		)
+		setTrustedSemLinkReadbackHeadersForNode(req, "blue-boat-01")
+		rec := httptest.NewRecorder()
+		handler.Routes().ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("attempt %d status = %d, body %s", attempt+1, rec.Code, rec.Body.String())
+		}
+		if attempt == 0 {
+			continue
+		}
+		var response semLinkReadbackResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+			t.Fatalf("decode duplicate response: %v", err)
+		}
+		if response.Accepted ||
+			response.Status != "duplicate" ||
+			!response.Duplicate ||
+			response.ExistingNativeID != "semlink-blue-boat-01-autopilot-version" ||
+			response.Mutations != 0 ||
+			response.NativeExecutionAllowed ||
+			response.CompanionTransmitAllowed {
+			t.Fatalf("duplicate response = %+v", response)
+		}
+	}
+	if len(writer.plans) != 1 {
+		t.Fatalf("writer plans = %d, want only the first accepted write", len(writer.plans))
+	}
+}
+
+func TestHandlerRejectsStaleSemLinkReadbackV0FixtureBeforeWrite(t *testing.T) {
+	now := time.Date(2026, 7, 7, 18, 30, 1, 0, time.UTC)
+	writer := &recordingCommandPlanWriter{}
+	handler := newSemLinkReadbackV0Handler(t, now, writer, "c360.edge.cop.mavlink.asset.system-42")
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(readSemLinkContractFixture(t, "request.expired.json")),
+	)
+	setTrustedSemLinkReadbackHeadersForNode(req, "blue-boat-01")
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if len(writer.plans) != 0 {
+		t.Fatalf("writer plans = %+v, want none for stale readback", writer.plans)
+	}
+	var response semLinkReadbackResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Accepted ||
+		response.Status != "rejected" ||
+		response.RejectedReason != "expired request" ||
+		response.Mutations != 0 ||
+		response.NativeExecutionAllowed ||
+		response.CompanionTransmitAllowed {
+		t.Fatalf("response = %+v", response)
+	}
+}
+
+func TestHandlerRejectsUnsupportedSemLinkReadbackV0MessageBeforeIngressWrite(t *testing.T) {
+	now := time.Date(2026, 7, 7, 18, 30, 1, 0, time.UTC)
+	writer := &recordingCommandPlanWriter{}
+	handler := newSemLinkReadbackV0Handler(t, now, writer, "c360.edge.cop.mavlink.asset.system-42")
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(readSemLinkContractFixture(t, "request.rejected-unsupported-message.json")),
+	)
+	setTrustedSemLinkReadbackHeadersForNode(req, "blue-boat-01")
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if len(writer.plans) != 0 {
+		t.Fatalf("writer plans = %+v, want none for unsupported message", writer.plans)
+	}
+	var response semLinkReadbackResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Status != "rejected" ||
+		!strings.Contains(response.RejectedReason, "unsupported requested_message_id 76") ||
+		response.Mutations != 0 ||
+		response.NativeExecutionAllowed ||
+		response.CompanionTransmitAllowed {
+		t.Fatalf("response = %+v", response)
+	}
+}
+
+func TestHandlerRejectsSemLinkReadbackV0FixtureForUnbornTargetBeforeWrite(t *testing.T) {
+	now := time.Date(2026, 7, 7, 18, 30, 1, 0, time.UTC)
+	writer := &recordingCommandPlanWriter{}
+	handler := newSemLinkReadbackV0Handler(t, now, writer)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(readSemLinkContractFixture(t, "request.accepted.json")),
+	)
+	setTrustedSemLinkReadbackHeadersForNode(req, "blue-boat-01")
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if len(writer.plans) != 0 {
+		t.Fatalf("writer plans = %+v, want none for unborn target", writer.plans)
+	}
+	var response semLinkReadbackResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Accepted ||
+		response.Status != "rejected" ||
+		response.RejectedReason != "command target asset is not born" ||
+		response.Mutations != 0 ||
+		response.NativeExecutionAllowed ||
+		response.CompanionTransmitAllowed {
+		t.Fatalf("response = %+v", response)
+	}
+}
+
+func TestHandlerSemLinkReadbackV0RejectsMissingAuthorityScope(t *testing.T) {
+	now := time.Date(2026, 7, 7, 18, 30, 1, 0, time.UTC)
+	writer := &recordingCommandPlanWriter{}
+	handler := newSemLinkReadbackV0Handler(t, now, writer, "c360.edge.cop.mavlink.asset.system-42")
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(readSemLinkContractFixture(t, "request.accepted.json")),
+	)
+	req.Header.Set(OperatorAuthenticatedHeader, "true")
+	req.Header.Set(OperatorIDHeader, "operator:semlink-gateway")
+	req.Header.Set(OperatorRoleHeader, SemLinkReadbackOperatorRole)
+	req.Header.Set(OperatorAuthorityDomainHeader, "boat-blue")
+	req.Header.Set(SemLinkCompanionNodeIDHeader, "blue-boat-01")
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if len(writer.plans) != 0 {
+		t.Fatalf("writer plans = %+v, want none before authorized admission", writer.plans)
 	}
 }
 
@@ -607,6 +821,7 @@ func TestHandlerSemLinkReadbackAuthorizerAnnotatesAcceptedResponse(t *testing.T)
 		t.Fatalf("decode response: %v", err)
 	}
 	if response.AuthorizedBy != "operator:semlink-gateway" ||
+		response.AuthorizedCompanionNodeID != "blue-boat" ||
 		response.AuthorizedMeshNodeID != "blue-boat" ||
 		response.AuthorityScope != SemLinkReadbackAuthorityScope ||
 		response.AuthorityDomain != "boat-blue" ||
@@ -727,10 +942,54 @@ func (w *recordingCommandPlanWriter) Apply(_ context.Context, plan commandprojec
 }
 
 func setTrustedSemLinkReadbackHeaders(req *http.Request) {
+	setTrustedSemLinkReadbackHeadersForNode(req, "blue-boat")
+}
+
+func setTrustedSemLinkReadbackHeadersForNode(req *http.Request, nodeID string) {
 	req.Header.Set(OperatorAuthenticatedHeader, "true")
 	req.Header.Set(OperatorIDHeader, "operator:semlink-gateway")
 	req.Header.Set(OperatorRoleHeader, SemLinkReadbackOperatorRole)
 	req.Header.Set(OperatorAuthorityScopeHeader, SemLinkReadbackAuthorityScope)
 	req.Header.Set(OperatorAuthorityDomainHeader, "boat-blue")
-	req.Header.Set(SemLinkMeshNodeIDHeader, "blue-boat")
+	req.Header.Set(SemLinkCompanionNodeIDHeader, nodeID)
+}
+
+func readSemLinkContractFixture(t *testing.T, name string) string {
+	t.Helper()
+	body, err := os.ReadFile("../../../testdata/contracts/semlink-companion-readback-v0/" + name)
+	if err != nil {
+		t.Fatalf("read fixture %s: %v", name, err)
+	}
+	return string(body)
+}
+
+func newSemLinkReadbackV0Handler(
+	t *testing.T,
+	now time.Time,
+	writer *recordingCommandPlanWriter,
+	targetIDs ...string,
+) *Handler {
+	t.Helper()
+	if writer == nil {
+		writer = &recordingCommandPlanWriter{}
+	}
+	ingress := semlinkingress.Ingress{
+		Projector: commandprojector.NewGuardedProjector(
+			commandprojector.NewProjector(commandprojector.Config{}),
+			commandprojector.AdmissionConfig{
+				Clock:          func() time.Time { return now },
+				TargetResolver: commandprojector.NewStaticTargetResolver(targetIDs...),
+			},
+		),
+		Clock: func() time.Time { return now },
+	}
+	handler, err := NewHandler(
+		NewFixtureProvider(nil),
+		WithSemLinkReadbackIngress(ingress, writer),
+		WithSemLinkReadbackAuthorizer(RequireTrustedSemLinkReadbackHeaders),
+	)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+	return handler
 }

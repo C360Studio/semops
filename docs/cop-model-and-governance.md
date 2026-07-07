@@ -91,12 +91,13 @@ The SemLink ArduPilot readback route also requires trusted-header mode when enab
 `semlink.readback.intent`, which authorizes only governed `AUTOPILOT_VERSION` readback-intent admission into the command
 graph. It does not grant native MAVLink transmit authority, companion transmit authority, mission execution, mode
 changes, arm/disarm, or offboard control.
-The caller must also provide `X-SemOps-SemLink-Mesh-Node-ID`; the API requires it to match the request `mesh_node_id`
-before ingress admission or graph writes. This is caller provenance for the companion boundary, not distributed mesh
-causality metadata.
-If the request omits `target_asset_id`, SemOps derives the canonical MAVLink source asset from `vehicle_system_id` and
-the configured MAVLink org/platform, then still requires the graph-backed target resolver to prove that asset is born
-before any command-intent write.
+The caller must also provide `X-SemOps-SemLink-Companion-Node-ID`; the API requires it to match the request
+`companion_node_id` before ingress admission or graph writes. `X-SemOps-SemLink-Mesh-Node-ID` and `mesh_node_id` remain
+staged compatibility aliases only. This is caller provenance for the companion boundary, not distributed mesh causality
+metadata.
+SemLink does not provide `target_asset_id` in the v0 request. SemOps derives the canonical MAVLink source asset from
+`target_system_id` and the configured MAVLink org/platform, then still requires the graph-backed target resolver to
+prove that asset is born before any command-intent write.
 
 SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
 absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are

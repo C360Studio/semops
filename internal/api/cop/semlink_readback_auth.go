@@ -9,6 +9,7 @@ import (
 const (
 	SemLinkReadbackAuthorityScope = "semlink.readback.intent"
 	SemLinkReadbackOperatorRole   = AuthenticatedAssociationReviewerRole
+	SemLinkCompanionNodeIDHeader  = "X-SemOps-SemLink-Companion-Node-ID"
 	SemLinkMeshNodeIDHeader       = "X-SemOps-SemLink-Mesh-Node-ID"
 )
 
@@ -16,6 +17,7 @@ type SemLinkReadbackAuthorizer func(*http.Request) (SemLinkReadbackCaller, error
 
 type SemLinkReadbackCaller struct {
 	ID              string
+	CompanionNodeID string
 	MeshNodeID      string
 	AuthorityScope  string
 	AuthorityDomain string
@@ -69,13 +71,14 @@ func RequireTrustedSemLinkReadbackHeaders(r *http.Request) (SemLinkReadbackCalle
 	if err := validateAuthorityDomain(domain); err != nil {
 		return SemLinkReadbackCaller{}, semLinkReadbackAuthError(http.StatusForbidden, err.Error())
 	}
-	meshNodeID := strings.TrimSpace(r.Header.Get(SemLinkMeshNodeIDHeader))
-	if err := validateSemLinkMeshNodeID(meshNodeID); err != nil {
+	companionNodeID := firstSemLinkNodeHeader(r)
+	if err := validateSemLinkCompanionNodeID(companionNodeID); err != nil {
 		return SemLinkReadbackCaller{}, semLinkReadbackAuthError(http.StatusForbidden, err.Error())
 	}
 	return SemLinkReadbackCaller{
 		ID:              id,
-		MeshNodeID:      meshNodeID,
+		CompanionNodeID: companionNodeID,
+		MeshNodeID:      companionNodeID,
 		AuthorityScope:  scope,
 		AuthorityDomain: domain,
 		Authenticated:   true,
@@ -89,17 +92,27 @@ func semLinkReadbackAuthError(status int, message string) *SemLinkReadbackAuthEr
 	return &SemLinkReadbackAuthError{Status: status, Message: message}
 }
 
-func validateSemLinkMeshNodeID(meshNodeID string) error {
-	if strings.TrimSpace(meshNodeID) == "" {
-		return fmt.Errorf("%s is required for SemLink readback", SemLinkMeshNodeIDHeader)
+func firstSemLinkNodeHeader(r *http.Request) string {
+	if r == nil {
+		return ""
 	}
-	if len(meshNodeID) > MaxOperatorIdentityLen {
-		return fmt.Errorf("%s exceeds %d characters", SemLinkMeshNodeIDHeader, MaxOperatorIdentityLen)
+	if value := strings.TrimSpace(r.Header.Get(SemLinkCompanionNodeIDHeader)); value != "" {
+		return value
 	}
-	if strings.ContainsFunc(meshNodeID, func(r rune) bool {
+	return strings.TrimSpace(r.Header.Get(SemLinkMeshNodeIDHeader))
+}
+
+func validateSemLinkCompanionNodeID(companionNodeID string) error {
+	if strings.TrimSpace(companionNodeID) == "" {
+		return fmt.Errorf("%s is required for SemLink readback", SemLinkCompanionNodeIDHeader)
+	}
+	if len(companionNodeID) > MaxOperatorIdentityLen {
+		return fmt.Errorf("%s exceeds %d characters", SemLinkCompanionNodeIDHeader, MaxOperatorIdentityLen)
+	}
+	if strings.ContainsFunc(companionNodeID, func(r rune) bool {
 		return r < ' ' || r == 0x7f
 	}) {
-		return fmt.Errorf("%s contains control characters", SemLinkMeshNodeIDHeader)
+		return fmt.Errorf("%s contains control characters", SemLinkCompanionNodeIDHeader)
 	}
 	return nil
 }

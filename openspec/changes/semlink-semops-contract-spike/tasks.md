@@ -8,11 +8,11 @@
 
 ## 2. SemOps Admission Proof
 
-- [ ] 2.1 Add focused tests that load the native accepted fixture and project it through existing SemLink readback
+- [x] 2.1 Add focused tests that load the native accepted fixture and project it through existing SemLink readback
       ingress into governed command intent
-- [ ] 2.2 Add negative tests for missing authority scope, mesh-node mismatch, unsupported action, unborn target,
-      duplicate idempotency key, and stale TTL
-- [ ] 2.3 Prove the response preserves no-native/no-companion-transmit posture and graph admission evidence
+- [x] 2.2 Add negative tests for missing authority scope, companion-node mismatch, unsupported MAVLink command/message,
+      unborn target, duplicate idempotency key, and stale TTL
+- [x] 2.3 Prove the response preserves no-native/no-companion-transmit posture and graph admission evidence
 
 ## 3. SemConnect Interop Proof
 

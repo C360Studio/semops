@@ -31,7 +31,7 @@ proves CS API reduces operational friction and preserves command-governance sema
 - **WHEN** SemLink acts as a boat-local BlueOS/Navigator/Pi companion node for an ArduPilot vehicle
 - **THEN** it may submit the MVP `AUTOPILOT_VERSION` readback request through the native SemOps companion contract
 - **AND** the request uses MAVLink-native command/message and target system/component identifiers
-- **AND** the request carries only the SemOps governance fields required for trusted caller posture, mesh-node
+- **AND** the request carries only the SemOps governance fields required for trusted caller posture, companion-node
   provenance, idempotency, target proof, correlation, TTL, and audit
 - **AND** SemConnect is not a required runtime dependency for this hot-path request
 

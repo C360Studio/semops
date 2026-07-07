@@ -370,11 +370,12 @@ Mock or harness:
 - That hosted route now requires `SEMOPS_COP_OPERATOR_IDENTITY_MODE=trusted_headers` and trusted caller headers with
   `X-SemOps-Authority-Scope: semlink.readback.intent`. The API records the authenticated caller posture in the response
   but still only writes governed readback intent, not transmit authority.
-- Trusted SemLink readback callers must also send `X-SemOps-SemLink-Mesh-Node-ID`, and it must match the request
-  `mesh_node_id`. A mismatch fails before ingress admission, target lookup, or command-intent graph writes, so one
-  authenticated companion boundary cannot mint readback intent for another mesh node.
-- SemLink callers may omit `target_asset_id` for MVP readback. SemOps derives the canonical MAVLink source asset from
-  `vehicle_system_id` and configured MAVLink org/platform, then still performs graph-backed target lookup before
+- Trusted SemLink readback callers must also send `X-SemOps-SemLink-Companion-Node-ID`, and it must match the request
+  `companion_node_id`. A mismatch fails before ingress admission, target lookup, or command-intent graph writes, so one
+  authenticated companion boundary cannot mint readback intent for another companion node. The older mesh-node header
+  and body names remain staged compatibility aliases only.
+- SemLink callers do not send `target_asset_id` for MVP readback. SemOps derives the canonical MAVLink source asset
+  from `target_system_id` and configured MAVLink org/platform, then still performs graph-backed target lookup before
   admission or command-intent writes.
 - Duplicate SemLink readback `idempotency_key` values collapse in the hosted route before a second graph write. The
   response keeps no-native/no-companion-transmit posture and reports duplicate admission; durable cross-process

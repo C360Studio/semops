@@ -1,7 +1,8 @@
 ## Context
 
 SemOps currently has an opt-in SemLink ArduPilot readback route seam that admits only governed
-`AUTOPILOT_VERSION` command intent. The route requires trusted SemOps caller headers, mesh-node binding, born-target
+`AUTOPILOT_VERSION` command intent. The route requires trusted SemOps caller headers, companion-node binding,
+born-target
 lookup or derivation, idempotency, and explicit no-native/no-companion-transmit posture.
 
 SemLink is building companion-local evidence APIs and BlueOS-style deployment handoff material. That evidence work
@@ -50,7 +51,7 @@ Every native contract field must appear in a standards mapping table:
   observations.
 - CS API/SensorThings/SWE mappings for Systems, Deployments, ControlStreams, Commands, SystemEvents, Datastreams, and
   Observations when those concepts fit.
-- C360 governance-exception mappings for fields such as trusted authority scope, idempotency, mesh-node provenance,
+- C360 governance-exception mappings for fields such as trusted authority scope, idempotency, companion-node provenance,
   born-target proof, owner token, no-transmit posture, and graph admission result.
 
 Fields without a standards mapping or a written governance-exception reason are cut from the MVP contract.
