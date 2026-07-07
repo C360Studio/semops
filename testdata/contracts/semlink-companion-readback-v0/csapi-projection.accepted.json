@@ -1,0 +1,114 @@
+{
+  "contract": "c360.semops.semlink.csapi-projection.v0",
+  "source_contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "claim_scope": "csapi-projection-fixture-only",
+  "csapi_score": "amber",
+  "systems": [
+    {
+      "role": "companion",
+      "id": "c360.edge.cop.semlink.companion.blue-boat-01",
+      "name": "SemLink companion blue-boat-01",
+      "maps_to": "CS API System",
+      "source_ref": "semlink://blue-boat-01"
+    },
+    {
+      "role": "target",
+      "id": "c360.edge.cop.mavlink.asset.system-42",
+      "name": "MAVLink system 42",
+      "maps_to": "CS API System",
+      "source_ref": "mavlink://system/42",
+      "mavlink": {
+        "target_system_id": 42,
+        "target_component_id": 1
+      }
+    }
+  ],
+  "control_stream": {
+    "id": "c360.edge.cop.controlstream.semlink.blue-boat-01.system-42.ardupilot-readback",
+    "system_id": "c360.edge.cop.mavlink.asset.system-42",
+    "companion_system_id": "c360.edge.cop.semlink.companion.blue-boat-01",
+    "name": "SemLink ArduPilot readback intent",
+    "maps_to": "CS API ControlStream",
+    "mavlink": {
+      "command_id": 512,
+      "requested_message_id": 148,
+      "target_system_id": 42,
+      "target_component_id": 1
+    },
+    "governance": {
+      "native_execution_allowed": false,
+      "companion_transmit_allowed": false
+    }
+  },
+  "command": {
+    "id": "c360.edge.cop.command.task.semlink-blue-boat-01-autopilot-version",
+    "native_id": "semlink-blue-boat-01-autopilot-version",
+    "control_stream_id": "c360.edge.cop.controlstream.semlink.blue-boat-01.system-42.ardupilot-readback",
+    "system_id": "c360.edge.cop.mavlink.asset.system-42",
+    "companion_system_id": "c360.edge.cop.semlink.companion.blue-boat-01",
+    "maps_to": "CS API Command",
+    "status": "accepted",
+    "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+    "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+    "source_ref": "semlink://blue-boat-01/ardupilot/system-42/request-autopilot-version",
+    "issue_time": "2026-07-07T18:30:00Z",
+    "expires_at": "2026-07-07T18:30:30Z",
+    "desired": {
+      "command": "MAV_CMD_REQUEST_MESSAGE",
+      "message": "AUTOPILOT_VERSION",
+      "command_id": 512,
+      "requested_message_id": 148,
+      "target_system_id": 42,
+      "target_component_id": 1
+    },
+    "governance": {
+      "authority_scope": "semlink.readback.intent",
+      "claim_scope": "semlink-companion-command-intent-only",
+      "native_execution_allowed": false,
+      "companion_transmit_allowed": false,
+      "duplicate": false,
+      "mutations": 1
+    }
+  },
+  "system_events": [
+    {
+      "id": "c360.edge.cop.command.task.semlink-blue-boat-01-autopilot-version/events/admission-accepted",
+      "system_id": "c360.edge.cop.mavlink.asset.system-42",
+      "event_type": "semops.command_intent.accepted",
+      "maps_to": "CS API SystemEvent",
+      "status": "accepted",
+      "observed_at": "2026-07-07T18:30:00Z",
+      "payload": {
+        "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+        "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+        "authority_scope": "semlink.readback.intent",
+        "native_execution_allowed": false,
+        "companion_transmit_allowed": false
+      }
+    }
+  ],
+  "observations": [
+    {
+      "id": "c360.edge.cop.command.task.semlink-blue-boat-01-autopilot-version/observations/autopilot-version",
+      "system_id": "c360.edge.cop.mavlink.asset.system-42",
+      "observed_property": "AUTOPILOT_VERSION",
+      "maps_to": "CS API Observation",
+      "deferred": true,
+      "reason": "SemLink does not yet emit structured decoded AUTOPILOT_VERSION evidence."
+    }
+  ],
+  "deferred_surfaces": [
+    {
+      "name": "csapi.command-status-egress",
+      "reason": "Admission status is projected as a SystemEvent for MVP; durable CS API Command Status publication waits for command lifecycle/status egress."
+    },
+    {
+      "name": "csapi.autopilot-version-observation",
+      "reason": "Decoded AUTOPILOT_VERSION observation waits for SemLink structured payload evidence."
+    },
+    {
+      "name": "csapi.raw-mavlink-transport",
+      "reason": "Raw MAVLink remains native telemetry/control transport, not a CS API payload tunnel."
+    }
+  ]
+}

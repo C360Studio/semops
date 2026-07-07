@@ -225,6 +225,10 @@ expected CS API shape is:
 CS API score for MVP is Amber: it is the right interop and projection edge, but the native companion contract remains
 the hot path.
 
+The projection fixture at `testdata/contracts/semlink-companion-readback-v0/csapi-projection.accepted.json` is the
+current SemConnect hold-out artifact. It preserves the accepted intent's MAVLink, target, provenance, idempotency,
+authority, and no-transmit governance fields without adding CS API to the SemLink runtime path.
+
 ## Implementation Follow-Ups
 
 - Retire compatibility aliases after SemLink has reviewed and adopted the v0 fixture set.

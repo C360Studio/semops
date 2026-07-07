@@ -16,11 +16,11 @@
 
 ## 3. SemConnect Interop Proof
 
-- [ ] 3.1 Draft CS API projection fixtures for the accepted SemLink readback intent using System, ControlStream,
+- [x] 3.1 Draft CS API projection fixtures for the accepted SemLink readback intent using System, ControlStream,
       Command, and status/event/readback resources where they fit
-- [ ] 3.2 Verify the CS API projection can carry MAVLink command/message IDs, target system/component IDs,
+- [x] 3.2 Verify the CS API projection can carry MAVLink command/message IDs, target system/component IDs,
       correlation, sender/provenance, status, and result/readback evidence without semantic loss
-- [ ] 3.3 Record any SemConnect capability gaps as follow-up asks rather than adding SemOps-local CS API behavior
+- [x] 3.3 Record any SemConnect capability gaps as follow-up asks rather than adding SemOps-local CS API behavior
 
 ## 4. SemLink Hold-Out Review
 
