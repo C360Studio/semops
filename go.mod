@@ -4,7 +4,7 @@ go 1.26.3
 
 // SemOps imports semstreams interfaces for domain-specific robotics operations
 require (
-	github.com/c360studio/semstreams v1.0.0-beta.141
+	github.com/c360studio/semstreams v1.0.0-beta.143
 	github.com/nats-io/nats.go v1.48.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1 // indirect

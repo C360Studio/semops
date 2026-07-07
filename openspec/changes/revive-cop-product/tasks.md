@@ -55,6 +55,8 @@
 - [x] 2.27 Bump SemOps to SemStreams `v1.0.0-beta.119` to adopt event-time temporal indexing for
       `time.observation.recorded`
 - [x] 2.28 Bump SemOps to SemStreams `v1.0.0-beta.141` and verify OpenSpec CLI `1.5.0` validation plus Go tests
+- [x] 2.29 Bump SemOps to SemStreams `v1.0.0-beta.143` and verify OpenSpec CLI `1.5.0` validation plus Go
+      compatibility
 
 ## 3. COP Model And Governance
 
