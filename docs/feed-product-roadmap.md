@@ -171,7 +171,9 @@ runtime can listen on both `14550` and `14540` for PX4 return paths. ArduPilot S
 pass evidence, while MAVSDK/offboard is deferred to the full command/control lane. Simulator command-control now has a
 `command-live-sim` gate that can run a reviewed external transmitter and requires graph-visible `COMMAND_ACK` task
 evidence plus post-command track refresh before passing. For MVP, that transmitter should stay to a single read-side
-command: `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`.
+command: `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`. SemLink's revived BlueOS/Navigator/Pi companion direction
+makes ArduPilot bidirectional support a sharper MVP pressure, but the safe slice is still GCS glass, route/source
+discovery, telemetry readback, command-intent projection, and ACK/status reconciliation before richer vehicle control.
 
 Full product lane:
 PX4/ArduPilot SITL and hardware profiles, MAVSDK/offboard command-control smoke, UDP/TCP/serial transports, signed or
@@ -190,8 +192,8 @@ polling posture. The live simulator gate now has a 2026-06-27 PX4/Gazebo pass fo
 `MAV_CMD_REQUEST_MESSAGE` / `AUTOPILOT_VERSION` command: the helper learned the PX4 route, observed accepted
 `COMMAND_ACK` frames on the SemOps raw lane, and the COP snapshot exposed the expected command task plus a fresh
 post-command track. That closes simulator readback for the narrow MVP command, not command authority. Do not expand the
-MVP into mission upload, mode control, arm/disarm, or offboard command authority; read-side feed validation remains the
-priority.
+MVP into mission upload, mode control, arm/disarm, offboard command authority, or hardware authority; read-side feed
+validation and governed command readback remain the priority.
 
 Not claimed yet:
 Full autopilot or fleet-management control, hardware certification, or complete mission-command product.

@@ -10,10 +10,15 @@ SemOps SHALL be the product repo for the complete data-fusion common operating p
 - **THEN** SemOps owns the operator COP, canonical COP model, feed set, UI, fusion behavior, scenario runner, and
   product vocabulary
 
-#### Scenario: SemLink remains a basic demo
+#### Scenario: SemLink companion mesh boundary is explicit
 
-- **WHEN** SemOps uses code, patterns, or UI ideas from SemLink
-- **THEN** the work treats SemLink as prior art or a reusable pattern source, not as the owning product surface
+- **WHEN** SemOps uses code, patterns, UI ideas, or mesh-node state from SemLink
+- **THEN** the work treats SemLink as the boat-local companion and mesh-node product path, not as the owner of the
+  broad COP product surface
+- **AND** SemOps owns the cross-node COP, GCS glass, fusion policy, command-authority posture, and standards-facing
+  bridge boundaries around SemLink-provided state
+- **AND** SemLink pressure MAY prioritize bidirectional ArduPilot support only through governed command intent,
+  MAVLink ACK/status readback, route/source discovery, and fail-closed safety gates
 
 ### Requirement: SemStreams remains substrate-owned
 

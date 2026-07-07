@@ -26,9 +26,10 @@ Product boundary:
   rule processing, shared utility packages, and tiered structural/statistical/semantic services.
 - SemConnect owns the standards-facing OGC Connected Systems API bridge and conformance evidence while SemOps keeps
   native feed ingestion and governed COP state as the product core.
-- SemLink remains useful prior art for the modern GCS UI pattern, source-aware graph lens, TAK bridge, CS API bridge,
-  and bounded raw telemetry lane. SemLink should stay a basic demo unless explicitly rechartered; SemOps owns the
-  complete COP product going forward.
+- SemLink is now the boat-local companion and mesh-node product path, likely targeting BlueOS/Navigator/Pi
+  deployments. SemOps should reuse its modern GCS UI, source-aware graph lens, TAK bridge, CS API bridge, and bounded
+  raw telemetry patterns where useful, while SemOps owns the broad COP, cross-node fusion, GCS glass, and product
+  command-authority posture going forward.
 
 SemOps should act as both consumer and producer for SemStreams improvement. Build product-specific pieces here,
 then upstream generic manifest, governance, tiering, indexing, and provenance needs only once the demo proves them.
@@ -228,7 +229,7 @@ SemOps now has TAK/CoT depth beyond prior-art replay:
   SemStreams components, and the COP API/UI now reads graph-backed CoT tracks, tasks, and advisories by prefix
   discovery.
 
-SemLink has the more current product pattern:
+SemLink has the current companion/mesh product pattern:
 
 - Raw high-rate MAVLink frames stay on a bounded stream lane.
 - Current vehicle state is collapsed into one signal-profiled graph entity per vehicle.
@@ -236,6 +237,9 @@ SemLink has the more current product pattern:
 - Projection contracts declare ownership and indexing profiles before writing through SemStreams graph mutation
   subjects.
 - A Svelte 5 dashboard and CS API bridge already prove the operator and standards-projection shape.
+- Its revived BlueOS/Navigator/Pi direction makes SemLink a likely boat-local mesh peer for ArduPilot vehicles. That
+  raises the priority of safe bidirectional MAVLink readback, command-intent projection, and GCS glass in SemOps, but
+  not mission upload, mode change, arm/disarm, offboard control, or hardware authority in the MVP.
 
 ## COP UI Baseline
 
@@ -333,9 +337,10 @@ SemOps accepts the SemStreams breaking-change direction before rebuilding feed a
 - SemOps now exposes product-runtime component health and flow metrics at `/metrics` via Caddy. The one-command smoke
   asserts `semops_component_*` Prometheus samples for the hosted MAVLink, TAK/CoT, ADS-B, and SAPIENT component flow
   when those feeds are enabled, and includes the SAPIENT projector only when graph smoke is explicitly enabled.
-- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.119`, retaining
+- SemOps removed the local Go module replace and pins `github.com/c360studio/semstreams v1.0.0-beta.141`, retaining
   the beta.113 prefix-discovery contract, beta.114 `HTTPClientPort` component boundary, beta.115 ADR-060
-  graph-mutation error contract, and beta.119 event-time temporal index behavior.
+  graph-mutation error contract, beta.119 event-time temporal index behavior, and the later graph/fusion fixes that
+  still compile cleanly against SemOps.
 - The 2026-06-19 post-prefix-discovery-tag smoke passed against `v1.0.0-beta.113`: focused graph snapshot tests,
   `go test ./...`, `go build ./cmd/semops`, and `bash scripts/cop-stack-smoke.sh`.
 - The 2026-06-20 beta.114 adoption added a SemOps contract test for `component.HTTPClientPort`, confirming outbound
@@ -537,6 +542,8 @@ The SemOps revival should produce concrete upstream asks, not vague "platform ne
   `openspec/changes/revive-cop-product/reviews/2026-06-28-signal-geometry-normalization-review.md`, plus
   `openspec/changes/revive-cop-product/reviews/2026-06-28-tak-control-content-normalization-review.md` and
   `openspec/changes/revive-cop-product/reviews/2026-06-28-cap-hazard-geometry-normalization-review.md`.
+  A mixed-feed contract smoke now checks those aliases as one local spatial-temporal discovery corpus without
+  reopening the deferred server-side indexing/cardinality helper ask.
 - A documented raw-lane plus current-state projection pattern for high-rate telemetry:
   [SemStreams issue #340](https://github.com/C360Studio/semstreams/issues/340).
 - Component backpressure telemetry for hosted feed flows:
@@ -625,6 +632,7 @@ profile semantics.
 
 - Exact entity ID scheme for SemOps COP entities.
 - Predicate ownership matrix for each feed and derived fusion owner.
-- Whether to reuse SemLink UI components directly or port only the patterns into a new SemOps product surface.
+- Whether to reuse SemLink UI components directly, port only the patterns, or consume SemLink mesh-node state through
+  a governed SemOps product surface.
 - Whether deployment metadata or tier UI is a value add or a footgun.
 - How much SAPIENT and KLV to implement for demo-grade fidelity before claiming conformance.

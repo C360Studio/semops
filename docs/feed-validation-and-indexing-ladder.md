@@ -1305,6 +1305,10 @@ Do not file all of these immediately. Use SemOps evidence first.
   changing native command authority. CAP hazard evidence adopted representative area-point aliases in
   `openspec/changes/revive-cop-product/reviews/2026-06-28-cap-hazard-geometry-normalization-review.md`, without
   claiming authoritative hazard geometry or rich shape indexing.
+- A local mixed-feed contract smoke now exercises the normalized predicates across MAVLink, TAK track/task/advisory,
+  CAP hazard evidence, ADS-B, SAPIENT, KLV, and weather entity families. It proves SemOps can compose the shared
+  point/event-time shape locally, but it does not prove server-side rich shape indexing or justify reopening task
+  `9.6`.
 - Indexing profile/cardinality helper asks remain deferred by
   `openspec/changes/revive-cop-product/reviews/2026-06-28-semstreams-indexing-cardinality-review.md` until clean
   entity boundaries prove insufficient.

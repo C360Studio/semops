@@ -1,7 +1,7 @@
 ## 1. OpenSpec And Planning Baseline
 
 - [x] 1.1 Add SemOps OpenSpec project context and COP revival change set
-- [x] 1.2 Record SemOps as the complete COP product owner and SemLink as basic-demo prior art
+- [x] 1.2 Record SemOps as the complete COP/GCS glass owner and SemLink as the companion/mesh product boundary
 - [x] 1.3 Link the architecture note and tickets back to the OpenSpec change
 - [x] 1.4 Run the first adversarial review with architect, reviewers, and technical-writer roles before implementation
   begins
@@ -54,6 +54,7 @@
       direct MAVLink/CoT/CAP born-first graph smokes, and SAPIENT preflight
 - [x] 2.27 Bump SemOps to SemStreams `v1.0.0-beta.119` to adopt event-time temporal indexing for
       `time.observation.recorded`
+- [x] 2.28 Bump SemOps to SemStreams `v1.0.0-beta.141` and verify OpenSpec CLI `1.5.0` validation plus Go tests
 
 ## 3. COP Model And Governance
 
@@ -247,6 +248,10 @@
       without changing command/control authority
 - [x] 5.119 Add canonical spatial-temporal index predicates to CAP hazard evidence through representative area points
       without claiming authoritative hazard geometry
+- [x] 5.120 Add a mixed-feed spatial-temporal discovery smoke for normalized geo/time predicates without filing a new
+      upstream indexing ask
+- [x] 5.121 Record SemLink companion/mesh pressure as prioritizing safe bidirectional ArduPilot readback and GCS glass
+      without expanding MVP mission, mode, arm/disarm, offboard, or hardware command authority
 
 ## 6. Structural COP Stack
 

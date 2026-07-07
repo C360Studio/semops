@@ -315,6 +315,16 @@ public conformance suite, or documented interoperability test backs the claim.
 - **AND** passing the helper dry-run SHALL NOT close live command/control until `command-live-sim` observes the ACK
   task and post-command track refresh through the COP snapshot
 
+#### Scenario: SemLink companion mesh focuses ArduPilot without broadening command authority
+
+- **WHEN** SemLink acts as a BlueOS/Navigator/Pi companion node or mesh peer for ArduPilot vehicles
+- **THEN** SemOps treats SemLink as a governed source and command/status edge that must still enter through SemOps
+  MAVLink, command-intent, and SemStreams ownership contracts
+- **AND** the MVP ArduPilot priority SHOULD favor GCS glass, route/source discovery, telemetry readback, command-intent
+  projection, and MAVLink ACK/status reconciliation before richer vehicle control
+- **AND** mission upload, mode change, arm/disarm, offboard control, hardware command authority, and local safety
+  override remain blocked until a later reviewed command-authority gate expands the scope
+
 #### Scenario: MAVLink simulator readiness is not simulator evidence
 
 - **WHEN** the external SITL smoke skips because no COP snapshot URL is configured or local PX4/ArduPilot

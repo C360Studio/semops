@@ -17,9 +17,10 @@ current SemStreams projection, ownership, indexing, rule, and tiering patterns.
   claims, indexing profiles, rules, lifecycle primitives, shared utility packages, and reusable tier infrastructure.
 - SemConnect owns OGC Connected Systems API bridge behavior and conformance claims unless SemOps is explicitly
   rechartered to own that gateway product.
-- SemLink remains a basic GCS/demo proving selected patterns. SemOps may reuse or port anything useful from it,
-  including CS API/SemConnect, TAK, graph-lens, and bounded raw telemetry prior art, but SemOps owns the complete COP
-  product going forward.
+- SemLink is the boat-local companion and mesh-node product path, likely targeting BlueOS/Navigator/Pi deployments.
+  SemOps may reuse or port useful SemLink patterns, including GCS glass, CS API/SemConnect, TAK, graph-lens, and
+  bounded raw telemetry prior art, but SemOps owns the broad COP, cross-node fusion, and product command-authority
+  posture going forward.
 
 ## Standing Technical Conventions
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -101,6 +102,133 @@ func TestCurrentStateTrackProjectionUsesModernSemStreamsContracts(t *testing.T) 
 	if update.AddTriples[0].Predicate != cop.TrackPosition {
 		t.Fatalf("update predicate = %q, want %s", update.AddTriples[0].Predicate, cop.TrackPosition)
 	}
+}
+
+func TestMixedFeedSpatialTemporalDiscoveryUsesCanonicalPredicates(t *testing.T) {
+	observed := time.Date(2026, 6, 28, 17, 0, 0, 0, time.UTC)
+	corpus := []mixedSpatialTemporalEntity{
+		normalizedIndexEntity(
+			cop.MAVLinkTrackContract(),
+			"c360.edge.cop.mavlink.track.system-42",
+			38.9000001,
+			-77.0000002,
+			observed,
+		),
+		normalizedIndexEntity(
+			cop.TAKTrackContract(),
+			"c360.edge.cop.tak.track.android-alpha",
+			38.892,
+			-77.035,
+			observed.Add(time.Minute),
+		),
+		normalizedIndexEntity(
+			cop.TAKTaskContract(),
+			"c360.edge.cop.tak.task.marker-north-gate",
+			38.894,
+			-77.038,
+			observed.Add(2*time.Minute),
+		),
+		normalizedIndexEntity(
+			cop.TAKAdvisoryContract(),
+			"c360.edge.cop.tak.advisory.chat-alpha-1",
+			38.892,
+			-77.035,
+			observed.Add(3*time.Minute),
+		),
+		normalizedIndexEntity(
+			cop.CAPHazardEvidenceContract(),
+			"c360.edge.cop.cap.hazard_area.nws-demo-flood-warning",
+			38.9014007026,
+			-77.0014861273,
+			observed.Add(4*time.Minute),
+		),
+		normalizedIndexEntity(
+			cop.ADSBTrackContract(),
+			"c360.edge.cop.adsb.track.a1b2c3",
+			38.9,
+			-77.04,
+			observed.Add(5*time.Minute),
+		),
+		normalizedIndexEntity(
+			cop.SAPIENTTrackContract(),
+			"c360.edge.cop.sapient.track.01ggyfbaxh4vyrqyex7s3xgk3h",
+			38.897,
+			-77.033,
+			observed.Add(6*time.Minute),
+		),
+		normalizedIndexEntity(
+			cop.KLVSensorFootprintContract(),
+			"c360.edge.cop.klv.sensor_footprint.object-semops-klv-deterministic-001-ts",
+			38.898,
+			-77.025,
+			observed.Add(7*time.Minute),
+		),
+		normalizedIndexEntity(
+			cop.WeatherObservationContract(),
+			"c360.edge.cop.weather.weather_observation.open-meteo-temperature-2m",
+			38.9,
+			-77.04,
+			observed.Add(8*time.Minute),
+		),
+		withoutRecordedAt(normalizedIndexEntity(
+			cop.WeatherObservationContract(),
+			"c360.edge.cop.weather.weather_observation.updated-at-only",
+			38.9,
+			-77.04,
+			observed.Add(9*time.Minute),
+		)),
+		withoutLocation(normalizedIndexEntity(
+			cop.CAPHazardEvidenceContract(),
+			"c360.edge.cop.cap.hazard_area.evidence-only",
+			38.901,
+			-77.002,
+			observed.Add(10*time.Minute),
+		)),
+		normalizedIndexEntity(
+			cop.KLVSensorFootprintContract(),
+			"c360.edge.cop.klv.sensor_footprint.outside-dc",
+			34.125001,
+			-117.120222,
+			observed.Add(7*time.Minute),
+		),
+		normalizedIndexEntity(
+			cop.TAKTaskContract(),
+			"c360.edge.cop.tak.task.old-marker",
+			38.894,
+			-77.038,
+			observed.Add(-2*time.Hour),
+		),
+	}
+	for _, item := range corpus {
+		requireCanonicalSpatialTemporalContract(t, item.Contract)
+	}
+
+	got := queryMixedSpatialTemporal(corpus, spatialTemporalWindow{
+		MinLat: 38.88,
+		MaxLat: 38.91,
+		MinLon: -77.05,
+		MaxLon: -76.99,
+		Start:  observed.Add(-time.Minute),
+		End:    observed.Add(15 * time.Minute),
+	})
+
+	requireDiscoveredIDs(t, got,
+		"c360.edge.cop.mavlink.track.system-42",
+		"c360.edge.cop.tak.track.android-alpha",
+		"c360.edge.cop.tak.task.marker-north-gate",
+		"c360.edge.cop.tak.advisory.chat-alpha-1",
+		"c360.edge.cop.cap.hazard_area.nws-demo-flood-warning",
+		"c360.edge.cop.adsb.track.a1b2c3",
+		"c360.edge.cop.sapient.track.01ggyfbaxh4vyrqyex7s3xgk3h",
+		"c360.edge.cop.klv.sensor_footprint.object-semops-klv-deterministic-001-ts",
+		"c360.edge.cop.weather.weather_observation.open-meteo-temperature-2m",
+	)
+	requireNotDiscoveredIDs(t, got,
+		"c360.edge.cop.weather.weather_observation.updated-at-only",
+		"c360.edge.cop.cap.hazard_area.evidence-only",
+		"c360.edge.cop.klv.sensor_footprint.outside-dc",
+		"c360.edge.cop.tak.task.old-marker",
+	)
 }
 
 func TestFeedBoundaryUsesInputAndProcessorComponentShape(t *testing.T) {
@@ -1036,6 +1164,223 @@ func TestLegacyRoboticsFlowConfigIsNotRetained(t *testing.T) {
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("stat %s: %v", path, err)
 	}
+}
+
+type mixedSpatialTemporalEntity struct {
+	Contract projection.Contract
+	Entity   graph.EntityState
+}
+
+type spatialTemporalWindow struct {
+	MinLat float64
+	MaxLat float64
+	MinLon float64
+	MaxLon float64
+	Start  time.Time
+	End    time.Time
+}
+
+func normalizedIndexEntity(
+	contract projection.Contract,
+	id string,
+	lat float64,
+	lon float64,
+	observed time.Time,
+) mixedSpatialTemporalEntity {
+	return mixedSpatialTemporalEntity{
+		Contract: contract,
+		Entity: graph.EntityState{
+			ID:          id,
+			MessageType: contractMessageType(contract.MessageType),
+			UpdatedAt:   observed.Add(24 * time.Hour),
+			Triples: []message.Triple{
+				{
+					Subject:   id,
+					Predicate: cop.GeoLocationLatitude,
+					Object:    lat,
+					Timestamp: observed,
+				},
+				{
+					Subject:   id,
+					Predicate: cop.GeoLocationLongitude,
+					Object:    lon,
+					Timestamp: observed,
+				},
+				{
+					Subject:   id,
+					Predicate: cop.TimeObservationRecorded,
+					Object:    observed,
+					Timestamp: observed,
+				},
+			},
+		},
+	}
+}
+
+func contractMessageType(key string) message.Type {
+	parts := strings.Split(key, ".")
+	if len(parts) < 3 {
+		return message.Type{Domain: key, Category: "unknown", Version: "v1"}
+	}
+	return message.Type{
+		Domain:   parts[0],
+		Category: strings.Join(parts[1:len(parts)-1], "."),
+		Version:  parts[len(parts)-1],
+	}
+}
+
+func withoutRecordedAt(item mixedSpatialTemporalEntity) mixedSpatialTemporalEntity {
+	item.Entity.Triples = withoutPredicate(item.Entity.Triples, cop.TimeObservationRecorded)
+	return item
+}
+
+func withoutLocation(item mixedSpatialTemporalEntity) mixedSpatialTemporalEntity {
+	item.Entity.Triples = withoutPredicate(item.Entity.Triples, cop.GeoLocationLatitude)
+	item.Entity.Triples = withoutPredicate(item.Entity.Triples, cop.GeoLocationLongitude)
+	return item
+}
+
+func withoutPredicate(triples []message.Triple, predicate string) []message.Triple {
+	filtered := make([]message.Triple, 0, len(triples))
+	for _, triple := range triples {
+		if triple.Predicate != predicate {
+			filtered = append(filtered, triple)
+		}
+	}
+	return filtered
+}
+
+func queryMixedSpatialTemporal(
+	corpus []mixedSpatialTemporalEntity,
+	window spatialTemporalWindow,
+) []mixedSpatialTemporalEntity {
+	matches := make([]mixedSpatialTemporalEntity, 0, len(corpus))
+	for _, item := range corpus {
+		lat, latOK := latestFloat(item.Entity.Triples, cop.GeoLocationLatitude)
+		lon, lonOK := latestFloat(item.Entity.Triples, cop.GeoLocationLongitude)
+		recorded, timeOK := latestTime(item.Entity.Triples, cop.TimeObservationRecorded)
+		if !latOK || !lonOK || !timeOK {
+			continue
+		}
+		if lat < window.MinLat || lat > window.MaxLat || lon < window.MinLon || lon > window.MaxLon {
+			continue
+		}
+		if recorded.Before(window.Start) || recorded.After(window.End) {
+			continue
+		}
+		matches = append(matches, item)
+	}
+	return matches
+}
+
+func latestFloat(triples []message.Triple, predicate string) (float64, bool) {
+	var out float64
+	var ok bool
+	for _, triple := range triples {
+		if triple.Predicate != predicate {
+			continue
+		}
+		switch value := triple.Object.(type) {
+		case float64:
+			out = value
+			ok = true
+		case float32:
+			out = float64(value)
+			ok = true
+		case int:
+			out = float64(value)
+			ok = true
+		}
+	}
+	return out, ok
+}
+
+func latestTime(triples []message.Triple, predicate string) (time.Time, bool) {
+	var out time.Time
+	var ok bool
+	for _, triple := range triples {
+		if triple.Predicate != predicate {
+			continue
+		}
+		switch value := triple.Object.(type) {
+		case time.Time:
+			out = value.UTC()
+			ok = true
+		case string:
+			parsed, err := time.Parse(time.RFC3339Nano, value)
+			if err == nil {
+				out = parsed.UTC()
+				ok = true
+			}
+		}
+	}
+	return out, ok
+}
+
+func requireCanonicalSpatialTemporalContract(t *testing.T, contract projection.Contract) {
+	t.Helper()
+	for _, predicate := range []string{
+		cop.GeoLocationLatitude,
+		cop.GeoLocationLongitude,
+		cop.TimeObservationRecorded,
+	} {
+		if !contractHasPredicate(contract, predicate) {
+			t.Fatalf("%s missing canonical spatial-temporal predicate %q", contract.Name, predicate)
+		}
+	}
+}
+
+func contractHasPredicate(contract projection.Contract, predicate string) bool {
+	for _, group := range contract.Groups {
+		for _, candidate := range group.Predicates {
+			if candidate == predicate {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func requireDiscoveredIDs(t *testing.T, got []mixedSpatialTemporalEntity, want ...string) {
+	t.Helper()
+	seen := make(map[string]bool, len(got))
+	for _, item := range got {
+		seen[item.Entity.ID] = true
+	}
+	if len(seen) != len(want) {
+		t.Fatalf("discovered ids = %+v, want %d ids %v", sortedBoolKeys(seen), len(want), want)
+	}
+	for _, id := range want {
+		if !seen[id] {
+			t.Fatalf("missing discovered id %s in %v", id, sortedBoolKeys(seen))
+		}
+	}
+}
+
+func requireNotDiscoveredIDs(t *testing.T, got []mixedSpatialTemporalEntity, want ...string) {
+	t.Helper()
+	seen := make(map[string]bool, len(got))
+	for _, item := range got {
+		seen[item.Entity.ID] = true
+	}
+	for _, id := range want {
+		if seen[id] {
+			t.Fatalf("unexpected discovered id %s in %v", id, sortedBoolKeys(seen))
+		}
+	}
+}
+
+func sortedBoolKeys(values map[string]bool) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	for i := 1; i < len(keys); i++ {
+		for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
+			keys[j], keys[j-1] = keys[j-1], keys[j]
+		}
+	}
+	return keys
 }
 
 func requireProperty(t *testing.T, schema component.ConfigSchema, property string) {
