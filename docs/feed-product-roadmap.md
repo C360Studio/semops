@@ -176,6 +176,8 @@ makes ArduPilot bidirectional support a sharper MVP pressure, but the safe slice
 discovery, telemetry readback, command-intent projection, and ACK/status reconciliation before richer vehicle control.
 The first SemLink companion helper builds only governed `AUTOPILOT_VERSION` readback intent with SemLink provenance
 and rejects arm, mode, mission, and offboard-style actions before native transmit.
+The first SemLink companion ingress boundary admits that helper into command intent only, requires born target assets,
+and reports no native or companion transmit authority from ingress admission.
 
 Full product lane:
 PX4/ArduPilot SITL and hardware profiles, MAVSDK/offboard command-control smoke, UDP/TCP/serial transports, signed or

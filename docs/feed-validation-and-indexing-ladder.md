@@ -351,6 +351,9 @@ Mock or harness:
 - SemLink companion pressure now has a local command-intent guard in `internal/projectors/command`: the helper builds
   only the governed `AUTOPILOT_VERSION` readback request for an ArduPilot mesh peer, carries SemLink provenance, and
   rejects mission, mode, arm/disarm, and offboard actions before native transmit.
+- `internal/ingress/semlink` adds the first companion ingress boundary for that helper. It admits readback requests as
+  command intent only, requires born target assets through the guarded projector, and never grants native or companion
+  transmit authority from ingress admission.
 
 Indexing profile pressure:
 

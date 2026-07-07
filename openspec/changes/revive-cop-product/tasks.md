@@ -254,6 +254,8 @@
       without expanding MVP mission, mode, arm/disarm, offboard, or hardware command authority
 - [x] 5.122 Add SemLink companion ArduPilot readback intent helper that admits only the MVP `AUTOPILOT_VERSION`
       command and reconciles MAVLink ACK/status without rewriting desired state or authority
+- [x] 5.123 Add SemLink companion readback ingress boundary that projects command intent only and never permits
+      native or companion transmit from ingress admission
 
 ## 6. Structural COP Stack
 
