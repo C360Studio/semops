@@ -174,6 +174,8 @@ evidence plus post-command track refresh before passing. For MVP, that transmitt
 command: `MAV_CMD_REQUEST_MESSAGE` for `AUTOPILOT_VERSION`. SemLink's revived BlueOS/Navigator/Pi companion direction
 makes ArduPilot bidirectional support a sharper MVP pressure, but the safe slice is still GCS glass, route/source
 discovery, telemetry readback, command-intent projection, and ACK/status reconciliation before richer vehicle control.
+The first SemLink companion helper builds only governed `AUTOPILOT_VERSION` readback intent with SemLink provenance
+and rejects arm, mode, mission, and offboard-style actions before native transmit.
 
 Full product lane:
 PX4/ArduPilot SITL and hardware profiles, MAVSDK/offboard command-control smoke, UDP/TCP/serial transports, signed or

@@ -348,6 +348,9 @@ Mock or harness:
 - PX4/Gazebo headless telemetry smoke now has local pass evidence with and without motion required. Treat that as
   PX4 telemetry evidence only. ArduPilot SITL telemetry now has separate pass evidence, MAVSDK/offboard is a future
   command/control lane, and PX4 simulator command readback is covered by the separate `command-live-sim` pass.
+- SemLink companion pressure now has a local command-intent guard in `internal/projectors/command`: the helper builds
+  only the governed `AUTOPILOT_VERSION` readback request for an ArduPilot mesh peer, carries SemLink provenance, and
+  rejects mission, mode, arm/disarm, and offboard actions before native transmit.
 
 Indexing profile pressure:
 

@@ -252,6 +252,8 @@
       upstream indexing ask
 - [x] 5.121 Record SemLink companion/mesh pressure as prioritizing safe bidirectional ArduPilot readback and GCS glass
       without expanding MVP mission, mode, arm/disarm, offboard, or hardware command authority
+- [x] 5.122 Add SemLink companion ArduPilot readback intent helper that admits only the MVP `AUTOPILOT_VERSION`
+      command and reconciles MAVLink ACK/status without rewriting desired state or authority
 
 ## 6. Structural COP Stack
 
