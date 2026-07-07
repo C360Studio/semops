@@ -354,6 +354,9 @@ Mock or harness:
 - `internal/ingress/semlink` adds the first companion ingress boundary for that helper. It admits readback requests as
   command intent only, requires born target assets through the guarded projector, and never grants native or companion
   transmit authority from ingress admission.
+- The COP read model now exposes SemLink companion readback intent posture on command tasks. `claim_posture` makes the
+  API-visible boundary explicit: GCS glass may inspect SemLink mesh-node intent, but native and companion transmit
+  authority remain outside this slice.
 
 Indexing profile pressure:
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	capprojector "github.com/c360studio/semops/internal/projectors/cap"
+	commandprojector "github.com/c360studio/semops/internal/projectors/command"
 	cotprojector "github.com/c360studio/semops/internal/projectors/cot"
 	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/graph"
@@ -1193,11 +1194,15 @@ func taskFromEntity(entity graph.EntityState, now time.Time, freshness time.Dura
 	updatedAt := latestObservedAt(entity, copmodel.ProvenanceObservedAt)
 	position := optionalPoint(entity, copmodel.TaskPosition)
 	entitySource := sourceFromEntityID(entity.ID)
-	source := latestStringProperty(entity, copmodel.ProvenanceSource, entitySource)
+	provenanceSource := latestStringProperty(entity, copmodel.ProvenanceSource, entitySource)
+	source := provenanceSource
 	if entitySource == "command" {
 		source = "command"
 	}
 	expiresAt := optionalLatestTime(entity, copmodel.TaskExpiresAt)
+	authority := latestStringProperty(entity, copmodel.TaskAuthority, "")
+	sourceRef := latestStringProperty(entity, copmodel.ProvenanceSourceRef, "")
+	localOverridePolicy := latestStringProperty(entity, copmodel.TaskLocalOverridePolicy, "")
 	return Task{
 		ID:                  entity.ID,
 		Label:               latestStringProperty(entity, copmodel.TaskName, nativeOrInstanceLabel(entity, copmodel.TaskNativeID)),
@@ -1207,21 +1212,37 @@ func taskFromEntity(entity graph.EntityState, now time.Time, freshness time.Dura
 		Position:            position,
 		Description:         latestStringProperty(entity, copmodel.TaskDescription, ""),
 		TargetID:            latestStringProperty(entity, copmodel.TaskTarget, ""),
-		Authority:           latestStringProperty(entity, copmodel.TaskAuthority, ""),
+		Authority:           authority,
 		Priority:            optionalLatestInt(entity, copmodel.TaskPriority),
 		ExpiresAt:           expiresAt,
 		RequestedBy:         latestStringProperty(entity, copmodel.TaskRequestedBy, ""),
 		CorrelationID:       latestStringProperty(entity, copmodel.TaskCorrelation, ""),
 		DesiredState:        latestStringProperty(entity, copmodel.TaskDesired, ""),
-		LocalOverridePolicy: latestStringProperty(entity, copmodel.TaskLocalOverridePolicy, ""),
+		LocalOverridePolicy: localOverridePolicy,
+		ClaimPosture:        taskClaimPosture(source, authority, provenanceSource, sourceRef, localOverridePolicy),
 		Confidence:          confidence(entity),
 		UpdatedAt:           updatedAt,
 		Provenance: Provenance{
 			Owner:     ownerForSource(source),
-			SourceRef: latestStringProperty(entity, copmodel.ProvenanceSourceRef, ""),
+			SourceRef: sourceRef,
 			Observed:  updatedAt,
 		},
 	}, true
+}
+
+func taskClaimPosture(source, authority, provenanceSource, sourceRef, localOverridePolicy string) string {
+	if source != "command" {
+		return ""
+	}
+	if strings.TrimSpace(authority) == commandprojector.SemLinkCompanionAuthority ||
+		strings.TrimSpace(provenanceSource) == commandprojector.SemLinkCompanionSource ||
+		strings.HasPrefix(strings.TrimSpace(sourceRef), "semlink://") {
+		return "SemLink companion readback intent only; no native or companion transmit authority"
+	}
+	if strings.TrimSpace(localOverridePolicy) == commandprojector.LocalOverrideNotRequired {
+		return "Command intent readback only; no native transmit authority exposed by COP readback"
+	}
+	return ""
 }
 
 func advisoryFromEntity(entity graph.EntityState, now time.Time, freshness time.Duration) (Advisory, bool) {

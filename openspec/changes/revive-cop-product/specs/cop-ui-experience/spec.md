@@ -141,11 +141,13 @@ Phase 1.
 
 - **WHEN** command-intent task state has been projected into governed `command` task entities
 - **THEN** the SemOps COP API discovers those tasks by command prefix and maps latest lifecycle status, target,
-  authority, priority, expiry, requested-by, correlation, desired state, provenance, and owner into the curated task
-  view model
+  authority, priority, expiry, requested-by, correlation, desired state, provenance, owner, and claim posture into the
+  curated task view model
 - **AND** the browser renders command tasks as selectable task rows with selected-entity inspector details and source
   card discovery evidence
 - **AND** command tasks without geometry remain inspectable without pretending they are map points
+- **AND** SemLink companion readback intents render with an explicit intent-only/no-transmit claim posture when their
+  authority, provenance source, or source reference identifies the SemLink companion boundary
 - **AND** the UI does not expose execute, cancel, retry, arbitration override, CS API tasking, or native transmit
   controls until those gates have separate safety and adversarial UX review
 

@@ -128,6 +128,11 @@ storage, and is sent as `X-SemOps-Operator-ID` when association evidence is ackn
 login surface: review readback still shows `operator.unverified` and `local.display_only`, and privileged controls
 remain gated behind authenticated multi-authority policy.
 
+Command tasks remain read-only in the COP snapshot. SemLink companion ArduPilot readback intents now carry a task
+`claim_posture` that says the request is companion readback intent only and grants no native or companion transmit
+authority. The API derives that posture from SemLink authority, provenance source, or `semlink://` source references,
+so GCS glass can inspect mesh-node intent without growing an execution route.
+
 The browser e2e gate is fixture-backed Playwright coverage in `ui/e2e`. It intercepts `GET /api/cop/snapshot` and
 `GET /api/cop/runtime` plus same-origin `/scenario/status`, serves API-shaped ADS-B, KLV, and weather discovery plus
 runtime-flow and scenario evidence, and verifies the operator surface renders source cards, prefix-discovery counts,

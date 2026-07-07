@@ -903,6 +903,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	takTaskID := cotprojector.EntityID("c360", platform, copmodel.EntityTask, "MARKER-EVAC")
 	takAdvisoryID := cotprojector.EntityID("c360", platform, copmodel.EntityAdvisory, "CHAT-EVAC")
 	commandTaskID := commandprojector.EntityID("c360", platform, "csapi-command-route-42")
+	semlinkTaskID := commandprojector.EntityID("c360", platform, "semlink-blueboat-01-autopilot-version")
 	hazardID := capprojector.EntityID("c360", platform, "nws-demo-flood-warning")
 	evidenceJSON, err := json.Marshal(copmodel.HazardEvidenceDocument{
 		Identifier: "nws-demo-flood-warning",
@@ -1011,6 +1012,27 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 					testTriple(commandTaskID, copmodel.ProvenanceObservedAt, observed, observed),
 					testTriple(commandTaskID, copmodel.ProvenanceSourceRef, "command://fixture/hadr-command/0004-route-cancel-requested", observed),
 				},
+			}, {
+				ID:        semlinkTaskID,
+				UpdatedAt: observed,
+				Triples: []message.Triple{
+					testTriple(semlinkTaskID, copmodel.TaskNativeID, "semlink-blueboat-01-autopilot-version", requested),
+					testTriple(semlinkTaskID, copmodel.TaskName, "Request ArduPilot AUTOPILOT_VERSION from blueboat-01", requested),
+					testTriple(semlinkTaskID, copmodel.TaskKind, "mavlink.request_message", requested),
+					testTriple(semlinkTaskID, copmodel.TaskTarget, mavAssetID, requested),
+					testTriple(semlinkTaskID, copmodel.TaskStatus, "requested", requested),
+					testTriple(semlinkTaskID, copmodel.TaskDescription, "SemLink companion ArduPilot readback request", requested),
+					testTriple(semlinkTaskID, copmodel.TaskDesired, `{"command":"MAV_CMD_REQUEST_MESSAGE","message":"AUTOPILOT_VERSION","mavlink_command":512,"message_id":148,"vehicle_system_id":77,"vehicle_component_id":1}`, requested),
+					testTriple(semlinkTaskID, copmodel.TaskAuthority, commandprojector.SemLinkCompanionAuthority, requested),
+					testTriple(semlinkTaskID, copmodel.TaskPriority, int64(50), requested),
+					testTriple(semlinkTaskID, copmodel.TaskExpiresAt, now.Add(30*time.Second), requested),
+					testTriple(semlinkTaskID, copmodel.TaskCorrelation, "semlink:blueboat-01:autopilot-version", requested),
+					testTriple(semlinkTaskID, copmodel.TaskRequestedBy, "semlink:blueboat-01", requested),
+					testTriple(semlinkTaskID, copmodel.TaskLocalOverridePolicy, commandprojector.LocalOverrideNotRequired, requested),
+					testTriple(semlinkTaskID, copmodel.ProvenanceSource, commandprojector.SemLinkCompanionSource, requested),
+					testTriple(semlinkTaskID, copmodel.ProvenanceSourceRef, "semlink://blueboat-01/ardupilot/system-77/request-autopilot-version", requested),
+					testTriple(semlinkTaskID, copmodel.ProvenanceObservedAt, requested, requested),
+				},
 			}},
 			graphEntityPrefix("c360", platform, "cap", copmodel.EntityHazardArea): {{
 				ID:        hazardID,
@@ -1044,7 +1066,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	}
 
 	if snapshot.Summary.ActiveTracks != 1 ||
-		snapshot.Summary.ActiveTasks != 3 ||
+		snapshot.Summary.ActiveTasks != 4 ||
 		snapshot.Summary.ActiveAdvisories != 1 ||
 		len(snapshot.Hazards) != 1 {
 		t.Fatalf("snapshot summary/entities = %+v hazards=%+v", snapshot.Summary, snapshot.Hazards)
@@ -1089,6 +1111,19 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	}
 	if commandTask.ExpiresAt == nil || !commandTask.ExpiresAt.Equal(now.Add(5*time.Minute)) {
 		t.Fatalf("command task expiry = %+v", commandTask.ExpiresAt)
+	}
+	semlinkTask, ok := findTask(snapshot.Tasks, semlinkTaskID)
+	if !ok {
+		t.Fatalf("missing SemLink command task in %+v", snapshot.Tasks)
+	}
+	if semlinkTask.Source != "command" ||
+		semlinkTask.Provenance.Owner != copmodel.OwnerCommand ||
+		semlinkTask.Provenance.SourceRef != "semlink://blueboat-01/ardupilot/system-77/request-autopilot-version" ||
+		semlinkTask.Authority != commandprojector.SemLinkCompanionAuthority ||
+		semlinkTask.LocalOverridePolicy != commandprojector.LocalOverrideNotRequired ||
+		!strings.Contains(semlinkTask.ClaimPosture, "SemLink companion readback intent only") ||
+		!strings.Contains(semlinkTask.ClaimPosture, "no native or companion transmit authority") {
+		t.Fatalf("SemLink task = %+v", semlinkTask)
 	}
 	if snapshot.Advisories[0].ID != takAdvisoryID {
 		t.Fatalf("tasks/advisories = %+v / %+v", snapshot.Tasks, snapshot.Advisories)
@@ -1140,7 +1175,7 @@ func TestGraphProviderDiscoversCOPEntitiesByPrefix(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing command task discovery diagnostic: %+v", snapshot.Diagnostics.Discovery)
 	}
-	if commandDiagnostic.Family != "command" || commandDiagnostic.Count != 1 || commandDiagnostic.AtLimit {
+	if commandDiagnostic.Family != "command" || commandDiagnostic.Count != 2 || commandDiagnostic.AtLimit {
 		t.Fatalf("command task diagnostic = %+v", commandDiagnostic)
 	}
 	commandFeed := findFeed(snapshot.Feeds, "feed.command")

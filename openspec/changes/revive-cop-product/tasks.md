@@ -256,6 +256,8 @@
       command and reconciles MAVLink ACK/status without rewriting desired state or authority
 - [x] 5.123 Add SemLink companion readback ingress boundary that projects command intent only and never permits
       native or companion transmit from ingress admission
+- [x] 5.124 Expose SemLink companion readback intent posture through COP command-task readback without adding execute
+      or transmit controls
 
 ## 6. Structural COP Stack
 

@@ -95,6 +95,7 @@ type Task struct {
 	CorrelationID       string     `json:"correlation_id,omitempty"`
 	DesiredState        string     `json:"desired_state,omitempty"`
 	LocalOverridePolicy string     `json:"local_override_policy,omitempty"`
+	ClaimPosture        string     `json:"claim_posture,omitempty"`
 	Confidence          float64    `json:"confidence"`
 	UpdatedAt           time.Time  `json:"updated_at"`
 	Provenance          Provenance `json:"provenance"`
