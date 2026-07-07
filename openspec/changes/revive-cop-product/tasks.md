@@ -258,6 +258,7 @@
       native or companion transmit from ingress admission
 - [x] 5.124 Expose SemLink companion readback intent posture through COP command-task readback without adding execute
       or transmit controls
+- [x] 5.125 Add browser fixture and Playwright evidence for SemLink companion command-task posture in GCS glass
 
 ## 6. Structural COP Stack
 

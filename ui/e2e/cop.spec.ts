@@ -54,7 +54,7 @@ const snapshotWithADSB: Snapshot = {
         family: 'command',
         entity_type: 'task',
         prefix: 'c360.edge-compose.cop.command.task',
-        count: 1,
+        count: 2,
         limit: 500,
         at_limit: false
       },
@@ -332,9 +332,13 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByLabel('Blocked scenario actions')).toContainText('resume');
   await expect(page.getByLabel('Scenario control policy')).toContainText('scenario_control_authority');
   await expect(page.getByLabel('Command source state')).toBeVisible();
-  await expect(page.getByLabel('Command discovery counts')).toContainText('task 1');
+  await expect(page.getByLabel('Command discovery counts')).toContainText('task 2');
   const commandTaskRow = page.getByRole('button', { name: 'Route MAVLink system 42 to North Gate cancel_requested' });
   await expect(commandTaskRow).toBeVisible();
+  const semlinkTaskRow = page.getByRole('button', {
+    name: 'Request ArduPilot AUTOPILOT_VERSION from blueboat-01 requested'
+  });
+  await expect(semlinkTaskRow).toBeVisible();
   await expect(page.getByLabel('KLV source state')).toBeVisible();
   await expect(page.getByLabel('KLV discovery counts')).toContainText('sensor footprint 1');
   await expect(page.getByLabel('KLV runtime flow')).toContainText('1.3 msg/s');
@@ -363,6 +367,16 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByText('semops.command.intent')).toBeVisible();
   await expect(page.getByText('command://fixture/hadr-command/0004-route-cancel-requested')).toBeVisible();
   await expect(page.getByText('ui:cancel-route-42')).toBeVisible();
+
+  await semlinkTaskRow.click();
+  await expect(
+    page.getByRole('heading', { name: 'Request ArduPilot AUTOPILOT_VERSION from blueboat-01' })
+  ).toBeVisible();
+  await expect(page.getByText('semlink.companion')).toBeVisible();
+  await expect(page.getByText('semlink:blueboat-01', { exact: true })).toBeVisible();
+  await expect(page.getByText('not_required')).toBeVisible();
+  await expect(page.getByText('semlink://blueboat-01/ardupilot/system-42/request-autopilot-version')).toBeVisible();
+  await expect(page.getByText(/no native or companion transmit authority/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Select TEST-UAS-01 sensor footprint' }).click();
   await expect(page.getByRole('heading', { name: 'TEST-UAS-01 sensor footprint' })).toBeVisible();

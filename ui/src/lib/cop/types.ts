@@ -162,6 +162,8 @@ export type Task = {
   requested_by?: string;
   correlation_id?: string;
   desired_state?: string;
+  local_override_policy?: string;
+  claim_posture?: string;
   confidence: number;
   updated_at: string;
   provenance: Provenance;

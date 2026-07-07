@@ -15,7 +15,7 @@ export const fixtureSnapshot: Snapshot = {
   scenario: 'phase-1-fixture',
   summary: {
     active_tracks: 3,
-    active_tasks: 2,
+    active_tasks: 3,
     active_advisories: 1,
     active_sensor_footprints: 1,
     active_weather_observations: 1,
@@ -191,6 +191,31 @@ export const fixtureSnapshot: Snapshot = {
       provenance: {
         owner: 'semops.command.intent',
         source_ref: 'command://fixture/hadr-command/0004-route-cancel-requested',
+        observed_at: commandObserved
+      }
+    },
+    {
+      id: 'c360.edge.cop.command.task.semlink-blueboat-01-autopilot-version',
+      label: 'Request ArduPilot AUTOPILOT_VERSION from blueboat-01',
+      kind: 'mavlink.request_message',
+      source: 'command',
+      status: 'requested',
+      description: 'SemLink companion ArduPilot readback request',
+      target_id: 'c360.edge.cop.mavlink.asset.system-42',
+      authority: 'semlink.companion',
+      priority: 50,
+      expires_at: '2026-06-19T12:00:00Z',
+      requested_by: 'semlink:blueboat-01',
+      correlation_id: 'semlink:blueboat-01:autopilot-version',
+      desired_state:
+        '{"command":"MAV_CMD_REQUEST_MESSAGE","message":"AUTOPILOT_VERSION","mavlink_command":512,"message_id":148,"vehicle_system_id":42,"vehicle_component_id":1}',
+      local_override_policy: 'not_required',
+      claim_posture: 'SemLink companion readback intent only; no native or companion transmit authority',
+      confidence: 1,
+      updated_at: commandObserved,
+      provenance: {
+        owner: 'semops.command.intent',
+        source_ref: 'semlink://blueboat-01/ardupilot/system-42/request-autopilot-version',
         observed_at: commandObserved
       }
     }

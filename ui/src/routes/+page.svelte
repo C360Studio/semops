@@ -700,6 +700,12 @@
             <dd>{entity.correlation_id}</dd>
           </div>
         {/if}
+        {#if entity.local_override_policy}
+          <div>
+            <dt>Local override</dt>
+            <dd>{entity.local_override_policy}</dd>
+          </div>
+        {/if}
         {#if entity.desired_state}
           <div>
             <dt>Desired</dt>
@@ -707,6 +713,9 @@
           </div>
         {/if}
       </dl>
+      {#if entity.claim_posture}
+        <p class="reason">{entity.claim_posture}</p>
+      {/if}
     </section>
   {/if}
 

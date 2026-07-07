@@ -74,6 +74,7 @@ describe('tactical map layer helpers', () => {
       'asset',
       'task',
       'task',
+      'task',
       'advisory',
       'hazard',
       'sensor-footprint',

@@ -31,8 +31,9 @@ describe('loadSnapshot', () => {
     expect(result.source).toBe('fixture');
     expect(result.error).toContain('offline');
     expect(result.snapshot.tracks).toHaveLength(3);
-    expect(result.snapshot.tasks).toHaveLength(2);
+    expect(result.snapshot.tasks).toHaveLength(3);
     expect(result.snapshot.tasks[1].source).toBe('command');
+    expect(result.snapshot.tasks[2].claim_posture).toContain('SemLink companion readback intent only');
     expect(result.snapshot.associations).toHaveLength(1);
     expect(result.snapshot.summary.active_associations).toBe(1);
   });
