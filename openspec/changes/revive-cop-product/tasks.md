@@ -265,6 +265,8 @@
       grants native or companion transmit authority
 - [x] 5.128 Wire the SemLink ArduPilot readback route into hosted API composition behind explicit config, graph-backed
       target discovery, and command-intent owner tokens
+- [x] 5.129 Gate the hosted SemLink ArduPilot readback route with trusted caller headers and a narrow
+      `semlink.readback.intent` authority scope
 
 ## 6. Structural COP Stack
 

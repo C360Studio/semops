@@ -2518,6 +2518,11 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			want: EnvCOPSemLinkReadbackWriteTimeout,
 		},
 		{
+			name: "semlink readback requires trusted headers",
+			env:  map[string]string{EnvCOPSemLinkReadbackEnabled: "true"},
+			want: EnvCOPSemLinkReadbackEnabled,
+		},
+		{
 			name: "bad udp max datagram",
 			env:  map[string]string{EnvMAVLinkUDPMaxDatagramBytes: "huge"},
 			want: EnvMAVLinkUDPMaxDatagramBytes,

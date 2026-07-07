@@ -52,6 +52,10 @@ type semLinkReadbackResponse struct {
 	Mutations                int    `json:"mutations"`
 	NativeExecutionAllowed   bool   `json:"native_execution_allowed"`
 	CompanionTransmitAllowed bool   `json:"companion_transmit_allowed"`
+	AuthorizedBy             string `json:"authorized_by,omitempty"`
+	AuthorityScope           string `json:"authority_scope,omitempty"`
+	AuthorityDomain          string `json:"authority_domain,omitempty"`
+	Authenticated            bool   `json:"authenticated,omitempty"`
 	Error                    string `json:"error,omitempty"`
 }
 
@@ -60,6 +64,15 @@ func (h *Handler) admitSemLinkArduPilotReadback(w http.ResponseWriter, r *http.R
 		writeJSON(w, http.StatusServiceUnavailable, semLinkReadbackResponse{
 			Error: "semlink readback ingress is not configured",
 		})
+		return
+	}
+	caller, err := h.authorizeSemLinkReadback(r)
+	if err != nil {
+		status := http.StatusUnauthorized
+		if authErr, ok := err.(*SemLinkReadbackAuthError); ok && authErr.Status != 0 {
+			status = authErr.Status
+		}
+		writeJSON(w, status, semLinkReadbackResponse{Error: err.Error()})
 		return
 	}
 
@@ -91,6 +104,7 @@ func (h *Handler) admitSemLinkArduPilotReadback(w http.ResponseWriter, r *http.R
 	}
 
 	response := responseForSemLinkReadback(result, plan)
+	response.applyCaller(caller)
 	if !result.Admission.Accepted {
 		writeJSON(w, http.StatusAccepted, response)
 		return
@@ -102,6 +116,13 @@ func (h *Handler) admitSemLinkArduPilotReadback(w http.ResponseWriter, r *http.R
 		return
 	}
 	writeJSON(w, http.StatusAccepted, response)
+}
+
+func (h *Handler) authorizeSemLinkReadback(r *http.Request) (SemLinkReadbackCaller, error) {
+	if h.semlinkReadbackAuthorizer == nil {
+		return SemLinkReadbackCaller{}, nil
+	}
+	return h.semlinkReadbackAuthorizer(r)
 }
 
 func (r semLinkArduPilotReadbackRequest) ingressRequest() (semlinkingress.ArduPilotReadbackRequest, error) {
@@ -125,6 +146,16 @@ func (r semLinkArduPilotReadbackRequest) ingressRequest() (semlinkingress.ArduPi
 		ObservedAt:       r.ObservedAt,
 		TTL:              ttl,
 	}, nil
+}
+
+func (r *semLinkReadbackResponse) applyCaller(caller SemLinkReadbackCaller) {
+	if r == nil || caller.ID == "" {
+		return
+	}
+	r.AuthorizedBy = caller.ID
+	r.AuthorityScope = caller.AuthorityScope
+	r.AuthorityDomain = caller.AuthorityDomain
+	r.Authenticated = caller.Authenticated
 }
 
 func responseForSemLinkReadback(

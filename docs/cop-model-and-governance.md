@@ -87,6 +87,11 @@ review records use `operator.authenticated`, `association.review`, an explicit a
 produce `blocked_conflict` instead of allowing a latest-writer or display-only override. That conflict remains a hard
 stop for command execution, identity fusion, upstream CS API status, and compliance workflows.
 
+The SemLink ArduPilot readback route also requires trusted-header mode when enabled. Its caller scope is
+`semlink.readback.intent`, which authorizes only governed `AUTOPILOT_VERSION` readback-intent admission into the command
+graph. It does not grant native MAVLink transmit authority, companion transmit authority, mission execution, mode
+changes, arm/disarm, or offboard control.
+
 SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
 absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are
 reviewed, and declares no association or tasking foreign edges.

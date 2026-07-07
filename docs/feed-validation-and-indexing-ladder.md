@@ -367,6 +367,9 @@ Mock or harness:
   graph-backed target discovery, the `semops.command.intent` owner token, and
   `SEMOPS_COP_SEMLINK_READBACK_WRITE_TIMEOUT` for persistence. The default remains disabled; this still does not call
   a live SemLink node, BlueOS extension, Navigator, or ArduPilot transmitter.
+- That hosted route now requires `SEMOPS_COP_OPERATOR_IDENTITY_MODE=trusted_headers` and trusted caller headers with
+  `X-SemOps-Authority-Scope: semlink.readback.intent`. The API records the authenticated caller posture in the response
+  but still only writes governed readback intent, not transmit authority.
 
 Indexing profile pressure:
 

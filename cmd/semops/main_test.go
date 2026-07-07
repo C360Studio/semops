@@ -20,6 +20,7 @@ import (
 func TestSemLinkReadbackHandlerOptionWiresGraphBackedIngress(t *testing.T) {
 	cfg := semopsapp.DefaultConfig()
 	cfg.COP.SemLinkReadbackEnabled = true
+	cfg.COP.OperatorIdentityMode = semopsapp.COPOperatorIdentityModeTrustedHeaders
 	cfg.COP.GraphQueryTimeout = 25 * time.Millisecond
 	cfg.COP.SemLinkReadbackWriteTimeout = 30 * time.Millisecond
 	targetID := "c360.edge.cop.mavlink.asset.system-42"
@@ -51,6 +52,7 @@ func TestSemLinkReadbackHandlerOptionWiresGraphBackedIngress(t *testing.T) {
 			"ttl_seconds":30
 		}`),
 	)
+	setTrustedSemLinkReadbackHeaders(req)
 	rec := httptest.NewRecorder()
 	handler.Routes().ServeHTTP(rec, req)
 
@@ -73,7 +75,9 @@ func TestSemLinkReadbackHandlerOptionWiresGraphBackedIngress(t *testing.T) {
 	if response["accepted"] != true ||
 		response["native_execution_allowed"] != false ||
 		response["companion_transmit_allowed"] != false ||
-		response["mutations"].(float64) != 1 {
+		response["mutations"].(float64) != 1 ||
+		response["authorized_by"] != "operator:semlink-gateway" ||
+		response["authority_scope"] != copapi.SemLinkReadbackAuthorityScope {
 		t.Fatalf("response = %+v", response)
 	}
 }
@@ -91,6 +95,7 @@ func TestSemLinkReadbackHandlerOptionDisabledByDefault(t *testing.T) {
 func TestSemLinkReadbackHandlerOptionRequiresGraphRequesterWhenEnabled(t *testing.T) {
 	cfg := semopsapp.DefaultConfig()
 	cfg.COP.SemLinkReadbackEnabled = true
+	cfg.COP.OperatorIdentityMode = semopsapp.COPOperatorIdentityModeTrustedHeaders
 
 	_, err := semLinkReadbackHandlerOption(cfg, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), semopsapp.EnvCOPSemLinkReadbackEnabled) {
@@ -101,10 +106,27 @@ func TestSemLinkReadbackHandlerOptionRequiresGraphRequesterWhenEnabled(t *testin
 func TestSemLinkReadbackHandlerOptionRequiresCommandOwnerToken(t *testing.T) {
 	cfg := semopsapp.DefaultConfig()
 	cfg.COP.SemLinkReadbackEnabled = true
+	cfg.COP.OperatorIdentityMode = semopsapp.COPOperatorIdentityModeTrustedHeaders
 
 	_, err := semLinkReadbackHandlerOption(cfg, &recordingSemLinkGraphRequester{}, nil)
 	if err == nil || !strings.Contains(err.Error(), copmodel.OwnerCommand) {
 		t.Fatalf("err = %v, want command owner token error", err)
+	}
+}
+
+func TestSemLinkReadbackHandlerOptionRequiresTrustedHeaderMode(t *testing.T) {
+	cfg := semopsapp.DefaultConfig()
+	cfg.COP.SemLinkReadbackEnabled = true
+
+	_, err := semLinkReadbackHandlerOption(
+		cfg,
+		&recordingSemLinkGraphRequester{},
+		map[string]ownership.OwnerToken{
+			copmodel.OwnerCommand: ownership.ExpectedOwnerToken(copmodel.OwnerCommand, "lease-test"),
+		},
+	)
+	if err == nil || !strings.Contains(err.Error(), semopsapp.EnvCOPOperatorIdentityMode) {
+		t.Fatalf("err = %v, want trusted header mode error", err)
 	}
 }
 
@@ -168,4 +190,12 @@ func (r *recordingSemLinkGraphRequester) subjects() []string {
 		subjects = append(subjects, request.subject)
 	}
 	return subjects
+}
+
+func setTrustedSemLinkReadbackHeaders(req *http.Request) {
+	req.Header.Set(copapi.OperatorAuthenticatedHeader, "true")
+	req.Header.Set(copapi.OperatorIDHeader, "operator:semlink-gateway")
+	req.Header.Set(copapi.OperatorRoleHeader, copapi.SemLinkReadbackOperatorRole)
+	req.Header.Set(copapi.OperatorAuthorityScopeHeader, copapi.SemLinkReadbackAuthorityScope)
+	req.Header.Set(copapi.OperatorAuthorityDomainHeader, "boat-blue")
 }

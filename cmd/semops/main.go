@@ -188,6 +188,14 @@ func semLinkReadbackHandlerOption(
 	if !cfg.COP.SemLinkReadbackEnabled {
 		return nil, nil
 	}
+	if cfg.COP.OperatorIdentityMode != semopsapp.COPOperatorIdentityModeTrustedHeaders {
+		return nil, fmt.Errorf(
+			"%s requires %s=%q",
+			semopsapp.EnvCOPSemLinkReadbackEnabled,
+			semopsapp.EnvCOPOperatorIdentityMode,
+			semopsapp.COPOperatorIdentityModeTrustedHeaders,
+		)
+	}
 	if requester == nil {
 		return nil, fmt.Errorf("%s requires a SemStreams graph requester", semopsapp.EnvCOPSemLinkReadbackEnabled)
 	}
@@ -215,7 +223,10 @@ func semLinkReadbackHandlerOption(
 		commandprojector.WithProjector(projector),
 		commandprojector.WithWriteTimeout(cfg.COP.SemLinkReadbackWriteTimeout),
 	)
-	return copapi.WithSemLinkReadbackIngress(ingress, writer), nil
+	return func(handler *copapi.Handler) {
+		copapi.WithSemLinkReadbackIngress(ingress, writer)(handler)
+		copapi.WithSemLinkReadbackAuthorizer(copapi.RequireTrustedSemLinkReadbackHeaders)(handler)
+	}, nil
 }
 
 func newMetricsRegistry(runtime *semopsapp.App) (*metric.MetricsRegistry, error) {

@@ -14,13 +14,14 @@ type SnapshotProvider interface {
 }
 
 type Handler struct {
-	provider                 SnapshotProvider
-	runtimeProvider          RuntimeProvider
-	reviewStore              AssociationReviewStore
-	operatorIdentityResolver OperatorIdentityResolver
-	semlinkReadbackIngress   SemLinkReadbackIngress
-	commandPlanWriter        CommandPlanWriter
-	now                      func() time.Time
+	provider                  SnapshotProvider
+	runtimeProvider           RuntimeProvider
+	reviewStore               AssociationReviewStore
+	operatorIdentityResolver  OperatorIdentityResolver
+	semlinkReadbackIngress    SemLinkReadbackIngress
+	semlinkReadbackAuthorizer SemLinkReadbackAuthorizer
+	commandPlanWriter         CommandPlanWriter
+	now                       func() time.Time
 }
 
 type Option func(*Handler)
@@ -55,6 +56,12 @@ func WithSemLinkReadbackIngress(ingress SemLinkReadbackIngress, writer CommandPl
 	return func(h *Handler) {
 		h.semlinkReadbackIngress = ingress
 		h.commandPlanWriter = writer
+	}
+}
+
+func WithSemLinkReadbackAuthorizer(authorizer SemLinkReadbackAuthorizer) Option {
+	return func(h *Handler) {
+		h.semlinkReadbackAuthorizer = authorizer
 	}
 }
 

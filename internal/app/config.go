@@ -1073,6 +1073,14 @@ func (c Config) Validate() error {
 	if c.COP.SemLinkReadbackWriteTimeout <= 0 {
 		return fmt.Errorf("%s must be greater than zero", EnvCOPSemLinkReadbackWriteTimeout)
 	}
+	if c.COP.SemLinkReadbackEnabled && c.COP.OperatorIdentityMode != COPOperatorIdentityModeTrustedHeaders {
+		return fmt.Errorf(
+			"%s requires %s=%q",
+			EnvCOPSemLinkReadbackEnabled,
+			EnvCOPOperatorIdentityMode,
+			COPOperatorIdentityModeTrustedHeaders,
+		)
+	}
 	if len(c.COP.MAVLinkSystemIDs) == 0 {
 		return fmt.Errorf("%s must include at least one system id", EnvCOPMAVLinkSystemIDs)
 	}
