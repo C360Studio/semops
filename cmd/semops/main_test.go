@@ -134,6 +134,68 @@ func TestSemLinkReadbackHandlerOptionDerivesTargetAssetFromMeshRoute(t *testing.
 	}
 }
 
+func TestSemLinkReadbackHandlerOptionCollapsesDuplicateIntentBeforeGraphWrite(t *testing.T) {
+	cfg := semopsapp.DefaultConfig()
+	cfg.COP.SemLinkReadbackEnabled = true
+	cfg.COP.OperatorIdentityMode = semopsapp.COPOperatorIdentityModeTrustedHeaders
+	targetID := "c360.edge.cop.mavlink.asset.system-42"
+	requester := &recordingSemLinkGraphRequester{targetID: targetID}
+
+	option, err := semLinkReadbackHandlerOption(cfg, requester, map[string]ownership.OwnerToken{
+		copmodel.OwnerCommand: ownership.ExpectedOwnerToken(copmodel.OwnerCommand, "lease-test"),
+	})
+	if err != nil {
+		t.Fatalf("semlink option: %v", err)
+	}
+	handler, err := copapi.NewHandler(copapi.NewFixtureProvider(nil), option)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	body := `{
+		"mesh_node_id":"blue-boat",
+		"target_asset_id":"c360.edge.cop.mavlink.asset.system-42",
+		"vehicle_system_id":42,
+		"correlation_id":"corr-42",
+		"idempotency_key":"idem-42"
+	}`
+	first := httptest.NewRequest(http.MethodPost, "/api/cop/semlink/ardupilot/readback", strings.NewReader(body))
+	setTrustedSemLinkReadbackHeaders(first)
+	firstRec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(firstRec, first)
+	if firstRec.Code != http.StatusAccepted {
+		t.Fatalf("first status = %d, body %s", firstRec.Code, firstRec.Body.String())
+	}
+
+	duplicate := httptest.NewRequest(http.MethodPost, "/api/cop/semlink/ardupilot/readback", strings.NewReader(body))
+	setTrustedSemLinkReadbackHeaders(duplicate)
+	duplicateRec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(duplicateRec, duplicate)
+	if duplicateRec.Code != http.StatusAccepted {
+		t.Fatalf("duplicate status = %d, body %s", duplicateRec.Code, duplicateRec.Body.String())
+	}
+	var response map[string]any
+	if err := json.Unmarshal(duplicateRec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode duplicate response: %v", err)
+	}
+	if response["accepted"] != false ||
+		response["duplicate"] != true ||
+		response["existing_native_id"] != "semlink-blue-boat-autopilot-version" ||
+		response["mutations"].(float64) != 0 ||
+		response["native_execution_allowed"] != false ||
+		response["companion_transmit_allowed"] != false {
+		t.Fatalf("duplicate response = %+v", response)
+	}
+	createCount := requester.countSubject(commandprojector.SubjectEntityCreateWithTriples)
+	if createCount != 1 {
+		t.Fatalf("graph creates = %d, want exactly one", createCount)
+	}
+	updateCount := requester.countSubject(commandprojector.SubjectEntityUpdateWithTriples)
+	if updateCount != 0 {
+		t.Fatalf("graph updates = %d, want none for duplicate", updateCount)
+	}
+}
+
 func TestSemLinkReadbackHandlerOptionDisabledByDefault(t *testing.T) {
 	option, err := semLinkReadbackHandlerOption(semopsapp.DefaultConfig(), nil, nil)
 	if err != nil {
@@ -234,6 +296,16 @@ func (r *recordingSemLinkGraphRequester) sawSubject(subject string) bool {
 		}
 	}
 	return false
+}
+
+func (r *recordingSemLinkGraphRequester) countSubject(subject string) int {
+	var count int
+	for _, request := range r.requests {
+		if request.subject == subject {
+			count++
+		}
+	}
+	return count
 }
 
 func (r *recordingSemLinkGraphRequester) lastGraphQueryID() string {

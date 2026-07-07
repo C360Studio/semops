@@ -376,6 +376,9 @@ Mock or harness:
 - SemLink callers may omit `target_asset_id` for MVP readback. SemOps derives the canonical MAVLink source asset from
   `vehicle_system_id` and configured MAVLink org/platform, then still performs graph-backed target lookup before
   admission or command-intent writes.
+- Duplicate SemLink readback `idempotency_key` values collapse in the hosted route before a second graph write. The
+  response keeps no-native/no-companion-transmit posture and reports duplicate admission; durable cross-process
+  idempotency remains a later production-hardening concern.
 
 Indexing profile pressure:
 

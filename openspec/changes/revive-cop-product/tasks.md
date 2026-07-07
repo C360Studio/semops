@@ -273,6 +273,8 @@
       writes
 - [x] 5.131 Derive the SemLink readback target asset from `vehicle_system_id` when omitted while preserving graph-backed
       born-target admission
+- [x] 5.132 Prove hosted SemLink readback duplicate idempotency collapse returns no-transmit duplicate admission and
+      performs no second graph write
 
 ## 6. Structural COP Stack
 
