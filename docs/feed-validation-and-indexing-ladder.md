@@ -357,6 +357,8 @@ Mock or harness:
 - The COP read model now exposes SemLink companion readback intent posture on command tasks. `claim_posture` makes the
   API-visible boundary explicit: GCS glass may inspect SemLink mesh-node intent, but native and companion transmit
   authority remain outside this slice.
+- `internal/projectors/command` now has a SemStreams graph writer for command-intent plans. This closes the apply-path
+  gap before a hosted SemLink or CS API command ingress route is wired, while preserving the same no-transmit posture.
 
 Indexing profile pressure:
 
