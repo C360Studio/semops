@@ -1,0 +1,13 @@
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "accepted": false,
+  "status": "rejected",
+  "duplicate": false,
+  "correlation_id": "corr-blue-boat-01-unsupported-001",
+  "idempotency_key": "idem-blue-boat-01-unsupported-001",
+  "companion_node_id": "blue-boat-01",
+  "rejected_reason": "unsupported requested_message_id 76; MVP allowlist: AUTOPILOT_VERSION 148",
+  "native_execution_allowed": false,
+  "companion_transmit_allowed": false,
+  "mutations": 0
+}

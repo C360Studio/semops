@@ -1,0 +1,13 @@
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "accepted": false,
+  "status": "duplicate",
+  "duplicate": true,
+  "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+  "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+  "companion_node_id": "blue-boat-01",
+  "existing_native_id": "semlink-blue-boat-01-autopilot-version",
+  "native_execution_allowed": false,
+  "companion_transmit_allowed": false,
+  "mutations": 0
+}

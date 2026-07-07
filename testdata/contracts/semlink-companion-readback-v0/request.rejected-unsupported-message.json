@@ -1,0 +1,13 @@
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "companion_node_id": "blue-boat-01",
+  "target_system_id": 42,
+  "target_component_id": 1,
+  "command_id": 512,
+  "requested_message_id": 76,
+  "correlation_id": "corr-blue-boat-01-unsupported-001",
+  "idempotency_key": "idem-blue-boat-01-unsupported-001",
+  "requested_at": "2026-07-07T18:30:00Z",
+  "ttl_seconds": 30,
+  "source_ref": "semlink://blue-boat-01/ardupilot/system-42/request-message-76"
+}

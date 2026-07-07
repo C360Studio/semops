@@ -1,0 +1,15 @@
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "accepted": false,
+  "status": "rejected",
+  "duplicate": false,
+  "correlation_id": "corr-blue-boat-01-expired-001",
+  "idempotency_key": "idem-blue-boat-01-expired-001",
+  "companion_node_id": "blue-boat-01",
+  "rejected_reason": "expired request",
+  "requested_at": "2026-07-07T18:25:00Z",
+  "expires_at": "2026-07-07T18:25:30Z",
+  "native_execution_allowed": false,
+  "companion_transmit_allowed": false,
+  "mutations": 0
+}

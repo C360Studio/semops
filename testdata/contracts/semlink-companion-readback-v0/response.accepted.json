@@ -1,0 +1,21 @@
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "accepted": true,
+  "status": "accepted",
+  "duplicate": false,
+  "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+  "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+  "companion_node_id": "blue-boat-01",
+  "authorized_companion_node_id": "blue-boat-01",
+  "authority_scope": "semlink.readback.intent",
+  "target_asset_id": "c360.edge.cop.mavlink.asset.system-42",
+  "entity_id": "c360.edge.cop.command.task.semlink-blue-boat-01-autopilot-version",
+  "native_id": "semlink-blue-boat-01-autopilot-version",
+  "claim_scope": "semlink-companion-command-intent-only",
+  "source_ref": "semlink://blue-boat-01/ardupilot/system-42/request-autopilot-version",
+  "requested_at": "2026-07-07T18:30:00Z",
+  "expires_at": "2026-07-07T18:30:30Z",
+  "native_execution_allowed": false,
+  "companion_transmit_allowed": false,
+  "mutations": 1
+}

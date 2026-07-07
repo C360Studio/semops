@@ -1,10 +1,10 @@
 ## 1. Contract Shape
 
-- [ ] 1.1 Draft `docs/contracts/semlink-companion-readback-v0.md` with native request, response, error, duplicate, and
+- [x] 1.1 Draft `docs/contracts/semlink-companion-readback-v0.md` with native request, response, error, duplicate, and
       status sections
-- [ ] 1.2 Add a standards mapping table for every native contract field
-- [ ] 1.3 Mark every C360-only field as a governance exception with a reason and owning authority
-- [ ] 1.4 Add contract fixtures for accepted, duplicate, rejected, and expired/stale readback requests
+- [x] 1.2 Add a standards mapping table for every native contract field
+- [x] 1.3 Mark every C360-only field as a governance exception with a reason and owning authority
+- [x] 1.4 Add contract fixtures for accepted, duplicate, rejected, and expired/stale readback requests
 
 ## 2. SemOps Admission Proof
 
