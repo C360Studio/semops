@@ -2146,6 +2146,8 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvFusionCandidateMaxComparisons: "19",
 		EnvFusionCandidateMaxBatches:     "4",
 	}
+	env[EnvCOPSemLinkReadbackEnabled] = "true"
+	env[EnvCOPSemLinkReadbackWriteTimeout] = "1750ms"
 	env[EnvFusionAssociationMaxDistance] = "123.5"
 	env[EnvFusionAssociationMaxTimeDelta] = "8s"
 	env[EnvFusionAssociationMaxObservationAge] = "45s"
@@ -2191,6 +2193,12 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if cfg.COP.OperatorIdentityMode != COPOperatorIdentityModeTrustedHeaders {
 		t.Fatalf("COP operator identity mode = %q", cfg.COP.OperatorIdentityMode)
+	}
+	if !cfg.COP.SemLinkReadbackEnabled {
+		t.Fatal("COP SemLink readback enabled = false, want true")
+	}
+	if cfg.COP.SemLinkReadbackWriteTimeout != 1750*time.Millisecond {
+		t.Fatalf("COP SemLink readback write timeout = %s", cfg.COP.SemLinkReadbackWriteTimeout)
 	}
 	if cfg.MAVLink.Enabled {
 		t.Fatal("MAVLink enabled = true, want false")
@@ -2410,6 +2418,9 @@ func TestConfigDefaultsUseDiscoveryForCoTCAPSnapshotState(t *testing.T) {
 	if len(cfg.COP.CAPAlertIDs) != 0 {
 		t.Fatalf("default CAP alert IDs = %+v, want discovery-only path", cfg.COP.CAPAlertIDs)
 	}
+	if cfg.COP.SemLinkReadbackEnabled {
+		t.Fatal("default SemLink readback enabled = true, want false")
+	}
 }
 
 func TestConfigFromEnvReportsBadValues(t *testing.T) {
@@ -2490,6 +2501,21 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			name: "bad operator identity mode",
 			env:  map[string]string{EnvCOPOperatorIdentityMode: "trust_me"},
 			want: EnvCOPOperatorIdentityMode,
+		},
+		{
+			name: "bad semlink readback enabled",
+			env:  map[string]string{EnvCOPSemLinkReadbackEnabled: "sometimes"},
+			want: EnvCOPSemLinkReadbackEnabled,
+		},
+		{
+			name: "bad semlink readback write timeout",
+			env:  map[string]string{EnvCOPSemLinkReadbackWriteTimeout: "soon"},
+			want: EnvCOPSemLinkReadbackWriteTimeout,
+		},
+		{
+			name: "zero semlink readback write timeout",
+			env:  map[string]string{EnvCOPSemLinkReadbackWriteTimeout: "0s"},
+			want: EnvCOPSemLinkReadbackWriteTimeout,
 		},
 		{
 			name: "bad udp max datagram",

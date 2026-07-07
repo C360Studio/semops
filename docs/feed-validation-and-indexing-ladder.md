@@ -363,6 +363,10 @@ Mock or harness:
   When configured with the SemLink ingress and command graph writer, it admits and persists only the governed
   `AUTOPILOT_VERSION` readback intent and returns explicit no-native/no-companion-transmit posture. When unconfigured,
   it fails closed with `503` instead of implying live SemLink or BlueOS authority.
+- Hosted SemOps can now opt into that route with `SEMOPS_COP_SEMLINK_READBACK_ENABLED=true`. The composition uses
+  graph-backed target discovery, the `semops.command.intent` owner token, and
+  `SEMOPS_COP_SEMLINK_READBACK_WRITE_TIMEOUT` for persistence. The default remains disabled; this still does not call
+  a live SemLink node, BlueOS extension, Navigator, or ArduPilot transmitter.
 
 Indexing profile pressure:
 

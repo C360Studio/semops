@@ -121,6 +121,11 @@ const (
 )
 
 const (
+	EnvCOPSemLinkReadbackEnabled      = "SEMOPS_COP_SEMLINK_READBACK_ENABLED"
+	EnvCOPSemLinkReadbackWriteTimeout = "SEMOPS_COP_SEMLINK_READBACK_WRITE_TIMEOUT"
+)
+
+const (
 	COPOperatorIdentityModeLocalDisplay   = "local_display"
 	COPOperatorIdentityModeTrustedHeaders = "trusted_headers"
 )
@@ -332,13 +337,15 @@ type FusionConfig struct {
 }
 
 type COPConfig struct {
-	GraphQueryTimeout     time.Duration
-	GraphDiscoveryEnabled bool
-	GraphDiscoveryLimit   int
-	MAVLinkSystemIDs      []int
-	CoTUIDs               []string
-	CAPAlertIDs           []string
-	OperatorIdentityMode  string
+	GraphQueryTimeout           time.Duration
+	GraphDiscoveryEnabled       bool
+	GraphDiscoveryLimit         int
+	MAVLinkSystemIDs            []int
+	CoTUIDs                     []string
+	CAPAlertIDs                 []string
+	OperatorIdentityMode        string
+	SemLinkReadbackEnabled      bool
+	SemLinkReadbackWriteTimeout time.Duration
 }
 
 func DefaultConfig() Config {
@@ -526,11 +533,13 @@ func DefaultConfig() Config {
 			},
 		},
 		COP: COPConfig{
-			GraphQueryTimeout:     2 * time.Second,
-			GraphDiscoveryEnabled: true,
-			GraphDiscoveryLimit:   500,
-			MAVLinkSystemIDs:      []int{42},
-			OperatorIdentityMode:  COPOperatorIdentityModeLocalDisplay,
+			GraphQueryTimeout:           2 * time.Second,
+			GraphDiscoveryEnabled:       true,
+			GraphDiscoveryLimit:         500,
+			MAVLinkSystemIDs:            []int{42},
+			OperatorIdentityMode:        COPOperatorIdentityModeLocalDisplay,
+			SemLinkReadbackEnabled:      false,
+			SemLinkReadbackWriteTimeout: 2 * time.Second,
 		},
 	}
 }
@@ -755,10 +764,24 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	if cfg.COP.SemLinkReadbackWriteTimeout, err = durationFromEnv(
+		getenv,
+		EnvCOPSemLinkReadbackWriteTimeout,
+		cfg.COP.SemLinkReadbackWriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
 	if cfg.COP.GraphDiscoveryEnabled, err = boolFromEnv(
 		getenv,
 		EnvCOPGraphDiscoveryEnabled,
 		cfg.COP.GraphDiscoveryEnabled,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.COP.SemLinkReadbackEnabled, err = boolFromEnv(
+		getenv,
+		EnvCOPSemLinkReadbackEnabled,
+		cfg.COP.SemLinkReadbackEnabled,
 	); err != nil {
 		return Config{}, err
 	}
@@ -1046,6 +1069,9 @@ func (c Config) Validate() error {
 	}
 	if c.COP.GraphDiscoveryLimit <= 0 {
 		return fmt.Errorf("%s must be greater than zero", EnvCOPGraphDiscoveryLimit)
+	}
+	if c.COP.SemLinkReadbackWriteTimeout <= 0 {
+		return fmt.Errorf("%s must be greater than zero", EnvCOPSemLinkReadbackWriteTimeout)
 	}
 	if len(c.COP.MAVLinkSystemIDs) == 0 {
 		return fmt.Errorf("%s must include at least one system id", EnvCOPMAVLinkSystemIDs)

@@ -263,6 +263,8 @@
       route wiring
 - [x] 5.127 Add an opt-in SemLink ArduPilot readback API route seam that persists admitted intent only and never
       grants native or companion transmit authority
+- [x] 5.128 Wire the SemLink ArduPilot readback route into hosted API composition behind explicit config, graph-backed
+      target discovery, and command-intent owner tokens
 
 ## 6. Structural COP Stack
 

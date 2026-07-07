@@ -15,8 +15,12 @@ import (
 	copapi "github.com/c360studio/semops/internal/api/cop"
 	semopsapp "github.com/c360studio/semops/internal/app"
 	"github.com/c360studio/semops/internal/componentmetrics"
+	semlinkingress "github.com/c360studio/semops/internal/ingress/semlink"
+	commandprojector "github.com/c360studio/semops/internal/projectors/command"
 	fusionprojector "github.com/c360studio/semops/internal/projectors/fusion"
+	copmodel "github.com/c360studio/semops/pkg/cop"
 	"github.com/c360studio/semstreams/metric"
+	"github.com/c360studio/semstreams/pkg/ownership"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -87,8 +91,12 @@ func main() {
 func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server, error) {
 	provider := copapi.SnapshotProvider(copapi.NewFixtureProvider(nil))
 	reviewStore := copapi.AssociationReviewStore(copapi.NewMemoryAssociationReviewStore())
+	var graphRequester commandprojector.GraphRequester
+	var ownerTokens map[string]ownership.OwnerToken
 	if runtime != nil {
 		if requester := runtime.GraphRequester(); requester != nil {
+			graphRequester = requester
+			ownerTokens = runtime.OwnershipBinding().OwnerTokenMap()
 			graphProvider, err := copapi.NewGraphProvider(
 				requester,
 				copapi.WithGraphFallback(provider),
@@ -132,6 +140,13 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 	if cfg.COP.OperatorIdentityMode == semopsapp.COPOperatorIdentityModeTrustedHeaders {
 		handlerOptions = append(handlerOptions, copapi.WithOperatorIdentityResolver(copapi.ResolveTrustedHeaderOperatorIdentity))
 	}
+	semlinkOption, err := semLinkReadbackHandlerOption(cfg, graphRequester, ownerTokens)
+	if err != nil {
+		return nil, err
+	}
+	if semlinkOption != nil {
+		handlerOptions = append(handlerOptions, semlinkOption)
+	}
 	handler, err := copapi.NewHandler(provider, handlerOptions...)
 	if err != nil {
 		return nil, err
@@ -163,6 +178,44 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 		}
 	}()
 	return server, nil
+}
+
+func semLinkReadbackHandlerOption(
+	cfg semopsapp.Config,
+	requester commandprojector.GraphRequester,
+	ownerTokens map[string]ownership.OwnerToken,
+) (copapi.Option, error) {
+	if !cfg.COP.SemLinkReadbackEnabled {
+		return nil, nil
+	}
+	if requester == nil {
+		return nil, fmt.Errorf("%s requires a SemStreams graph requester", semopsapp.EnvCOPSemLinkReadbackEnabled)
+	}
+	if ownerTokens == nil || ownerTokens[copmodel.OwnerCommand].IsZero() {
+		return nil, fmt.Errorf("%s requires the %q owner token", semopsapp.EnvCOPSemLinkReadbackEnabled, copmodel.OwnerCommand)
+	}
+
+	projector := commandprojector.NewProjector(commandprojector.Config{
+		Org:         cfg.MAVLink.Org,
+		Platform:    cfg.MAVLink.Platform,
+		OwnerTokens: ownerTokens,
+		TraceID:     cfg.MAVLink.TraceID,
+	})
+	targetResolver := commandprojector.NewGraphTargetResolver(
+		requester,
+		commandprojector.WithTargetQueryTimeout(cfg.COP.GraphQueryTimeout),
+	)
+	guardedProjector := commandprojector.NewGuardedProjector(
+		projector,
+		commandprojector.AdmissionConfig{TargetResolver: targetResolver},
+	)
+	ingress := semlinkingress.Ingress{Projector: guardedProjector}
+	writer := commandprojector.NewGraphWriter(
+		requester,
+		commandprojector.WithProjector(projector),
+		commandprojector.WithWriteTimeout(cfg.COP.SemLinkReadbackWriteTimeout),
+	)
+	return copapi.WithSemLinkReadbackIngress(ingress, writer), nil
 }
 
 func newMetricsRegistry(runtime *semopsapp.App) (*metric.MetricsRegistry, error) {
