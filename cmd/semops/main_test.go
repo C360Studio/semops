@@ -77,6 +77,7 @@ func TestSemLinkReadbackHandlerOptionWiresGraphBackedIngress(t *testing.T) {
 		response["companion_transmit_allowed"] != false ||
 		response["mutations"].(float64) != 1 ||
 		response["authorized_by"] != "operator:semlink-gateway" ||
+		response["authorized_mesh_node_id"] != "blue-boat" ||
 		response["authority_scope"] != copapi.SemLinkReadbackAuthorityScope {
 		t.Fatalf("response = %+v", response)
 	}
@@ -198,4 +199,5 @@ func setTrustedSemLinkReadbackHeaders(req *http.Request) {
 	req.Header.Set(copapi.OperatorRoleHeader, copapi.SemLinkReadbackOperatorRole)
 	req.Header.Set(copapi.OperatorAuthorityScopeHeader, copapi.SemLinkReadbackAuthorityScope)
 	req.Header.Set(copapi.OperatorAuthorityDomainHeader, "boat-blue")
+	req.Header.Set(copapi.SemLinkMeshNodeIDHeader, "blue-boat")
 }

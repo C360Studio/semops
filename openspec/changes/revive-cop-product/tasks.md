@@ -267,6 +267,8 @@
       target discovery, and command-intent owner tokens
 - [x] 5.129 Gate the hosted SemLink ArduPilot readback route with trusted caller headers and a narrow
       `semlink.readback.intent` authority scope
+- [x] 5.130 Bind authenticated SemLink readback callers to the requested mesh node before ingress admission or graph
+      writes
 
 ## 6. Structural COP Stack
 

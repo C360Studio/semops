@@ -9,12 +9,14 @@ import (
 const (
 	SemLinkReadbackAuthorityScope = "semlink.readback.intent"
 	SemLinkReadbackOperatorRole   = AuthenticatedAssociationReviewerRole
+	SemLinkMeshNodeIDHeader       = "X-SemOps-SemLink-Mesh-Node-ID"
 )
 
 type SemLinkReadbackAuthorizer func(*http.Request) (SemLinkReadbackCaller, error)
 
 type SemLinkReadbackCaller struct {
 	ID              string
+	MeshNodeID      string
 	AuthorityScope  string
 	AuthorityDomain string
 	Authenticated   bool
@@ -67,8 +69,13 @@ func RequireTrustedSemLinkReadbackHeaders(r *http.Request) (SemLinkReadbackCalle
 	if err := validateAuthorityDomain(domain); err != nil {
 		return SemLinkReadbackCaller{}, semLinkReadbackAuthError(http.StatusForbidden, err.Error())
 	}
+	meshNodeID := strings.TrimSpace(r.Header.Get(SemLinkMeshNodeIDHeader))
+	if err := validateSemLinkMeshNodeID(meshNodeID); err != nil {
+		return SemLinkReadbackCaller{}, semLinkReadbackAuthError(http.StatusForbidden, err.Error())
+	}
 	return SemLinkReadbackCaller{
 		ID:              id,
+		MeshNodeID:      meshNodeID,
 		AuthorityScope:  scope,
 		AuthorityDomain: domain,
 		Authenticated:   true,
@@ -80,4 +87,19 @@ func semLinkReadbackAuthError(status int, message string) *SemLinkReadbackAuthEr
 		status = http.StatusUnauthorized
 	}
 	return &SemLinkReadbackAuthError{Status: status, Message: message}
+}
+
+func validateSemLinkMeshNodeID(meshNodeID string) error {
+	if strings.TrimSpace(meshNodeID) == "" {
+		return fmt.Errorf("%s is required for SemLink readback", SemLinkMeshNodeIDHeader)
+	}
+	if len(meshNodeID) > MaxOperatorIdentityLen {
+		return fmt.Errorf("%s exceeds %d characters", SemLinkMeshNodeIDHeader, MaxOperatorIdentityLen)
+	}
+	if strings.ContainsFunc(meshNodeID, func(r rune) bool {
+		return r < ' ' || r == 0x7f
+	}) {
+		return fmt.Errorf("%s contains control characters", SemLinkMeshNodeIDHeader)
+	}
+	return nil
 }

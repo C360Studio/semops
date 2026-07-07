@@ -370,6 +370,9 @@ Mock or harness:
 - That hosted route now requires `SEMOPS_COP_OPERATOR_IDENTITY_MODE=trusted_headers` and trusted caller headers with
   `X-SemOps-Authority-Scope: semlink.readback.intent`. The API records the authenticated caller posture in the response
   but still only writes governed readback intent, not transmit authority.
+- Trusted SemLink readback callers must also send `X-SemOps-SemLink-Mesh-Node-ID`, and it must match the request
+  `mesh_node_id`. A mismatch fails before ingress admission, target lookup, or command-intent graph writes, so one
+  authenticated companion boundary cannot mint readback intent for another mesh node.
 
 Indexing profile pressure:
 

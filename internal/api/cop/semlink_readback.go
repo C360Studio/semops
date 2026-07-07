@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	semlinkingress "github.com/c360studio/semops/internal/ingress/semlink"
@@ -53,6 +54,7 @@ type semLinkReadbackResponse struct {
 	NativeExecutionAllowed   bool   `json:"native_execution_allowed"`
 	CompanionTransmitAllowed bool   `json:"companion_transmit_allowed"`
 	AuthorizedBy             string `json:"authorized_by,omitempty"`
+	AuthorizedMeshNodeID     string `json:"authorized_mesh_node_id,omitempty"`
 	AuthorityScope           string `json:"authority_scope,omitempty"`
 	AuthorityDomain          string `json:"authority_domain,omitempty"`
 	Authenticated            bool   `json:"authenticated,omitempty"`
@@ -89,6 +91,10 @@ func (h *Handler) admitSemLinkArduPilotReadback(w http.ResponseWriter, r *http.R
 		writeJSON(w, http.StatusBadRequest, semLinkReadbackResponse{
 			Error: "invalid semlink readback request",
 		})
+		return
+	}
+	if err := validateSemLinkReadbackCallerMesh(caller, request.MeshNodeID); err != nil {
+		writeJSON(w, http.StatusForbidden, semLinkReadbackResponse{Error: err.Error()})
 		return
 	}
 
@@ -153,9 +159,23 @@ func (r *semLinkReadbackResponse) applyCaller(caller SemLinkReadbackCaller) {
 		return
 	}
 	r.AuthorizedBy = caller.ID
+	r.AuthorizedMeshNodeID = caller.MeshNodeID
 	r.AuthorityScope = caller.AuthorityScope
 	r.AuthorityDomain = caller.AuthorityDomain
 	r.Authenticated = caller.Authenticated
+}
+
+func validateSemLinkReadbackCallerMesh(caller SemLinkReadbackCaller, requestMeshNodeID string) error {
+	if caller.MeshNodeID == "" {
+		return nil
+	}
+	if strings.TrimSpace(requestMeshNodeID) == "" {
+		return fmt.Errorf("mesh_node_id is required for authenticated SemLink readback")
+	}
+	if strings.TrimSpace(requestMeshNodeID) != caller.MeshNodeID {
+		return fmt.Errorf("SemLink readback mesh_node_id %q does not match authenticated mesh node %q", requestMeshNodeID, caller.MeshNodeID)
+	}
+	return nil
 }
 
 func responseForSemLinkReadback(

@@ -607,10 +607,49 @@ func TestHandlerSemLinkReadbackAuthorizerAnnotatesAcceptedResponse(t *testing.T)
 		t.Fatalf("decode response: %v", err)
 	}
 	if response.AuthorizedBy != "operator:semlink-gateway" ||
+		response.AuthorizedMeshNodeID != "blue-boat" ||
 		response.AuthorityScope != SemLinkReadbackAuthorityScope ||
 		response.AuthorityDomain != "boat-blue" ||
 		!response.Authenticated {
 		t.Fatalf("response caller = %+v", response)
+	}
+}
+
+func TestHandlerSemLinkReadbackRejectsMeshNodeMismatch(t *testing.T) {
+	ingress := &fakeSemLinkReadbackIngress{}
+	writer := &recordingCommandPlanWriter{}
+	handler, err := NewHandler(
+		NewFixtureProvider(nil),
+		WithSemLinkReadbackIngress(ingress, writer),
+		WithSemLinkReadbackAuthorizer(RequireTrustedSemLinkReadbackHeaders),
+	)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(`{
+			"mesh_node_id":"other-boat",
+			"target_asset_id":"c360.edge.cop.mavlink.asset.system-42",
+			"vehicle_system_id":42,
+			"correlation_id":"corr-42",
+			"idempotency_key":"idem-42"
+		}`),
+	)
+	setTrustedSemLinkReadbackHeaders(req)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if len(ingress.requests) != 0 {
+		t.Fatalf("ingress requests = %+v, want none for mesh mismatch", ingress.requests)
+	}
+	if len(writer.plans) != 0 {
+		t.Fatalf("writer plans = %+v, want none for mesh mismatch", writer.plans)
 	}
 }
 
@@ -693,4 +732,5 @@ func setTrustedSemLinkReadbackHeaders(req *http.Request) {
 	req.Header.Set(OperatorRoleHeader, SemLinkReadbackOperatorRole)
 	req.Header.Set(OperatorAuthorityScopeHeader, SemLinkReadbackAuthorityScope)
 	req.Header.Set(OperatorAuthorityDomainHeader, "boat-blue")
+	req.Header.Set(SemLinkMeshNodeIDHeader, "blue-boat")
 }
