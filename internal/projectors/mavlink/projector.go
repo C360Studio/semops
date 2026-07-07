@@ -438,9 +438,19 @@ func (p *Projector) sourceAssetBirthMutation(assetID string, packet *mavcodec.Pa
 }
 
 func (p *Projector) sourceAssetID(systemID uint8) string {
+	return SourceAssetID(p.cfg.Org, p.cfg.Platform, int(systemID))
+}
+
+func SourceAssetID(org, platform string, systemID int) string {
+	if strings.TrimSpace(org) == "" {
+		org = "c360"
+	}
+	if strings.TrimSpace(platform) == "" {
+		platform = "edge"
+	}
 	return message.EntityID{
-		Org:      p.cfg.Org,
-		Platform: p.cfg.Platform,
+		Org:      strings.TrimSpace(org),
+		Platform: strings.TrimSpace(platform),
 		Domain:   "cop",
 		System:   "mavlink",
 		Type:     cop.EntityAsset,

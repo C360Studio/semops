@@ -217,7 +217,11 @@ func semLinkReadbackHandlerOption(
 		projector,
 		commandprojector.AdmissionConfig{TargetResolver: targetResolver},
 	)
-	ingress := semlinkingress.Ingress{Projector: guardedProjector}
+	ingress := semlinkingress.Ingress{
+		Projector:       guardedProjector,
+		MAVLinkOrg:      cfg.MAVLink.Org,
+		MAVLinkPlatform: cfg.MAVLink.Platform,
+	}
 	writer := commandprojector.NewGraphWriter(
 		requester,
 		commandprojector.WithProjector(projector),

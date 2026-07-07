@@ -83,6 +83,57 @@ func TestSemLinkReadbackHandlerOptionWiresGraphBackedIngress(t *testing.T) {
 	}
 }
 
+func TestSemLinkReadbackHandlerOptionDerivesTargetAssetFromMeshRoute(t *testing.T) {
+	cfg := semopsapp.DefaultConfig()
+	cfg.COP.SemLinkReadbackEnabled = true
+	cfg.COP.OperatorIdentityMode = semopsapp.COPOperatorIdentityModeTrustedHeaders
+	cfg.MAVLink.Org = "c360"
+	cfg.MAVLink.Platform = "edge-blue"
+	targetID := "c360.edge-blue.cop.mavlink.asset.system-42"
+	requester := &recordingSemLinkGraphRequester{targetID: targetID}
+
+	option, err := semLinkReadbackHandlerOption(cfg, requester, map[string]ownership.OwnerToken{
+		copmodel.OwnerCommand: ownership.ExpectedOwnerToken(copmodel.OwnerCommand, "lease-test"),
+	})
+	if err != nil {
+		t.Fatalf("semlink option: %v", err)
+	}
+	handler, err := copapi.NewHandler(copapi.NewFixtureProvider(nil), option)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(`{
+			"mesh_node_id":"blue-boat",
+			"vehicle_system_id":42,
+			"correlation_id":"corr-42",
+			"idempotency_key":"idem-42"
+		}`),
+	)
+	setTrustedSemLinkReadbackHeaders(req)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if requester.lastGraphQueryID() != targetID {
+		t.Fatalf("target lookup id = %q, want %q", requester.lastGraphQueryID(), targetID)
+	}
+	var response map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response["target_asset_id"] != targetID ||
+		response["source_ref"] != "semlink://blue-boat/ardupilot/system-42/request-autopilot-version" ||
+		response["accepted"] != true {
+		t.Fatalf("response = %+v", response)
+	}
+}
+
 func TestSemLinkReadbackHandlerOptionDisabledByDefault(t *testing.T) {
 	option, err := semLinkReadbackHandlerOption(semopsapp.DefaultConfig(), nil, nil)
 	if err != nil {
@@ -183,6 +234,20 @@ func (r *recordingSemLinkGraphRequester) sawSubject(subject string) bool {
 		}
 	}
 	return false
+}
+
+func (r *recordingSemLinkGraphRequester) lastGraphQueryID() string {
+	for index := len(r.requests) - 1; index >= 0; index-- {
+		request := r.requests[index]
+		if request.subject != commandprojector.SubjectGraphQueryEntity {
+			continue
+		}
+		var query map[string]string
+		if err := json.Unmarshal(request.data, &query); err == nil {
+			return query["id"]
+		}
+	}
+	return ""
 }
 
 func (r *recordingSemLinkGraphRequester) subjects() []string {

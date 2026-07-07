@@ -269,6 +269,8 @@
       `semlink.readback.intent` authority scope
 - [x] 5.130 Bind authenticated SemLink readback callers to the requested mesh node before ingress admission or graph
       writes
+- [x] 5.131 Derive the SemLink readback target asset from `vehicle_system_id` when omitted while preserving graph-backed
+      born-target admission
 
 ## 6. Structural COP Stack
 

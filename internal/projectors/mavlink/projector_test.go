@@ -10,6 +10,15 @@ import (
 	"github.com/c360studio/semstreams/pkg/ownership"
 )
 
+func TestSourceAssetIDUsesConfiguredOrgPlatform(t *testing.T) {
+	if got := SourceAssetID("c360", "edge-blue", 42); got != "c360.edge-blue.cop.mavlink.asset.system-42" {
+		t.Fatalf("source asset id = %q", got)
+	}
+	if got := SourceAssetID("", "", 7); got != "c360.edge.cop.mavlink.asset.system-7" {
+		t.Fatalf("default source asset id = %q", got)
+	}
+}
+
 func TestProjectorBirthsSourceAssetBeforeTrackWithStrictForeignEdge(t *testing.T) {
 	packet := parseGeneratedPacket(t, func(g *mavcodec.Generator) ([]byte, error) {
 		return g.GenerateHeartbeat(mavcodec.HeartbeatMessage{

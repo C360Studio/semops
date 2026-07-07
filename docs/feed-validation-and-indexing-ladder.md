@@ -373,6 +373,9 @@ Mock or harness:
 - Trusted SemLink readback callers must also send `X-SemOps-SemLink-Mesh-Node-ID`, and it must match the request
   `mesh_node_id`. A mismatch fails before ingress admission, target lookup, or command-intent graph writes, so one
   authenticated companion boundary cannot mint readback intent for another mesh node.
+- SemLink callers may omit `target_asset_id` for MVP readback. SemOps derives the canonical MAVLink source asset from
+  `vehicle_system_id` and configured MAVLink org/platform, then still performs graph-backed target lookup before
+  admission or command-intent writes.
 
 Indexing profile pressure:
 

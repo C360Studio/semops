@@ -7,6 +7,7 @@ import (
 	"time"
 
 	commandprojector "github.com/c360studio/semops/internal/projectors/command"
+	mavlinkprojector "github.com/c360studio/semops/internal/projectors/mavlink"
 )
 
 const ClaimScopeCompanionIntentOnly = "semlink-companion-command-intent-only"
@@ -26,8 +27,10 @@ type ArduPilotReadbackRequest struct {
 }
 
 type Ingress struct {
-	Projector *commandprojector.GuardedProjector
-	Clock     func() time.Time
+	Projector       *commandprojector.GuardedProjector
+	MAVLinkOrg      string
+	MAVLinkPlatform string
+	Clock           func() time.Time
 }
 
 type Result struct {
@@ -45,10 +48,14 @@ func (i Ingress) AdmitArduPilotReadback(
 	if i.Projector == nil {
 		return Result{}, commandprojector.Plan{}, fmt.Errorf("semlink companion ingress requires guarded command projector")
 	}
+	targetAssetID, err := i.targetAssetID(req)
+	if err != nil {
+		return Result{}, commandprojector.Plan{}, err
+	}
 	intent, err := commandprojector.NewSemLinkArduPilotReadbackIntent(commandprojector.SemLinkCompanionRequest{
 		MeshNodeID:       req.MeshNodeID,
 		NativeID:         nativeID(req),
-		TargetAssetID:    req.TargetAssetID,
+		TargetAssetID:    targetAssetID,
 		VehicleSystemID:  req.VehicleSystemID,
 		VehicleComponent: req.VehicleComponent,
 		Action:           req.Action,
@@ -72,6 +79,16 @@ func (i Ingress) AdmitArduPilotReadback(
 		NativeExecutionAllowed:   false,
 		CompanionTransmitAllowed: false,
 	}, plan, nil
+}
+
+func (i Ingress) targetAssetID(req ArduPilotReadbackRequest) (string, error) {
+	if trimmed := strings.TrimSpace(req.TargetAssetID); trimmed != "" {
+		return trimmed, nil
+	}
+	if req.VehicleSystemID < 1 || req.VehicleSystemID > 255 {
+		return "", fmt.Errorf("SemLink companion vehicle_system_id must be between 1 and 255, got %d", req.VehicleSystemID)
+	}
+	return mavlinkprojector.SourceAssetID(i.MAVLinkOrg, i.MAVLinkPlatform, req.VehicleSystemID), nil
 }
 
 func (i Ingress) now() time.Time {

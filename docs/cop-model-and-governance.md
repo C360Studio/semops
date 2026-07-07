@@ -94,6 +94,9 @@ changes, arm/disarm, or offboard control.
 The caller must also provide `X-SemOps-SemLink-Mesh-Node-ID`; the API requires it to match the request `mesh_node_id`
 before ingress admission or graph writes. This is caller provenance for the companion boundary, not distributed mesh
 causality metadata.
+If the request omits `target_asset_id`, SemOps derives the canonical MAVLink source asset from `vehicle_system_id` and
+the configured MAVLink org/platform, then still requires the graph-backed target resolver to prove that asset is born
+before any command-intent write.
 
 SAPIENT detection evidence is currently narrower than SAPIENT product support. The first contract owns
 absolute-location detection track state only, rejects range/bearing and UTM projection until those semantics are

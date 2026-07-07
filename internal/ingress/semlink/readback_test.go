@@ -55,6 +55,32 @@ func TestIngressAdmitsSemLinkArduPilotReadbackAsIntentOnly(t *testing.T) {
 	}
 }
 
+func TestIngressDerivesCanonicalMAVLinkTargetFromSemLinkRoute(t *testing.T) {
+	now := time.Date(2026, 7, 7, 16, 15, 0, 0, time.UTC)
+	targetID := "c360.edge.cop.mavlink.asset.system-42"
+	ingress := testIngress(now, targetID)
+
+	result, plan, err := ingress.AdmitArduPilotReadback(context.Background(), ArduPilotReadbackRequest{
+		MeshNodeID:      "blueboat-01",
+		ID:              "autopilot-version",
+		VehicleSystemID: 42,
+		CorrelationID:   "semlink:blueboat-01:req-42",
+		IdempotencyKey:  "semlink-blueboat-01-autopilot-version-42",
+		TTL:             30 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("admit SemLink readback: %v", err)
+	}
+	if !result.Admission.Accepted {
+		t.Fatalf("admission = %+v, want accepted", result.Admission)
+	}
+	if result.Intent.TargetAssetID != targetID {
+		t.Fatalf("target asset = %q, want %q", result.Intent.TargetAssetID, targetID)
+	}
+	triples := requireCreateTriples(t, plan)
+	requireTriple(t, triples, cop.TaskTarget, targetID)
+}
+
 func TestIngressRejectsUnsafeSemLinkCompanionActionBeforeProjection(t *testing.T) {
 	now := time.Date(2026, 7, 7, 16, 30, 0, 0, time.UTC)
 	_, plan, err := testIngress(now, "c360.edge.cop.mavlink.asset.system-1").AdmitArduPilotReadback(
