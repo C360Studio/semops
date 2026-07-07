@@ -9,6 +9,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	semlinkingress "github.com/c360studio/semops/internal/ingress/semlink"
+	commandprojector "github.com/c360studio/semops/internal/projectors/command"
+	"github.com/c360studio/semstreams/graph"
 )
 
 func TestHandlerServesSnapshot(t *testing.T) {
@@ -332,6 +336,216 @@ func TestHandlerRejectsReviewForUnknownAssociation(t *testing.T) {
 	}
 }
 
+func TestHandlerAdmitsSemLinkReadbackIntentAndWritesPlan(t *testing.T) {
+	entityID := "c360.edge.cop.command.task.semlink-blue-boat-autopilot-version"
+	ingress := &fakeSemLinkReadbackIngress{
+		result: semlinkingress.Result{
+			ClaimScope: semlinkingress.ClaimScopeCompanionIntentOnly,
+			Intent: commandprojector.Intent{
+				NativeID:      "semlink-blue-boat-autopilot-version",
+				TargetAssetID: "c360.edge.cop.mavlink.asset.system-42",
+				SourceRef:     "semlink://blue-boat/ardupilot/system-42/request-autopilot-version",
+			},
+			Admission: commandprojector.AdmissionResult{Accepted: true},
+		},
+		plan: commandprojector.Plan{Mutations: []commandprojector.Mutation{{
+			Kind: commandprojector.MutationCreate,
+			Create: graph.CreateEntityWithTriplesRequest{
+				Entity: &graph.EntityState{ID: entityID},
+			},
+		}}},
+	}
+	writer := &recordingCommandPlanWriter{}
+	handler, err := NewHandler(
+		NewFixtureProvider(nil),
+		WithSemLinkReadbackIngress(ingress, writer),
+	)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(`{
+			"mesh_node_id":"blue-boat",
+			"id":"autopilot-version",
+			"target_asset_id":"c360.edge.cop.mavlink.asset.system-42",
+			"vehicle_system_id":42,
+			"vehicle_component_id":1,
+			"action":"request_autopilot_version",
+			"correlation_id":"corr-42",
+			"idempotency_key":"idem-42",
+			"source_ref":"semlink://blue-boat/ardupilot/system-42/request-autopilot-version",
+			"observed_at":"2026-07-07T13:45:00Z",
+			"ttl_seconds":45
+		}`),
+	)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if len(ingress.requests) != 1 {
+		t.Fatalf("ingress requests = %d, want 1", len(ingress.requests))
+	}
+	gotRequest := ingress.requests[0]
+	if gotRequest.MeshNodeID != "blue-boat" ||
+		gotRequest.ID != "autopilot-version" ||
+		gotRequest.TargetAssetID != "c360.edge.cop.mavlink.asset.system-42" ||
+		gotRequest.VehicleSystemID != 42 ||
+		gotRequest.VehicleComponent != 1 ||
+		gotRequest.TTL != 45*time.Second {
+		t.Fatalf("ingress request = %+v", gotRequest)
+	}
+	if len(writer.plans) != 1 || len(writer.plans[0].Mutations) != 1 {
+		t.Fatalf("writer plans = %+v, want one mutation plan", writer.plans)
+	}
+	var response semLinkReadbackResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !response.Accepted ||
+		response.ClaimScope != semlinkingress.ClaimScopeCompanionIntentOnly ||
+		response.EntityID != entityID ||
+		response.NativeID != "semlink-blue-boat-autopilot-version" ||
+		response.Mutations != 1 ||
+		response.NativeExecutionAllowed ||
+		response.CompanionTransmitAllowed {
+		t.Fatalf("response = %+v", response)
+	}
+}
+
+func TestHandlerDoesNotWriteRejectedSemLinkReadbackIntent(t *testing.T) {
+	ingress := &fakeSemLinkReadbackIngress{
+		result: semlinkingress.Result{
+			ClaimScope: semlinkingress.ClaimScopeCompanionIntentOnly,
+			Intent: commandprojector.Intent{
+				NativeID:      "semlink-blue-boat-autopilot-version",
+				TargetAssetID: "c360.edge.cop.mavlink.asset.system-42",
+			},
+			Admission: commandprojector.AdmissionResult{
+				RejectedReason: "command target asset is not born",
+			},
+		},
+	}
+	writer := &recordingCommandPlanWriter{}
+	handler, err := NewHandler(
+		NewFixtureProvider(nil),
+		WithSemLinkReadbackIngress(ingress, writer),
+	)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(`{
+			"mesh_node_id":"blue-boat",
+			"target_asset_id":"c360.edge.cop.mavlink.asset.system-42",
+			"vehicle_system_id":42,
+			"correlation_id":"corr-42",
+			"idempotency_key":"idem-42"
+		}`),
+	)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if len(writer.plans) != 0 {
+		t.Fatalf("writer plans = %+v, want none for rejected admission", writer.plans)
+	}
+	var response semLinkReadbackResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Accepted ||
+		response.RejectedReason != "command target asset is not born" ||
+		response.Mutations != 0 ||
+		response.NativeExecutionAllowed ||
+		response.CompanionTransmitAllowed {
+		t.Fatalf("response = %+v", response)
+	}
+}
+
+func TestHandlerReportsSemLinkReadbackWriterFailureWithoutTransmitAuthority(t *testing.T) {
+	ingress := &fakeSemLinkReadbackIngress{
+		result: semlinkingress.Result{
+			ClaimScope: semlinkingress.ClaimScopeCompanionIntentOnly,
+			Intent: commandprojector.Intent{
+				NativeID:      "semlink-blue-boat-autopilot-version",
+				TargetAssetID: "c360.edge.cop.mavlink.asset.system-42",
+			},
+			Admission: commandprojector.AdmissionResult{Accepted: true},
+		},
+		plan: commandprojector.Plan{Mutations: []commandprojector.Mutation{{
+			Kind: commandprojector.MutationCreate,
+			Create: graph.CreateEntityWithTriplesRequest{
+				Entity: &graph.EntityState{ID: "c360.edge.cop.command.task.semlink-blue-boat-autopilot-version"},
+			},
+		}}},
+	}
+	writer := &recordingCommandPlanWriter{err: errors.New("graph offline")}
+	handler, err := NewHandler(
+		NewFixtureProvider(nil),
+		WithSemLinkReadbackIngress(ingress, writer),
+	)
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(`{
+			"mesh_node_id":"blue-boat",
+			"target_asset_id":"c360.edge.cop.mavlink.asset.system-42",
+			"vehicle_system_id":42,
+			"correlation_id":"corr-42",
+			"idempotency_key":"idem-42"
+		}`),
+	)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var response semLinkReadbackResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Accepted ||
+		!strings.Contains(response.Error, "persist semlink readback intent") ||
+		response.NativeExecutionAllowed ||
+		response.CompanionTransmitAllowed {
+		t.Fatalf("response = %+v", response)
+	}
+}
+
+func TestHandlerSemLinkReadbackRouteFailsClosedWhenUnconfigured(t *testing.T) {
+	handler, err := NewHandler(NewFixtureProvider(nil))
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/cop/semlink/ardupilot/readback",
+		strings.NewReader(`{"mesh_node_id":"blue-boat"}`),
+	)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerHealthz(t *testing.T) {
 	handler, err := NewHandler(NewFixtureProvider(nil))
 	if err != nil {
@@ -359,4 +573,29 @@ type associationReviewSnapshotProvider struct {
 
 func (p associationReviewSnapshotProvider) Snapshot(context.Context) (Snapshot, error) {
 	return p.snapshot, nil
+}
+
+type fakeSemLinkReadbackIngress struct {
+	result   semlinkingress.Result
+	plan     commandprojector.Plan
+	err      error
+	requests []semlinkingress.ArduPilotReadbackRequest
+}
+
+func (f *fakeSemLinkReadbackIngress) AdmitArduPilotReadback(
+	_ context.Context,
+	request semlinkingress.ArduPilotReadbackRequest,
+) (semlinkingress.Result, commandprojector.Plan, error) {
+	f.requests = append(f.requests, request)
+	return f.result, f.plan, f.err
+}
+
+type recordingCommandPlanWriter struct {
+	plans []commandprojector.Plan
+	err   error
+}
+
+func (w *recordingCommandPlanWriter) Apply(_ context.Context, plan commandprojector.Plan) error {
+	w.plans = append(w.plans, plan)
+	return w.err
 }

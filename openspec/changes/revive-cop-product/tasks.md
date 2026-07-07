@@ -261,6 +261,8 @@
 - [x] 5.125 Add browser fixture and Playwright evidence for SemLink companion command-task posture in GCS glass
 - [x] 5.126 Add command-intent graph writer support so admitted CS API and SemLink plans can be persisted before hosted
       route wiring
+- [x] 5.127 Add an opt-in SemLink ArduPilot readback API route seam that persists admitted intent only and never
+      grants native or companion transmit authority
 
 ## 6. Structural COP Stack
 

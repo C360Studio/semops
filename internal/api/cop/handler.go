@@ -18,6 +18,8 @@ type Handler struct {
 	runtimeProvider          RuntimeProvider
 	reviewStore              AssociationReviewStore
 	operatorIdentityResolver OperatorIdentityResolver
+	semlinkReadbackIngress   SemLinkReadbackIngress
+	commandPlanWriter        CommandPlanWriter
 	now                      func() time.Time
 }
 
@@ -46,6 +48,13 @@ func WithAssociationReviewStore(store AssociationReviewStore) Option {
 func WithOperatorIdentityResolver(resolver OperatorIdentityResolver) Option {
 	return func(h *Handler) {
 		h.operatorIdentityResolver = resolver
+	}
+}
+
+func WithSemLinkReadbackIngress(ingress SemLinkReadbackIngress, writer CommandPlanWriter) Option {
+	return func(h *Handler) {
+		h.semlinkReadbackIngress = ingress
+		h.commandPlanWriter = writer
 	}
 }
 
@@ -79,6 +88,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /api/cop/snapshot", h.snapshot)
 	mux.HandleFunc("GET /api/cop/runtime", h.runtime)
 	mux.HandleFunc("POST /api/cop/associations/{associationID}/review", h.reviewAssociation)
+	mux.HandleFunc("POST /api/cop/semlink/ardupilot/readback", h.admitSemLinkArduPilotReadback)
 	return mux
 }
 

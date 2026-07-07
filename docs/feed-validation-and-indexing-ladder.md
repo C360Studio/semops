@@ -359,6 +359,10 @@ Mock or harness:
   authority remain outside this slice.
 - `internal/projectors/command` now has a SemStreams graph writer for command-intent plans. This closes the apply-path
   gap before a hosted SemLink or CS API command ingress route is wired, while preserving the same no-transmit posture.
+- The COP API now has an opt-in SemLink ArduPilot readback route seam at `/api/cop/semlink/ardupilot/readback`.
+  When configured with the SemLink ingress and command graph writer, it admits and persists only the governed
+  `AUTOPILOT_VERSION` readback intent and returns explicit no-native/no-companion-transmit posture. When unconfigured,
+  it fails closed with `503` instead of implying live SemLink or BlueOS authority.
 
 Indexing profile pressure:
 
