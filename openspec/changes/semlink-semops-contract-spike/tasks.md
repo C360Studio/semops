@@ -29,14 +29,14 @@
       evidence/runtime state without CS API in the hot path
 - [x] 4.3 Ask SemLink to identify any fields that add companion-runtime friction or duplicate existing MAVLink/BlueOS
       concepts
-- [ ] 4.4 Classify SemLink feedback as blocking, friction, interop, or deferred
-- [ ] 4.5 Update the contract, mark a non-goal, or create follow-up tasks for each blocking or friction item before
+- [x] 4.4 Classify SemLink feedback as blocking, friction, interop, or deferred
+- [x] 4.5 Update the contract, mark a non-goal, or create follow-up tasks for each blocking or friction item before
       SemLink resumes integration implementation
-- [ ] 4.6 Record a SemLink feedback/disposition review under the spike reviews folder
+- [x] 4.6 Record a SemLink feedback/disposition review under the spike reviews folder
 
 ## 5. Friction Decision
 
-- [ ] 5.1 Score CS API/SemConnect as Green, Amber, or Red for the SemLink-to-SemOps path
-- [ ] 5.2 Record the MVP decision only after SemLink feedback has been dispositioned: native hot path, optional CS API
+- [x] 5.1 Score CS API/SemConnect as Green, Amber, or Red for the SemLink-to-SemOps path
+- [x] 5.2 Record the MVP decision only after SemLink feedback has been dispositioned: native hot path, optional CS API
       path, or CS API-first path
-- [ ] 5.3 Run `openspec validate semlink-semops-contract-spike --strict`
+- [x] 5.3 Run `openspec validate semlink-semops-contract-spike --strict`
