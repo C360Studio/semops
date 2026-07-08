@@ -24,10 +24,10 @@
 
 ## 4. SemLink Hold-Out Review
 
-- [ ] 4.1 Send the draft native companion contract and fixtures to SemLink for feedback before contract acceptance
-- [ ] 4.2 Ask SemLink to validate whether the native companion contract can be implemented from its companion
+- [x] 4.1 Publish the draft native companion contract and fixtures for SemLink feedback before contract acceptance
+- [x] 4.2 Ask SemLink to validate whether the native companion contract can be implemented from its companion
       evidence/runtime state without CS API in the hot path
-- [ ] 4.3 Ask SemLink to identify any fields that add companion-runtime friction or duplicate existing MAVLink/BlueOS
+- [x] 4.3 Ask SemLink to identify any fields that add companion-runtime friction or duplicate existing MAVLink/BlueOS
       concepts
 - [ ] 4.4 Classify SemLink feedback as blocking, friction, interop, or deferred
 - [ ] 4.5 Update the contract, mark a non-goal, or create follow-up tasks for each blocking or friction item before
