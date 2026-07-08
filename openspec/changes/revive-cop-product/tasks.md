@@ -500,7 +500,11 @@
 ## 9. Upstream SemStreams Asks
 
 - [ ] 9.1 File manifest/tier placement ask only if the scope gate proves it is useful
+      Deferred by `reviews/2026-07-08-upstream-ask-deferral-refresh.md`; current evidence says local health/source
+      state still answers the placement question.
 - [ ] 9.2 File escalation event/status vocabulary ask only after inference evidence proves the need
+      Deferred by `reviews/2026-07-08-upstream-ask-deferral-refresh.md`; current evidence has no reusable escalation
+      lifecycle across multiple workflows.
 - [x] 9.3 File provenance/confidence convention ask after feed contracts stabilize:
       SemStreams issue #367
 - [x] 9.4 File spatial-temporal query helper asks from COP workflows:
@@ -510,7 +514,8 @@
       SemStreams issue #340, draft guide PR #344
 - [ ] 9.6 File indexing profile/cardinality helper asks only after mixed COP feeds prove the need
       Deferred by `reviews/2026-06-28-semstreams-indexing-cardinality-review.md`; current evidence says clean entity
-      boundaries plus ADR-054 profiles remain sufficient.
+      boundaries plus ADR-054 profiles remain sufficient. Refreshed by
+      `reviews/2026-07-08-upstream-ask-deferral-refresh.md`.
 - [x] 9.7 Run adversarial ownership review before filing each upstream SemStreams ask:
       `reviews/2026-06-27-semstreams-upstream-ask-ownership-review.md`
 - [x] 9.8 Feed back owner-token ergonomics and capture typed-token/evidence-declaration response
