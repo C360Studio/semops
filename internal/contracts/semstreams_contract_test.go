@@ -584,6 +584,12 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	if got, want := pollerNode.InputPorts[0].ConnectionID, capFeed.URLPattern; got != want {
 		t.Fatalf("HTTP polling connection id = %q, want %q", got, want)
 	}
+	if got, want := pollerNode.InputPorts[1].Pattern, flowgraph.PatternTimer; got != want {
+		t.Fatalf("timer input pattern = %q, want %q", got, want)
+	}
+	if got, want := pollerNode.InputPorts[1].ConnectionID, "timer:30s"; got != want {
+		t.Fatalf("timer connection id = %q, want %q", got, want)
+	}
 	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
 		From:         flowgraph.ComponentPortRef{ComponentName: poller.Meta().Name, PortName: "raw_alerts"},
 		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_alerts"},
@@ -601,6 +607,9 @@ func TestExternalHTTPPollingBoundaryUsesSemStreamsHTTPClientPort(t *testing.T) {
 	for _, orphan := range analysis.OrphanedPorts {
 		if orphan.ComponentName == poller.Meta().Name && orphan.PortName == "cap_feed" {
 			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
+		}
+		if orphan.ComponentName == poller.Meta().Name && orphan.PortName == "poll_tick" {
+			t.Fatalf("timer input reported as orphaned: %+v", orphan)
 		}
 	}
 }
@@ -712,6 +721,12 @@ func TestADSBHTTPPollingBoundaryUsesSemStreamsComponentShape(t *testing.T) {
 	if got, want := pollerNode.InputPorts[0].ConnectionID, feed.URLPattern; got != want {
 		t.Fatalf("HTTP polling connection id = %q, want %q", got, want)
 	}
+	if got, want := pollerNode.InputPorts[1].Pattern, flowgraph.PatternTimer; got != want {
+		t.Fatalf("timer input pattern = %q, want %q", got, want)
+	}
+	if got, want := pollerNode.InputPorts[1].ConnectionID, "timer:30s"; got != want {
+		t.Fatalf("timer connection id = %q, want %q", got, want)
+	}
 	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
 		From:         flowgraph.ComponentPortRef{ComponentName: poller.Meta().Name, PortName: "raw_snapshots"},
 		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_snapshots"},
@@ -729,6 +744,9 @@ func TestADSBHTTPPollingBoundaryUsesSemStreamsComponentShape(t *testing.T) {
 	for _, orphan := range analysis.OrphanedPorts {
 		if orphan.ComponentName == poller.Meta().Name && orphan.PortName == "adsb_feed" {
 			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
+		}
+		if orphan.ComponentName == poller.Meta().Name && orphan.PortName == "poll_tick" {
+			t.Fatalf("timer input reported as orphaned: %+v", orphan)
 		}
 	}
 }
@@ -819,6 +837,12 @@ func TestSAPIENTPreflightBoundaryUsesSemStreamsComponentShapeWithoutGraphWrites(
 	if got, want := inputNode.InputPorts[0].Pattern, flowgraph.PatternHTTPClient; got != want {
 		t.Fatalf("HTTP input pattern = %q, want %q", got, want)
 	}
+	if got, want := inputNode.InputPorts[1].Pattern, flowgraph.PatternTimer; got != want {
+		t.Fatalf("timer input pattern = %q, want %q", got, want)
+	}
+	if got, want := inputNode.InputPorts[1].ConnectionID, "timer:30s"; got != want {
+		t.Fatalf("timer connection id = %q, want %q", got, want)
+	}
 	requireFlowEdge(t, fg.GetEdges(), flowgraph.FlowEdge{
 		From:         flowgraph.ComponentPortRef{ComponentName: input.Meta().Name, PortName: "raw_messages"},
 		To:           flowgraph.ComponentPortRef{ComponentName: decoder.Meta().Name, PortName: "raw_messages"},
@@ -830,6 +854,9 @@ func TestSAPIENTPreflightBoundaryUsesSemStreamsComponentShapeWithoutGraphWrites(
 	for _, orphan := range analysis.OrphanedPorts {
 		if orphan.ComponentName == input.Meta().Name && orphan.PortName == "sapient_feed" {
 			t.Fatalf("HTTP client input reported as orphaned: %+v", orphan)
+		}
+		if orphan.ComponentName == input.Meta().Name && orphan.PortName == "poll_tick" {
+			t.Fatalf("timer input reported as orphaned: %+v", orphan)
 		}
 	}
 }
