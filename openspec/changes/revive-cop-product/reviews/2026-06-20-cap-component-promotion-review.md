@@ -28,6 +28,9 @@ SemStreams issue #312 so the flowgraph can eventually classify `TimerPort` as a 
 of leaving it stream-shaped. Webhook ingestion can use a network/request-facing input component, and captured alert
 fixtures can use file input.
 
+2026-07-08 follow-up: SemStreams `v1.0.0-beta.144` resolved the issue #312 flowgraph gap. SemOps now pins beta.144 and
+asserts CAP, ADS-B, and SAPIENT timer-driven pollers expose `flowgraph.PatternTimer` with `timer:<interval>` metadata.
+
 ## Objections Raised
 
 - The word "adapter" can hide that the current CAP path is in-process replay and smoke evidence, not hosted ingress.
@@ -60,13 +63,13 @@ fixtures can use file input.
 - The first hosted CAP component chain now has opt-in product runtime wiring and component-level stale-source health,
   but it still needs provider fixtures and alert lifecycle review before SemOps claims hosted CAP service support.
 - The external HTTP dependency now has a framework-visible port descriptor instead of living only in config schema;
-  cadence visibility still needs SemStreams issue #312.
+  cadence visibility is now framework-visible via SemStreams `v1.0.0-beta.144` `TimerPort` flowgraph semantics.
 
 ## Follow-Up Tasks
 
 - Keep CAP parser/projector/readback gates independent of hosted ingress.
 - Keep `internal/components/cap` scoped to hosted polling, decoding, and born-first projection, and keep hosted CAP
   disabled by default until provider fixtures and alert lifecycle behavior are proven.
-- Use `HTTPClientPort` plus `TimerPort` for hosted HTTP polling components and track SemStreams issue #312 for
-  first-class timer/cadence flowgraph semantics.
+- Use `HTTPClientPort` plus `TimerPort` for hosted HTTP polling components and keep the beta.144 timer/cadence
+  flowgraph guard in SemOps contracts.
 - Keep CAP schema and consumer-rule validation separate from hosted service claims.

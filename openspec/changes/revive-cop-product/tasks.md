@@ -57,6 +57,7 @@
 - [x] 2.28 Bump SemOps to SemStreams `v1.0.0-beta.141` and verify OpenSpec CLI `1.5.0` validation plus Go tests
 - [x] 2.29 Bump SemOps to SemStreams `v1.0.0-beta.143` and verify OpenSpec CLI `1.5.0` validation plus Go
       compatibility
+- [x] 2.30 Bump SemOps to SemStreams `v1.0.0-beta.144` and assert `TimerPort` flowgraph cadence semantics
 
 ## 3. COP Model And Governance
 
@@ -518,3 +519,4 @@
 - [x] 9.11 File SemStreams external HTTP polling/client port metadata issue #310
 - [x] 9.12 Adopt SemStreams `HTTPClientPort` from `v1.0.0-beta.114` for external polling/client feed boundaries
 - [x] 9.13 File SemStreams `TimerPort` flowgraph cadence-boundary issue #312 from the CAP HTTP poller component
+- [x] 9.14 Adopt SemStreams `TimerPort` flowgraph cadence semantics from `v1.0.0-beta.144`

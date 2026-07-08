@@ -20,9 +20,10 @@ born-first graph projector. That is a component-contract and deterministic local
 service claim. CAP remains parser, projection, scenario-replay, readback, opt-in runtime, component stale-source
 health, and live graph smoke evidence until SemOps proves provider fixtures, webhook ingestion,
 NWS/IPAWS/vendor integration, provider lifecycle behavior, and alert-source operations. SemStreams
-`v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP pollers, while SemStreams issue #309
-tracks richer component backpressure telemetry and issue #312 tracks first-class `TimerPort` flowgraph cadence
-semantics.
+`v1.0.0-beta.114` provides `HTTPClientPort` for CAP/NWS-style outbound HTTP pollers, while SemStreams
+`v1.0.0-beta.144` classifies sibling `TimerPort` inputs as first-class flowgraph cadence boundaries and surfaces the
+poll interval as `timer:<interval>` connection metadata. SemStreams issue #309 still tracks richer component
+backpressure telemetry.
 
 ## Local Evidence
 
@@ -152,7 +153,7 @@ Acceptance:
 - The HTTP poller declares a SemStreams `HTTPClientPort` for method, URL pattern, auth reference, contact policy, and
   raw-alert interface metadata.
 - The poller declares a sibling `TimerPort` referenced by `HTTPClientPort.TriggerPort` so polling cadence is visible
-  as a component contract.
+  as a component contract and flowgraph `timer:<interval>` boundary.
 - The poller config schema exposes `stale_after`; component health degrades to `stale` after no fresh provider payload
   arrives within that threshold.
 - `304 Not Modified` provider responses update provider-contact debug state without publishing duplicate raw CAP XML.

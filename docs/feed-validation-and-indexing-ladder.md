@@ -600,8 +600,9 @@ dependency and a sibling `TimerPort` referenced by `TriggerPort` for cadence. Th
 request ports and reconciles restart-time create conflicts. The poller now exposes `stale_after`, treats
 `304 Not Modified` as provider contact without duplicate publish, and reports stale health when fresh provider payloads
 age out. The decoder can append provider-shaped raw CAP XML to replay JSONL through `SEMOPS_CAP_REPLAY_PATH`. Tests
-use a local HTTP server; live NWS remains a separate optional gate. SemStreams issue #312 tracks first-class flowgraph
-cadence semantics for `TimerPort`.
+use a local HTTP server; live NWS remains a separate optional gate. SemStreams `v1.0.0-beta.144` resolves the earlier
+issue #312 follow-up by classifying `TimerPort` as a first-class flowgraph cadence boundary and surfacing
+`timer:<interval>` metadata for the poll interval.
 
 Live graph gate:
 
