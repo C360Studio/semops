@@ -1,0 +1,129 @@
+{
+  "kind": "single-node-companion-demo",
+  "generated_at": "2026-07-09T12:00:00Z",
+  "vehicle_profile": "ardurover-blueboat",
+  "node": {
+    "node_id": "semlink-node-alpha",
+    "vehicle_count": 1,
+    "alert_count": 0,
+    "frame_count": 14,
+    "decoded_count": 14,
+    "graph_entities": 5
+  },
+  "runtime_base_url": "http://127.0.0.1:8088",
+  "probes": [
+    {
+      "path": "/api/evidence",
+      "http_status": 200,
+      "status": "ok"
+    }
+  ],
+  "evidence": {
+    "contract": {
+      "name": "semlink.gcs.evidence",
+      "version": "v0",
+      "consumers": [
+        "semops"
+      ],
+      "api_paths": {
+        "evidence": "/api/evidence"
+      }
+    },
+    "generated_at": "2026-07-09T12:00:00Z",
+    "vehicles": [
+      {
+        "entity_id": "semlink.vehicle.blueboat-01",
+        "callsign": "BLUEBOAT-01",
+        "system_id": 42,
+        "vehicle_type": "surface-vessel",
+        "mode": "HOLD",
+        "flight_status": "active",
+        "link_status": "simulated",
+        "battery_remaining": 91,
+        "latitude_deg": 38.9001,
+        "longitude_deg": -77.0002,
+        "last_seen": "2026-07-09T11:59:59Z",
+        "graph_revision": 7,
+        "indexing_profile": "companion-demo",
+        "evidence_class": "demo"
+      }
+    ],
+    "mesh": {
+      "status": "single-node",
+      "posture": "mesh disabled; node identity still valid",
+      "configured_peer_count": 0,
+      "summary_count": 1,
+      "watermark_count": 1,
+      "raw_mavlink_replicates_by_default": false,
+      "raw_mavlink_replication_policy": "raw MAVLink frames stay on native telemetry ports; evidence endpoint emits decoded summaries only"
+    }
+  },
+  "command_posture": {
+    "http_status": 403,
+    "status": "blocked_no_hardware_transmit",
+    "hardware_blocked": true
+  },
+  "simulator_command": {
+    "accepted": true,
+    "preflight_accepted": true,
+    "simulator_only": true,
+    "ack_accepted": true,
+    "post_state_observed": true,
+    "hardware_transmit_authorized": false,
+    "status": "simulator-only",
+    "frame_count": 2,
+    "ack_count": 1
+  },
+  "semops_readback": {
+    "request": {
+      "contract": "semlink-companion-readback-v0",
+      "companion_node_id": "semlink-node-alpha",
+      "target_system_id": 42,
+      "target_component_id": 1,
+      "command_id": 512,
+      "requested_message_id": 148,
+      "correlation_id": "semlink-node-alpha:autopilot-version",
+      "idempotency_key": "semlink-node-alpha:autopilot-version:2026-07-09T12:00:00Z",
+      "requested_at": "2026-07-09T11:59:58Z",
+      "ttl_seconds": 30,
+      "source_ref": "semlink://semlink-node-alpha/ardupilot/system-42/request-autopilot-version"
+    },
+    "response": {
+      "contract": "semlink-companion-readback-v0",
+      "accepted": true,
+      "status": "accepted",
+      "duplicate": false,
+      "correlation_id": "semlink-node-alpha:autopilot-version",
+      "idempotency_key": "semlink-node-alpha:autopilot-version:2026-07-09T12:00:00Z",
+      "companion_node_id": "semlink-node-alpha",
+      "authority_scope": "local.display_only",
+      "target_asset_id": "c360.edge.cop.mavlink.asset.system-42",
+      "entity_id": "c360.edge.cop.command.task.semlink-node-alpha-autopilot-version",
+      "native_id": "semlink-node-alpha:autopilot-version",
+      "claim_scope": "readback.intent",
+      "source_ref": "semlink://semlink-node-alpha/ardupilot/system-42/request-autopilot-version",
+      "requested_at": "2026-07-09T11:59:58Z",
+      "native_execution_allowed": false,
+      "companion_transmit_allowed": false,
+      "mutations": 1
+    },
+    "received_requests": 1
+  },
+  "assertions": [
+    {
+      "name": "evidence-contract",
+      "passed": true,
+      "detail": "/api/evidence returned semlink.gcs.evidence v0"
+    },
+    {
+      "name": "readback-adapter",
+      "passed": true,
+      "detail": "SemOps accepted the readback intent without native transmit authority"
+    },
+    {
+      "name": "no-hardware-transmit",
+      "passed": true,
+      "detail": "hardware transmit remained blocked"
+    }
+  ]
+}

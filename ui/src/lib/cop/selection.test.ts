@@ -24,6 +24,9 @@ describe('COP selection helpers', () => {
     expect(resolveEntity(fixtureSnapshot, { kind: 'association', id: fixtureSnapshot.associations[0].id })?.label).toBe(
       'Ambiguous association UAS 42 -> N42CX'
     );
+    expect(
+      resolveEntity(fixtureSnapshot, { kind: 'companion-fleet', id: fixtureSnapshot.companion_fleets[0].id })?.label
+    ).toBe('SemLink companion fleet');
     expect(resolveEntity(fixtureSnapshot, { kind: 'alert', id: fixtureSnapshot.alerts[0].id })?.label).toBe(
       'Track freshness nominal'
     );
@@ -153,6 +156,30 @@ describe('COP selection helpers', () => {
         stale
       )
     ).toEqual({
+      kind: 'companion-fleet',
+      id: fixtureSnapshot.companion_fleets[0].id
+    });
+    expect(
+      reconcileSelection(
+        without(
+          without(
+            without(
+              without(
+                without(
+                  without(without(without(without(fixtureSnapshot, 'tracks'), 'assets'), 'tasks'), 'advisories'),
+                  'hazards'
+                ),
+                'sensor_footprints'
+              ),
+              'weather_observations'
+            ),
+            'associations'
+          ),
+          'companion_fleets'
+        ),
+        stale
+      )
+    ).toEqual({
       kind: 'alert',
       id: fixtureSnapshot.alerts[0].id
     });
@@ -170,6 +197,7 @@ function without<
     | 'sensor_footprints'
     | 'weather_observations'
     | 'associations'
+    | 'companion_fleets'
     | 'alerts'
   >
 >(

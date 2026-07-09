@@ -29,6 +29,7 @@
     AssociationReview,
     AssociationReviewDecision,
     Asset,
+    CompanionFleet,
     EntityRef,
     Hazard,
     RuntimeSnapshot,
@@ -227,6 +228,10 @@
           <dd>{snapshot.summary.active_associations}</dd>
         </div>
         <div>
+          <dt>Nodes</dt>
+          <dd>{snapshot.summary.active_companion_nodes}</dd>
+        </div>
+        <div>
           <dt>Feeds</dt>
           <dd>{feedRows.length}</dd>
         </div>
@@ -371,6 +376,26 @@
           </section>
         {/if}
 
+        {#if (snapshot.companion_fleets ?? []).length > 0}
+          <section class="companion-strip" aria-label="SemLink companion fleet evidence">
+            <h2>Companions</h2>
+            {#each snapshot.companion_fleets as fleet}
+              <button
+                class:selected={selected.kind === 'companion-fleet' && selected.id === fleet.id}
+                class="companion-row"
+                type="button"
+                aria-label={`Inspect ${fleet.label}`}
+                aria-pressed={selected.kind === 'companion-fleet' && selected.id === fleet.id}
+                onclick={() => selectEntity('companion-fleet', fleet.id)}
+              >
+                <Activity size={16} />
+                <span>{fleet.label}</span>
+                <small>{fleet.node_count} nodes</small>
+              </button>
+            {/each}
+          </section>
+        {/if}
+
         <section class="task-strip">
           <h2>Tasks</h2>
           {#each snapshot.tasks as task}
@@ -436,7 +461,17 @@
 </main>
 
 {#snippet entityInspector(
-  entity: Track | Asset | Task | Advisory | Hazard | SensorFootprint | WeatherObservation | Association | Alert
+  entity:
+    | Track
+    | Asset
+    | Task
+    | Advisory
+    | Hazard
+    | SensorFootprint
+    | WeatherObservation
+    | Association
+    | CompanionFleet
+    | Alert
 )}
   <div class="inspector-grid">
     {#if 'source' in entity}
@@ -476,6 +511,127 @@
         <dd>{entity.position.lon.toFixed(5)}</dd>
       </div>
     </dl>
+  {/if}
+
+  {#if 'vehicle_profile' in entity && 'nodes' in entity}
+    <section class="provenance">
+      <h3>SemLink Demo Evidence</h3>
+      <dl class="detail-list">
+        <div>
+          <dt>Evidence kind</dt>
+          <dd>{entity.evidence_kind}</dd>
+        </div>
+        <div>
+          <dt>Vehicle profile</dt>
+          <dd>{entity.vehicle_profile}</dd>
+        </div>
+        <div>
+          <dt>Nodes</dt>
+          <dd>{entity.node_count}</dd>
+        </div>
+        <div>
+          <dt>Vehicles</dt>
+          <dd>{entity.vehicle_count}</dd>
+        </div>
+        <div>
+          <dt>Expected summaries</dt>
+          <dd>{entity.expected_summaries ?? 'unavailable'}</dd>
+        </div>
+        <div>
+          <dt>Assertions</dt>
+          <dd>{entity.assertion_state}</dd>
+        </div>
+        <div>
+          <dt>Raw MAVLink</dt>
+          <dd>{entity.raw_mavlink_excluded ? 'excluded from mesh summaries' : 'exclusion not proven'}</dd>
+        </div>
+        <div>
+          <dt>Readback adapter</dt>
+          <dd>{entity.readback.adapter_status}</dd>
+        </div>
+        <div>
+          <dt>COMMAND_ACK</dt>
+          <dd>
+            {entity.readback.command_ack_status}
+            {#if entity.readback.command_ack_result}
+              / {entity.readback.command_ack_result}
+            {/if}
+          </dd>
+        </div>
+        <div>
+          <dt>Readback result</dt>
+          <dd>
+            {entity.readback.result_observed_property || entity.readback.result_status}
+          </dd>
+        </div>
+        <div>
+          <dt>Native transmit</dt>
+          <dd>{entity.readback.native_execution_allowed ? 'allowed' : 'not allowed'}</dd>
+        </div>
+        <div>
+          <dt>Companion transmit</dt>
+          <dd>{entity.readback.companion_transmit_allowed ? 'allowed' : 'not allowed'}</dd>
+        </div>
+        <div>
+          <dt>Command posture</dt>
+          <dd>{entity.command_posture.status}</dd>
+        </div>
+        <div>
+          <dt>Hardware transmit</dt>
+          <dd>{entity.command_posture.hardware_transmit_authorized ? 'authorized' : 'not authorized'}</dd>
+        </div>
+        {#if entity.raw_mavlink_policy}
+          <div>
+            <dt>Raw policy</dt>
+            <dd>{entity.raw_mavlink_policy}</dd>
+          </div>
+        {/if}
+      </dl>
+      <p class="reason">{entity.no_transmit_posture}</p>
+      <p class="reason">{entity.demo_evidence_label}</p>
+    </section>
+
+    <section class="provenance">
+      <h3>Companion Nodes</h3>
+      <div class="companion-node-list" aria-label="Companion node evidence">
+        {#each entity.nodes as node}
+          <div class="companion-node-card">
+            <strong>{node.id}</strong>
+            <span>
+              {node.vehicle_count} {node.vehicle_count === 1 ? 'vehicle' : 'vehicles'} /
+              {node.peer_count} peers /
+              {node.watermark_count ?? 0} watermarks
+            </span>
+            <small>
+              summaries {node.initial_summary_count ?? 'unavailable'} -> {node.final_summary_count ?? 'unavailable'};
+              diffs {node.applied_diff_count ?? 'unavailable'}/{node.diff_item_count ?? 'unavailable'}
+            </small>
+            {#if node.ttl_merge_posture}
+              <small>{node.ttl_merge_posture}</small>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    </section>
+
+    {#if entity.assertions.length > 0}
+      <section class="provenance">
+        <h3>Assertions</h3>
+        <dl class="detail-list">
+          {#each entity.assertions as assertion}
+            <div>
+              <dt>{assertion.name}</dt>
+              <dd>
+                {assertion.passed ? 'passed' : 'failed'}
+                {#if assertion.detail}
+                  / {assertion.detail}
+                {/if}
+              </dd>
+            </div>
+          {/each}
+        </dl>
+      </section>
+    {/if}
   {/if}
 
   {#if 'sensor_position' in entity}

@@ -231,6 +231,9 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 			},
 		},
 		Weather: []WeatherObservation{},
+		CompanionFleets: []CompanionFleet{
+			semLinkCompanionFleetFixture(now),
+		},
 		Alerts: []Alert{
 			{
 				ID:        "alert.mavlink.track-freshness",
@@ -251,6 +254,9 @@ func (p *FixtureProvider) Snapshot(context.Context) (Snapshot, error) {
 		ActiveWeather:          len(snapshot.Weather),
 		ActiveAlerts:           len(snapshot.Alerts),
 		StaleFeeds:             countFeeds(snapshot.Feeds, "stale"),
+	}
+	for _, fleet := range snapshot.CompanionFleets {
+		snapshot.Summary.ActiveCompanionNodes += fleet.NodeCount
 	}
 	return snapshot, nil
 }

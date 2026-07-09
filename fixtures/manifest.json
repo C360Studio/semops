@@ -14,7 +14,7 @@
       "size_bytes": 4082,
       "license_or_provenance": "Captured from the public NWS API using an explicit SemOps User-Agent; ignored local evidence only.",
       "claim_scope": "One active NWS CAP Alert sample passed CAP 1.2 XSD validation and SemOps parsing; not lifecycle coverage or CAP conformance.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-cap-schema-sample-smoke-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-23-cap-schema-sample-smoke-review.md",
       "commit_status": "ignored_local",
       "observed_fields": [
         "identifier",
@@ -40,7 +40,7 @@
       "size_bytes": 7510,
       "license_or_provenance": "SemOps-authored synthetic CAP lifecycle JSONL; raw XML is generated CAP 1.2-shaped story data, not captured NWS/IPAWS evidence.",
       "claim_scope": "Portable demo/replay evidence for alert, update, cancel, and expired CAP lifecycle parsing and projection only; not NWS/IPAWS service support or CAP conformance.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-19-cap-lifecycle-fixture-replay-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-19-cap-lifecycle-fixture-replay-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -71,7 +71,7 @@
       "size_bytes": 5611,
       "license_or_provenance": "SemOps-authored synthetic command lifecycle JSONL; not captured CS API, MAVLink, TAK, SAPIENT, DJI, or hardware command traffic.",
       "claim_scope": "Portable demo/replay evidence for SemOps command-intent lifecycle policy only; not live command transmit, CS API service support, or native actuation evidence.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-command-lifecycle-fixture-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-23-command-lifecycle-fixture-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -97,7 +97,7 @@
       "size_bytes": 1630,
       "license_or_provenance": "SemOps-authored synthetic fixture; not captured DJI SDK, Cloud API, flight-log, subtitle, or media metadata.",
       "claim_scope": "Parser/component preflight for DJI-shaped telemetry, media references, and command-authority posture only.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-22-dji-synthetic-fixture-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-22-dji-synthetic-fixture-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -124,7 +124,7 @@
       "size_bytes": 1060,
       "license_or_provenance": "SemOps-authored synthetic OpenSky-shaped replay data; not captured OpenSky API traffic, raw ADS-B, ASTERIX, or receiver evidence.",
       "claim_scope": "Portable demo/replay evidence for OpenSky-shaped ADS-B snapshot parsing, missing-position handling, MLAT source labeling, and source-partitioned projection only.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-20-adsb-fixture-replay-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-20-adsb-fixture-replay-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -157,7 +157,7 @@
       "size_bytes": 251,
       "license_or_provenance": "SemOps-authored representative SAPIENT-shaped JSON; informed by public BSI Flex 335 v2 message shapes, not captured Apex/Dstl harness output.",
       "claim_scope": "Portable preflight evidence for SAPIENT JSON decode and decoded-stream runtime only; not graph projection, tasking support, product service support, or SAPIENT compliance.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-21-sapient-runtime-preflight-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-21-sapient-runtime-preflight-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -181,7 +181,7 @@
       "size_bytes": 589,
       "license_or_provenance": "SemOps-authored representative SAPIENT-shaped JSON; uses reviewed LAT_LNG_DEG_M/WGS84 coordinates and is not captured Apex/Dstl harness output.",
       "claim_scope": "Portable graph-smoke evidence for the reviewed absolute-location detection subset only; not UTM, range/bearing, association, tasking, product service support, or SAPIENT compliance.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-sapient-graph-stack-smoke-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-23-sapient-graph-stack-smoke-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -209,7 +209,7 @@
       "size_bytes": 980,
       "license_or_provenance": "SemOps-authored provider-shaped fixture; not captured from Open-Meteo.",
       "claim_scope": "Point tactical-weather parser/component/projector evidence only; not live provider, route-safety, or conformance evidence.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-22-weather-parser-source-evidence-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-22-weather-parser-source-evidence-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -238,7 +238,7 @@
       "size_bytes": 4050,
       "license_or_provenance": "SemOps-authored synthetic OGC EDR-shaped fixture; not an OGC ETS result or live EDR capture.",
       "claim_scope": "OGC EDR position parser evidence only; not OGC conformance, live EDR server support, or route-weather evidence.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-weather-ogc-edr-fixture-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-23-weather-ogc-edr-fixture-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -261,7 +261,7 @@
       "size_bytes": 3940,
       "license_or_provenance": "SemOps-authored synthetic OGC EDR-shaped fixture; not an OGC ETS result or live EDR capture.",
       "claim_scope": "OGC EDR area parser evidence only; not spatial runtime, route-safety, or OGC conformance evidence.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-weather-edr-spatial-fixtures-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-23-weather-edr-spatial-fixtures-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -284,7 +284,7 @@
       "size_bytes": 3957,
       "license_or_provenance": "SemOps-authored synthetic OGC EDR-shaped fixture; not an OGC ETS result or live EDR capture.",
       "claim_scope": "OGC EDR trajectory parser evidence only; not route-weather decision support or OGC conformance evidence.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-weather-edr-spatial-fixtures-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-23-weather-edr-spatial-fixtures-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -307,7 +307,7 @@
       "size_bytes": 4062,
       "license_or_provenance": "SemOps-authored synthetic OGC EDR-shaped fixture; not an OGC ETS result or live EDR capture.",
       "claim_scope": "OGC EDR corridor parser evidence only; not route-weather decision support or OGC conformance evidence.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-weather-edr-spatial-fixtures-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-23-weather-edr-spatial-fixtures-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -332,7 +332,7 @@
       "size_bytes": 786,
       "license_or_provenance": "SemOps-authored deterministic truth data; generated MPEG-TS output remains ignored.",
       "claim_scope": "Engineering-support evidence for the tested MISB ST 0601 subset only; not STANAG 4609 conformance or video service support.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-22-klv-deterministic-fixture-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-22-klv-deterministic-fixture-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [
@@ -362,7 +362,7 @@
       "size_bytes": 243,
       "license_or_provenance": "SemOps-authored synthetic KLV packet bytes; not captured, vendor, or lab data.",
       "claim_scope": "Portable synthetic binary storage/governance proof and tested MISB ST 0601 subset decode only.",
-      "review": "openspec/changes/revive-cop-product/reviews/2026-06-23-klv-synthetic-packet-fixture-review.md",
+      "review": "openspec/changes/archive/2026-07-09-revive-cop-product/reviews/2026-06-23-klv-synthetic-packet-fixture-review.md",
       "commit_status": "committed",
       "observed_fields": [],
       "synthetic_fields": [

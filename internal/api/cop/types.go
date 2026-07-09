@@ -16,6 +16,7 @@ type Snapshot struct {
 	SensorFootprints []SensorFootprint    `json:"sensor_footprints"`
 	Weather          []WeatherObservation `json:"weather_observations"`
 	Associations     []Association        `json:"associations"`
+	CompanionFleets  []CompanionFleet     `json:"companion_fleets"`
 	Alerts           []Alert              `json:"alerts"`
 }
 
@@ -26,6 +27,7 @@ type Summary struct {
 	ActiveSensorFootprints int `json:"active_sensor_footprints"`
 	ActiveWeather          int `json:"active_weather_observations"`
 	ActiveAssociations     int `json:"active_associations"`
+	ActiveCompanionNodes   int `json:"active_companion_nodes"`
 	ActiveAlerts           int `json:"active_alerts"`
 	StaleFeeds             int `json:"stale_feeds"`
 }
@@ -201,6 +203,80 @@ type Alert struct {
 	EntityID  string    `json:"entity_id"`
 	Reason    string    `json:"reason"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type CompanionFleet struct {
+	ID                  string                       `json:"id"`
+	Label               string                       `json:"label"`
+	Source              string                       `json:"source"`
+	Status              string                       `json:"status"`
+	EvidenceKind        string                       `json:"evidence_kind"`
+	VehicleProfile      string                       `json:"vehicle_profile"`
+	NodeCount           int                          `json:"node_count"`
+	VehicleCount        int                          `json:"vehicle_count"`
+	ExpectedSummaries   int                          `json:"expected_summaries,omitempty"`
+	AssertionState      string                       `json:"assertion_state"`
+	NoTransmitPosture   string                       `json:"no_transmit_posture"`
+	RawMAVLinkExcluded  bool                         `json:"raw_mavlink_excluded"`
+	RawMAVLinkPolicy    string                       `json:"raw_mavlink_policy,omitempty"`
+	DemoEvidenceLabel   string                       `json:"demo_evidence_label"`
+	Confidence          float64                      `json:"confidence"`
+	UpdatedAt           time.Time                    `json:"updated_at"`
+	Nodes               []CompanionNode              `json:"nodes"`
+	Readback            CompanionReadback            `json:"readback"`
+	CommandPosture      CompanionCommandPosture      `json:"command_posture"`
+	RawMAVLinkExclusion CompanionRawMAVLinkExclusion `json:"raw_mavlink_exclusion"`
+	Assertions          []CompanionAssertion         `json:"assertions"`
+	Provenance          Provenance                   `json:"provenance"`
+}
+
+type CompanionNode struct {
+	ID                  string `json:"id"`
+	VehicleCount        int    `json:"vehicle_count"`
+	PeerCount           int    `json:"peer_count"`
+	InitialSummaryCount int    `json:"initial_summary_count,omitempty"`
+	FinalSummaryCount   int    `json:"final_summary_count,omitempty"`
+	WatermarkCount      int    `json:"watermark_count,omitempty"`
+	AppliedDiffCount    int    `json:"applied_diff_count,omitempty"`
+	DiffItemCount       int    `json:"diff_item_count,omitempty"`
+	TTLMergePosture     string `json:"ttl_merge_posture,omitempty"`
+}
+
+type CompanionReadback struct {
+	AdapterStatus            string    `json:"adapter_status"`
+	Accepted                 bool      `json:"accepted"`
+	ReceivedRequests         int       `json:"received_requests"`
+	CorrelationID            string    `json:"correlation_id,omitempty"`
+	NativeExecutionAllowed   bool      `json:"native_execution_allowed"`
+	CompanionTransmitAllowed bool      `json:"companion_transmit_allowed"`
+	CommandACKStatus         string    `json:"command_ack_status"`
+	CommandACKResult         string    `json:"command_ack_result,omitempty"`
+	CommandACKObservedAt     time.Time `json:"command_ack_observed_at,omitempty"`
+	ResultStatus             string    `json:"result_status"`
+	ResultObservedProperty   string    `json:"result_observed_property,omitempty"`
+	ResultObservedAt         time.Time `json:"result_observed_at,omitempty"`
+}
+
+type CompanionCommandPosture struct {
+	Status                     string `json:"status"`
+	HardwareBlocked            bool   `json:"hardware_blocked"`
+	SimulatorOnly              bool   `json:"simulator_only"`
+	PreflightAccepted          bool   `json:"preflight_accepted"`
+	ACKAccepted                bool   `json:"ack_accepted"`
+	PostStateObserved          bool   `json:"post_state_observed"`
+	HardwareTransmitAuthorized bool   `json:"hardware_transmit_authorized"`
+}
+
+type CompanionRawMAVLinkExclusion struct {
+	RejectedBySummaryIndex bool   `json:"rejected_by_summary_index"`
+	Policy                 string `json:"policy,omitempty"`
+	Error                  string `json:"error,omitempty"`
+}
+
+type CompanionAssertion struct {
+	Name   string `json:"name"`
+	Passed bool   `json:"passed"`
+	Detail string `json:"detail,omitempty"`
 }
 
 type GeoPoint struct {

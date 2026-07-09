@@ -20,6 +20,7 @@ export const fixtureSnapshot: Snapshot = {
     active_sensor_footprints: 1,
     active_weather_observations: 1,
     active_associations: 1,
+    active_companion_nodes: 3,
     active_alerts: 1,
     stale_feeds: 0
   },
@@ -358,6 +359,108 @@ export const fixtureSnapshot: Snapshot = {
       provenance: {
         owner: 'semops.fusion.structural',
         source_ref: 'primary=mavlink://raw/udp/0002 candidate=adsb://opensky/fixture/a1b2c3',
+        observed_at: fusionObserved
+      }
+    }
+  ],
+  companion_fleets: [
+    {
+      id: 'c360.edge.cop.semlink.fleet.simple-mesh-demo',
+      label: 'SemLink companion fleet',
+      source: 'semlink',
+      status: 'demo-ready',
+      evidence_kind: 'simple-mesh-companion-demo',
+      vehicle_profile: 'ardurover-blueboat',
+      node_count: 3,
+      vehicle_count: 3,
+      expected_summaries: 3,
+      assertion_state: 'passed',
+      no_transmit_posture:
+        'demo evidence only; no native transmit authority; no companion hardware transmit authority; raw MAVLink excluded from mesh summaries; SemOps exposes no mesh topology controls',
+      raw_mavlink_excluded: true,
+      raw_mavlink_policy:
+        'raw MAVLink frames stay on node-local telemetry ports; mesh summary index rejects raw packet payloads',
+      demo_evidence_label:
+        'SemLink-produced deterministic demo evidence; not live BlueOS, Navigator, hardware, radio, or mesh reliability evidence',
+      confidence: 1,
+      updated_at: fusionObserved,
+      nodes: [
+        {
+          id: 'semlink-node-alpha',
+          vehicle_count: 1,
+          peer_count: 2,
+          initial_summary_count: 1,
+          final_summary_count: 3,
+          watermark_count: 3,
+          applied_diff_count: 2,
+          diff_item_count: 2,
+          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded'
+        },
+        {
+          id: 'semlink-node-bravo',
+          vehicle_count: 1,
+          peer_count: 2,
+          initial_summary_count: 1,
+          final_summary_count: 3,
+          watermark_count: 3,
+          applied_diff_count: 2,
+          diff_item_count: 2,
+          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded'
+        },
+        {
+          id: 'semlink-node-charlie',
+          vehicle_count: 1,
+          peer_count: 2,
+          initial_summary_count: 1,
+          final_summary_count: 3,
+          watermark_count: 3,
+          applied_diff_count: 2,
+          diff_item_count: 2,
+          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded'
+        }
+      ],
+      readback: {
+        adapter_status: 'unavailable',
+        accepted: false,
+        received_requests: 0,
+        native_execution_allowed: false,
+        companion_transmit_allowed: false,
+        command_ack_status: 'unavailable',
+        result_status: 'unavailable'
+      },
+      command_posture: {
+        status: 'unavailable',
+        hardware_blocked: false,
+        simulator_only: false,
+        preflight_accepted: false,
+        ack_accepted: false,
+        post_state_observed: false,
+        hardware_transmit_authorized: false
+      },
+      raw_mavlink_exclusion: {
+        rejected_by_summary_index: true,
+        policy: 'raw MAVLink frames stay on node-local telemetry ports; mesh summary index rejects raw packet payloads'
+      },
+      assertions: [
+        {
+          name: 'node-count',
+          passed: true,
+          detail: 'three companion nodes emitted summary evidence'
+        },
+        {
+          name: 'watermark-catch-up',
+          passed: true,
+          detail: 'all nodes observed three watermarks after bounded diff catch-up'
+        },
+        {
+          name: 'raw-mavlink-exclusion',
+          passed: true,
+          detail: 'summary replication excluded raw MAVLink payloads'
+        }
+      ],
+      provenance: {
+        owner: 'semlink.e2e.demo',
+        source_ref: 'semlink-demo://simple-mesh-companion-demo/fixture',
         observed_at: fusionObserved
       }
     }

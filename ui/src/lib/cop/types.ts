@@ -12,6 +12,7 @@ export type Snapshot = {
   sensor_footprints: SensorFootprint[];
   weather_observations: WeatherObservation[];
   associations: Association[];
+  companion_fleets: CompanionFleet[];
   alerts: Alert[];
 };
 
@@ -22,6 +23,7 @@ export type Summary = {
   active_sensor_footprints: number;
   active_weather_observations: number;
   active_associations: number;
+  active_companion_nodes: number;
   active_alerts: number;
   stale_feeds: number;
 };
@@ -274,6 +276,80 @@ export type AssociationReview = {
   comment?: string;
 };
 
+export type CompanionFleet = {
+  id: string;
+  label: string;
+  source: string;
+  status: string;
+  evidence_kind: string;
+  vehicle_profile: string;
+  node_count: number;
+  vehicle_count: number;
+  expected_summaries?: number;
+  assertion_state: string;
+  no_transmit_posture: string;
+  raw_mavlink_excluded: boolean;
+  raw_mavlink_policy?: string;
+  demo_evidence_label: string;
+  confidence: number;
+  updated_at: string;
+  nodes: CompanionNode[];
+  readback: CompanionReadback;
+  command_posture: CompanionCommandPosture;
+  raw_mavlink_exclusion: CompanionRawMAVLinkExclusion;
+  assertions: CompanionAssertion[];
+  provenance: Provenance;
+};
+
+export type CompanionNode = {
+  id: string;
+  vehicle_count: number;
+  peer_count: number;
+  initial_summary_count?: number;
+  final_summary_count?: number;
+  watermark_count?: number;
+  applied_diff_count?: number;
+  diff_item_count?: number;
+  ttl_merge_posture?: string;
+};
+
+export type CompanionReadback = {
+  adapter_status: string;
+  accepted: boolean;
+  received_requests: number;
+  correlation_id?: string;
+  native_execution_allowed: boolean;
+  companion_transmit_allowed: boolean;
+  command_ack_status: string;
+  command_ack_result?: string;
+  command_ack_observed_at?: string;
+  result_status: string;
+  result_observed_property?: string;
+  result_observed_at?: string;
+};
+
+export type CompanionCommandPosture = {
+  status: string;
+  hardware_blocked: boolean;
+  simulator_only: boolean;
+  preflight_accepted: boolean;
+  ack_accepted: boolean;
+  post_state_observed: boolean;
+  hardware_transmit_authorized: boolean;
+};
+
+export type CompanionRawMAVLinkExclusion = {
+  rejected_by_summary_index: boolean;
+  policy?: string;
+  error?: string;
+};
+
+export type CompanionAssertion = {
+  name: string;
+  passed: boolean;
+  detail?: string;
+};
+
 export type Alert = {
   id: string;
   label: string;
@@ -304,4 +380,5 @@ export type EntityRef =
   | { kind: 'sensor-footprint'; id: string }
   | { kind: 'weather-observation'; id: string }
   | { kind: 'association'; id: string }
+  | { kind: 'companion-fleet'; id: string }
   | { kind: 'alert'; id: string };

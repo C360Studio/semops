@@ -3,6 +3,7 @@ import type {
   Alert,
   Association,
   Asset,
+  CompanionFleet,
   EntityRef,
   Hazard,
   SensorFootprint,
@@ -21,6 +22,7 @@ export type SelectableEntity =
   | SensorFootprint
   | WeatherObservation
   | Association
+  | CompanionFleet
   | Alert;
 
 export function resolveEntity(snapshot: Snapshot | null, selected: EntityRef): SelectableEntity | undefined {
@@ -50,6 +52,9 @@ export function resolveEntity(snapshot: Snapshot | null, selected: EntityRef): S
   }
   if (selected.kind === 'association') {
     return (snapshot.associations ?? []).find((association) => association.id === selected.id);
+  }
+  if (selected.kind === 'companion-fleet') {
+    return (snapshot.companion_fleets ?? []).find((fleet) => fleet.id === selected.id);
   }
   return snapshot.alerts.find((alert) => alert.id === selected.id);
 }
@@ -96,6 +101,9 @@ export function reconcileSelection(snapshot: Snapshot | null, selected: EntityRe
   if ((snapshot.associations ?? [])[0]) {
     return { kind: 'association', id: snapshot.associations[0].id };
   }
+  if ((snapshot.companion_fleets ?? [])[0]) {
+    return { kind: 'companion-fleet', id: snapshot.companion_fleets[0].id };
+  }
   if (snapshot.alerts[0]) {
     return { kind: 'alert', id: snapshot.alerts[0].id };
   }
@@ -126,6 +134,9 @@ function resolveEntityRefByID(snapshot: Snapshot, id: string): EntityRef | undef
   }
   if ((snapshot.associations ?? []).some((association) => association.id === id)) {
     return { kind: 'association', id };
+  }
+  if ((snapshot.companion_fleets ?? []).some((fleet) => fleet.id === id)) {
+    return { kind: 'companion-fleet', id };
   }
   return undefined;
 }

@@ -353,9 +353,29 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   const associationRow = page.getByRole('button', { name: 'Inspect Ambiguous association UAS 42 -> N42CX' });
   await expect(associationRow).toBeVisible();
   await expect(associationRow).toContainText('ambiguous evidence');
+  await expect(page.getByLabel('SemLink companion fleet evidence')).toContainText('SemLink companion fleet');
+  await expect(page.getByLabel('SemLink companion fleet evidence')).toContainText('3 nodes');
+  const companionFleetRow = page.getByRole('button', { name: 'Inspect SemLink companion fleet' });
+  await expect(companionFleetRow).toBeVisible();
+  await expect(companionFleetRow).toContainText('3 nodes');
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT runtime flow')).toContainText('2/2 healthy');
   await expect(page.getByRole('button', { name: 'Select N123AB' })).toBeVisible();
+
+  await companionFleetRow.click();
+  await expect(page.getByRole('heading', { name: 'SemLink companion fleet' })).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('simple-mesh-companion-demo');
+  await expect(page.getByLabel('Entity inspector')).toContainText('ardurover-blueboat');
+  await expect(page.getByLabel('Entity inspector')).toContainText('semlink-node-alpha');
+  await expect(page.getByLabel('Entity inspector')).toContainText('semlink-node-bravo');
+  await expect(page.getByLabel('Entity inspector')).toContainText('semlink-node-charlie');
+  await expect(page.getByLabel('Entity inspector')).toContainText('3 watermarks');
+  await expect(page.getByLabel('Entity inspector')).toContainText('no native transmit authority');
+  await expect(page.getByLabel('Entity inspector')).toContainText('no companion hardware transmit authority');
+  await expect(page.getByLabel('Entity inspector')).toContainText('raw MAVLink excluded from mesh summaries');
+  await expect(page.getByLabel('Entity inspector')).toContainText('not live BlueOS');
+  await expect(page.getByLabel('Entity inspector')).toContainText('not allowed');
+  await expect(page.getByLabel('Entity inspector')).toContainText('unavailable');
 
   await page.getByRole('button', { name: 'Select N123AB' }).click();
   await expect(page.getByRole('heading', { name: 'N123AB' })).toBeVisible();
@@ -432,6 +452,7 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await expect(page.getByLabel('KLV source state')).toBeVisible();
   await expect(page.getByLabel('Weather source state')).toBeVisible();
   await expect(page.getByLabel('Fusion source state')).toBeVisible();
+  await expect(page.getByLabel('SemLink companion fleet evidence')).toBeVisible();
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
@@ -464,6 +485,15 @@ test('keeps core operator loop accessible in a narrow viewport', async ({ page }
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Ambiguous association UAS 42 -> N42CX' })).toBeVisible();
   await expect(page.getByLabel('Entity inspector')).toContainText('no source-track merge');
+
+  const companionButton = page.getByRole('button', { name: 'Inspect SemLink companion fleet' });
+  await companionButton.focus();
+  await expect(companionButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'SemLink companion fleet' })).toBeVisible();
+  await expect(page.getByLabel('Entity inspector')).toContainText('semlink-node-charlie');
+  await expect(page.getByLabel('Entity inspector')).toContainText('not live BlueOS');
+  await expectNoHorizontalOverflow(page);
 
   const alertButton = page.getByRole('button', { name: /Track freshness nominal/ });
   await alertButton.focus();
