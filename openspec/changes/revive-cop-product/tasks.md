@@ -276,6 +276,8 @@
       born-target admission
 - [x] 5.132 Prove hosted SemLink readback duplicate idempotency collapse returns no-transmit duplicate admission and
       performs no second graph write
+- [x] 5.133 Clarify BlueOS as an optional SemLink deployment profile while keeping native MAVLink/SITL evidence as the
+      SemLink-to-SemOps compatibility boundary
 
 ## 6. Structural COP Stack
 

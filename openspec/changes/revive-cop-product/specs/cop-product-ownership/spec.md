@@ -19,6 +19,10 @@ SemOps SHALL be the product repo for the complete data-fusion common operating p
   bridge boundaries around SemLink-provided state
 - **AND** SemLink pressure MAY prioritize bidirectional ArduPilot support only through governed command intent,
   MAVLink ACK/status readback, route/source discovery, and fail-closed safety gates
+- **AND** BlueOS, Navigator, or companion-Pi packaging is a SemLink deployment profile, not the protocol boundary that
+  SemOps depends on
+- **AND** native MAVLink UDP or ArduPilot SITL evidence remains valid SemLink compatibility proof when BlueOS-specific
+  service state is absent
 
 ### Requirement: SemStreams remains substrate-owned
 

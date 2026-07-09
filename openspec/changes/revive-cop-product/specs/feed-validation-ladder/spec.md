@@ -322,6 +322,10 @@ public conformance suite, or documented interoperability test backs the claim.
   MAVLink, command-intent, and SemStreams ownership contracts
 - **AND** the MVP ArduPilot priority SHOULD favor GCS glass, route/source discovery, telemetry readback, command-intent
   projection, and MAVLink ACK/status reconciliation before richer vehicle control
+- **AND** BlueOS/Navigator packaging MAY be a preferred early SemLink deployment lane, but compatibility gates remain
+  satisfiable by native MAVLink/SITL evidence without BlueOS-specific service state
+- **AND** BlueOS service lifecycle and Navigator readiness MAY appear only as deployment metadata, not as
+  command/readback proof
 - **AND** mission upload, mode change, arm/disarm, offboard control, hardware command authority, and local safety
   override remain blocked until a later reviewed command-authority gate expands the scope
 

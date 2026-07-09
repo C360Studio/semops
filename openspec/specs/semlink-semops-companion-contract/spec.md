@@ -49,6 +49,17 @@ proves CS API reduces operational friction and preserves command-governance sema
 - **AND** CS API/SemConnect is used for interoperable state, tasking records, status, and observations rather than as a
   high-rate raw MAVLink transport
 
+#### Scenario: BlueOS is a deployment profile, not the protocol boundary
+
+- **WHEN** SemLink runs inside BlueOS, on Navigator, on a companion Pi, or as a plain native MAVLink/SITL service
+- **THEN** SemOps consumes the same native companion readback and evidence contract across those deployment profiles
+- **AND** pure MAVLink UDP or ArduPilot SITL SemLink deployments remain valid compatibility evidence without BlueOS
+- **AND** SemOps does not require BlueOS REST endpoints, MAVLink2REST, endpoint-manager state, CS API, or SemConnect
+  for the SemLink-to-SemOps hot path
+- **AND** BlueOS service registration, package lifecycle, and Navigator readiness MAY appear only as deployment
+  metadata, not as command/readback compatibility proof
+- **AND** MAVLink command, message, target, ACK, and readback vocabulary remains the compatibility anchor
+
 ### Requirement: SemLink Feedback Is Dispositioned Before Acceptance
 
 SemOps SHALL request and disposition SemLink feedback before accepting the MVP native companion contract.
