@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-09
+goal: Prove SemOps can ingest SemLink-generated companion demo artifacts, including a one-node ArduPilot SITL lane,
+  and render them as COP/GCS glass without owning SemLink runtime, SITL orchestration, or command transmit.
