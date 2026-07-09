@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-09
+goal: Prove SemOps can consume SemLink e2e/demo evidence for n companion nodes
+  and render cross-node COP/GCS glass without owning SemLink mesh runtime.
