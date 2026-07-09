@@ -177,13 +177,116 @@ The admission response records command intent only. It does not prove that SemLi
 that ArduPilot returned `AUTOPILOT_VERSION`.
 
 For v0, SemOps can expose ACK/status readback through its command-task read model when native status evidence exists.
-Structured `AUTOPILOT_VERSION` payload decoding is deferred to a follow-up SemLink/SemOps slice. When added, result
-evidence should use separate timestamps:
+Structured `AUTOPILOT_VERSION` payload evidence is a separate readback observation. It does not change the original
+admission result and does not grant native or companion transmit authority.
+
+The fixture set defines two post-admission evidence shapes:
+
+- `status.command-ack.json`: `COMMAND_ACK` status evidence.
+- `result.autopilot-version.json`: decoded `AUTOPILOT_VERSION` observation evidence.
+
+Status and result evidence use separate timestamps:
 
 - `ack_observed_at` for `COMMAND_ACK`.
 - `result_observed_at` for decoded `AUTOPILOT_VERSION` evidence.
 
 `AUTOPILOT_VERSION` result payloads map to observation/readback evidence, not to command acceptance itself.
+
+### COMMAND_ACK Status Evidence
+
+```json
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "evidence_type": "command_ack_status",
+  "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+  "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+  "companion_node_id": "blue-boat-01",
+  "target_system_id": 42,
+  "target_component_id": 1,
+  "command_id": 512,
+  "requested_message_id": 148,
+  "requested_at": "2026-07-07T18:30:00Z",
+  "ack_observed_at": "2026-07-07T18:30:01Z",
+  "status": "accepted",
+  "ack": {
+    "message": "COMMAND_ACK",
+    "command_id": 512,
+    "result": "MAV_RESULT_ACCEPTED",
+    "result_code": 0,
+    "progress": 100,
+    "target_system_id": 42,
+    "target_component_id": 1
+  },
+  "native_execution_allowed": false,
+  "companion_transmit_allowed": false,
+  "source_ref": "semlink://blue-boat-01/ardupilot/system-42/command-ack/request-autopilot-version"
+}
+```
+
+### AUTOPILOT_VERSION Result Evidence
+
+```json
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "evidence_type": "autopilot_version_result",
+  "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+  "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+  "companion_node_id": "blue-boat-01",
+  "target_system_id": 42,
+  "target_component_id": 1,
+  "target_asset_id": "c360.edge.cop.mavlink.asset.system-42",
+  "entity_id": "c360.edge.cop.command.task.semlink-blue-boat-01-autopilot-version",
+  "native_id": "semlink-blue-boat-01-autopilot-version",
+  "command_id": 512,
+  "requested_message_id": 148,
+  "requested_at": "2026-07-07T18:30:00Z",
+  "ack_observed_at": "2026-07-07T18:30:01Z",
+  "result_observed_at": "2026-07-07T18:30:02Z",
+  "status": "result_observed",
+  "source_ref": "semlink://blue-boat-01/ardupilot/system-42/autopilot-version",
+  "autopilot_version": {
+    "message": "AUTOPILOT_VERSION",
+    "message_id": 148,
+    "capabilities_raw": 8200,
+    "capabilities": [
+      "MAV_PROTOCOL_CAPABILITY_COMMAND_INT",
+      "MAV_PROTOCOL_CAPABILITY_MAVLINK2"
+    ],
+    "flight_sw_version": {
+      "raw": 67438591,
+      "major": 4,
+      "minor": 5,
+      "patch": 7,
+      "release_type": "official",
+      "text": "4.5.7"
+    },
+    "middleware_sw_version": {
+      "raw": 0,
+      "major": 0,
+      "minor": 0,
+      "patch": 0,
+      "release_type": "dev",
+      "text": "0.0.0-dev"
+    },
+    "os_sw_version": {
+      "raw": 100729087,
+      "major": 6,
+      "minor": 1,
+      "patch": 0,
+      "release_type": "official",
+      "text": "6.1.0"
+    },
+    "board_version": 123,
+    "flight_custom_version_hex": "0001020304050607",
+    "middleware_custom_version_hex": "0000000000000000",
+    "os_custom_version_hex": "0000000000000000",
+    "vendor_id": 1209,
+    "product_id": 1,
+    "uid": "0x000000000000002a",
+    "uid2_hex": "000102030405060708090a0b0c0d0e0f1011"
+  }
+}
+```
 
 ## Standards Mapping
 
@@ -208,8 +311,23 @@ evidence should use separate timestamps:
 | `claim_scope` | Authority claim shape | No direct MAVLink/CS API equivalent | C360 governance: no-transmit posture |
 | `native_execution_allowed` | Native transmit posture | No direct MAVLink/CS API equivalent | C360 governance: safety |
 | `companion_transmit_allowed` | Companion transmit posture | No direct MAVLink/CS API equivalent | C360 governance: safety |
-| `ack_observed_at` | ACK observation time | MAVLink `COMMAND_ACK`; CS API SystemEvent/Observation time | Deferred v0.1 |
-| `result_observed_at` | Result observation time | MAVLink `AUTOPILOT_VERSION`; CS API Observation time | Deferred v0.1 |
+| `evidence_type` | Post-admission evidence discriminator | CS API event/observation metadata | Contract-owned shape selector |
+| `ack_observed_at` | ACK observation time | MAVLink `COMMAND_ACK`; CS API SystemEvent/Observation time | Accepted v0 status fixture |
+| `ack.message` | ACK message discriminator | MAVLink `COMMAND_ACK` | Standards-owned |
+| `ack.command_id` | ACKed command | MAVLink command ID | Standards-owned |
+| `ack.result` / `ack.result_code` | ACK result | MAVLink `MAV_RESULT` enum | Standards-owned |
+| `ack.progress` | ACK progress | MAVLink `COMMAND_ACK.progress` | Standards-owned |
+| `result_observed_at` | Result observation time | MAVLink `AUTOPILOT_VERSION`; CS API Observation time | Accepted v0 result fixture |
+| `autopilot_version.message` | Result message discriminator | MAVLink `AUTOPILOT_VERSION` | Standards-owned |
+| `autopilot_version.message_id` | Result message ID | MAVLink message ID `148` | Standards-owned |
+| `autopilot_version.capabilities_raw` | Capability bitmask | MAVLink `AUTOPILOT_VERSION.capabilities` | Standards-owned |
+| `autopilot_version.capabilities[]` | Decoded capability names | MAVLink `MAV_PROTOCOL_CAPABILITY` enum | Standards-owned |
+| `*_sw_version.raw` | Raw version integer | MAVLink `*_sw_version` fields | Standards-owned |
+| `*_sw_version.major/minor/patch/release_type/text` | Decoded display version | MAVLink version convention | Standards-owned |
+| `board_version` | Board version | MAVLink `AUTOPILOT_VERSION.board_version` | Standards-owned |
+| `*_custom_version_hex` | Custom version bytes | MAVLink `*_custom_version[8]` arrays | Standards-owned |
+| `vendor_id` / `product_id` | USB/vendor identifiers | MAVLink `AUTOPILOT_VERSION.vendor_id/product_id` | Standards-owned |
+| `uid` / `uid2_hex` | Autopilot unique IDs | MAVLink `AUTOPILOT_VERSION.uid/uid2` | Standards-owned |
 
 ## CS API / SemConnect Edge
 
@@ -220,17 +338,19 @@ expected CS API shape is:
 - Readback channel as a CS API `ControlStream`.
 - Admission record as a CS API `Command`.
 - ACK/status as CS API command status or `SystemEvent`.
-- Decoded `AUTOPILOT_VERSION` as observation/readback evidence when that payload exists.
+- Decoded `AUTOPILOT_VERSION` as observation/readback evidence.
 
 CS API score for MVP is Amber: it is the right interop and projection edge, but the native companion contract remains
 the hot path.
 
 The projection fixture at `testdata/contracts/semlink-companion-readback-v0/csapi-projection.accepted.json` is the
 current SemConnect hold-out artifact. It preserves the accepted intent's MAVLink, target, provenance, idempotency,
-authority, and no-transmit governance fields without adding CS API to the SemLink runtime path.
+authority, ACK status, structured `AUTOPILOT_VERSION` observation, and no-transmit governance fields without adding CS
+API to the SemLink runtime path.
 
 ## Implementation Follow-Ups
 
 - Retire compatibility aliases after SemLink has reviewed and adopted the v0 fixture set.
 - Keep `target_asset_id` as a SemOps response/readback field, not a SemLink request requirement.
-- Add structured `AUTOPILOT_VERSION` payload decoding and observation evidence in a later slice.
+- SemLink implementation can now target `status.command-ack.json` and `result.autopilot-version.json` as the MVP
+  structured evidence fixtures.

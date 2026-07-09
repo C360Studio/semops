@@ -100,6 +100,26 @@ SemOps standards edge without making SemConnect the command-authority layer.
 - **THEN** the spike records either a C360 governance exception or a SemConnect follow-up
 - **AND** SemOps does not add local CS API gateway behavior to hide the gap
 
+### Requirement: AUTOPILOT_VERSION Result Evidence Is Observation-Shaped
+
+SemOps SHALL keep SemLink `COMMAND_ACK` status evidence separate from decoded `AUTOPILOT_VERSION` result evidence.
+
+#### Scenario: SemLink emits COMMAND_ACK status evidence
+
+- **WHEN** SemLink reports `COMMAND_ACK` for the MVP `MAV_CMD_REQUEST_MESSAGE` readback intent
+- **THEN** the evidence uses `ack_observed_at` as the ACK timestamp
+- **AND** the evidence maps the MAVLink `COMMAND_ACK` result to command status or event evidence
+- **AND** the evidence does not grant native execution or companion transmit authority
+
+#### Scenario: SemLink emits AUTOPILOT_VERSION result evidence
+
+- **WHEN** SemLink reports decoded `AUTOPILOT_VERSION` payload evidence
+- **THEN** the evidence uses `result_observed_at` as the result timestamp
+- **AND** the payload preserves MAVLink-native fields for capabilities, software versions, board version, custom
+  version bytes, vendor/product IDs, and autopilot unique IDs
+- **AND** CS API/SemConnect projection maps the payload to observation/readback evidence rather than command
+  acceptance or command status
+
 ### Requirement: Friction Score Controls CS API Promotion
 
 SemOps SHALL score CS API/SemConnect suitability before promoting CS API into the SemLink-to-SemOps companion path.

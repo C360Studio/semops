@@ -1,0 +1,60 @@
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "evidence_type": "autopilot_version_result",
+  "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+  "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+  "companion_node_id": "blue-boat-01",
+  "target_system_id": 42,
+  "target_component_id": 1,
+  "target_asset_id": "c360.edge.cop.mavlink.asset.system-42",
+  "entity_id": "c360.edge.cop.command.task.semlink-blue-boat-01-autopilot-version",
+  "native_id": "semlink-blue-boat-01-autopilot-version",
+  "command_id": 512,
+  "requested_message_id": 148,
+  "requested_at": "2026-07-07T18:30:00Z",
+  "ack_observed_at": "2026-07-07T18:30:01Z",
+  "result_observed_at": "2026-07-07T18:30:02Z",
+  "status": "result_observed",
+  "source_ref": "semlink://blue-boat-01/ardupilot/system-42/autopilot-version",
+  "autopilot_version": {
+    "message": "AUTOPILOT_VERSION",
+    "message_id": 148,
+    "capabilities_raw": 8200,
+    "capabilities": [
+      "MAV_PROTOCOL_CAPABILITY_COMMAND_INT",
+      "MAV_PROTOCOL_CAPABILITY_MAVLINK2"
+    ],
+    "flight_sw_version": {
+      "raw": 67438591,
+      "major": 4,
+      "minor": 5,
+      "patch": 7,
+      "release_type": "official",
+      "text": "4.5.7"
+    },
+    "middleware_sw_version": {
+      "raw": 0,
+      "major": 0,
+      "minor": 0,
+      "patch": 0,
+      "release_type": "dev",
+      "text": "0.0.0-dev"
+    },
+    "os_sw_version": {
+      "raw": 100729087,
+      "major": 6,
+      "minor": 1,
+      "patch": 0,
+      "release_type": "official",
+      "text": "6.1.0"
+    },
+    "board_version": 123,
+    "flight_custom_version_hex": "0001020304050607",
+    "middleware_custom_version_hex": "0000000000000000",
+    "os_custom_version_hex": "0000000000000000",
+    "vendor_id": 1209,
+    "product_id": 1,
+    "uid": "0x000000000000002a",
+    "uid2_hex": "000102030405060708090a0b0c0d0e0f1011"
+  }
+}

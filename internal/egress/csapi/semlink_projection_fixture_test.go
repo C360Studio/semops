@@ -43,6 +43,83 @@ type semLinkReadbackResponseFixture struct {
 	Mutations                 int       `json:"mutations"`
 }
 
+type semLinkReadbackStatusFixture struct {
+	Contract                 string     `json:"contract"`
+	EvidenceType             string     `json:"evidence_type"`
+	CorrelationID            string     `json:"correlation_id"`
+	IdempotencyKey           string     `json:"idempotency_key"`
+	CompanionNodeID          string     `json:"companion_node_id"`
+	TargetSystemID           int        `json:"target_system_id"`
+	TargetComponentID        int        `json:"target_component_id"`
+	CommandID                int        `json:"command_id"`
+	RequestedMessageID       int        `json:"requested_message_id"`
+	RequestedAt              time.Time  `json:"requested_at"`
+	AckObservedAt            time.Time  `json:"ack_observed_at"`
+	Status                   string     `json:"status"`
+	ACK                      ackPayload `json:"ack"`
+	NativeExecutionAllowed   bool       `json:"native_execution_allowed"`
+	CompanionTransmitAllowed bool       `json:"companion_transmit_allowed"`
+	SourceRef                string     `json:"source_ref"`
+}
+
+type semLinkAutopilotVersionResultFixture struct {
+	Contract           string                  `json:"contract"`
+	EvidenceType       string                  `json:"evidence_type"`
+	CorrelationID      string                  `json:"correlation_id"`
+	IdempotencyKey     string                  `json:"idempotency_key"`
+	CompanionNodeID    string                  `json:"companion_node_id"`
+	TargetSystemID     int                     `json:"target_system_id"`
+	TargetComponentID  int                     `json:"target_component_id"`
+	TargetAssetID      string                  `json:"target_asset_id"`
+	EntityID           string                  `json:"entity_id"`
+	NativeID           string                  `json:"native_id"`
+	CommandID          int                     `json:"command_id"`
+	RequestedMessageID int                     `json:"requested_message_id"`
+	RequestedAt        time.Time               `json:"requested_at"`
+	AckObservedAt      time.Time               `json:"ack_observed_at"`
+	ResultObservedAt   time.Time               `json:"result_observed_at"`
+	Status             string                  `json:"status"`
+	SourceRef          string                  `json:"source_ref"`
+	AutopilotVersion   autopilotVersionPayload `json:"autopilot_version"`
+}
+
+type ackPayload struct {
+	Message           string `json:"message"`
+	CommandID         int    `json:"command_id"`
+	Result            string `json:"result"`
+	ResultCode        int    `json:"result_code"`
+	Progress          int    `json:"progress"`
+	TargetSystemID    int    `json:"target_system_id"`
+	TargetComponentID int    `json:"target_component_id"`
+}
+
+type autopilotVersionPayload struct {
+	Message                 string         `json:"message"`
+	MessageID               int            `json:"message_id"`
+	CapabilitiesRaw         int            `json:"capabilities_raw"`
+	Capabilities            []string       `json:"capabilities"`
+	FlightSWVersion         versionPayload `json:"flight_sw_version"`
+	MiddlewareSWVersion     versionPayload `json:"middleware_sw_version"`
+	OSSWVersion             versionPayload `json:"os_sw_version"`
+	BoardVersion            int            `json:"board_version"`
+	FlightCustomVersionHex  string         `json:"flight_custom_version_hex"`
+	MiddlewareCustomVersion string         `json:"middleware_custom_version_hex"`
+	OSCustomVersionHex      string         `json:"os_custom_version_hex"`
+	VendorID                int            `json:"vendor_id"`
+	ProductID               int            `json:"product_id"`
+	UID                     string         `json:"uid"`
+	UID2Hex                 string         `json:"uid2_hex"`
+}
+
+type versionPayload struct {
+	Raw         int    `json:"raw"`
+	Major       int    `json:"major"`
+	Minor       int    `json:"minor"`
+	Patch       int    `json:"patch"`
+	ReleaseType string `json:"release_type"`
+	Text        string `json:"text"`
+}
+
 type semLinkCSAPIProjectionFixture struct {
 	Contract         string                      `json:"contract"`
 	SourceContract   string                      `json:"source_contract"`
@@ -101,12 +178,16 @@ type projectionSystemEvent struct {
 }
 
 type projectionObservation struct {
-	ID               string `json:"id"`
-	SystemID         string `json:"system_id"`
-	ObservedProperty string `json:"observed_property"`
-	MapsTo           string `json:"maps_to"`
-	Deferred         bool   `json:"deferred"`
-	Reason           string `json:"reason"`
+	ID               string         `json:"id"`
+	SystemID         string         `json:"system_id"`
+	ObservedProperty string         `json:"observed_property"`
+	MapsTo           string         `json:"maps_to"`
+	ObservedAt       time.Time      `json:"observed_at"`
+	CorrelationID    string         `json:"correlation_id"`
+	SourceRef        string         `json:"source_ref"`
+	Deferred         bool           `json:"deferred"`
+	Reason           string         `json:"reason"`
+	Result           map[string]any `json:"result"`
 }
 
 type projectionDeferredSurface struct {
@@ -135,14 +216,28 @@ type governanceFields struct {
 func TestSemLinkReadbackCSAPIProjectionFixturePreservesContractFields(t *testing.T) {
 	request := readContractFixture[semLinkReadbackRequestFixture](t, "request.accepted.json")
 	response := readContractFixture[semLinkReadbackResponseFixture](t, "response.accepted.json")
+	status := readContractFixture[semLinkReadbackStatusFixture](t, "status.command-ack.json")
+	result := readContractFixture[semLinkAutopilotVersionResultFixture](t, "result.autopilot-version.json")
 	projection := readContractFixture[semLinkCSAPIProjectionFixture](t, "csapi-projection.accepted.json")
 
-	if projection.SourceContract != request.Contract || response.Contract != request.Contract {
-		t.Fatalf("contract chain = request %q response %q projection source %q", request.Contract, response.Contract, projection.SourceContract)
+	if projection.SourceContract != request.Contract ||
+		response.Contract != request.Contract ||
+		status.Contract != request.Contract ||
+		result.Contract != request.Contract {
+		t.Fatalf(
+			"contract chain = request %q response %q status %q result %q projection source %q",
+			request.Contract,
+			response.Contract,
+			status.Contract,
+			result.Contract,
+			projection.SourceContract,
+		)
 	}
 	if projection.CSAPIScore != "amber" || projection.ClaimScope != "csapi-projection-fixture-only" {
 		t.Fatalf("projection posture = score %q claim %q", projection.CSAPIScore, projection.ClaimScope)
 	}
+	requireStatusFixtureMatchesRequest(t, status, request)
+	requireResultFixtureMatchesRequest(t, result, status, request, response)
 
 	companion, ok := projectionSystemByRole(projection, "companion")
 	if !ok || companion.ID == "" || companion.MapsTo != "CS API System" {
@@ -192,10 +287,13 @@ func TestSemLinkReadbackCSAPIProjectionFixturePreservesContractFields(t *testing
 		t.Fatalf("command governance = %+v, response = %+v", command.Governance, response)
 	}
 
-	if len(projection.SystemEvents) != 1 {
+	if len(projection.SystemEvents) != 2 {
 		t.Fatalf("system events = %+v", projection.SystemEvents)
 	}
-	event := projection.SystemEvents[0]
+	event, ok := projectionSystemEventByType(projection, "semops.command_intent.accepted")
+	if !ok {
+		t.Fatalf("missing admission event in %+v", projection.SystemEvents)
+	}
 	if event.MapsTo != "CS API SystemEvent" ||
 		event.SystemID != target.ID ||
 		event.Status != response.Status ||
@@ -206,13 +304,29 @@ func TestSemLinkReadbackCSAPIProjectionFixturePreservesContractFields(t *testing
 		event.Payload["companion_transmit_allowed"] != false {
 		t.Fatalf("system event = %+v", event)
 	}
+	ackEvent, ok := projectionSystemEventByType(projection, "mavlink.command_ack")
+	if !ok {
+		t.Fatalf("missing COMMAND_ACK event in %+v", projection.SystemEvents)
+	}
+	if ackEvent.ObservedAt != status.AckObservedAt ||
+		ackEvent.Status != status.Status ||
+		ackEvent.Payload["result"] != status.ACK.Result {
+		t.Fatalf("ACK event = %+v, status fixture = %+v", ackEvent, status)
+	}
 
 	if len(projection.Observations) != 1 ||
 		projection.Observations[0].ObservedProperty != "AUTOPILOT_VERSION" ||
-		!projection.Observations[0].Deferred {
-		t.Fatalf("AUTOPILOT_VERSION observation must remain deferred until structured payload exists: %+v", projection.Observations)
+		projection.Observations[0].Deferred ||
+		projection.Observations[0].ObservedAt != result.ResultObservedAt ||
+		projection.Observations[0].CorrelationID != result.CorrelationID ||
+		projection.Observations[0].SourceRef != result.SourceRef ||
+		projection.Observations[0].Result["message"] != result.AutopilotVersion.Message {
+		t.Fatalf("AUTOPILOT_VERSION observation = %+v, result fixture = %+v", projection.Observations, result)
 	}
-	for _, name := range []string{"csapi.command-status-egress", "csapi.autopilot-version-observation", "csapi.raw-mavlink-transport"} {
+	if hasProjectionDeferredSurface(projection, "csapi.autopilot-version-observation") {
+		t.Fatalf("AUTOPILOT_VERSION observation should be concrete when structured result fixture exists: %+v", projection.DeferredSurfaces)
+	}
+	for _, name := range []string{"csapi.command-status-egress", "csapi.raw-mavlink-transport"} {
 		if !hasProjectionDeferredSurface(projection, name) {
 			t.Fatalf("missing deferred surface %q in %+v", name, projection.DeferredSurfaces)
 		}
@@ -239,6 +353,82 @@ func projectionSystemByRole(projection semLinkCSAPIProjectionFixture, role strin
 		}
 	}
 	return projectionSystem{}, false
+}
+
+func projectionSystemEventByType(projection semLinkCSAPIProjectionFixture, eventType string) (projectionSystemEvent, bool) {
+	for _, event := range projection.SystemEvents {
+		if event.EventType == eventType {
+			return event, true
+		}
+	}
+	return projectionSystemEvent{}, false
+}
+
+func requireStatusFixtureMatchesRequest(
+	t *testing.T,
+	status semLinkReadbackStatusFixture,
+	request semLinkReadbackRequestFixture,
+) {
+	t.Helper()
+	if status.EvidenceType != "command_ack_status" ||
+		status.CorrelationID != request.CorrelationID ||
+		status.IdempotencyKey != request.IdempotencyKey ||
+		status.CompanionNodeID != request.CompanionNodeID ||
+		status.TargetSystemID != request.TargetSystemID ||
+		status.TargetComponentID != request.TargetComponentID ||
+		status.CommandID != request.CommandID ||
+		status.RequestedMessageID != request.RequestedMessageID ||
+		status.RequestedAt != request.RequestedAt {
+		t.Fatalf("status fixture = %+v, request = %+v", status, request)
+	}
+	if !status.AckObservedAt.After(request.RequestedAt) {
+		t.Fatalf("ack_observed_at = %s must be after requested_at %s", status.AckObservedAt, request.RequestedAt)
+	}
+	if status.ACK.Message != "COMMAND_ACK" ||
+		status.ACK.CommandID != request.CommandID ||
+		status.ACK.Result != "MAV_RESULT_ACCEPTED" ||
+		status.ACK.TargetSystemID != request.TargetSystemID ||
+		status.ACK.TargetComponentID != request.TargetComponentID {
+		t.Fatalf("ACK payload = %+v, request = %+v", status.ACK, request)
+	}
+	if status.NativeExecutionAllowed || status.CompanionTransmitAllowed {
+		t.Fatalf("ACK fixture must not grant transmit authority: %+v", status)
+	}
+}
+
+func requireResultFixtureMatchesRequest(
+	t *testing.T,
+	result semLinkAutopilotVersionResultFixture,
+	status semLinkReadbackStatusFixture,
+	request semLinkReadbackRequestFixture,
+	response semLinkReadbackResponseFixture,
+) {
+	t.Helper()
+	if result.EvidenceType != "autopilot_version_result" ||
+		result.CorrelationID != request.CorrelationID ||
+		result.IdempotencyKey != request.IdempotencyKey ||
+		result.CompanionNodeID != request.CompanionNodeID ||
+		result.TargetSystemID != request.TargetSystemID ||
+		result.TargetComponentID != request.TargetComponentID ||
+		result.TargetAssetID != response.TargetAssetID ||
+		result.EntityID != response.EntityID ||
+		result.NativeID != response.NativeID ||
+		result.CommandID != request.CommandID ||
+		result.RequestedMessageID != request.RequestedMessageID ||
+		result.RequestedAt != request.RequestedAt ||
+		result.AckObservedAt != status.AckObservedAt {
+		t.Fatalf("result fixture = %+v, request = %+v, response = %+v, status = %+v", result, request, response, status)
+	}
+	if !result.ResultObservedAt.After(result.AckObservedAt) {
+		t.Fatalf("result_observed_at = %s must be after ack_observed_at %s", result.ResultObservedAt, result.AckObservedAt)
+	}
+	if result.AutopilotVersion.Message != "AUTOPILOT_VERSION" ||
+		result.AutopilotVersion.MessageID != request.RequestedMessageID ||
+		result.AutopilotVersion.FlightSWVersion.Text == "" ||
+		result.AutopilotVersion.UID == "" ||
+		result.AutopilotVersion.UID2Hex == "" {
+		t.Fatalf("AUTOPILOT_VERSION payload = %+v", result.AutopilotVersion)
+	}
 }
 
 func requireMAVLinkTarget(t *testing.T, fields mavlinkFields, request semLinkReadbackRequestFixture) {

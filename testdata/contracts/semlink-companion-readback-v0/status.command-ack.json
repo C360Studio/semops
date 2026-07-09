@@ -1,0 +1,26 @@
+{
+  "contract": "c360.semops.semlink.ardupilot.readback.v0",
+  "evidence_type": "command_ack_status",
+  "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+  "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+  "companion_node_id": "blue-boat-01",
+  "target_system_id": 42,
+  "target_component_id": 1,
+  "command_id": 512,
+  "requested_message_id": 148,
+  "requested_at": "2026-07-07T18:30:00Z",
+  "ack_observed_at": "2026-07-07T18:30:01Z",
+  "status": "accepted",
+  "ack": {
+    "message": "COMMAND_ACK",
+    "command_id": 512,
+    "result": "MAV_RESULT_ACCEPTED",
+    "result_code": 0,
+    "progress": 100,
+    "target_system_id": 42,
+    "target_component_id": 1
+  },
+  "native_execution_allowed": false,
+  "companion_transmit_allowed": false,
+  "source_ref": "semlink://blue-boat-01/ardupilot/system-42/command-ack/request-autopilot-version"
+}

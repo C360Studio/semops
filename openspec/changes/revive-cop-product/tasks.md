@@ -278,6 +278,8 @@
       performs no second graph write
 - [x] 5.133 Clarify BlueOS as an optional SemLink deployment profile while keeping native MAVLink/SITL evidence as the
       SemLink-to-SemOps compatibility boundary
+- [x] 5.134 Publish structured SemLink `COMMAND_ACK` and `AUTOPILOT_VERSION` result evidence fixtures while keeping
+      ACK status separate from observation/readback payloads
 
 ## 6. Structural COP Stack
 

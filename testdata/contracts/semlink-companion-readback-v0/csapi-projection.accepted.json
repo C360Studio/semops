@@ -85,6 +85,23 @@
         "native_execution_allowed": false,
         "companion_transmit_allowed": false
       }
+    },
+    {
+      "id": "c360.edge.cop.command.task.semlink-blue-boat-01-autopilot-version/events/command-ack",
+      "system_id": "c360.edge.cop.mavlink.asset.system-42",
+      "event_type": "mavlink.command_ack",
+      "maps_to": "CS API SystemEvent",
+      "status": "accepted",
+      "observed_at": "2026-07-07T18:30:01Z",
+      "payload": {
+        "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+        "idempotency_key": "idem-blue-boat-01-autopilot-version-001",
+        "command_id": 512,
+        "requested_message_id": 148,
+        "result": "MAV_RESULT_ACCEPTED",
+        "result_code": 0,
+        "progress": 100
+      }
     }
   ],
   "observations": [
@@ -93,18 +110,33 @@
       "system_id": "c360.edge.cop.mavlink.asset.system-42",
       "observed_property": "AUTOPILOT_VERSION",
       "maps_to": "CS API Observation",
-      "deferred": true,
-      "reason": "SemLink does not yet emit structured decoded AUTOPILOT_VERSION evidence."
+      "observed_at": "2026-07-07T18:30:02Z",
+      "correlation_id": "corr-blue-boat-01-autopilot-version-001",
+      "source_ref": "semlink://blue-boat-01/ardupilot/system-42/autopilot-version",
+      "deferred": false,
+      "result": {
+        "message": "AUTOPILOT_VERSION",
+        "message_id": 148,
+        "capabilities_raw": 8200,
+        "flight_sw_version": {
+          "raw": 67438591,
+          "major": 4,
+          "minor": 5,
+          "patch": 7,
+          "release_type": "official",
+          "text": "4.5.7"
+        },
+        "board_version": 123,
+        "vendor_id": 1209,
+        "product_id": 1,
+        "uid": "0x000000000000002a"
+      }
     }
   ],
   "deferred_surfaces": [
     {
       "name": "csapi.command-status-egress",
       "reason": "Admission status is projected as a SystemEvent for MVP; durable CS API Command Status publication waits for command lifecycle/status egress."
-    },
-    {
-      "name": "csapi.autopilot-version-observation",
-      "reason": "Decoded AUTOPILOT_VERSION observation waits for SemLink structured payload evidence."
     },
     {
       "name": "csapi.raw-mavlink-transport",
