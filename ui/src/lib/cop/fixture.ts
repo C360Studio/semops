@@ -375,6 +375,9 @@ export const fixtureSnapshot: Snapshot = {
       vehicle_count: 3,
       expected_summaries: 3,
       assertion_state: 'passed',
+      source_fidelity: 'fixture',
+      live_source_summary: '3 SemLink nodes; deterministic fixture evidence; 0 SITL-backed nodes',
+      sitl_backed_nodes: 0,
       no_transmit_posture:
         'demo evidence only; no native transmit authority; no companion hardware transmit authority; raw MAVLink excluded from mesh summaries; SemOps exposes no mesh topology controls',
       raw_mavlink_excluded: true,
@@ -394,7 +397,9 @@ export const fixtureSnapshot: Snapshot = {
           watermark_count: 3,
           applied_diff_count: 2,
           diff_item_count: 2,
-          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded'
+          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded',
+          source_fidelity: 'deterministic',
+          live_source_posture: 'deterministic SemLink fixture summary evidence'
         },
         {
           id: 'semlink-node-bravo',
@@ -405,7 +410,9 @@ export const fixtureSnapshot: Snapshot = {
           watermark_count: 3,
           applied_diff_count: 2,
           diff_item_count: 2,
-          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded'
+          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded',
+          source_fidelity: 'deterministic',
+          live_source_posture: 'deterministic SemLink fixture summary evidence'
         },
         {
           id: 'semlink-node-charlie',
@@ -416,7 +423,9 @@ export const fixtureSnapshot: Snapshot = {
           watermark_count: 3,
           applied_diff_count: 2,
           diff_item_count: 2,
-          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded'
+          ttl_merge_posture: 'bounded TTL summary merge; raw MAVLink frames excluded',
+          source_fidelity: 'deterministic',
+          live_source_posture: 'deterministic SemLink fixture summary evidence'
         }
       ],
       readback: {

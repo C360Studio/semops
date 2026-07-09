@@ -390,7 +390,12 @@
               >
                 <Activity size={16} />
                 <span>{fleet.label}</span>
-                <small>{fleet.node_count} nodes</small>
+                <small>
+                  {fleet.node_count} nodes
+                  {#if (fleet.sitl_backed_nodes ?? 0) > 0}
+                    / {fleet.sitl_backed_nodes} SITL
+                  {/if}
+                </small>
               </button>
             {/each}
           </section>
@@ -541,6 +546,40 @@
           <dt>Assertions</dt>
           <dd>{entity.assertion_state}</dd>
         </div>
+        {#if entity.source_fidelity}
+          <div>
+            <dt>Fidelity</dt>
+            <dd>{entity.source_fidelity}</dd>
+          </div>
+        {/if}
+        {#if entity.live_source_summary}
+          <div>
+            <dt>Live source</dt>
+            <dd>{entity.live_source_summary}</dd>
+          </div>
+        {/if}
+        <div>
+          <dt>SITL nodes</dt>
+          <dd>{entity.sitl_backed_nodes ?? 0}</dd>
+        </div>
+        {#if entity.semlink_version || entity.semlink_commit}
+          <div>
+            <dt>SemLink build</dt>
+            <dd>{entity.semlink_version || entity.semlink_commit}</dd>
+          </div>
+        {/if}
+        {#if entity.generator_profile}
+          <div>
+            <dt>Generator</dt>
+            <dd>{entity.generator_profile}</dd>
+          </div>
+        {/if}
+        {#if entity.simulator_family}
+          <div>
+            <dt>Simulator</dt>
+            <dd>{entity.simulator_family}</dd>
+          </div>
+        {/if}
         <div>
           <dt>Raw MAVLink</dt>
           <dd>{entity.raw_mavlink_excluded ? 'excluded from mesh summaries' : 'exclusion not proven'}</dd>
@@ -598,6 +637,9 @@
           <div class="companion-node-card">
             <strong>{node.id}</strong>
             <span>
+              {#if node.source_fidelity}
+                {node.source_fidelity} /
+              {/if}
               {node.vehicle_count} {node.vehicle_count === 1 ? 'vehicle' : 'vehicles'} /
               {node.peer_count} peers /
               {node.watermark_count ?? 0} watermarks
@@ -608,6 +650,21 @@
             </small>
             {#if node.ttl_merge_posture}
               <small>{node.ttl_merge_posture}</small>
+            {/if}
+            {#if node.live_source_posture}
+              <small>{node.live_source_posture}</small>
+            {/if}
+            {#if node.simulator_family || node.vehicle_source || node.mavlink_system_id}
+              <small>
+                {node.simulator_family ?? 'source'} /
+                {node.vehicle_source ?? 'vehicle source unavailable'}
+                {#if node.mavlink_system_id}
+                  / system {node.mavlink_system_id}
+                {/if}
+              </small>
+            {/if}
+            {#if node.route}
+              <small>{node.route}</small>
             {/if}
           </div>
         {/each}

@@ -2061,6 +2061,8 @@ func TestConfigFromEnv(t *testing.T) {
 		EnvCOPCoTUIDs:                    "ANDROID-ALPHA, MARKER-NORTH-GATE",
 		EnvCOPCAPAlertIDs:                "nws-demo-flood-warning, nws-demo-flood-update",
 		EnvCOPOperatorIdentityMode:       COPOperatorIdentityModeTrustedHeaders,
+		EnvCOPSemLinkArtifactPath:        "/tmp/semlink-generated-artifact.json",
+		EnvCOPSemLinkArtifactMaxAge:      "5m",
 		EnvMAVLinkEnabled:                "false",
 		EnvMAVLinkSource:                 "udp:14550",
 		EnvOrg:                           "lab",
@@ -2199,6 +2201,12 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if cfg.COP.SemLinkReadbackWriteTimeout != 1750*time.Millisecond {
 		t.Fatalf("COP SemLink readback write timeout = %s", cfg.COP.SemLinkReadbackWriteTimeout)
+	}
+	if cfg.COP.SemLinkArtifactPath != "/tmp/semlink-generated-artifact.json" {
+		t.Fatalf("COP SemLink artifact path = %q", cfg.COP.SemLinkArtifactPath)
+	}
+	if cfg.COP.SemLinkArtifactMaxAge != 5*time.Minute {
+		t.Fatalf("COP SemLink artifact max age = %s", cfg.COP.SemLinkArtifactMaxAge)
 	}
 	if cfg.MAVLink.Enabled {
 		t.Fatal("MAVLink enabled = true, want false")
@@ -2516,6 +2524,16 @@ func TestConfigFromEnvReportsBadValues(t *testing.T) {
 			name: "zero semlink readback write timeout",
 			env:  map[string]string{EnvCOPSemLinkReadbackWriteTimeout: "0s"},
 			want: EnvCOPSemLinkReadbackWriteTimeout,
+		},
+		{
+			name: "bad semlink artifact max age",
+			env:  map[string]string{EnvCOPSemLinkArtifactMaxAge: "soon"},
+			want: EnvCOPSemLinkArtifactMaxAge,
+		},
+		{
+			name: "negative semlink artifact max age",
+			env:  map[string]string{EnvCOPSemLinkArtifactMaxAge: "-1s"},
+			want: EnvCOPSemLinkArtifactMaxAge,
 		},
 		{
 			name: "semlink readback requires trusted headers",

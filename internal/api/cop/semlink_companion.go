@@ -22,6 +22,8 @@ func CompanionFleetFromSemLinkDemoReport(report semlinkdemo.Report) CompanionFle
 			AppliedDiffCount:    node.AppliedDiffCount,
 			DiffItemCount:       node.DiffItemCount,
 			TTLMergePosture:     node.TTLMergePosture,
+			SourceFidelity:      semlinkdemo.FidelityDeterministic,
+			LiveSourcePosture:   "deterministic SemLink fixture summary evidence",
 		})
 	}
 
@@ -40,6 +42,8 @@ func CompanionFleetFromSemLinkDemoReport(report semlinkdemo.Report) CompanionFle
 		VehicleCount:       report.VehicleCount(),
 		ExpectedSummaries:  report.ExpectedSummaries,
 		AssertionState:     semLinkAssertionState(report),
+		SourceFidelity:     semlinkdemo.FidelityFixture,
+		LiveSourceSummary:  semLinkLiveSourceSummary(report.NodeCount(), 0, semlinkdemo.FidelityFixture, ""),
 		NoTransmitPosture:  semLinkNoTransmitPosture(report),
 		RawMAVLinkExcluded: report.RawMAVLinkExcluded(),
 		RawMAVLinkPolicy:   rawPolicy,
@@ -67,6 +71,63 @@ func CompanionFleetFromSemLinkDemoReport(report semlinkdemo.Report) CompanionFle
 	return fleet
 }
 
+func CompanionFleetFromSemLinkArtifact(artifact semlinkdemo.Artifact) CompanionFleet {
+	fleet := CompanionFleetFromSemLinkDemoReport(artifact.Report)
+	source := artifact.Source
+	sourceFidelity := semlinkdemo.NormalizeFidelity(source.SourceFidelity)
+	if sourceFidelity == "" {
+		sourceFidelity = semlinkdemo.FidelityGenerated
+	}
+	fleet.SourceFidelity = sourceFidelity
+	fleet.SemLinkVersion = source.SemLinkVersion
+	fleet.SemLinkCommit = source.SemLinkCommit
+	fleet.GeneratorCommand = source.GeneratorCommand
+	fleet.GeneratorProfile = source.GeneratorProfile
+	fleet.SimulatorFamily = source.SimulatorFamily
+	fleet.UpdatedAt = artifact.GeneratedAt
+	fleet.DemoEvidenceLabel = semLinkArtifactEvidenceLabel(artifact)
+	fleet.NoTransmitPosture = semLinkAppendUniquePosture(fleet.NoTransmitPosture, source.NoTransmitPosture)
+	fleet.Provenance = Provenance{
+		Owner:     "semlink.generated.artifact",
+		SourceRef: fmt.Sprintf("semlink-artifact://%s/%s/%s", artifact.ArtifactKind, artifact.Report.Kind, artifact.GeneratedAt.Format("20060102T150405Z")),
+		Observed:  artifact.GeneratedAt,
+	}
+
+	sourceByNode := make(map[string]semlinkdemo.NodeSource, len(source.Nodes))
+	for _, node := range source.Nodes {
+		sourceByNode[node.NodeID] = node
+	}
+	var sitlNodes int
+	for index := range fleet.Nodes {
+		node := &fleet.Nodes[index]
+		nodeSource, ok := sourceByNode[node.ID]
+		if !ok {
+			node.SourceFidelity = sourceFidelity
+			node.LiveSourcePosture = semLinkNodeSourcePosture(semlinkdemo.NodeSource{
+				NodeID:         node.ID,
+				SourceFidelity: sourceFidelity,
+			})
+			continue
+		}
+		nodeFidelity := semlinkdemo.NormalizeFidelity(nodeSource.SourceFidelity)
+		if nodeFidelity == "" {
+			nodeFidelity = sourceFidelity
+		}
+		node.SourceFidelity = nodeFidelity
+		node.SimulatorFamily = nodeSource.SimulatorFamily
+		node.VehicleSource = nodeSource.VehicleSource
+		node.MAVLinkSystemID = nodeSource.MAVLinkSystemID
+		node.Route = nodeSource.Route
+		node.LiveSourcePosture = semLinkNodeSourcePosture(nodeSource)
+		if nodeFidelity == semlinkdemo.FidelitySITLBacked {
+			sitlNodes++
+		}
+	}
+	fleet.SITLBackedNodes = sitlNodes
+	fleet.LiveSourceSummary = semLinkLiveSourceSummary(fleet.NodeCount, sitlNodes, sourceFidelity, source.SimulatorFamily)
+	return fleet
+}
+
 func semLinkFleetID(kind string) string {
 	switch kind {
 	case semlinkdemo.SingleNodeReportKind:
@@ -76,6 +137,98 @@ func semLinkFleetID(kind string) string {
 	default:
 		return "c360.edge.cop.semlink.fleet.demo"
 	}
+}
+
+func semLinkArtifactEvidenceLabel(artifact semlinkdemo.Artifact) string {
+	sitlNodes := semLinkSITLNodeCount(artifact.Source.Nodes)
+	if sitlNodes > 0 {
+		return fmt.Sprintf(
+			"SemLink-generated mixed-fidelity evidence with %d ArduPilot SITL-backed %s; not live BlueOS, not Navigator, not hardware, not radio, and not n live ArduPilot vehicles",
+			sitlNodes,
+			semLinkNodeWord(sitlNodes),
+		)
+	}
+	if semlinkdemo.NormalizeFidelity(artifact.Source.SourceFidelity) == semlinkdemo.FidelityHardwareAdjacent {
+		return "SemLink-generated hardware-adjacent evidence; not BlueOS, Navigator, radio, or mesh reliability evidence unless separately proven"
+	}
+	return "SemLink-generated deterministic demo evidence; not live BlueOS, Navigator, hardware, radio, or mesh reliability evidence"
+}
+
+func semLinkLiveSourceSummary(nodeCount int, sitlNodes int, sourceFidelity string, simulatorFamily string) string {
+	if sitlNodes > 0 {
+		family := semLinkFirstNonEmpty(simulatorFamily, "ArduPilot")
+		return fmt.Sprintf(
+			"%d SemLink nodes; %d SITL-backed %s %s; remaining nodes are deterministic companion summary evidence",
+			nodeCount,
+			sitlNodes,
+			family,
+			semLinkNodeWord(sitlNodes),
+		)
+	}
+	switch semlinkdemo.NormalizeFidelity(sourceFidelity) {
+	case semlinkdemo.FidelityFixture:
+		return fmt.Sprintf("%d SemLink nodes; deterministic fixture evidence; 0 SITL-backed nodes", nodeCount)
+	case semlinkdemo.FidelityGenerated:
+		return fmt.Sprintf("%d SemLink nodes; SemLink-generated deterministic evidence; 0 SITL-backed nodes", nodeCount)
+	case semlinkdemo.FidelityHardwareAdjacent:
+		return fmt.Sprintf("%d SemLink nodes; hardware-adjacent source evidence; 0 SITL-backed nodes", nodeCount)
+	default:
+		return fmt.Sprintf("%d SemLink nodes; %s evidence; 0 SITL-backed nodes", nodeCount, sourceFidelity)
+	}
+}
+
+func semLinkNodeSourcePosture(source semlinkdemo.NodeSource) string {
+	fidelity := semlinkdemo.NormalizeFidelity(source.SourceFidelity)
+	switch fidelity {
+	case semlinkdemo.FidelitySITLBacked:
+		return fmt.Sprintf(
+			"SITL-backed %s source; MAVLink system %d; no hardware transmit claim",
+			semLinkFirstNonEmpty(source.SimulatorFamily, "simulator"),
+			source.MAVLinkSystemID,
+		)
+	case semlinkdemo.FidelityDeterministic:
+		return "deterministic SemLink companion summary evidence"
+	case semlinkdemo.FidelityFixture:
+		return "committed SemOps fixture evidence"
+	case semlinkdemo.FidelityHardwareAdjacent:
+		return "hardware-adjacent source evidence; requires separate field acceptance"
+	case semlinkdemo.FidelityGenerated:
+		return "SemLink-generated companion summary evidence"
+	default:
+		return semLinkFirstNonEmpty(fidelity, "unknown source fidelity")
+	}
+}
+
+func semLinkSITLNodeCount(nodes []semlinkdemo.NodeSource) int {
+	var count int
+	for _, node := range nodes {
+		if semlinkdemo.NormalizeFidelity(node.SourceFidelity) == semlinkdemo.FidelitySITLBacked {
+			count++
+		}
+	}
+	return count
+}
+
+func semLinkAppendUniquePosture(base string, extra string) string {
+	base = strings.TrimSpace(base)
+	extra = strings.TrimSpace(extra)
+	if extra == "" {
+		return base
+	}
+	if base == "" {
+		return extra
+	}
+	if strings.Contains(base, extra) {
+		return base
+	}
+	return base + "; " + extra
+}
+
+func semLinkNodeWord(count int) string {
+	if count == 1 {
+		return "node"
+	}
+	return "nodes"
 }
 
 func semLinkFleetLabel(report semlinkdemo.Report) string {

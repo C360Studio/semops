@@ -287,6 +287,14 @@ export type CompanionFleet = {
   vehicle_count: number;
   expected_summaries?: number;
   assertion_state: string;
+  source_fidelity?: string;
+  live_source_summary?: string;
+  sitl_backed_nodes?: number;
+  semlink_version?: string;
+  semlink_commit?: string;
+  generator_command?: string;
+  generator_profile?: string;
+  simulator_family?: string;
   no_transmit_posture: string;
   raw_mavlink_excluded: boolean;
   raw_mavlink_policy?: string;
@@ -311,6 +319,12 @@ export type CompanionNode = {
   applied_diff_count?: number;
   diff_item_count?: number;
   ttl_merge_posture?: string;
+  source_fidelity?: string;
+  live_source_posture?: string;
+  simulator_family?: string;
+  vehicle_source?: string;
+  mavlink_system_id?: number;
+  route?: string;
 };
 
 export type CompanionReadback = {

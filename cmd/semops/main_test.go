@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -203,6 +204,35 @@ func TestSemLinkReadbackHandlerOptionDisabledByDefault(t *testing.T) {
 	}
 	if option != nil {
 		t.Fatal("option != nil, want disabled default")
+	}
+}
+
+func TestSemLinkArtifactSnapshotProviderLoadsConfiguredPath(t *testing.T) {
+	now := time.Date(2026, 7, 9, 12, 6, 0, 0, time.UTC)
+	cfg := semopsapp.DefaultConfig()
+	cfg.COP.SemLinkArtifactPath = filepath.Join(
+		"..",
+		"..",
+		"testdata",
+		"contracts",
+		"semlink-companion-demo-v0",
+		"generated-mixed-sitl.artifact.json",
+	)
+
+	provider, err := semLinkArtifactSnapshotProvider(cfg, copapi.NewFixtureProvider(func() time.Time { return now }))
+	if err != nil {
+		t.Fatalf("artifact snapshot provider: %v", err)
+	}
+	snapshot, err := provider.Snapshot(t.Context())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if len(snapshot.CompanionFleets) != 1 {
+		t.Fatalf("companion fleets = %d, want 1", len(snapshot.CompanionFleets))
+	}
+	fleet := snapshot.CompanionFleets[0]
+	if fleet.SourceFidelity != "generated" || fleet.SITLBackedNodes != 1 {
+		t.Fatalf("fleet = %+v", fleet)
 	}
 }
 

@@ -118,6 +118,8 @@ const (
 	EnvCOPCoTUIDs                    = "SEMOPS_COP_COT_UIDS"
 	EnvCOPCAPAlertIDs                = "SEMOPS_COP_CAP_ALERT_IDS"
 	EnvCOPOperatorIdentityMode       = "SEMOPS_COP_OPERATOR_IDENTITY_MODE"
+	EnvCOPSemLinkArtifactPath        = "SEMOPS_COP_SEMLINK_ARTIFACT_PATH"
+	EnvCOPSemLinkArtifactMaxAge      = "SEMOPS_COP_SEMLINK_ARTIFACT_MAX_AGE"
 )
 
 const (
@@ -344,6 +346,8 @@ type COPConfig struct {
 	CoTUIDs                     []string
 	CAPAlertIDs                 []string
 	OperatorIdentityMode        string
+	SemLinkArtifactPath         string
+	SemLinkArtifactMaxAge       time.Duration
 	SemLinkReadbackEnabled      bool
 	SemLinkReadbackWriteTimeout time.Duration
 }
@@ -570,6 +574,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	setString(getenv, EnvWeatherFixturePath, &cfg.Weather.FixturePath)
 	setString(getenv, EnvFusionCandidateSubject, &cfg.Fusion.CandidateSubject)
 	setString(getenv, EnvCOPOperatorIdentityMode, &cfg.COP.OperatorIdentityMode)
+	setString(getenv, EnvCOPSemLinkArtifactPath, &cfg.COP.SemLinkArtifactPath)
 	setString(getenv, EnvOrg, &cfg.MAVLink.Org)
 	setString(getenv, EnvOrg, &cfg.CoT.Org)
 	setString(getenv, EnvOrg, &cfg.CAP.Org)
@@ -768,6 +773,13 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		getenv,
 		EnvCOPSemLinkReadbackWriteTimeout,
 		cfg.COP.SemLinkReadbackWriteTimeout,
+	); err != nil {
+		return Config{}, err
+	}
+	if cfg.COP.SemLinkArtifactMaxAge, err = durationFromEnv(
+		getenv,
+		EnvCOPSemLinkArtifactMaxAge,
+		cfg.COP.SemLinkArtifactMaxAge,
 	); err != nil {
 		return Config{}, err
 	}
@@ -1072,6 +1084,9 @@ func (c Config) Validate() error {
 	}
 	if c.COP.SemLinkReadbackWriteTimeout <= 0 {
 		return fmt.Errorf("%s must be greater than zero", EnvCOPSemLinkReadbackWriteTimeout)
+	}
+	if c.COP.SemLinkArtifactMaxAge < 0 {
+		return fmt.Errorf("%s must be non-negative", EnvCOPSemLinkArtifactMaxAge)
 	}
 	if c.COP.SemLinkReadbackEnabled && c.COP.OperatorIdentityMode != COPOperatorIdentityModeTrustedHeaders {
 		return fmt.Errorf(

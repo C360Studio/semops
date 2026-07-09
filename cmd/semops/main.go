@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	_ "github.com/c360studio/semops" // Import for documentation
+	"github.com/c360studio/semops/internal/adapters/semlinkdemo"
 	copapi "github.com/c360studio/semops/internal/api/cop"
 	semopsapp "github.com/c360studio/semops/internal/app"
 	"github.com/c360studio/semops/internal/componentmetrics"
@@ -133,6 +135,10 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 			reviewStore = graphReviewStore
 		}
 	}
+	provider, err := semLinkArtifactSnapshotProvider(cfg, provider)
+	if err != nil {
+		return nil, err
+	}
 	handlerOptions := []copapi.Option{copapi.WithAssociationReviewStore(reviewStore)}
 	if runtime != nil {
 		handlerOptions = append(handlerOptions, copapi.WithRuntimeProvider(runtime))
@@ -178,6 +184,24 @@ func startAPIServer(cfg semopsapp.Config, runtime *semopsapp.App) (*http.Server,
 		}
 	}()
 	return server, nil
+}
+
+func semLinkArtifactSnapshotProvider(
+	cfg semopsapp.Config,
+	fallback copapi.SnapshotProvider,
+) (copapi.SnapshotProvider, error) {
+	path := strings.TrimSpace(cfg.COP.SemLinkArtifactPath)
+	if path == "" {
+		return fallback, nil
+	}
+	provider, err := copapi.NewSemLinkArtifactProviderFromFile(path, fallback, semlinkdemo.ArtifactOptions{
+		Now:    time.Now,
+		MaxAge: cfg.COP.SemLinkArtifactMaxAge,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("load %s: %w", semopsapp.EnvCOPSemLinkArtifactPath, err)
+	}
+	return provider, nil
 }
 
 func semLinkReadbackHandlerOption(

@@ -25,6 +25,46 @@ const adsbTrack = {
   }
 };
 
+const generatedCompanionFleets = fixtureSnapshot.companion_fleets.map((fleet) => ({
+  ...fleet,
+  source_fidelity: 'generated',
+  live_source_summary:
+    '3 SemLink nodes; 1 SITL-backed ardupilot node; remaining nodes are deterministic companion summary evidence',
+  sitl_backed_nodes: 1,
+  semlink_version: 'v0.0.0-e2e',
+  semlink_commit: 'semlink-demo-local',
+  generator_profile: 'ardurover-sitl-mixed',
+  simulator_family: 'ardupilot',
+  no_transmit_posture:
+    `${fleet.no_transmit_posture}; SemLink-generated artifact; no native SemOps transmit authority; no companion hardware transmit authority; ArduPilot SITL is simulator-only proof`,
+  demo_evidence_label:
+    'SemLink-generated mixed-fidelity evidence with 1 ArduPilot SITL-backed node; not live BlueOS, not Navigator, not hardware, not radio, and not n live ArduPilot vehicles',
+  provenance: {
+    ...fleet.provenance,
+    owner: 'semlink.generated.artifact',
+    source_ref: 'semlink-artifact://semlink-companion-demo-artifact-v0/simple-mesh-companion-demo/20260709T120500Z',
+    observed_at: '2026-07-09T12:05:00Z'
+  },
+  nodes: fleet.nodes.map((node, index) =>
+    index === 0
+      ? {
+          ...node,
+          source_fidelity: 'sitl-backed',
+          live_source_posture: 'SITL-backed ardupilot source; MAVLink system 42; no hardware transmit claim',
+          simulator_family: 'ardupilot',
+          vehicle_source: 'ArduRover SITL without Gazebo',
+          mavlink_system_id: 42,
+          route: 'udp://semlink-node-alpha:14550'
+        }
+      : {
+          ...node,
+          source_fidelity: 'deterministic',
+          live_source_posture: 'deterministic SemLink companion summary evidence',
+          vehicle_source: 'SemLink deterministic companion summary'
+        }
+  )
+}));
+
 const snapshotWithADSB: Snapshot = {
   ...fixtureSnapshot,
   generated_at: '2026-06-21T16:21:00Z',
@@ -102,7 +142,8 @@ const snapshotWithADSB: Snapshot = {
         }
       : feed
   ),
-  tracks: [...fixtureSnapshot.tracks, adsbTrack]
+  tracks: [...fixtureSnapshot.tracks, adsbTrack],
+  companion_fleets: generatedCompanionFleets
 };
 
 const runtimeSnapshot: RuntimeSnapshot = {
@@ -355,9 +396,11 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(associationRow).toContainText('ambiguous evidence');
   await expect(page.getByLabel('SemLink companion fleet evidence')).toContainText('SemLink companion fleet');
   await expect(page.getByLabel('SemLink companion fleet evidence')).toContainText('3 nodes');
+  await expect(page.getByLabel('SemLink companion fleet evidence')).toContainText('1 SITL');
   const companionFleetRow = page.getByRole('button', { name: 'Inspect SemLink companion fleet' });
   await expect(companionFleetRow).toBeVisible();
   await expect(companionFleetRow).toContainText('3 nodes');
+  await expect(companionFleetRow).toContainText('1 SITL');
   await expect(page.getByLabel('SAPIENT source state')).toBeVisible();
   await expect(page.getByLabel('SAPIENT runtime flow')).toContainText('2/2 healthy');
   await expect(page.getByRole('button', { name: 'Select N123AB' })).toBeVisible();
@@ -366,14 +409,21 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await expect(page.getByRole('heading', { name: 'SemLink companion fleet' })).toBeVisible();
   await expect(page.getByLabel('Entity inspector')).toContainText('simple-mesh-companion-demo');
   await expect(page.getByLabel('Entity inspector')).toContainText('ardurover-blueboat');
+  await expect(page.getByLabel('Entity inspector')).toContainText('generated');
+  await expect(page.getByLabel('Entity inspector')).toContainText('1 SITL-backed ardupilot node');
+  await expect(page.getByLabel('Entity inspector')).toContainText('ardurover-sitl-mixed');
   await expect(page.getByLabel('Entity inspector')).toContainText('semlink-node-alpha');
   await expect(page.getByLabel('Entity inspector')).toContainText('semlink-node-bravo');
   await expect(page.getByLabel('Entity inspector')).toContainText('semlink-node-charlie');
+  await expect(page.getByLabel('Entity inspector')).toContainText('sitl-backed');
+  await expect(page.getByLabel('Entity inspector')).toContainText('ArduRover SITL without Gazebo');
+  await expect(page.getByLabel('Entity inspector')).toContainText('MAVLink system 42');
   await expect(page.getByLabel('Entity inspector')).toContainText('3 watermarks');
   await expect(page.getByLabel('Entity inspector')).toContainText('no native transmit authority');
   await expect(page.getByLabel('Entity inspector')).toContainText('no companion hardware transmit authority');
   await expect(page.getByLabel('Entity inspector')).toContainText('raw MAVLink excluded from mesh summaries');
   await expect(page.getByLabel('Entity inspector')).toContainText('not live BlueOS');
+  await expect(page.getByLabel('Entity inspector')).toContainText('not n live ArduPilot vehicles');
   await expect(page.getByLabel('Entity inspector')).toContainText('not allowed');
   await expect(page.getByLabel('Entity inspector')).toContainText('unavailable');
 

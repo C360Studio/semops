@@ -216,6 +216,14 @@ type CompanionFleet struct {
 	VehicleCount        int                          `json:"vehicle_count"`
 	ExpectedSummaries   int                          `json:"expected_summaries,omitempty"`
 	AssertionState      string                       `json:"assertion_state"`
+	SourceFidelity      string                       `json:"source_fidelity,omitempty"`
+	LiveSourceSummary   string                       `json:"live_source_summary,omitempty"`
+	SITLBackedNodes     int                          `json:"sitl_backed_nodes,omitempty"`
+	SemLinkVersion      string                       `json:"semlink_version,omitempty"`
+	SemLinkCommit       string                       `json:"semlink_commit,omitempty"`
+	GeneratorCommand    string                       `json:"generator_command,omitempty"`
+	GeneratorProfile    string                       `json:"generator_profile,omitempty"`
+	SimulatorFamily     string                       `json:"simulator_family,omitempty"`
 	NoTransmitPosture   string                       `json:"no_transmit_posture"`
 	RawMAVLinkExcluded  bool                         `json:"raw_mavlink_excluded"`
 	RawMAVLinkPolicy    string                       `json:"raw_mavlink_policy,omitempty"`
@@ -240,6 +248,12 @@ type CompanionNode struct {
 	AppliedDiffCount    int    `json:"applied_diff_count,omitempty"`
 	DiffItemCount       int    `json:"diff_item_count,omitempty"`
 	TTLMergePosture     string `json:"ttl_merge_posture,omitempty"`
+	SourceFidelity      string `json:"source_fidelity,omitempty"`
+	LiveSourcePosture   string `json:"live_source_posture,omitempty"`
+	SimulatorFamily     string `json:"simulator_family,omitempty"`
+	VehicleSource       string `json:"vehicle_source,omitempty"`
+	MAVLinkSystemID     int    `json:"mavlink_system_id,omitempty"`
+	Route               string `json:"route,omitempty"`
 }
 
 type CompanionReadback struct {
