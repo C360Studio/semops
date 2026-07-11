@@ -72,6 +72,16 @@ func TestParseArtifactRejectsStaleArtifactWhenFreshnessConfigured(t *testing.T) 
 	}
 }
 
+func TestParseArtifactRejectsEnvelopeReportGeneratedAtMismatch(t *testing.T) {
+	raw := string(mustReadArtifactFixture(t, "generated-mixed-sitl.artifact.json"))
+	raw = strings.Replace(raw, "\"generated_at\": \"2026-07-09T12:05:00Z\"", "\"generated_at\": \"2026-07-09T12:04:59Z\"", 1)
+
+	_, err := ParseArtifact([]byte(raw), ArtifactOptions{})
+	if err == nil || !strings.Contains(err.Error(), "does not match report generated_at") {
+		t.Fatalf("err = %v, want generated_at mismatch rejection", err)
+	}
+}
+
 func TestParseArtifactRejectsSITLClaimWithoutNodeSimulatorMetadata(t *testing.T) {
 	raw := string(mustReadArtifactFixture(t, "generated-mixed-sitl.artifact.json"))
 	raw = strings.Replace(

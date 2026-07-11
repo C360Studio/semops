@@ -174,6 +174,13 @@ func validateArtifact(artifact Artifact, opts ArtifactOptions, generatedEnvelope
 	}
 	artifact.Source.SourceFidelity = fidelity
 	if generatedEnvelope {
+		if !artifact.GeneratedAt.Equal(artifact.Report.GeneratedAt) {
+			return fmt.Errorf(
+				"semlink demo artifact generated_at %s does not match report generated_at %s",
+				artifact.GeneratedAt.Format(time.RFC3339),
+				artifact.Report.GeneratedAt.Format(time.RFC3339),
+			)
+		}
 		if !hasSemLinkSourceRef(artifact.Source) {
 			return fmt.Errorf("semlink demo artifact source requires semlink_version or semlink_commit")
 		}

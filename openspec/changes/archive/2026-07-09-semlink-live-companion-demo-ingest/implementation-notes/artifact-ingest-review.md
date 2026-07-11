@@ -13,6 +13,11 @@ The artifact envelope records SemLink version or commit, generator command or pr
 no-transmit posture, and per-node source posture. The embedded report remains SemLink's
 `single-node-companion-demo` or `simple-mesh-companion-demo` payload.
 
+For shared demos and release evidence, SemLink should populate `semlink_commit` or `semlink_version` with a real
+source tag or commit instead of a local/dev placeholder. SemOps accepts either field, but generated artifacts must keep
+the envelope `generated_at` equal to the embedded report `generated_at` so freshness checks and provenance refer to one
+coherent evidence run.
+
 ## Source Fidelity
 
 The COP view model now separates:
