@@ -66,19 +66,16 @@ func (p *SemLinkArtifactProvider) Snapshot(ctx context.Context) (Snapshot, error
 
 func replaceCompanionFleet(fleets []CompanionFleet, fleet CompanionFleet) []CompanionFleet {
 	next := make([]CompanionFleet, 0, len(fleets)+1)
-	replaced := false
 	for _, existing := range fleets {
 		if existing.ID == fleet.ID {
-			next = append(next, fleet)
-			replaced = true
+			continue
+		}
+		if existing.Source == "semlink" && fleet.Source == "semlink" {
 			continue
 		}
 		next = append(next, existing)
 	}
-	if !replaced {
-		next = append(next, fleet)
-	}
-	return next
+	return append(next, fleet)
 }
 
 func activeCompanionNodeCount(fleets []CompanionFleet) int {

@@ -156,6 +156,44 @@ func TestSemLinkArtifactProviderOverlaysFixtureFleet(t *testing.T) {
 	}
 }
 
+func TestSemLinkArtifactProviderReplacesFixtureFleetWhenArtifactKindChanges(t *testing.T) {
+	now := time.Date(2026, 7, 11, 15, 1, 0, 0, time.UTC)
+	path := filepath.Join("..", "..", "..", "testdata", "contracts", "semlink-companion-demo-v0", "generated-sitl-single.artifact.json")
+	provider, err := NewSemLinkArtifactProviderFromFile(
+		path,
+		NewFixtureProvider(func() time.Time { return now }),
+		semlinkdemo.ArtifactOptions{
+			Now:    func() time.Time { return now },
+			MaxAge: 5 * time.Minute,
+		},
+	)
+	if err != nil {
+		t.Fatalf("artifact provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(t.Context())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveCompanionNodes != 1 {
+		t.Fatalf("active companion nodes = %d, want 1", snapshot.Summary.ActiveCompanionNodes)
+	}
+	if len(snapshot.CompanionFleets) != 1 {
+		t.Fatalf("companion fleets = %d, want 1", len(snapshot.CompanionFleets))
+	}
+	fleet := snapshot.CompanionFleets[0]
+	if fleet.EvidenceKind != semlinkdemo.SingleNodeReportKind ||
+		fleet.SourceFidelity != semlinkdemo.FidelitySITLBacked ||
+		fleet.SITLBackedNodes != 1 ||
+		fleet.NodeCount != 1 {
+		t.Fatalf("provider fleet = %+v", fleet)
+	}
+	if len(snapshot.Tracks) == 0 || len(snapshot.Tasks) == 0 {
+		t.Fatalf("provider should preserve fallback COP content: tracks=%d tasks=%d", len(snapshot.Tracks), len(snapshot.Tasks))
+	}
+}
+
 func TestFixtureProviderIncludesSemLinkCompanionFleet(t *testing.T) {
 	now := time.Date(2026, 7, 9, 12, 3, 0, 0, time.UTC)
 	snapshot, err := NewFixtureProvider(func() time.Time { return now }).Snapshot(t.Context())

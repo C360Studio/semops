@@ -40,6 +40,35 @@ func TestParseArtifactAcceptsGeneratedMixedSITLArtifact(t *testing.T) {
 	}
 }
 
+func TestParseArtifactAcceptsGeneratedSITLSingleNodeArtifact(t *testing.T) {
+	artifact := mustParseArtifactFixture(t, "generated-sitl-single.artifact.json", ArtifactOptions{})
+
+	if artifact.ArtifactKind != ArtifactKind {
+		t.Fatalf("artifact kind = %q", artifact.ArtifactKind)
+	}
+	if artifact.Source.SourceFidelity != FidelitySITLBacked {
+		t.Fatalf("source fidelity = %q", artifact.Source.SourceFidelity)
+	}
+	if artifact.Source.SemLinkCommit == "" || artifact.Source.GeneratorProfile != "sitl-evidence" {
+		t.Fatalf("source metadata missing: %+v", artifact.Source)
+	}
+	if artifact.Report.Kind != SingleNodeReportKind || artifact.Report.NodeCount() != 1 {
+		t.Fatalf("report = %+v", artifact.Report)
+	}
+	if len(artifact.Source.Nodes) != 1 {
+		t.Fatalf("source nodes = %d, want 1", len(artifact.Source.Nodes))
+	}
+	node := artifact.Source.Nodes[0]
+	if node.NodeID != "semlink-sitl-e2e" ||
+		node.SourceFidelity != FidelitySITLBacked ||
+		node.SimulatorFamily != "ardupilot" ||
+		node.MAVLinkSystemID != 42 ||
+		!strings.Contains(node.VehicleSource, "ArduPilot SITL") ||
+		node.Route != "mavlink-udp-listen=:14550" {
+		t.Fatalf("SITL node metadata = %+v", node)
+	}
+}
+
 func TestParseArtifactWrapsCommittedReportAsFixtureEvidence(t *testing.T) {
 	raw := mustReadArtifactFixture(t, "simple-mesh.report.json")
 	artifact, err := ParseArtifact(raw, ArtifactOptions{})

@@ -37,18 +37,15 @@ func TestSemLinkGeneratedArtifactSmoke(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build COP snapshot from SemLink artifact: %v", err)
 	}
-	if snapshot.Summary.ActiveCompanionNodes < 3 {
-		t.Fatalf("active companion nodes = %d, want at least 3", snapshot.Summary.ActiveCompanionNodes)
+	fleet := generatedSemLinkFleet(t, snapshot.CompanionFleets)
+	if snapshot.Summary.ActiveCompanionNodes != fleet.NodeCount {
+		t.Fatalf("active companion nodes = %d, want artifact fleet node count %d", snapshot.Summary.ActiveCompanionNodes, fleet.NodeCount)
 	}
-	if len(snapshot.CompanionFleets) == 0 {
-		t.Fatal("snapshot has no companion fleet")
-	}
-	fleet := snapshot.CompanionFleets[0]
 	if fleet.Source != "semlink" || fleet.SourceFidelity == "" {
 		t.Fatalf("fleet source metadata = %+v", fleet)
 	}
-	if fleet.NodeCount < 3 || len(fleet.Nodes) < 3 {
-		t.Fatalf("fleet nodes = %d/%d, want at least 3/3", fleet.NodeCount, len(fleet.Nodes))
+	if fleet.NodeCount != artifact.Report.NodeCount() || len(fleet.Nodes) != artifact.Report.NodeCount() {
+		t.Fatalf("fleet nodes = %d/%d, want artifact report node count %d", fleet.NodeCount, len(fleet.Nodes), artifact.Report.NodeCount())
 	}
 	if !fleet.RawMAVLinkExcluded {
 		t.Fatalf("raw MAVLink exclusion not preserved: %+v", fleet.RawMAVLinkExclusion)
@@ -60,6 +57,7 @@ func TestSemLinkGeneratedArtifactSmoke(t *testing.T) {
 		!strings.Contains(fleet.NoTransmitPosture, "no companion") {
 		t.Fatalf("no-transmit posture missing expected boundaries: %q", fleet.NoTransmitPosture)
 	}
+	requireFidelitySpecificSmoke(t, artifact, fleet)
 }
 
 func hasReleaseSourceRef(source semlinkdemo.ArtifactSource) bool {
@@ -78,4 +76,67 @@ func isPlaceholderSourceRef(value string) bool {
 	default:
 		return false
 	}
+}
+
+func generatedSemLinkFleet(t *testing.T, fleets []copapi.CompanionFleet) copapi.CompanionFleet {
+	t.Helper()
+	for _, fleet := range fleets {
+		if fleet.Source == "semlink" && fleet.Provenance.Owner == "semlink.generated.artifact" {
+			return fleet
+		}
+	}
+	t.Fatalf("snapshot has no generated SemLink fleet: %+v", fleets)
+	return copapi.CompanionFleet{}
+}
+
+func requireFidelitySpecificSmoke(t *testing.T, artifact semlinkdemo.Artifact, fleet copapi.CompanionFleet) {
+	t.Helper()
+	switch artifact.Source.SourceFidelity {
+	case semlinkdemo.FidelitySITLBacked:
+		if artifact.Report.Kind != semlinkdemo.SingleNodeReportKind {
+			t.Fatalf("SITL-backed smoke expects single-node report, got %q", artifact.Report.Kind)
+		}
+		if fleet.SITLBackedNodes < 1 {
+			t.Fatalf("SITL-backed artifact produced no SITL-backed COP nodes: %+v", fleet)
+		}
+		requireSITLNodeMetadata(t, fleet)
+	case semlinkdemo.FidelityDeterministic, semlinkdemo.FidelityGenerated:
+		if fleet.SITLBackedNodes != sourceSITLNodeCount(artifact.Source.Nodes) {
+			t.Fatalf("SITL-backed node count = %d, want source metadata count %d", fleet.SITLBackedNodes, sourceSITLNodeCount(artifact.Source.Nodes))
+		}
+	case semlinkdemo.FidelityHardwareAdjacent:
+		t.Fatalf("hardware-adjacent artifact smoke requires a separate acceptance lane: %+v", artifact.Source)
+	default:
+		t.Fatalf("unsupported artifact source fidelity %q", artifact.Source.SourceFidelity)
+	}
+}
+
+func requireSITLNodeMetadata(t *testing.T, fleet copapi.CompanionFleet) {
+	t.Helper()
+	for _, node := range fleet.Nodes {
+		if node.SourceFidelity != semlinkdemo.FidelitySITLBacked {
+			continue
+		}
+		if node.SimulatorFamily == "" ||
+			node.VehicleSource == "" ||
+			node.MAVLinkSystemID <= 0 ||
+			node.Route == "" {
+			t.Fatalf("SITL-backed node metadata incomplete: %+v", node)
+		}
+		if !strings.Contains(node.LiveSourcePosture, "MAVLink system") {
+			t.Fatalf("SITL-backed node posture missing MAVLink system evidence: %+v", node)
+		}
+		return
+	}
+	t.Fatalf("no SITL-backed node found in fleet: %+v", fleet)
+}
+
+func sourceSITLNodeCount(nodes []semlinkdemo.NodeSource) int {
+	var count int
+	for _, node := range nodes {
+		if semlinkdemo.NormalizeFidelity(node.SourceFidelity) == semlinkdemo.FidelitySITLBacked {
+			count++
+		}
+	}
+	return count
 }

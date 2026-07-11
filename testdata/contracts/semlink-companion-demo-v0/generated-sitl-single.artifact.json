@@ -1,0 +1,106 @@
+{
+  "artifact_kind": "semlink-companion-demo-artifact-v0",
+  "generated_at": "2026-07-11T15:00:00Z",
+  "source": {
+    "source_fidelity": "sitl-backed",
+    "semlink_commit": "0123456789abcdef0123456789abcdef01234567",
+    "generator_command": "semlink-demo -mode sitl-artifact -runtime-url http://127.0.0.1:8081 -vehicle-profile ardurover",
+    "generator_profile": "sitl-evidence",
+    "simulator_family": "ardupilot",
+    "no_transmit_posture": "SITL evidence only; SemLink hardware transmit status=blocked runtime_mode=hardware-readonly; no native SemOps transmit authority",
+    "nodes": [
+      {
+        "node_id": "semlink-sitl-e2e",
+        "source_fidelity": "sitl-backed",
+        "simulator_family": "ardupilot",
+        "vehicle_source": "ArduPilot SITL without Gazebo",
+        "mavlink_system_id": 42,
+        "route": "mavlink-udp-listen=:14550"
+      }
+    ]
+  },
+  "report": {
+    "kind": "single-node-companion-demo",
+    "generated_at": "2026-07-11T15:00:00Z",
+    "vehicle_profile": "ardurover",
+    "node": {
+      "node_id": "semlink-sitl-e2e",
+      "vehicle_count": 1,
+      "frame_count": 5,
+      "decoded_count": 5,
+      "graph_entities": 3
+    },
+    "runtime_base_url": "http://127.0.0.1:8081",
+    "probes": [
+      {
+        "path": "/api/evidence",
+        "http_status": 200,
+        "status": "ok",
+        "detail": "semlink.gcs.evidence"
+      }
+    ],
+    "evidence": {
+      "contract": {
+        "name": "semlink.gcs.evidence",
+        "version": "v0"
+      },
+      "generated_at": "2026-07-11T15:00:00Z",
+      "vehicles": [
+        {
+          "entity_id": "vehicle:42",
+          "callsign": "ROVER42",
+          "system_id": 42,
+          "vehicle_type": "ground-rover",
+          "link_status": "online",
+          "last_seen": "2026-07-11T15:00:00Z",
+          "evidence_class": "mavlink-current-state"
+        }
+      ],
+      "mesh": {
+        "status": "single-node",
+        "posture": "mesh disabled; node identity still valid",
+        "summary_count": 1,
+        "watermark_count": 1,
+        "raw_mavlink_replicates_by_default": false,
+        "raw_mavlink_replication_policy": "exclude"
+      }
+    },
+    "command_posture": {
+      "http_status": 409,
+      "status": "blocked",
+      "hardware_blocked": true
+    },
+    "assertions": [
+      {
+        "name": "api-evidence",
+        "passed": true,
+        "detail": "semlink.gcs.evidence"
+      },
+      {
+        "name": "sitl-external-mavlink-input",
+        "passed": true,
+        "detail": "external-mavlink-udp"
+      },
+      {
+        "name": "sitl-vehicle-state",
+        "passed": true,
+        "detail": "vehicles=1 system_id=42"
+      },
+      {
+        "name": "hardware-transmit-blocked",
+        "passed": true,
+        "detail": "blocked"
+      },
+      {
+        "name": "raw-mavlink-excluded",
+        "passed": true,
+        "detail": "exclude"
+      },
+      {
+        "name": "artifact-source-metadata",
+        "passed": true,
+        "detail": "SITL node metadata derived from evidence"
+      }
+    ]
+  }
+}
