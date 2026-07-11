@@ -69,5 +69,6 @@ SemLink should review the envelope fields before its producer lane emits this ar
 - `npm run check`
 - `npm run test`
 - `npm run test:e2e`
+- `SEMOPS_COP_SMOKE_SEMLINK_ARTIFACT_PATH=/private/tmp/semlink-demo-mesh-artifact.json go test ./internal/smoke/cop -run TestSemLinkGeneratedArtifactSmoke -count=1`
 - `openspec validate semlink-live-companion-demo-ingest --strict`
 - `openspec validate --all --strict`
