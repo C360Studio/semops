@@ -25,6 +25,21 @@ const adsbTrack = {
   }
 };
 
+const mixedSITLNoTransmitPosture =
+  'SemLink-generated artifact; no native SemOps transmit authority; ' +
+  'no companion hardware transmit authority; ArduPilot SITL is simulator-only proof';
+const mixedSITLEvidenceLabel =
+  'SemLink-generated mixed-fidelity evidence with 1 ArduPilot SITL-backed node; ' +
+  'not live BlueOS, not Navigator, not hardware, not radio, and not n live ArduPilot vehicles';
+const oneToOneMeshLiveSummary =
+  '3 SemLink nodes; SemLink-generated deterministic evidence; 0 SITL-backed nodes';
+const oneToOneMeshNoTransmitPosture =
+  'SemLink companion demo artifact; no native SemOps transmit authority; ' +
+  'no companion hardware transmit authority; deterministic simulator-only proof';
+const oneToOneMeshEvidenceLabel =
+  'SemLink-generated deterministic demo evidence; not live BlueOS, Navigator, hardware, radio, ' +
+  'or mesh reliability evidence';
+
 const generatedCompanionFleets = fixtureSnapshot.companion_fleets.map((fleet) => ({
   ...fleet,
   source_fidelity: 'generated',
@@ -35,10 +50,8 @@ const generatedCompanionFleets = fixtureSnapshot.companion_fleets.map((fleet) =>
   semlink_commit: 'semlink-demo-local',
   generator_profile: 'ardurover-sitl-mixed',
   simulator_family: 'ardupilot',
-  no_transmit_posture:
-    `${fleet.no_transmit_posture}; SemLink-generated artifact; no native SemOps transmit authority; no companion hardware transmit authority; ArduPilot SITL is simulator-only proof`,
-  demo_evidence_label:
-    'SemLink-generated mixed-fidelity evidence with 1 ArduPilot SITL-backed node; not live BlueOS, not Navigator, not hardware, not radio, and not n live ArduPilot vehicles',
+  no_transmit_posture: `${fleet.no_transmit_posture}; ${mixedSITLNoTransmitPosture}`,
+  demo_evidence_label: mixedSITLEvidenceLabel,
   provenance: {
     ...fleet.provenance,
     owner: 'semlink.generated.artifact',
@@ -63,6 +76,33 @@ const generatedCompanionFleets = fixtureSnapshot.companion_fleets.map((fleet) =>
           vehicle_source: 'SemLink deterministic companion summary'
         }
   )
+}));
+
+const oneToOneMeshCompanionFleets = fixtureSnapshot.companion_fleets.map((fleet) => ({
+  ...fleet,
+  vehicle_profile: 'ardurover',
+  source_fidelity: 'deterministic',
+  live_source_summary: oneToOneMeshLiveSummary,
+  sitl_backed_nodes: 0,
+  semlink_commit: '11f7e6dafea06898f1262877b7d0300e311237f1',
+  generator_command: 'semlink-demo -mode mesh -nodes 3 -vehicle-profile ardurover',
+  generator_profile: 'mesh-deterministic',
+  no_transmit_posture: `${fleet.no_transmit_posture}; ${oneToOneMeshNoTransmitPosture}`,
+  raw_mavlink_policy: 'raw MAVLink frames are local-only by default; selected summaries replicate',
+  demo_evidence_label: oneToOneMeshEvidenceLabel,
+  provenance: {
+    ...fleet.provenance,
+    owner: 'semlink.generated.artifact',
+    source_ref: 'semlink-artifact://semlink-companion-demo-artifact-v0/simple-mesh-companion-demo/19700101T000020Z',
+    observed_at: '1970-01-01T00:00:20Z'
+  },
+  nodes: fleet.nodes.map((node, index) => ({
+    ...node,
+    id: `vehicle-node-00${index + 1}`,
+    source_fidelity: 'deterministic',
+    live_source_posture: 'deterministic SemLink companion summary evidence',
+    ttl_merge_posture: 'last-writer-wins-with-ttl'
+  }))
 }));
 
 const snapshotWithADSB: Snapshot = {
@@ -144,6 +184,15 @@ const snapshotWithADSB: Snapshot = {
   ),
   tracks: [...fixtureSnapshot.tracks, adsbTrack],
   companion_fleets: generatedCompanionFleets
+};
+
+const snapshotWithOneToOneMesh: Snapshot = {
+  ...snapshotWithADSB,
+  companion_fleets: oneToOneMeshCompanionFleets,
+  summary: {
+    ...snapshotWithADSB.summary,
+    active_companion_nodes: 3
+  }
 };
 
 const runtimeSnapshot: RuntimeSnapshot = {
@@ -261,7 +310,7 @@ const scenarioControls: ScenarioControls = {
   checkpoint_state: 'blocked'
 };
 
-async function routeCOPState(page: Page) {
+async function routeCOPState(page: Page, baseSnapshot: Snapshot = snapshotWithADSB) {
   let snapshotRequests = 0;
   let associationReview: AssociationReview | undefined;
   let lastReviewOperatorHeader: string | null = null;
@@ -269,14 +318,14 @@ async function routeCOPState(page: Page) {
     snapshotRequests += 1;
     const snapshot = associationReview
       ? {
-          ...snapshotWithADSB,
-          associations: snapshotWithADSB.associations.map((association) =>
+          ...baseSnapshot,
+          associations: baseSnapshot.associations.map((association) =>
             association.id === associationReview?.association_id
               ? { ...association, operator_review: associationReview }
               : association
           )
         }
-      : snapshotWithADSB;
+      : baseSnapshot;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -485,6 +534,40 @@ test('renders API-backed COP state with ADS-B discovery and selection', async ({
   await page.getByRole('button', { name: 'Refresh COP snapshot' }).click();
   await expect.poll(routes.snapshotRequests).toBeGreaterThanOrEqual(2);
   await expect(page.getByLabel('Entity inspector')).toContainText('challenged');
+});
+
+test('renders SemLink one-to-one mesh artifact posture', async ({ page }) => {
+  await routeCOPState(page, snapshotWithOneToOneMesh);
+
+  await page.goto('/');
+
+  const companionFleetEvidence = page.getByLabel('SemLink companion fleet evidence');
+  await expect(companionFleetEvidence).toContainText('SemLink companion fleet');
+  await expect(companionFleetEvidence).toContainText('3 nodes');
+  await expect(companionFleetEvidence).not.toContainText('SITL');
+
+  const companionFleetRow = page.getByRole('button', { name: 'Inspect SemLink companion fleet' });
+  await companionFleetRow.click();
+
+  const inspector = page.getByLabel('Entity inspector');
+  await expect(inspector).toContainText('simple-mesh-companion-demo');
+  await expect(inspector).toContainText('ardurover');
+  await expect(inspector).toContainText('deterministic');
+  await expect(inspector).toContainText(oneToOneMeshLiveSummary);
+  await expect(inspector).toContainText('mesh-deterministic');
+  await expect(inspector).toContainText('11f7e6dafea06898f1262877b7d0300e311237f1');
+  await expect(inspector).toContainText('vehicle-node-001');
+  await expect(inspector).toContainText('vehicle-node-002');
+  await expect(inspector).toContainText('vehicle-node-003');
+  await expect(inspector).toContainText('1 vehicle / 2 peers / 3 watermarks');
+  await expect(inspector).toContainText('summaries 1 -> 3');
+  await expect(inspector).toContainText('raw MAVLink excluded from mesh summaries');
+  await expect(inspector).toContainText('raw MAVLink frames are local-only by default; selected summaries replicate');
+  await expect(inspector).toContainText('no native transmit authority');
+  await expect(inspector).toContainText('no companion hardware transmit authority');
+  await expect(inspector).toContainText('not live BlueOS');
+  await expect(inspector).toContainText('not authorized');
+  await expect(inspector).not.toContainText('SITL-backed ardupilot');
 });
 
 test('keeps core operator loop accessible in a narrow viewport', async ({ page }) => {

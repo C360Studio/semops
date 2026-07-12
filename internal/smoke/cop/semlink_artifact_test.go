@@ -3,6 +3,7 @@ package cop
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,6 +12,29 @@ import (
 )
 
 const liveSemLinkArtifactPathEnv = "SEMOPS_COP_SMOKE_SEMLINK_ARTIFACT_PATH"
+
+func TestSemLinkGeneratedOneToOneMeshArtifactFixtureSmoke(t *testing.T) {
+	artifactPath := semLinkArtifactFixturePath("generated-one-to-one-mesh.artifact.json")
+	artifact, err := semlinkdemo.LoadArtifactFile(artifactPath, semlinkdemo.ArtifactOptions{})
+	if err != nil {
+		t.Fatalf("load SemLink artifact %s: %v", artifactPath, err)
+	}
+
+	fleet := requireSemLinkArtifactCOPSnapshot(t, artifact)
+	if artifact.Report.Kind != semlinkdemo.SimpleMeshReportKind ||
+		artifact.Source.SourceFidelity != semlinkdemo.FidelityDeterministic ||
+		artifact.Report.ExpectedSummaries != 3 {
+		t.Fatalf("fixture is not the one-to-one mesh proof: artifact=%+v report=%+v", artifact.Source, artifact.Report)
+	}
+	if fleet.NodeCount != 3 || fleet.VehicleCount != 3 || fleet.ExpectedSummaries != 3 || fleet.SITLBackedNodes != 0 {
+		t.Fatalf("one-to-one mesh fleet = %+v", fleet)
+	}
+	for _, node := range fleet.Nodes {
+		if node.VehicleCount != 1 || node.FinalSummaryCount != 3 || node.WatermarkCount != 3 {
+			t.Fatalf("one-to-one node evidence = %+v", node)
+		}
+	}
+}
 
 func TestSemLinkGeneratedArtifactSmoke(t *testing.T) {
 	artifactPath := strings.TrimSpace(os.Getenv(liveSemLinkArtifactPathEnv))
@@ -32,6 +56,11 @@ func TestSemLinkGeneratedArtifactSmoke(t *testing.T) {
 		t.Fatalf("artifact source lacks real SemLink source ref: %+v", artifact.Source)
 	}
 
+	requireSemLinkArtifactCOPSnapshot(t, artifact)
+}
+
+func requireSemLinkArtifactCOPSnapshot(t *testing.T, artifact semlinkdemo.Artifact) copapi.CompanionFleet {
+	t.Helper()
 	provider := copapi.NewSemLinkArtifactProvider(artifact, copapi.NewFixtureProvider(nil))
 	snapshot, err := provider.Snapshot(context.Background())
 	if err != nil {
@@ -39,13 +68,22 @@ func TestSemLinkGeneratedArtifactSmoke(t *testing.T) {
 	}
 	fleet := generatedSemLinkFleet(t, snapshot.CompanionFleets)
 	if snapshot.Summary.ActiveCompanionNodes != fleet.NodeCount {
-		t.Fatalf("active companion nodes = %d, want artifact fleet node count %d", snapshot.Summary.ActiveCompanionNodes, fleet.NodeCount)
+		t.Fatalf(
+			"active companion nodes = %d, want artifact fleet node count %d",
+			snapshot.Summary.ActiveCompanionNodes,
+			fleet.NodeCount,
+		)
 	}
 	if fleet.Source != "semlink" || fleet.SourceFidelity == "" {
 		t.Fatalf("fleet source metadata = %+v", fleet)
 	}
 	if fleet.NodeCount != artifact.Report.NodeCount() || len(fleet.Nodes) != artifact.Report.NodeCount() {
-		t.Fatalf("fleet nodes = %d/%d, want artifact report node count %d", fleet.NodeCount, len(fleet.Nodes), artifact.Report.NodeCount())
+		t.Fatalf(
+			"fleet nodes = %d/%d, want artifact report node count %d",
+			fleet.NodeCount,
+			len(fleet.Nodes),
+			artifact.Report.NodeCount(),
+		)
 	}
 	if !fleet.RawMAVLinkExcluded {
 		t.Fatalf("raw MAVLink exclusion not preserved: %+v", fleet.RawMAVLinkExclusion)
@@ -58,6 +96,7 @@ func TestSemLinkGeneratedArtifactSmoke(t *testing.T) {
 		t.Fatalf("no-transmit posture missing expected boundaries: %q", fleet.NoTransmitPosture)
 	}
 	requireFidelitySpecificSmoke(t, artifact, fleet)
+	return fleet
 }
 
 func hasReleaseSourceRef(source semlinkdemo.ArtifactSource) bool {
@@ -102,7 +141,11 @@ func requireFidelitySpecificSmoke(t *testing.T, artifact semlinkdemo.Artifact, f
 		requireSITLNodeMetadata(t, fleet)
 	case semlinkdemo.FidelityDeterministic, semlinkdemo.FidelityGenerated:
 		if fleet.SITLBackedNodes != sourceSITLNodeCount(artifact.Source.Nodes) {
-			t.Fatalf("SITL-backed node count = %d, want source metadata count %d", fleet.SITLBackedNodes, sourceSITLNodeCount(artifact.Source.Nodes))
+			t.Fatalf(
+				"SITL-backed node count = %d, want source metadata count %d",
+				fleet.SITLBackedNodes,
+				sourceSITLNodeCount(artifact.Source.Nodes),
+			)
 		}
 	case semlinkdemo.FidelityHardwareAdjacent:
 		t.Fatalf("hardware-adjacent artifact smoke requires a separate acceptance lane: %+v", artifact.Source)
@@ -139,4 +182,8 @@ func sourceSITLNodeCount(nodes []semlinkdemo.NodeSource) int {
 		}
 	}
 	return count
+}
+
+func semLinkArtifactFixturePath(name string) string {
+	return filepath.Join("..", "..", "..", "testdata", "contracts", "semlink-companion-demo-v0", name)
 }

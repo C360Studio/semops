@@ -170,6 +170,8 @@ func semLinkLiveSourceSummary(nodeCount int, sitlNodes int, sourceFidelity strin
 		return fmt.Sprintf("%d SemLink nodes; deterministic fixture evidence; 0 SITL-backed nodes", nodeCount)
 	case semlinkdemo.FidelityGenerated:
 		return fmt.Sprintf("%d SemLink nodes; SemLink-generated deterministic evidence; 0 SITL-backed nodes", nodeCount)
+	case semlinkdemo.FidelityDeterministic:
+		return fmt.Sprintf("%d SemLink nodes; SemLink-generated deterministic evidence; 0 SITL-backed nodes", nodeCount)
 	case semlinkdemo.FidelityHardwareAdjacent:
 		return fmt.Sprintf("%d SemLink nodes; hardware-adjacent source evidence; 0 SITL-backed nodes", nodeCount)
 	default:

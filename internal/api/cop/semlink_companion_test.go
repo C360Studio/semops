@@ -121,11 +121,52 @@ func TestCompanionFleetFromSemLinkGeneratedArtifactLabelsMixedSITL(t *testing.T)
 	}
 }
 
+func TestCompanionFleetFromSemLinkGeneratedOneToOneMeshArtifact(t *testing.T) {
+	artifact := mustDecodeSemLinkArtifactFixture(t, "generated-one-to-one-mesh.artifact.json")
+
+	fleet := CompanionFleetFromSemLinkArtifact(artifact)
+
+	if fleet.EvidenceKind != semlinkdemo.SimpleMeshReportKind ||
+		fleet.SourceFidelity != semlinkdemo.FidelityDeterministic ||
+		fleet.NodeCount != 3 ||
+		fleet.VehicleCount != 3 ||
+		fleet.ExpectedSummaries != 3 {
+		t.Fatalf("one-to-one mesh fleet = %+v", fleet)
+	}
+	if fleet.SemLinkCommit != "11f7e6dafea06898f1262877b7d0300e311237f1" ||
+		fleet.GeneratorCommand != "semlink-demo -mode mesh -nodes 3 -vehicle-profile ardurover" ||
+		fleet.GeneratorProfile != "mesh-deterministic" {
+		t.Fatalf("generated source metadata missing: %+v", fleet)
+	}
+	if fleet.SITLBackedNodes != 0 ||
+		!strings.Contains(fleet.LiveSourceSummary, "SemLink-generated deterministic evidence") ||
+		!strings.Contains(fleet.DemoEvidenceLabel, "not live BlueOS") ||
+		!strings.Contains(fleet.DemoEvidenceLabel, "not live BlueOS, Navigator, hardware, radio") {
+		t.Fatalf("one-to-one source labels overclaim: %+v", fleet)
+	}
+	if !fleet.RawMAVLinkExcluded ||
+		!strings.Contains(fleet.RawMAVLinkPolicy, "local-only") ||
+		!strings.Contains(fleet.NoTransmitPosture, "no native transmit authority") ||
+		!strings.Contains(fleet.NoTransmitPosture, "no companion hardware transmit authority") {
+		t.Fatalf("mesh safety posture missing: %+v", fleet)
+	}
+	for _, node := range fleet.Nodes {
+		if node.VehicleCount != 1 ||
+			node.InitialSummaryCount != 1 ||
+			node.FinalSummaryCount != 3 ||
+			node.WatermarkCount != 3 ||
+			node.AppliedDiffCount != 2 ||
+			node.DiffItemCount != 2 ||
+			node.SourceFidelity != semlinkdemo.FidelityDeterministic {
+			t.Fatalf("one-to-one node evidence = %+v", node)
+		}
+	}
+}
+
 func TestSemLinkArtifactProviderOverlaysFixtureFleet(t *testing.T) {
 	now := time.Date(2026, 7, 9, 12, 6, 0, 0, time.UTC)
-	path := filepath.Join("..", "..", "..", "testdata", "contracts", "semlink-companion-demo-v0", "generated-mixed-sitl.artifact.json")
 	provider, err := NewSemLinkArtifactProviderFromFile(
-		path,
+		semLinkArtifactFixturePath("generated-mixed-sitl.artifact.json"),
 		NewFixtureProvider(func() time.Time { return now }),
 		semlinkdemo.ArtifactOptions{
 			Now:    func() time.Time { return now },
@@ -152,15 +193,56 @@ func TestSemLinkArtifactProviderOverlaysFixtureFleet(t *testing.T) {
 		t.Fatalf("provider fleet = %+v", fleet)
 	}
 	if len(snapshot.Tracks) == 0 || len(snapshot.Tasks) == 0 {
-		t.Fatalf("provider should preserve fallback COP content: tracks=%d tasks=%d", len(snapshot.Tracks), len(snapshot.Tasks))
+		t.Fatalf(
+			"provider should preserve fallback COP content: tracks=%d tasks=%d",
+			len(snapshot.Tracks),
+			len(snapshot.Tasks),
+		)
+	}
+}
+
+func TestSemLinkArtifactProviderOverlaysOneToOneMeshArtifact(t *testing.T) {
+	provider, err := NewSemLinkArtifactProviderFromFile(
+		semLinkArtifactFixturePath("generated-one-to-one-mesh.artifact.json"),
+		NewFixtureProvider(func() time.Time { return time.Unix(20, 0).UTC() }),
+		semlinkdemo.ArtifactOptions{},
+	)
+	if err != nil {
+		t.Fatalf("artifact provider: %v", err)
+	}
+
+	snapshot, err := provider.Snapshot(t.Context())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+
+	if snapshot.Summary.ActiveCompanionNodes != 3 {
+		t.Fatalf("active companion nodes = %d, want 3", snapshot.Summary.ActiveCompanionNodes)
+	}
+	if len(snapshot.CompanionFleets) != 1 {
+		t.Fatalf("companion fleets = %d, want 1", len(snapshot.CompanionFleets))
+	}
+	fleet := snapshot.CompanionFleets[0]
+	if fleet.SourceFidelity != semlinkdemo.FidelityDeterministic ||
+		fleet.SITLBackedNodes != 0 ||
+		fleet.NodeCount != 3 ||
+		fleet.ExpectedSummaries != 3 ||
+		!fleet.RawMAVLinkExcluded {
+		t.Fatalf("provider one-to-one mesh fleet = %+v", fleet)
+	}
+	if len(snapshot.Tracks) == 0 || len(snapshot.Tasks) == 0 {
+		t.Fatalf(
+			"provider should preserve fallback COP content: tracks=%d tasks=%d",
+			len(snapshot.Tracks),
+			len(snapshot.Tasks),
+		)
 	}
 }
 
 func TestSemLinkArtifactProviderReplacesFixtureFleetWhenArtifactKindChanges(t *testing.T) {
 	now := time.Date(2026, 7, 11, 15, 1, 0, 0, time.UTC)
-	path := filepath.Join("..", "..", "..", "testdata", "contracts", "semlink-companion-demo-v0", "generated-sitl-single.artifact.json")
 	provider, err := NewSemLinkArtifactProviderFromFile(
-		path,
+		semLinkArtifactFixturePath("generated-sitl-single.artifact.json"),
 		NewFixtureProvider(func() time.Time { return now }),
 		semlinkdemo.ArtifactOptions{
 			Now:    func() time.Time { return now },
@@ -190,7 +272,11 @@ func TestSemLinkArtifactProviderReplacesFixtureFleetWhenArtifactKindChanges(t *t
 		t.Fatalf("provider fleet = %+v", fleet)
 	}
 	if len(snapshot.Tracks) == 0 || len(snapshot.Tasks) == 0 {
-		t.Fatalf("provider should preserve fallback COP content: tracks=%d tasks=%d", len(snapshot.Tracks), len(snapshot.Tasks))
+		t.Fatalf(
+			"provider should preserve fallback COP content: tracks=%d tasks=%d",
+			len(snapshot.Tracks),
+			len(snapshot.Tasks),
+		)
 	}
 }
 
@@ -218,7 +304,7 @@ func TestFixtureProviderIncludesSemLinkCompanionFleet(t *testing.T) {
 
 func mustDecodeSemLinkArtifactFixture(t *testing.T, name string) semlinkdemo.Artifact {
 	t.Helper()
-	path := filepath.Join("..", "..", "..", "testdata", "contracts", "semlink-companion-demo-v0", name)
+	path := semLinkArtifactFixturePath(name)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", path, err)
@@ -232,7 +318,7 @@ func mustDecodeSemLinkArtifactFixture(t *testing.T, name string) semlinkdemo.Art
 
 func mustDecodeSemLinkDemoFixture(t *testing.T, name string) semlinkdemo.Report {
 	t.Helper()
-	path := filepath.Join("..", "..", "..", "testdata", "contracts", "semlink-companion-demo-v0", name)
+	path := semLinkArtifactFixturePath(name)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", path, err)
@@ -242,4 +328,8 @@ func mustDecodeSemLinkDemoFixture(t *testing.T, name string) semlinkdemo.Report 
 		t.Fatalf("decode fixture %s: %v", name, err)
 	}
 	return report
+}
+
+func semLinkArtifactFixturePath(name string) string {
+	return filepath.Join("..", "..", "..", "testdata", "contracts", "semlink-companion-demo-v0", name)
 }

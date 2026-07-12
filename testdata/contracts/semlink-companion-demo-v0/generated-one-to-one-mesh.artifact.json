@@ -1,0 +1,96 @@
+{
+  "artifact_kind": "semlink-companion-demo-artifact-v0",
+  "generated_at": "1970-01-01T00:00:20Z",
+  "source": {
+    "source_fidelity": "deterministic",
+    "semlink_commit": "11f7e6dafea06898f1262877b7d0300e311237f1",
+    "generator_command": "semlink-demo -mode mesh -nodes 3 -vehicle-profile ardurover",
+    "generator_profile": "mesh-deterministic",
+    "no_transmit_posture": "SemLink companion demo artifact; no native SemOps transmit authority; no companion hardware transmit authority; deterministic simulator-only proof"
+  },
+  "report": {
+    "kind": "simple-mesh-companion-demo",
+    "generated_at": "1970-01-01T00:00:20Z",
+    "vehicle_profile": "ardurover",
+    "expected_summaries": 3,
+    "nodes": [
+      {
+        "node_id": "vehicle-node-001",
+        "vehicle_count": 1,
+        "peer_count": 2,
+        "peer_urls": [
+          "http://127.0.0.1:49376",
+          "http://127.0.0.1:49377"
+        ],
+        "initial_summary_count": 1,
+        "final_summary_count": 3,
+        "watermark_count": 3,
+        "applied_diff_count": 2,
+        "diff_item_count": 2,
+        "ttl_merge_posture": "last-writer-wins-with-ttl"
+      },
+      {
+        "node_id": "vehicle-node-002",
+        "vehicle_count": 1,
+        "peer_count": 2,
+        "peer_urls": [
+          "http://127.0.0.1:49375",
+          "http://127.0.0.1:49377"
+        ],
+        "initial_summary_count": 1,
+        "final_summary_count": 3,
+        "watermark_count": 3,
+        "applied_diff_count": 2,
+        "diff_item_count": 2,
+        "ttl_merge_posture": "last-writer-wins-with-ttl"
+      },
+      {
+        "node_id": "vehicle-node-003",
+        "vehicle_count": 1,
+        "peer_count": 2,
+        "peer_urls": [
+          "http://127.0.0.1:49375",
+          "http://127.0.0.1:49376"
+        ],
+        "initial_summary_count": 1,
+        "final_summary_count": 3,
+        "watermark_count": 3,
+        "applied_diff_count": 2,
+        "diff_item_count": 2,
+        "ttl_merge_posture": "last-writer-wins-with-ttl"
+      }
+    ],
+    "raw_mavlink_exclusion": {
+      "rejected_by_summary_index": true,
+      "policy": "raw MAVLink frames are local-only by default; selected summaries replicate",
+      "error": "mesh source_kind \"mavlink-raw\" does not replicate over mesh by default"
+    },
+    "assertions": [
+      {
+        "name": "local-mesh-runtimes",
+        "passed": true,
+        "detail": "nodes=3"
+      },
+      {
+        "name": "watermark-diff-catch-up",
+        "passed": true,
+        "detail": "each node reached expected selected summaries"
+      },
+      {
+        "name": "bounded-diff-counts",
+        "passed": true,
+        "detail": "diff counts stayed inside configured pull bound"
+      },
+      {
+        "name": "ttl-merge-posture",
+        "passed": true,
+        "detail": "last-writer-wins with TTL"
+      },
+      {
+        "name": "raw-mavlink-excluded",
+        "passed": true,
+        "detail": "raw MAVLink frames are local-only by default; selected summaries replicate"
+      }
+    ]
+  }
+}
