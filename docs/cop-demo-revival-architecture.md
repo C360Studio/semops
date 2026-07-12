@@ -26,10 +26,10 @@ Product boundary:
   rule processing, shared utility packages, and tiered structural/statistical/semantic services.
 - SemConnect owns the standards-facing OGC Connected Systems API bridge and conformance evidence while SemOps keeps
   native feed ingestion and governed COP state as the product core.
-- SemLink is now the boat-local companion and mesh-node product path, likely targeting BlueOS/Navigator/Pi
-  deployments. SemOps should reuse its modern GCS UI, source-aware graph lens, TAK bridge, CS API bridge, and bounded
-  raw telemetry patterns where useful, while SemOps owns the broad COP, cross-node fusion, GCS glass, and product
-  command-authority posture going forward.
+- SemLink is now the vehicle-local companion product path, likely targeting BlueOS/Navigator/Pi deployments. SemOps
+  should treat MVP SemLink as one companion boundary per vehicle, reuse its modern GCS UI, source-aware graph lens,
+  TAK bridge, CS API bridge, and bounded raw telemetry patterns where useful, and own the broad COP, fleet
+  aggregation, mesh/multiplex handling, cross-node fusion, GCS glass, and product command-authority posture.
 
 SemOps should act as both consumer and producer for SemStreams improvement. Build product-specific pieces here,
 then upstream generic manifest, governance, tiering, indexing, and provenance needs only once the demo proves them.
@@ -237,9 +237,10 @@ SemLink has the current companion/mesh product pattern:
 - Projection contracts declare ownership and indexing profiles before writing through SemStreams graph mutation
   subjects.
 - A Svelte 5 dashboard and CS API bridge already prove the operator and standards-projection shape.
-- Its revived BlueOS/Navigator/Pi direction makes SemLink a likely boat-local mesh peer for ArduPilot vehicles. That
-  raises the priority of safe bidirectional MAVLink readback, command-intent projection, and GCS glass in SemOps, but
-  not mission upload, mode change, arm/disarm, offboard control, or hardware authority in the MVP.
+- Its revived BlueOS/Navigator/Pi direction makes SemLink a likely vehicle-local companion peer for ArduPilot
+  vehicles. SemOps owns the fleet aggregation and mesh/multiplex view across those companions. That raises the
+  priority of safe bidirectional MAVLink readback, command-intent projection, and GCS glass in SemOps, but not mission
+  upload, mode change, arm/disarm, offboard control, or hardware authority in the MVP.
 
 ## COP UI Baseline
 

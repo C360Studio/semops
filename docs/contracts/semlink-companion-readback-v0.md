@@ -14,6 +14,11 @@ This contract defines the MVP SemLink-to-SemOps companion path for one safe Ardu
 The hot path is native and low friction. SemLink does not need to expose or consume CS API to submit this MVP request.
 SemOps still proves standards interop at the SemConnect/CS API edge.
 
+For MVP, this contract assumes one vehicle-local SemLink companion boundary per vehicle. SemLink may report MAVLink
+`target_system_id` and `target_component_id`, but SemOps owns fleet-level aggregation, mesh/multiplex handling,
+canonical COP target derivation, and any cross-companion deduplication. A multi-vehicle aggregator or gateway can
+exist later, but it is a SemOps deployment/ingress concern unless SemLink explicitly opts into that profile.
+
 ## Directionality
 
 The MVP has two separate paths:
@@ -55,6 +60,9 @@ The trusted boundary must provide:
 
 `X-SemOps-SemLink-Mesh-Node-ID` is a compatibility alias during staged rollout. The body field `companion_node_id` is
 canonical in v0.
+
+`companion_node_id` identifies the authenticated vehicle-local companion boundary. It is not distributed mesh
+causality metadata, and it is not a requirement that one SemLink runtime multiplex multiple vehicles.
 
 ## Request
 
